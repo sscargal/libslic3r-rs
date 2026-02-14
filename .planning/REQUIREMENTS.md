@@ -1,7 +1,7 @@
 # Requirements: libslic3r-rs
 
 **Defined:** 2026-02-14
-**Core Value:** The plugin architecture and AI integration must work from day one — modularity and intelligence are not bolt-ons.
+**Core Value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
 
 ## v1 Requirements
 
@@ -14,8 +14,8 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 - [ ] **FOUND-03**: WASM compilation target (wasm32-wasi and wasm32-unknown-unknown)
 - [ ] **FOUND-04**: Coordinate precision strategy locked (f64 vs i64 vs hybrid)
 - [ ] **FOUND-05**: Polygon boolean operations work (i-overlay or clipper2-rust)
-- [ ] **FOUND-06**: Performance matches or beats C++ libslic3r (≥1.0x, targeting ≥1.5x)
-- [ ] **FOUND-07**: Memory usage ≤80% of C++ libslic3r
+- [ ] **FOUND-06**: Performance matches or beats C++ libslic3r (>=1.0x, targeting >=1.5x)
+- [ ] **FOUND-07**: Memory usage <=80% of C++ libslic3r
 - [ ] **FOUND-08**: Test coverage >80% on core algorithms
 
 ### Mesh I/O (MESH)
@@ -103,7 +103,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 
 - [ ] **AI-01**: Provider-agnostic LLM abstraction layer
 - [ ] **AI-02**: Geometry analysis API (extract features from mesh)
-- [ ] **AI-03**: Profile suggestion endpoint (send geometry → receive settings)
+- [ ] **AI-03**: Profile suggestion endpoint (send geometry -> receive settings)
 - [ ] **AI-04**: Local LLM support (ollama, llama.cpp)
 - [ ] **AI-05**: Cloud LLM support (OpenAI, Anthropic, custom endpoints)
 - [ ] **AI-06**: Example: AI-driven profile suggestion for uploaded model
@@ -115,13 +115,13 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 - [ ] **API-03**: JSON structured output (settings, slicing results, metadata)
 - [ ] **API-04**: MessagePack structured output option
 - [ ] **API-05**: Event system for progress, warnings, errors (pub/sub)
-- [ ] **API-06**: C FFI layer for cross-language use (C-compatible API)
-- [ ] **API-07**: Python bindings via PyO3
+- [ ] ~~**API-06**: C FFI layer for cross-language use (C-compatible API)~~ **EXCLUDED** -- conflicts with PROJECT.md Out of Scope (no FFI bindings)
+- [ ] ~~**API-07**: Python bindings via PyO3~~ **EXCLUDED** -- conflicts with PROJECT.md Out of Scope (no FFI bindings)
 
 ### Quality & Testing (TEST)
 
 - [ ] **TEST-01**: Unit tests for all core algorithms
-- [ ] **TEST-02**: Integration tests (STL → G-code validation)
+- [ ] **TEST-02**: Integration tests (STL -> G-code validation)
 - [ ] **TEST-03**: Golden file tests (compare output to PrusaSlicer/OrcaSlicer)
 - [ ] **TEST-04**: Fuzz testing on mesh parsers
 - [ ] **TEST-05**: Benchmark suite (performance regression detection)
@@ -163,7 +163,7 @@ Deferred to future milestones. Not in v1 roadmap.
 - **UI-01**: Settings tier system (5 tiers: AI Auto, Simple, Intermediate, Advanced, Developer)
 - **UI-02**: Settings metadata (affects/affected_by graph)
 - **UI-03**: Interactive setting exploration (what-if scenarios)
-- **UI-04**: Profile hierarchy (printer → filament → print quality)
+- **UI-04**: Profile hierarchy (printer -> filament -> print quality)
 
 ## Out of Scope
 
@@ -173,6 +173,8 @@ Deferred to future milestones. Not in v1 roadmap.
 | Printer communication (OctoPrint/Moonraker) | Integration layer lives outside core slicing |
 | Resin/SLA/DLP slicing | FDM only for v1; different algorithms entirely |
 | FFI bindings to C++/Go | Pure Rust constraint; build Rust crates instead |
+| C FFI layer (API-06) | Conflicts with pure Rust constraint; excluded from v1 |
+| Python bindings (API-07) | Conflicts with pure Rust constraint; excluded from v1 |
 | Material science database | External service; not embedded in slicer |
 | Filament drying/storage management | Physical workflow, not slicing software |
 | Direct printer firmware development | Core generates G-code; firmware is separate |
@@ -183,13 +185,109 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (Populated by roadmapper) | - | - |
+| FOUND-01 | Phase 1 | Pending |
+| FOUND-04 | Phase 1 | Pending |
+| FOUND-05 | Phase 1 | Pending |
+| FOUND-08 | Phase 1 | Pending |
+| MESH-09 | Phase 1 | Pending |
+| MESH-01 | Phase 2 | Pending |
+| MESH-02 | Phase 2 | Pending |
+| MESH-03 | Phase 2 | Pending |
+| MESH-04 | Phase 2 | Pending |
+| MESH-05 | Phase 2 | Pending |
+| MESH-06 | Phase 2 | Pending |
+| MESH-07 | Phase 2 | Pending |
+| MESH-08 | Phase 2 | Pending |
+| SLICE-01 | Phase 3 | Pending |
+| SLICE-03 | Phase 3 | Pending |
+| SLICE-05 | Phase 3 | Pending |
+| PERIM-01 | Phase 3 | Pending |
+| PERIM-03 | Phase 3 | Pending |
+| INFILL-01 | Phase 3 | Pending |
+| INFILL-11 | Phase 3 | Pending |
+| INFILL-12 | Phase 3 | Pending |
+| GCODE-01 | Phase 3 | Pending |
+| GCODE-05 | Phase 3 | Pending |
+| GCODE-07 | Phase 3 | Pending |
+| GCODE-08 | Phase 3 | Pending |
+| GCODE-09 | Phase 3 | Pending |
+| GCODE-10 | Phase 3 | Pending |
+| API-02 | Phase 3 | Pending |
+| SLICE-02 | Phase 4 | Pending |
+| SLICE-04 | Phase 4 | Pending |
+| PERIM-02 | Phase 4 | Pending |
+| PERIM-04 | Phase 4 | Pending |
+| PERIM-05 | Phase 4 | Pending |
+| PERIM-06 | Phase 4 | Pending |
+| INFILL-02 | Phase 4 | Pending |
+| INFILL-03 | Phase 4 | Pending |
+| INFILL-04 | Phase 4 | Pending |
+| INFILL-05 | Phase 4 | Pending |
+| INFILL-06 | Phase 4 | Pending |
+| INFILL-07 | Phase 4 | Pending |
+| INFILL-08 | Phase 4 | Pending |
+| SUPP-01 | Phase 5 | Pending |
+| SUPP-02 | Phase 5 | Pending |
+| SUPP-03 | Phase 5 | Pending |
+| SUPP-04 | Phase 5 | Pending |
+| SUPP-05 | Phase 5 | Pending |
+| SUPP-06 | Phase 5 | Pending |
+| SUPP-07 | Phase 5 | Pending |
+| SUPP-08 | Phase 5 | Pending |
+| GCODE-02 | Phase 6 | Pending |
+| GCODE-03 | Phase 6 | Pending |
+| GCODE-04 | Phase 6 | Pending |
+| GCODE-06 | Phase 6 | Pending |
+| GCODE-11 | Phase 6 | Pending |
+| GCODE-12 | Phase 6 | Pending |
+| GCODE-13 | Phase 6 | Pending |
+| ADV-01 | Phase 6 | Pending |
+| ADV-02 | Phase 6 | Pending |
+| ADV-03 | Phase 6 | Pending |
+| ADV-04 | Phase 6 | Pending |
+| ADV-05 | Phase 6 | Pending |
+| ADV-06 | Phase 6 | Pending |
+| ADV-07 | Phase 6 | Pending |
+| ADV-08 | Phase 6 | Pending |
+| INFILL-09 | Phase 6 | Pending |
+| INFILL-10 | Phase 6 | Pending |
+| PLUGIN-01 | Phase 7 | Pending |
+| PLUGIN-02 | Phase 7 | Pending |
+| PLUGIN-03 | Phase 7 | Pending |
+| PLUGIN-04 | Phase 7 | Pending |
+| PLUGIN-05 | Phase 7 | Pending |
+| PLUGIN-06 | Phase 7 | Pending |
+| PLUGIN-07 | Phase 7 | Pending |
+| AI-01 | Phase 8 | Pending |
+| AI-02 | Phase 8 | Pending |
+| AI-03 | Phase 8 | Pending |
+| AI-04 | Phase 8 | Pending |
+| AI-05 | Phase 8 | Pending |
+| AI-06 | Phase 8 | Pending |
+| FOUND-02 | Phase 9 | Pending |
+| FOUND-03 | Phase 9 | Pending |
+| FOUND-06 | Phase 9 | Pending |
+| FOUND-07 | Phase 9 | Pending |
+| API-01 | Phase 9 | Pending |
+| API-03 | Phase 9 | Pending |
+| API-04 | Phase 9 | Pending |
+| API-05 | Phase 9 | Pending |
+| TEST-01 | Phase 9 | Pending |
+| TEST-02 | Phase 9 | Pending |
+| TEST-03 | Phase 9 | Pending |
+| TEST-04 | Phase 9 | Pending |
+| TEST-05 | Phase 9 | Pending |
+| TEST-06 | Phase 9 | Pending |
+| TEST-07 | Phase 9 | Pending |
+| API-06 | EXCLUDED | Scope conflict with PROJECT.md |
+| API-07 | EXCLUDED | Scope conflict with PROJECT.md |
 
 **Coverage:**
 - v1 requirements: 86 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 86 ⚠️
+- Mapped to phases: 84
+- Excluded (scope conflict): 2 (API-06, API-07)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-14*
-*Last updated: 2026-02-14 after initial definition*
+*Last updated: 2026-02-14 after roadmap creation*
