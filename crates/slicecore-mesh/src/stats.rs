@@ -94,11 +94,7 @@ pub fn compute_stats(mesh: &TriangleMesh) -> MeshStats {
     for i in 0..triangle_count {
         let tri = mesh.indices()[i];
         // Three edges per triangle.
-        let edges = [
-            (tri[0], tri[1]),
-            (tri[1], tri[2]),
-            (tri[2], tri[0]),
-        ];
+        let edges = [(tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])];
         for &(a, b) in &edges {
             let key = if a < b { (a, b) } else { (b, a) };
             edge_map.entry(key).or_default().push((i, a, b));
@@ -197,14 +193,20 @@ mod tests {
         ];
         let mesh = TriangleMesh::new(vertices, vec![[0, 1, 2]]).unwrap();
         let stats = compute_stats(&mesh);
-        assert!(!stats.is_watertight, "Single triangle should not be watertight");
+        assert!(
+            !stats.is_watertight,
+            "Single triangle should not be watertight"
+        );
     }
 
     #[test]
     fn degenerate_count_zero_for_clean_cube() {
         let mesh = unit_cube();
         let stats = compute_stats(&mesh);
-        assert_eq!(stats.degenerate_count, 0, "Unit cube should have no degenerate triangles");
+        assert_eq!(
+            stats.degenerate_count, 0,
+            "Unit cube should have no degenerate triangles"
+        );
     }
 
     #[test]
@@ -218,7 +220,10 @@ mod tests {
         ];
         let mesh = TriangleMesh::new(vertices, vec![[0, 1, 2], [0, 1, 3]]).unwrap();
         let stats = compute_stats(&mesh);
-        assert_eq!(stats.degenerate_count, 1, "Should have 1 degenerate triangle");
+        assert_eq!(
+            stats.degenerate_count, 1,
+            "Should have 1 degenerate triangle"
+        );
     }
 
     #[test]
@@ -231,13 +236,12 @@ mod tests {
             Point3::new(0.5, -1.0, 0.0),
             Point3::new(0.5, 0.5, 1.0),
         ];
-        let mesh = TriangleMesh::new(
-            vertices,
-            vec![[0, 1, 2], [0, 1, 3], [0, 1, 4]],
-        )
-        .unwrap();
+        let mesh = TriangleMesh::new(vertices, vec![[0, 1, 2], [0, 1, 3], [0, 1, 4]]).unwrap();
         let stats = compute_stats(&mesh);
-        assert!(!stats.is_manifold, "3 triangles sharing one edge is non-manifold");
+        assert!(
+            !stats.is_manifold,
+            "3 triangles sharing one edge is non-manifold"
+        );
     }
 
     #[test]

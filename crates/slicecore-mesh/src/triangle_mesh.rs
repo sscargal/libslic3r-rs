@@ -220,10 +220,7 @@ pub(crate) mod tests {
 
     #[test]
     fn out_of_bounds_index_returns_error() {
-        let vertices = vec![
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(1.0, 0.0, 0.0),
-        ];
+        let vertices = vec![Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 0.0, 0.0)];
         let result = TriangleMesh::new(vertices, vec![[0, 1, 5]]);
         assert!(matches!(result, Err(MeshError::IndexOutOfBounds(5, 2))));
     }

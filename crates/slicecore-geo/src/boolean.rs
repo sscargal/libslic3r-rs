@@ -146,14 +146,9 @@ mod tests {
     use crate::polygon::Polygon;
     /// Helper to create a validated CCW square at a given position and size.
     fn make_square(x: f64, y: f64, size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (x, y),
-            (x + size, y),
-            (x + size, y + size),
-            (x, y + size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(x, y), (x + size, y), (x + size, y + size), (x, y + size)])
+            .validate()
+            .unwrap()
     }
 
     /// Helper to get net area in mm^2 of a list of polygons.
@@ -177,7 +172,10 @@ mod tests {
         let a = make_square(0.0, 0.0, 10.0); // (0,0)-(10,10)
         let b = make_square(5.0, 0.0, 10.0); // (5,0)-(15,10)
         let result = polygon_union(&[a], &[b]).unwrap();
-        assert!(!result.is_empty(), "Union should produce at least one polygon");
+        assert!(
+            !result.is_empty(),
+            "Union should produce at least one polygon"
+        );
         let area = total_area_mm2(&result);
         // Two 10x10 squares overlapping by 5x10 = 200 - 50 = 150 mm^2
         assert!(
@@ -195,11 +193,7 @@ mod tests {
         assert!(!result.is_empty());
         let area = total_area_mm2(&result);
         // Overlap is 5x10 = 50 mm^2
-        assert!(
-            (area - 50.0).abs() < 1.0,
-            "Expected ~50 mm^2, got {}",
-            area
-        );
+        assert!((area - 50.0).abs() < 1.0, "Expected ~50 mm^2, got {}", area);
     }
 
     #[test]
@@ -210,11 +204,7 @@ mod tests {
         assert!(!result.is_empty());
         let area = total_area_mm2(&result);
         // A - B = 100 - 50 = 50 mm^2
-        assert!(
-            (area - 50.0).abs() < 1.0,
-            "Expected ~50 mm^2, got {}",
-            area
-        );
+        assert!((area - 50.0).abs() < 1.0, "Expected ~50 mm^2, got {}", area);
     }
 
     #[test]
@@ -282,10 +272,7 @@ mod tests {
         let a = make_square(2.0, 2.0, 6.0); // inner
         let b = make_square(0.0, 0.0, 10.0); // outer
         let result = polygon_difference(&[a], &[b]).unwrap();
-        assert!(
-            result.is_empty(),
-            "A fully inside B: A - B should be empty"
-        );
+        assert!(result.is_empty(), "A fully inside B: A - B should be empty");
     }
 
     #[test]
@@ -293,10 +280,7 @@ mod tests {
         let a = make_square(0.0, 0.0, 10.0);
         let b = make_square(0.0, 0.0, 10.0);
         let result = polygon_difference(&[a], &[b]).unwrap();
-        assert!(
-            result.is_empty(),
-            "Identical: A - A should be empty"
-        );
+        assert!(result.is_empty(), "Identical: A - A should be empty");
     }
 
     #[test]
@@ -427,11 +411,7 @@ mod tests {
     #[test]
     fn degenerate_very_small_polygon() {
         // Very small polygon: 1 micrometer triangle (1e-3 mm)
-        let small = Polygon::from_mm(&[
-            (0.0, 0.0),
-            (0.001, 0.0),
-            (0.0, 0.001),
-        ]);
+        let small = Polygon::from_mm(&[(0.0, 0.0), (0.001, 0.0), (0.0, 0.001)]);
         if let Ok(valid_small) = small.validate() {
             let other = make_square(0.0, 0.0, 10.0);
             let result = polygon_union(&[other], &[valid_small]).unwrap();
@@ -475,7 +455,10 @@ mod tests {
         let circle = Polygon::from_mm(&points).validate().unwrap();
         let square = make_square(45.0, 45.0, 10.0);
         let result = polygon_intersection(&[circle], &[square]).unwrap();
-        assert!(!result.is_empty(), "Circle-square intersection should produce result");
+        assert!(
+            !result.is_empty(),
+            "Circle-square intersection should produce result"
+        );
     }
 
     #[test]

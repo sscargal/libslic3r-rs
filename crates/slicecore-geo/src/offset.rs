@@ -118,8 +118,8 @@ pub fn offset_polygon(
         delta as f64,
         join_type.to_clipper(),
         EndType::Polygon,
-        2.0,  // miter_limit
-        0.0,  // arc_tolerance (0 = auto)
+        2.0, // miter_limit
+        0.0, // arc_tolerance (0 = auto)
     );
     Ok(paths_to_valid_polygons(&result))
 }
@@ -146,8 +146,8 @@ pub fn offset_polygons(
         delta as f64,
         join_type.to_clipper(),
         EndType::Polygon,
-        2.0,  // miter_limit
-        0.0,  // arc_tolerance (0 = auto)
+        2.0, // miter_limit
+        0.0, // arc_tolerance (0 = auto)
     );
     Ok(paths_to_valid_polygons(&result))
 }
@@ -164,14 +164,9 @@ mod tests {
 
     /// Helper to create a validated CCW square.
     fn make_square(x: f64, y: f64, size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (x, y),
-            (x + size, y),
-            (x + size, y + size),
-            (x, y + size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(x, y), (x + size, y), (x + size, y + size), (x, y + size)])
+            .validate()
+            .unwrap()
     }
 
     fn total_area_mm2(polys: &[ValidPolygon]) -> f64 {
@@ -204,7 +199,10 @@ mod tests {
         let sq = make_square(0.0, 0.0, 10.0);
         let original_area = sq.area_mm2();
         let result = offset_polygon(&sq, mm_to_coord(-1.0), JoinType::Miter).unwrap();
-        assert!(!result.is_empty(), "Small inward offset should produce result");
+        assert!(
+            !result.is_empty(),
+            "Small inward offset should produce result"
+        );
         let new_area = total_area_mm2(&result);
         assert!(
             new_area < original_area,
@@ -235,13 +233,9 @@ mod tests {
     #[test]
     fn offset_triangle_round() {
         // Triangle offset with round join -- should approximate rounded triangle
-        let tri = Polygon::from_mm(&[
-            (0.0, 0.0),
-            (10.0, 0.0),
-            (5.0, 10.0),
-        ])
-        .validate()
-        .unwrap();
+        let tri = Polygon::from_mm(&[(0.0, 0.0), (10.0, 0.0), (5.0, 10.0)])
+            .validate()
+            .unwrap();
         let original_area = tri.area_mm2();
         let result = offset_polygon(&tri, mm_to_coord(1.0), JoinType::Round).unwrap();
         assert!(!result.is_empty());

@@ -11,8 +11,8 @@
 //!   [`winding_direction`]) using the shoelace formula
 //! - **Point-in-polygon** ([`point_in_polygon`], [`PointLocation`]) via winding
 //!   number test
-//! - **Simplification** ([`simplify`]) via Ramer-Douglas-Peucker
-//! - **Convex hull** ([`convex_hull`]) via Graham scan
+//! - **Simplification** ([`simplify()`]) via Ramer-Douglas-Peucker
+//! - **Convex hull** ([`convex_hull()`]) via Graham scan
 //! - **Boolean operations** ([`polygon_union`], [`polygon_intersection`],
 //!   [`polygon_difference`], [`polygon_xor`]) via clipper2-rust
 //! - **Polygon offsetting** ([`offset_polygon`], [`offset_polygons`]) for
@@ -38,13 +38,13 @@ pub mod simplify;
 
 // Re-export key types at crate root.
 pub use area::{signed_area_2x, signed_area_f64, signed_area_i64, winding_direction};
+pub use boolean::{polygon_difference, polygon_intersection, polygon_union, polygon_xor};
 pub use convex_hull::convex_hull;
 pub use error::GeoError;
+pub use offset::{offset_polygon, offset_polygons, JoinType};
 pub use point_in_poly::{point_in_polygon, PointLocation};
 pub use polygon::{Polygon, ValidPolygon, Winding};
 pub use polyline::Polyline;
-pub use boolean::{polygon_difference, polygon_intersection, polygon_union, polygon_xor};
-pub use offset::{offset_polygon, offset_polygons, JoinType};
 pub use simplify::simplify;
 
 #[cfg(test)]

@@ -50,7 +50,10 @@ impl Polygon {
     /// [`IPoint2::from_mm`].
     pub fn from_mm(points: &[(f64, f64)]) -> Self {
         Self {
-            points: points.iter().map(|&(x, y)| IPoint2::from_mm(x, y)).collect(),
+            points: points
+                .iter()
+                .map(|&(x, y)| IPoint2::from_mm(x, y))
+                .collect(),
         }
     }
 
@@ -273,21 +276,11 @@ mod tests {
     use super::*;
 
     fn ccw_square_10mm() -> Polygon {
-        Polygon::from_mm(&[
-            (0.0, 0.0),
-            (10.0, 0.0),
-            (10.0, 10.0),
-            (0.0, 10.0),
-        ])
+        Polygon::from_mm(&[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)])
     }
 
     fn cw_square_10mm() -> Polygon {
-        Polygon::from_mm(&[
-            (0.0, 10.0),
-            (10.0, 10.0),
-            (10.0, 0.0),
-            (0.0, 0.0),
-        ])
+        Polygon::from_mm(&[(0.0, 10.0), (10.0, 10.0), (10.0, 0.0), (0.0, 0.0)])
     }
 
     #[test]

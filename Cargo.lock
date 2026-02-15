@@ -417,6 +417,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "slicecore-mesh"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "serde",
+ "slicecore-math",
+ "thiserror",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.115"
 source = "registry+https://github.com/rust-lang/crates.io-index"

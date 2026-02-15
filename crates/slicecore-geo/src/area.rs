@@ -31,8 +31,8 @@ pub fn signed_area_2x(points: &[IPoint2]) -> i128 {
     for i in 0..n {
         let j = (i + 1) % n;
         // Shoelace: sum of (x_i * y_{i+1} - x_{i+1} * y_i)
-        area += points[i].x as i128 * points[j].y as i128
-            - points[j].x as i128 * points[i].y as i128;
+        area +=
+            points[i].x as i128 * points[j].y as i128 - points[j].x as i128 * points[i].y as i128;
     }
     area
 }
@@ -86,11 +86,7 @@ pub(crate) fn cross_product_i128(a: &IPoint2, b: &IPoint2, c: &IPoint2) -> i128 
 /// Returns (numerator^2, denominator) where distance^2 = numerator^2 / denominator.
 /// Both values are in i128 to avoid overflow.
 #[allow(dead_code)]
-pub(crate) fn perpendicular_distance_sq(
-    p: &IPoint2,
-    a: &IPoint2,
-    b: &IPoint2,
-) -> (i128, i128) {
+pub(crate) fn perpendicular_distance_sq(p: &IPoint2, a: &IPoint2, b: &IPoint2) -> (i128, i128) {
     let dx = b.x as i128 - a.x as i128;
     let dy = b.y as i128 - a.y as i128;
     let numerator = (dy * (p.x as i128 - a.x as i128) - dx * (p.y as i128 - a.y as i128)).abs();
@@ -112,8 +108,7 @@ pub(crate) fn perpendicular_distance(p: &IPoint2, a: &IPoint2, b: &IPoint2) -> f
         let py = p.y as f64 - a.y as f64;
         return (px * px + py * py).sqrt();
     }
-    let numerator =
-        (dy * (p.x as f64 - a.x as f64) - dx * (p.y as f64 - a.y as f64)).abs();
+    let numerator = (dy * (p.x as f64 - a.x as f64) - dx * (p.y as f64 - a.y as f64)).abs();
     numerator / len_sq.sqrt()
 }
 
@@ -177,11 +172,7 @@ mod tests {
             IPoint2::from_mm(0.0, 10.0),
         ];
         let area = signed_area_f64(&tri);
-        assert!(
-            (area - 50.0).abs() < 1e-6,
-            "Expected 50 mm^2, got {}",
-            area
-        );
+        assert!((area - 50.0).abs() < 1e-6, "Expected 50 mm^2, got {}", area);
     }
 
     #[test]

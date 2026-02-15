@@ -382,8 +382,7 @@ impl BVH {
                     // triangles are candidates (individual per-triangle z-span
                     // filtering is done at a higher level if needed).
                     for i in 0..*tri_count {
-                        let tri_idx =
-                            self.tri_indices[(*first_tri + i) as usize] as usize;
+                        let tri_idx = self.tri_indices[(*first_tri + i) as usize] as usize;
                         result.push(tri_idx);
                     }
                 }
@@ -459,8 +458,7 @@ impl BVH {
                 ..
             } => {
                 for i in 0..*tri_count {
-                    let tri_idx =
-                        self.tri_indices[(*first_tri + i) as usize] as usize;
+                    let tri_idx = self.tri_indices[(*first_tri + i) as usize] as usize;
                     let tri = &indices[tri_idx];
                     let v0 = vertices[tri[0] as usize];
                     let v1 = vertices[tri[1] as usize];
@@ -639,7 +637,11 @@ mod tests {
         let mesh = unit_cube();
         let bvh = mesh.bvh();
         let result = bvh.query_plane(-1.0);
-        assert!(result.is_empty(), "Expected empty, got {} triangles", result.len());
+        assert!(
+            result.is_empty(),
+            "Expected empty, got {} triangles",
+            result.len()
+        );
     }
 
     #[test]
@@ -647,7 +649,11 @@ mod tests {
         let mesh = unit_cube();
         let bvh = mesh.bvh();
         let result = bvh.query_plane(2.0);
-        assert!(result.is_empty(), "Expected empty, got {} triangles", result.len());
+        assert!(
+            result.is_empty(),
+            "Expected empty, got {} triangles",
+            result.len()
+        );
     }
 
     #[test]
@@ -680,10 +686,6 @@ mod tests {
             .intersect_ray(&origin, &direction, mesh.vertices(), mesh.indices())
             .expect("ray should hit cube");
         // The back face of the cube is at z=0, so t should be ~1.0 (distance from z=-1 to z=0).
-        assert!(
-            (hit.t - 1.0).abs() < 1e-9,
-            "Expected t ~1.0, got {}",
-            hit.t
-        );
+        assert!((hit.t - 1.0).abs() < 1e-9, "Expected t ~1.0, got {}", hit.t);
     }
 }

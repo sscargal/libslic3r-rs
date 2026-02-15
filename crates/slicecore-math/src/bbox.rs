@@ -471,10 +471,7 @@ mod tests {
 
     #[test]
     fn bbox3_width_height_depth_volume() {
-        let bbox = BBox3::new(
-            Point3::new(1.0, 2.0, 3.0),
-            Point3::new(4.0, 6.0, 9.0),
-        );
+        let bbox = BBox3::new(Point3::new(1.0, 2.0, 3.0), Point3::new(4.0, 6.0, 9.0));
         assert!((bbox.width() - 3.0).abs() < 1e-12);
         assert!((bbox.height() - 4.0).abs() < 1e-12);
         assert!((bbox.depth() - 6.0).abs() < 1e-12);
@@ -483,14 +480,8 @@ mod tests {
 
     #[test]
     fn bbox3_union() {
-        let a = BBox3::new(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(1.0, 1.0, 1.0),
-        );
-        let b = BBox3::new(
-            Point3::new(2.0, 2.0, 2.0),
-            Point3::new(3.0, 3.0, 3.0),
-        );
+        let a = BBox3::new(Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 1.0, 1.0));
+        let b = BBox3::new(Point3::new(2.0, 2.0, 2.0), Point3::new(3.0, 3.0, 3.0));
         let u = a.union(&b);
         assert_eq!(u.min, Point3::new(0.0, 0.0, 0.0));
         assert_eq!(u.max, Point3::new(3.0, 3.0, 3.0));
@@ -498,23 +489,14 @@ mod tests {
 
     #[test]
     fn bbox3_intersection_returns_none() {
-        let a = BBox3::new(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(1.0, 1.0, 1.0),
-        );
-        let b = BBox3::new(
-            Point3::new(2.0, 2.0, 2.0),
-            Point3::new(3.0, 3.0, 3.0),
-        );
+        let a = BBox3::new(Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 1.0, 1.0));
+        let b = BBox3::new(Point3::new(2.0, 2.0, 2.0), Point3::new(3.0, 3.0, 3.0));
         assert!(a.intersection(&b).is_none());
     }
 
     #[test]
     fn bbox3_contains_point() {
-        let bbox = BBox3::new(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(10.0, 10.0, 10.0),
-        );
+        let bbox = BBox3::new(Point3::new(0.0, 0.0, 0.0), Point3::new(10.0, 10.0, 10.0));
         assert!(bbox.contains_point(&Point3::new(5.0, 5.0, 5.0)));
         assert!(!bbox.contains_point(&Point3::new(11.0, 5.0, 5.0)));
     }

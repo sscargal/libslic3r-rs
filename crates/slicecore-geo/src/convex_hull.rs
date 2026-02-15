@@ -31,9 +31,7 @@ pub fn convex_hull(points: &[IPoint2]) -> Vec<IPoint2> {
     let pivot_idx = sorted
         .iter()
         .enumerate()
-        .min_by(|(_, a), (_, b)| {
-            a.y.cmp(&b.y).then_with(|| a.x.cmp(&b.x))
-        })
+        .min_by(|(_, a), (_, b)| a.y.cmp(&b.y).then_with(|| a.x.cmp(&b.x)))
         .map(|(i, _)| i)
         .unwrap();
 
@@ -130,11 +128,7 @@ mod tests {
             IPoint2::from_mm(5.0, 5.0), // interior point
         ];
         let hull = convex_hull(&pts);
-        assert_eq!(
-            hull.len(),
-            4,
-            "Interior point should be excluded from hull"
-        );
+        assert_eq!(hull.len(), 4, "Interior point should be excluded from hull");
     }
 
     #[test]
@@ -147,7 +141,11 @@ mod tests {
         ];
         let hull = convex_hull(&pts);
         // Collinear: hull degenerates to endpoints
-        assert!(hull.len() == 2, "Collinear hull should have 2 endpoints, got {}", hull.len());
+        assert!(
+            hull.len() == 2,
+            "Collinear hull should have 2 endpoints, got {}",
+            hull.len()
+        );
     }
 
     #[test]

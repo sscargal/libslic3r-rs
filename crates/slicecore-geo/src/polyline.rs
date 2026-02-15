@@ -31,7 +31,10 @@ impl Polyline {
     /// Creates a polyline from millimeter coordinate pairs.
     pub fn from_mm(points: &[(f64, f64)]) -> Self {
         Self {
-            points: points.iter().map(|&(x, y)| IPoint2::from_mm(x, y)).collect(),
+            points: points
+                .iter()
+                .map(|&(x, y)| IPoint2::from_mm(x, y))
+                .collect(),
         }
     }
 
@@ -97,10 +100,7 @@ mod tests {
 
     #[test]
     fn polyline_from_points() {
-        let pl = Polyline::from_points(vec![
-            IPoint2::new(0, 0),
-            IPoint2::new(1_000_000, 0),
-        ]);
+        let pl = Polyline::from_points(vec![IPoint2::new(0, 0), IPoint2::new(1_000_000, 0)]);
         assert_eq!(pl.len(), 2);
     }
 
@@ -115,11 +115,7 @@ mod tests {
         // Horizontal line from (0,0) to (10mm, 0)
         let pl = Polyline::from_mm(&[(0.0, 0.0), (10.0, 0.0)]);
         let len = pl.length_mm();
-        assert!(
-            (len - 10.0).abs() < 1e-3,
-            "Expected 10mm, got {}",
-            len
-        );
+        assert!((len - 10.0).abs() < 1e-3, "Expected 10mm, got {}", len);
     }
 
     #[test]
@@ -127,11 +123,7 @@ mod tests {
         // L-shaped path: (0,0) -> (10,0) -> (10,10)
         let pl = Polyline::from_mm(&[(0.0, 0.0), (10.0, 0.0), (10.0, 10.0)]);
         let len = pl.length_mm();
-        assert!(
-            (len - 20.0).abs() < 1e-3,
-            "Expected 20mm, got {}",
-            len
-        );
+        assert!((len - 20.0).abs() < 1e-3, "Expected 20mm, got {}", len);
     }
 
     #[test]

@@ -1,5 +1,7 @@
 # Build artifacts
 /target/
+**/*.rs.bk
+*.pdb
 
 # IDE / editor
 .idea/

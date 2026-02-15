@@ -31,5 +31,7 @@ pub use bvh::{RayHit, BVH};
 pub use error::MeshError;
 pub use spatial::{closest_point_on_mesh, query_triangles_at_z, ray_cast};
 pub use stats::{compute_stats, MeshStats};
-pub use transform::{center_on_origin, mirror, place_on_bed, rotate, scale, transform, translate, MirrorAxis};
+pub use transform::{
+    center_on_origin, mirror, place_on_bed, rotate, scale, transform, translate, MirrorAxis,
+};
 pub use triangle_mesh::TriangleMesh;

@@ -1,0 +1,2 @@
+# Clippy configuration for libslic3r-rs
+too-many-arguments-threshold = 8

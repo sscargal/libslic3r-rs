@@ -67,8 +67,7 @@ pub fn scale(mesh: &TriangleMesh, sx: f64, sy: f64, sz: f64) -> TriangleMesh {
         mesh.indices().to_vec()
     };
 
-    TriangleMesh::new(vertices, indices)
-        .expect("scaled mesh should be valid (same topology)")
+    TriangleMesh::new(vertices, indices).expect("scaled mesh should be valid (same topology)")
 }
 
 /// Rotates all vertices around an arbitrary axis by `angle_rad` radians.
@@ -118,8 +117,7 @@ pub fn mirror(mesh: &TriangleMesh, axis: MirrorAxis) -> TriangleMesh {
         .map(|tri| [tri[0], tri[2], tri[1]])
         .collect();
 
-    TriangleMesh::new(vertices, indices)
-        .expect("mirrored mesh should be valid (same topology)")
+    TriangleMesh::new(vertices, indices).expect("mirrored mesh should be valid (same topology)")
 }
 
 /// Applies a general affine transformation via a 4x4 matrix.
@@ -150,8 +148,7 @@ pub fn transform(mesh: &TriangleMesh, matrix: &Matrix4x4) -> TriangleMesh {
         mesh.indices().to_vec()
     };
 
-    TriangleMesh::new(vertices, indices)
-        .expect("transformed mesh should be valid (same topology)")
+    TriangleMesh::new(vertices, indices).expect("transformed mesh should be valid (same topology)")
 }
 
 /// Translates the mesh so its AABB center is at the origin.
@@ -208,7 +205,10 @@ mod tests {
 
         // Winding should be reversed, so normals still consistent
         let stats = compute_stats(&mirrored);
-        assert!(stats.has_consistent_winding, "Winding should be consistent after mirror");
+        assert!(
+            stats.has_consistent_winding,
+            "Winding should be consistent after mirror"
+        );
     }
 
     #[test]
@@ -227,7 +227,11 @@ mod tests {
         // First translate up
         let lifted = translate(&mesh, 0.0, 0.0, 5.0);
         let placed = place_on_bed(&lifted);
-        assert!((placed.aabb().min.z).abs() < 1e-9, "min.z: {}", placed.aabb().min.z);
+        assert!(
+            (placed.aabb().min.z).abs() < 1e-9,
+            "min.z: {}",
+            placed.aabb().min.z
+        );
     }
 
     #[test]
@@ -240,16 +244,8 @@ mod tests {
         // Find the transformed vertex closest to what was (1,0,0).
         // The original vertex 1 is (1,0,0). After rotation: (0,1,0).
         let v = rotated.vertices()[1]; // vertex 1 was (1,0,0)
-        assert!(
-            (v.x - 0.0).abs() < 1e-9,
-            "Expected x ~0.0, got {}",
-            v.x
-        );
-        assert!(
-            (v.y - 1.0).abs() < 1e-9,
-            "Expected y ~1.0, got {}",
-            v.y
-        );
+        assert!((v.x - 0.0).abs() < 1e-9, "Expected x ~0.0, got {}", v.x);
+        assert!((v.y - 1.0).abs() < 1e-9, "Expected y ~1.0, got {}", v.y);
     }
 
     #[test]
