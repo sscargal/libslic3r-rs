@@ -1,0 +1,7 @@
+[build]
+# Use incremental compilation for faster dev builds
+incremental = true
+
+[target.wasm32-unknown-unknown]
+# WASM-specific settings
+rustflags = ["-C", "opt-level=s"]
