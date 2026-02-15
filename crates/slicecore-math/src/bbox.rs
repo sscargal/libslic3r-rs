@@ -348,3 +348,219 @@ impl IBBox2 {
         p.x >= self.min.x && p.x <= self.max.x && p.y >= self.min.y && p.y <= self.max.y
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- BBox2 tests ---
+
+    #[test]
+    fn bbox2_from_points_empty_returns_none() {
+        let result = BBox2::from_points(&[]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn bbox2_from_points_single_point() {
+        let pts = [Point2::new(5.0, 10.0)];
+        let bbox = BBox2::from_points(&pts).unwrap();
+        assert_eq!(bbox.min, Point2::new(5.0, 10.0));
+        assert_eq!(bbox.max, Point2::new(5.0, 10.0));
+    }
+
+    #[test]
+    fn bbox2_from_points_multiple() {
+        let pts = [
+            Point2::new(1.0, 5.0),
+            Point2::new(3.0, 2.0),
+            Point2::new(-1.0, 8.0),
+        ];
+        let bbox = BBox2::from_points(&pts).unwrap();
+        assert_eq!(bbox.min, Point2::new(-1.0, 2.0));
+        assert_eq!(bbox.max, Point2::new(3.0, 8.0));
+    }
+
+    #[test]
+    fn bbox2_union_non_overlapping() {
+        let a = BBox2::new(Point2::new(0.0, 0.0), Point2::new(1.0, 1.0));
+        let b = BBox2::new(Point2::new(5.0, 5.0), Point2::new(6.0, 6.0));
+        let u = a.union(&b);
+        assert_eq!(u.min, Point2::new(0.0, 0.0));
+        assert_eq!(u.max, Point2::new(6.0, 6.0));
+    }
+
+    #[test]
+    fn bbox2_intersection_overlapping() {
+        let a = BBox2::new(Point2::new(0.0, 0.0), Point2::new(3.0, 3.0));
+        let b = BBox2::new(Point2::new(1.0, 1.0), Point2::new(5.0, 5.0));
+        let inter = a.intersection(&b).unwrap();
+        assert_eq!(inter.min, Point2::new(1.0, 1.0));
+        assert_eq!(inter.max, Point2::new(3.0, 3.0));
+    }
+
+    #[test]
+    fn bbox2_intersection_non_overlapping_returns_none() {
+        let a = BBox2::new(Point2::new(0.0, 0.0), Point2::new(1.0, 1.0));
+        let b = BBox2::new(Point2::new(5.0, 5.0), Point2::new(6.0, 6.0));
+        assert!(a.intersection(&b).is_none());
+    }
+
+    #[test]
+    fn bbox2_contains_point_inside() {
+        let bbox = BBox2::new(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0));
+        assert!(bbox.contains_point(&Point2::new(5.0, 5.0)));
+    }
+
+    #[test]
+    fn bbox2_contains_point_on_boundary() {
+        let bbox = BBox2::new(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0));
+        assert!(bbox.contains_point(&Point2::new(0.0, 5.0)));
+        assert!(bbox.contains_point(&Point2::new(10.0, 10.0)));
+    }
+
+    #[test]
+    fn bbox2_contains_point_outside() {
+        let bbox = BBox2::new(Point2::new(0.0, 0.0), Point2::new(10.0, 10.0));
+        assert!(!bbox.contains_point(&Point2::new(-1.0, 5.0)));
+        assert!(!bbox.contains_point(&Point2::new(5.0, 11.0)));
+    }
+
+    #[test]
+    fn bbox2_width_height_area() {
+        let bbox = BBox2::new(Point2::new(1.0, 2.0), Point2::new(4.0, 6.0));
+        assert!((bbox.width() - 3.0).abs() < 1e-12);
+        assert!((bbox.height() - 4.0).abs() < 1e-12);
+        assert!((bbox.area() - 12.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn bbox2_center() {
+        let bbox = BBox2::new(Point2::new(0.0, 0.0), Point2::new(10.0, 20.0));
+        let center = bbox.center();
+        assert_eq!(center, Point2::new(5.0, 10.0));
+    }
+
+    #[test]
+    fn bbox2_expand() {
+        let bbox = BBox2::new(Point2::new(1.0, 1.0), Point2::new(3.0, 3.0));
+        let expanded = bbox.expand(0.5);
+        assert_eq!(expanded.min, Point2::new(0.5, 0.5));
+        assert_eq!(expanded.max, Point2::new(3.5, 3.5));
+    }
+
+    // --- BBox3 tests ---
+
+    #[test]
+    fn bbox3_from_points_empty_returns_none() {
+        let result = BBox3::from_points(&[]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn bbox3_from_points_multiple() {
+        let pts = [
+            Point3::new(1.0, 5.0, 2.0),
+            Point3::new(3.0, 2.0, 8.0),
+            Point3::new(-1.0, 8.0, 4.0),
+        ];
+        let bbox = BBox3::from_points(&pts).unwrap();
+        assert_eq!(bbox.min, Point3::new(-1.0, 2.0, 2.0));
+        assert_eq!(bbox.max, Point3::new(3.0, 8.0, 8.0));
+    }
+
+    #[test]
+    fn bbox3_width_height_depth_volume() {
+        let bbox = BBox3::new(
+            Point3::new(1.0, 2.0, 3.0),
+            Point3::new(4.0, 6.0, 9.0),
+        );
+        assert!((bbox.width() - 3.0).abs() < 1e-12);
+        assert!((bbox.height() - 4.0).abs() < 1e-12);
+        assert!((bbox.depth() - 6.0).abs() < 1e-12);
+        assert!((bbox.volume() - 72.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn bbox3_union() {
+        let a = BBox3::new(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(1.0, 1.0, 1.0),
+        );
+        let b = BBox3::new(
+            Point3::new(2.0, 2.0, 2.0),
+            Point3::new(3.0, 3.0, 3.0),
+        );
+        let u = a.union(&b);
+        assert_eq!(u.min, Point3::new(0.0, 0.0, 0.0));
+        assert_eq!(u.max, Point3::new(3.0, 3.0, 3.0));
+    }
+
+    #[test]
+    fn bbox3_intersection_returns_none() {
+        let a = BBox3::new(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(1.0, 1.0, 1.0),
+        );
+        let b = BBox3::new(
+            Point3::new(2.0, 2.0, 2.0),
+            Point3::new(3.0, 3.0, 3.0),
+        );
+        assert!(a.intersection(&b).is_none());
+    }
+
+    #[test]
+    fn bbox3_contains_point() {
+        let bbox = BBox3::new(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(10.0, 10.0, 10.0),
+        );
+        assert!(bbox.contains_point(&Point3::new(5.0, 5.0, 5.0)));
+        assert!(!bbox.contains_point(&Point3::new(11.0, 5.0, 5.0)));
+    }
+
+    // --- IBBox2 tests ---
+
+    #[test]
+    fn ibbox2_from_points_empty() {
+        assert!(IBBox2::from_points(&[]).is_none());
+    }
+
+    #[test]
+    fn ibbox2_from_points() {
+        let pts = [
+            IPoint2::new(10, 20),
+            IPoint2::new(-5, 50),
+            IPoint2::new(30, -10),
+        ];
+        let bbox = IBBox2::from_points(&pts).unwrap();
+        assert_eq!(bbox.min, IPoint2::new(-5, -10));
+        assert_eq!(bbox.max, IPoint2::new(30, 50));
+    }
+
+    #[test]
+    fn ibbox2_union() {
+        let a = IBBox2::new(IPoint2::new(0, 0), IPoint2::new(10, 10));
+        let b = IBBox2::new(IPoint2::new(20, 20), IPoint2::new(30, 30));
+        let u = a.union(&b);
+        assert_eq!(u.min, IPoint2::new(0, 0));
+        assert_eq!(u.max, IPoint2::new(30, 30));
+    }
+
+    #[test]
+    fn ibbox2_intersection() {
+        let a = IBBox2::new(IPoint2::new(0, 0), IPoint2::new(10, 10));
+        let b = IBBox2::new(IPoint2::new(5, 5), IPoint2::new(15, 15));
+        let inter = a.intersection(&b).unwrap();
+        assert_eq!(inter.min, IPoint2::new(5, 5));
+        assert_eq!(inter.max, IPoint2::new(10, 10));
+    }
+
+    #[test]
+    fn ibbox2_contains_point() {
+        let bbox = IBBox2::new(IPoint2::new(0, 0), IPoint2::new(100, 100));
+        assert!(bbox.contains_point(&IPoint2::new(50, 50)));
+        assert!(bbox.contains_point(&IPoint2::new(0, 0)));
+        assert!(!bbox.contains_point(&IPoint2::new(101, 50)));
+    }
+}

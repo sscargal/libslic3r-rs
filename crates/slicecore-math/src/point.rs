@@ -223,3 +223,151 @@ impl Neg for Point3 {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn point2_construction() {
+        let p = Point2::new(1.5, 2.5);
+        assert_eq!(p.x, 1.5);
+        assert_eq!(p.y, 2.5);
+    }
+
+    #[test]
+    fn point2_zero() {
+        let p = Point2::zero();
+        assert_eq!(p.x, 0.0);
+        assert_eq!(p.y, 0.0);
+    }
+
+    #[test]
+    fn point3_construction() {
+        let p = Point3::new(1.0, 2.0, 3.0);
+        assert_eq!(p.x, 1.0);
+        assert_eq!(p.y, 2.0);
+        assert_eq!(p.z, 3.0);
+    }
+
+    #[test]
+    fn point3_zero() {
+        let p = Point3::zero();
+        assert_eq!(p, Point3::new(0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn point2_distance_to() {
+        let a = Point2::new(0.0, 0.0);
+        let b = Point2::new(3.0, 4.0);
+        let dist = a.distance_to(&b);
+        assert!((dist - 5.0).abs() < 1e-12, "distance: {}", dist);
+    }
+
+    #[test]
+    fn point3_distance_to() {
+        let a = Point3::new(0.0, 0.0, 0.0);
+        let b = Point3::new(1.0, 2.0, 2.0);
+        let dist = a.distance_to(&b);
+        assert!((dist - 3.0).abs() < 1e-12, "distance: {}", dist);
+    }
+
+    #[test]
+    fn point2_midpoint() {
+        let a = Point2::new(0.0, 0.0);
+        let b = Point2::new(4.0, 6.0);
+        let mid = a.midpoint(&b);
+        assert_eq!(mid, Point2::new(2.0, 3.0));
+    }
+
+    #[test]
+    fn point3_midpoint() {
+        let a = Point3::new(0.0, 0.0, 0.0);
+        let b = Point3::new(4.0, 6.0, 8.0);
+        let mid = a.midpoint(&b);
+        assert_eq!(mid, Point3::new(2.0, 3.0, 4.0));
+    }
+
+    #[test]
+    fn point2_to_ipoint2_round_trip() {
+        let p = Point2::new(123.456, 789.012);
+        let ip = p.to_ipoint2();
+        let p2 = Point2::from(ip);
+        assert!((p2.x - p.x).abs() < 1e-6, "x: {} vs {}", p2.x, p.x);
+        assert!((p2.y - p.y).abs() < 1e-6, "y: {} vs {}", p2.y, p.y);
+    }
+
+    #[test]
+    fn point3_to_point2_drops_z() {
+        let p3 = Point3::new(1.0, 2.0, 99.0);
+        let p2 = p3.to_point2();
+        assert_eq!(p2, Point2::new(1.0, 2.0));
+    }
+
+    #[test]
+    fn point2_add() {
+        let a = Point2::new(1.0, 2.0);
+        let b = Point2::new(3.0, 4.0);
+        let result = a + b;
+        assert_eq!(result, Point2::new(4.0, 6.0));
+    }
+
+    #[test]
+    fn point2_sub() {
+        let a = Point2::new(5.0, 7.0);
+        let b = Point2::new(1.0, 2.0);
+        let result = a - b;
+        assert_eq!(result, Point2::new(4.0, 5.0));
+    }
+
+    #[test]
+    fn point2_neg() {
+        let p = Point2::new(3.0, -4.0);
+        let result = -p;
+        assert_eq!(result, Point2::new(-3.0, 4.0));
+    }
+
+    #[test]
+    fn point3_add() {
+        let a = Point3::new(1.0, 2.0, 3.0);
+        let b = Point3::new(4.0, 5.0, 6.0);
+        let result = a + b;
+        assert_eq!(result, Point3::new(5.0, 7.0, 9.0));
+    }
+
+    #[test]
+    fn point3_sub() {
+        let a = Point3::new(5.0, 7.0, 9.0);
+        let b = Point3::new(1.0, 2.0, 3.0);
+        let result = a - b;
+        assert_eq!(result, Point3::new(4.0, 5.0, 6.0));
+    }
+
+    #[test]
+    fn point3_neg() {
+        let p = Point3::new(1.0, -2.0, 3.0);
+        let result = -p;
+        assert_eq!(result, Point3::new(-1.0, 2.0, -3.0));
+    }
+
+    #[test]
+    fn point2_approx_eq() {
+        let a = Point2::new(1.0, 2.0);
+        let b = Point2::new(1.0 + 1e-10, 2.0 - 1e-10);
+        assert_eq!(a, b); // Should be equal within EPSILON
+    }
+
+    #[test]
+    fn point2_not_approx_eq() {
+        let a = Point2::new(1.0, 2.0);
+        let b = Point2::new(1.0 + 1e-8, 2.0);
+        assert_ne!(a, b); // Should NOT be equal (exceeds EPSILON)
+    }
+
+    #[test]
+    fn point2_from_ipoint2() {
+        let ip = IPoint2::new(1_500_000, 2_500_000);
+        let p = Point2::from(ip);
+        assert_eq!(p, Point2::new(1.5, 2.5));
+    }
+}

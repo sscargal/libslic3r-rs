@@ -132,3 +132,126 @@ impl Div<Coord> for IPoint2 {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ipoint2_new_constructs_correctly() {
+        let p = IPoint2::new(100, 200);
+        assert_eq!(p.x, 100);
+        assert_eq!(p.y, 200);
+    }
+
+    #[test]
+    fn ipoint2_from_mm_positive() {
+        let p = IPoint2::from_mm(1.0, 2.5);
+        assert_eq!(p.x, 1_000_000);
+        assert_eq!(p.y, 2_500_000);
+    }
+
+    #[test]
+    fn ipoint2_from_mm_negative() {
+        let p = IPoint2::from_mm(-1.0, -0.5);
+        assert_eq!(p.x, -1_000_000);
+        assert_eq!(p.y, -500_000);
+    }
+
+    #[test]
+    fn ipoint2_to_mm_round_trip() {
+        // Typical 3D printing value: center of a 200mm bed
+        let p = IPoint2::from_mm(100.123, 200.456);
+        let (x, y) = p.to_mm();
+        assert!((x - 100.123).abs() < 1e-6, "x round-trip: {} vs 100.123", x);
+        assert!((y - 200.456).abs() < 1e-6, "y round-trip: {} vs 200.456", y);
+    }
+
+    #[test]
+    fn ipoint2_to_mm_round_trip_small_increments() {
+        // 0.001mm increments (typical layer height resolution)
+        for i in 0..100 {
+            let val = i as f64 * 0.001;
+            let p = IPoint2::from_mm(val, val);
+            let (x, _y) = p.to_mm();
+            assert!((x - val).abs() < 1e-6, "failed at {} mm", val);
+        }
+    }
+
+    #[test]
+    fn ipoint2_from_mm_large_value_no_overflow() {
+        let p = IPoint2::from_mm(500.0, 500.0);
+        assert_eq!(p.x, 500_000_000);
+        assert_eq!(p.y, 500_000_000);
+        // Verify round-trip
+        let (x, y) = p.to_mm();
+        assert!((x - 500.0).abs() < 1e-9);
+        assert!((y - 500.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn ipoint2_add() {
+        let a = IPoint2::new(10, 20);
+        let b = IPoint2::new(30, 40);
+        let result = a + b;
+        assert_eq!(result, IPoint2::new(40, 60));
+    }
+
+    #[test]
+    fn ipoint2_sub() {
+        let a = IPoint2::new(50, 60);
+        let b = IPoint2::new(10, 20);
+        let result = a - b;
+        assert_eq!(result, IPoint2::new(40, 40));
+    }
+
+    #[test]
+    fn ipoint2_neg() {
+        let p = IPoint2::new(10, -20);
+        let result = -p;
+        assert_eq!(result, IPoint2::new(-10, 20));
+    }
+
+    #[test]
+    fn ipoint2_mul_scalar() {
+        let p = IPoint2::new(5, 10);
+        let result = p * 3;
+        assert_eq!(result, IPoint2::new(15, 30));
+    }
+
+    #[test]
+    fn ipoint2_div_scalar() {
+        let p = IPoint2::new(30, 60);
+        let result = p / 3;
+        assert_eq!(result, IPoint2::new(10, 20));
+    }
+
+    #[test]
+    fn coord_scale_value() {
+        assert_eq!(COORD_SCALE, 1_000_000.0);
+    }
+
+    #[test]
+    fn ipoint2_zero() {
+        let p = IPoint2::zero();
+        assert_eq!(p.x, 0);
+        assert_eq!(p.y, 0);
+    }
+
+    #[test]
+    fn ipoint2_serde_round_trip() {
+        let p = IPoint2::new(12345, -67890);
+        let json = serde_json::to_string(&p).unwrap();
+        let deserialized: IPoint2 = serde_json::from_str(&json).unwrap();
+        assert_eq!(p, deserialized);
+    }
+
+    #[test]
+    fn ipoint2_ordering() {
+        let a = IPoint2::new(1, 2);
+        let b = IPoint2::new(1, 3);
+        let c = IPoint2::new(2, 0);
+        assert!(a < b);
+        assert!(b < c);
+    }
+}
