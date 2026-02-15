@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 1 of 9 (Foundation Types and Geometry Core)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Executing phase 1
-Last activity: 2026-02-15 -- Completed 01-02-PLAN.md (slicecore-geo polygon types and boolean ops)
+Last activity: 2026-02-15 -- Completed 01-03-PLAN.md (slicecore-mesh TriangleMesh and BVH)
 
-Progress: [##........] 6% (2/4 plans in phase 1, 2/~36 overall)
+Progress: [###.......] 8% (3/4 plans in phase 1, 3/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 8.5 min
-- Total execution time: 0.28 hours
+- Total plans completed: 3
+- Average duration: 7.7 min
+- Total execution time: 0.38 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01    | 2     | 17min | 8.5min   |
+| 01    | 3     | 23min | 7.7min   |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (8min), 01-02 (9min)
-- Trend: stable
+- Last 5 plans: 01-01 (8min), 01-02 (9min), 01-03 (6min)
+- Trend: improving
 
 *Updated after each plan completion*
 
@@ -56,6 +56,11 @@ Recent decisions affecting current work:
 - [01-02]: Boolean ops use NonZero fill rule; degenerate result paths silently filtered
 - [01-02]: Winding convention: CCW = outer boundary (positive area), CW = hole (negative area)
 - [01-02]: Offset collapse returns empty Vec (not error) when inward offset exceeds half-width
+- [01-03]: OnceLock for lazy BVH: thread-safe lazy init, TriangleMesh automatically Send+Sync
+- [01-03]: SAH with 12 buckets and max 4 triangles per leaf for BVH construction
+- [01-03]: All mesh transforms return new meshes (immutable pattern), original unchanged
+- [01-03]: Negative-determinant transforms auto-reverse winding for consistent normals
+- [01-03]: Closest-point-on-mesh uses brute-force (acceptable for Phase 1, TODO for BVH acceleration)
 
 ### Pending Todos
 
@@ -68,5 +73,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-15
-Stopped at: Completed 01-02-PLAN.md, ready for 01-03
-Resume file: .planning/phases/01-foundation-types-and-geometry-core/01-02-SUMMARY.md
+Stopped at: Completed 01-03-PLAN.md, ready for 01-04
+Resume file: .planning/phases/01-foundation-types-and-geometry-core/01-03-SUMMARY.md
