@@ -34,11 +34,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Polygon offsetting (inward and outward) produces correct results, validated against Clipper2 reference output for the same inputs
   4. TriangleMesh data structure exists with BVH-accelerated spatial queries, uses arena+index pattern (no Rc/RefCell), and is Send+Sync
   5. `cargo build --target wasm32-unknown-unknown` succeeds with zero errors on all Phase 1 crates, enforced by CI
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Cargo workspace and slicecore-math crate (coordinate types, points, vectors, bounding boxes, matrices)
+- [ ] 01-02-PLAN.md -- slicecore-geo crate (polygon types, boolean operations, offsetting, geometry utilities)
+- [ ] 01-03-PLAN.md -- slicecore-mesh crate (TriangleMesh, BVH spatial index, mesh statistics, transforms)
+- [ ] 01-04-PLAN.md -- WASM compilation gate, CI configuration, phase verification
 
 ### Phase 2: Mesh I/O and Repair
 **Goal**: Users can load real-world 3D model files from Thingiverse/Printables and get clean, valid meshes ready for slicing -- even when the source files have common defects
@@ -181,7 +183,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation Types and Geometry Core | 0/TBD | Not started | - |
+| 1. Foundation Types and Geometry Core | 0/4 | Planning complete | - |
 | 2. Mesh I/O and Repair | 0/TBD | Not started | - |
 | 3. Vertical Slice (STL to G-code) | 0/TBD | Not started | - |
 | 4. Perimeter and Infill Completeness | 0/TBD | Not started | - |
