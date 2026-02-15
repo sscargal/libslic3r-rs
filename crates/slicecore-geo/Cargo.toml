@@ -1,0 +1,16 @@
+[package]
+name = "slicecore-geo"
+description = "Polygon types, boolean operations, and geometry utilities for the slicecore 3D slicing engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+slicecore-math = { path = "../slicecore-math" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+serde_json = { workspace = true }
