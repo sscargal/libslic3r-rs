@@ -1,0 +1,15 @@
+[package]
+name = "slicecore-mesh"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Triangle mesh data structures with BVH spatial indexing for the slicecore 3D slicing engine"
+
+[dependencies]
+slicecore-math = { path = "../slicecore-math" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
