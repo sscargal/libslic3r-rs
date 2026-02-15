@@ -13,6 +13,10 @@
 //!   number test
 //! - **Simplification** ([`simplify`]) via Ramer-Douglas-Peucker
 //! - **Convex hull** ([`convex_hull`]) via Graham scan
+//! - **Boolean operations** ([`polygon_union`], [`polygon_intersection`],
+//!   [`polygon_difference`], [`polygon_xor`]) via clipper2-rust
+//! - **Polygon offsetting** ([`offset_polygon`], [`offset_polygons`]) for
+//!   inward/outward polygon inflation/deflation
 //! - **Error types** ([`GeoError`]) for validation and operation failures
 //!
 //! # Two-Tier Polygon System
@@ -23,8 +27,10 @@
 //! Downstream algorithms accept only `ValidPolygon`.
 
 pub mod area;
+pub mod boolean;
 pub mod convex_hull;
 pub mod error;
+pub mod offset;
 pub mod point_in_poly;
 pub mod polygon;
 pub mod polyline;
@@ -37,6 +43,8 @@ pub use error::GeoError;
 pub use point_in_poly::{point_in_polygon, PointLocation};
 pub use polygon::{Polygon, ValidPolygon, Winding};
 pub use polyline::Polyline;
+pub use boolean::{polygon_difference, polygon_intersection, polygon_union, polygon_xor};
+pub use offset::{offset_polygon, offset_polygons, JoinType};
 pub use simplify::simplify;
 
 #[cfg(test)]

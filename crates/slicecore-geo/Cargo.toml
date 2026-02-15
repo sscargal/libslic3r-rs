@@ -8,6 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 slicecore-math = { path = "../slicecore-math" }
+clipper2-rust = "1.0"
 serde = { workspace = true }
 thiserror = { workspace = true }
 

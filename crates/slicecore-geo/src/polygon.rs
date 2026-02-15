@@ -259,7 +259,6 @@ impl ValidPolygon {
     ///
     /// This is used internally by boolean operations and offset functions
     /// where the library guarantees the output is valid.
-    #[allow(dead_code)]
     pub(crate) fn from_raw_parts(points: Vec<IPoint2>, area: i64, winding: Winding) -> Self {
         Self {
             points,
