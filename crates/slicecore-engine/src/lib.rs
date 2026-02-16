@@ -3,11 +3,12 @@
 //! This crate ties together all pipeline stages: mesh loading, slicing,
 //! perimeter generation, infill, toolpath planning, and G-code emission.
 //!
-//! In Phase 3, only the [`config`] module is implemented. Pipeline modules
-//! will be added in subsequent plans:
+//! Current pipeline modules:
+//! - [`config`]: Print configuration with TOML deserialization
+//! - [`perimeter`]: Perimeter shell generation via polygon offsetting
+//! - [`infill`]: Rectilinear infill pattern generation
 //!
-//! - Perimeter generation (plan 03-02)
-//! - Infill pattern generation (plan 03-03)
+//! Future pipeline modules:
 //! - Surface classification (plan 03-03)
 //! - Toolpath planning (plan 03-04)
 //! - G-code generation (plan 03-05)
@@ -20,10 +21,10 @@
 
 pub mod config;
 pub mod error;
+pub mod infill;
 pub mod perimeter;
 
 // Future pipeline modules:
-// pub mod infill;
 // pub mod surface;
 // pub mod toolpath;
 // pub mod planner;
@@ -32,4 +33,7 @@ pub mod perimeter;
 // Re-export primary types at crate root.
 pub use config::{PrintConfig, WallOrder};
 pub use error::EngineError;
+pub use infill::{
+    alternate_infill_angle, generate_rectilinear_infill, InfillLine, LayerInfill,
+};
 pub use perimeter::{generate_perimeters, ContourPerimeters, PerimeterShell};
