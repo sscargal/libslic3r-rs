@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 3 of 9 (Vertical Slice STL-to-GCode)
-Plan: 4 of 6 in current phase (4 complete)
-Status: Plan 03-04 complete, planner + G-code generation
-Last activity: 2026-02-16 -- Completed 03-04-PLAN.md (planner, gcode_gen)
+Plan: 5 of 6 in current phase (5 complete)
+Status: Plan 03-05 complete, engine orchestrator + CLI binary
+Last activity: 2026-02-16 -- Completed 03-05-PLAN.md (engine pipeline, CLI)
 
-Progress: [##############] 36% (13/~36 overall)
+Progress: [###############] 39% (14/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 5.3 min
-- Total execution time: 1.18 hours
+- Total plans completed: 14
+- Average duration: 5.1 min
+- Total execution time: 1.25 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [##############] 36% (13/~36 overall)
 |-------|-------|-------|----------|
 | 01    | 4     | 26min | 6.5min   |
 | 02    | 5     | 28min | 5.6min   |
-| 03    | 4     | 18min | 4.5min   |
+| 03    | 5     | 22min | 4.4min   |
 
 **Recent Trend:**
-- Last 5 plans: 02-05 (3min), 03-01 (5min), 03-02 (3min), 03-03 (5min), 03-04 (5min)
+- Last 5 plans: 03-01 (5min), 03-02 (3min), 03-03 (5min), 03-04 (5min), 03-05 (4min)
 - Trend: stable/fast
 
 *Updated after each plan completion*
@@ -105,6 +105,11 @@ Recent decisions affecting current work:
 - [03-04]: Unretract at travel destination (after G0) matching PrusaSlicer behavior
 - [03-04]: Feature type comments use TYPE: prefix (PrusaSlicer convention)
 - [03-04]: Temperature planning: M190/M109 (wait) layer 0, M140/M104 (no wait) layer 1, empty thereafter
+- [03-05]: Engine uses Marlin dialect for Phase 3 G-code output
+- [03-05]: Brim takes priority over skirt when brim_width > 0.0
+- [03-05]: Skirt/brim toolpath segments prepended to layer 0 (not separate layer)
+- [03-05]: CLI binary named 'slicecore' with slice/validate/analyze subcommands
+- [03-05]: CLI uses eprintln + exit(1) error handling (no anyhow/eyre in Phase 3)
 
 ### Pending Todos
 
@@ -117,5 +122,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 03-04-PLAN.md -- planner (skirt/brim/retraction/temp/fan) + G-code generation
-Resume file: .planning/phases/03-vertical-slice-stl-to-gcode/03-04-SUMMARY.md
+Stopped at: Completed 03-05-PLAN.md -- engine orchestrator + CLI binary
+Resume file: .planning/phases/03-vertical-slice-stl-to-gcode/03-05-SUMMARY.md
