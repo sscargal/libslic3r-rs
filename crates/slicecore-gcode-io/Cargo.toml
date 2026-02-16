@@ -1,0 +1,15 @@
+[package]
+name = "slicecore-gcode-io"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "G-code command types, dialect-aware writer, and validator for the slicecore engine"
+
+[dependencies]
+slicecore-math = { path = "../slicecore-math" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
