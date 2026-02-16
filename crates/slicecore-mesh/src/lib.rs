@@ -21,6 +21,7 @@
 
 pub mod bvh;
 pub mod error;
+pub mod repair;
 pub mod spatial;
 pub mod stats;
 pub mod transform;
@@ -29,6 +30,7 @@ pub mod triangle_mesh;
 // Re-export primary types at crate root.
 pub use bvh::{RayHit, BVH};
 pub use error::MeshError;
+pub use repair::{repair, RepairReport};
 pub use spatial::{closest_point_on_mesh, query_triangles_at_z, ray_cast};
 pub use stats::{compute_stats, MeshStats};
 pub use transform::{
