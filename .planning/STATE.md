@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 3 of 9 (Vertical Slice STL-to-GCode)
-Plan: 3 of 6 in current phase (3 complete)
-Status: Plan 03-03 complete, surface classification + extrusion math + toolpaths
-Last activity: 2026-02-16 -- Completed 03-03-PLAN.md (surface, extrusion, toolpath)
+Plan: 4 of 6 in current phase (4 complete)
+Status: Plan 03-04 complete, planner + G-code generation
+Last activity: 2026-02-16 -- Completed 03-04-PLAN.md (planner, gcode_gen)
 
-Progress: [############] 33% (12/~36 overall)
+Progress: [##############] 36% (13/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 5.4 min
-- Total execution time: 1.10 hours
+- Total plans completed: 13
+- Average duration: 5.3 min
+- Total execution time: 1.18 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [############] 33% (12/~36 overall)
 |-------|-------|-------|----------|
 | 01    | 4     | 26min | 6.5min   |
 | 02    | 5     | 28min | 5.6min   |
-| 03    | 3     | 13min | 4.3min   |
+| 03    | 4     | 18min | 4.5min   |
 
 **Recent Trend:**
-- Last 5 plans: 02-04 (6min), 02-05 (3min), 03-01 (5min), 03-02 (3min), 03-03 (5min)
+- Last 5 plans: 02-05 (3min), 03-01 (5min), 03-02 (3min), 03-03 (5min), 03-04 (5min)
 - Trend: stable/fast
 
 *Updated after each plan completion*
@@ -101,6 +101,10 @@ Recent decisions affecting current work:
 - [03-03]: Nearest-neighbor heuristic for infill line ordering (greedy closest endpoint)
 - [03-03]: Toolpath speeds stored in mm/min (config mm/s * 60 at assembly)
 - [03-03]: Travel moves inserted between disconnected paths with 0.001mm threshold
+- [03-04]: Phase 3 fan simplification: full fan_speed whenever enabled (no proportional reduction)
+- [03-04]: Unretract at travel destination (after G0) matching PrusaSlicer behavior
+- [03-04]: Feature type comments use TYPE: prefix (PrusaSlicer convention)
+- [03-04]: Temperature planning: M190/M109 (wait) layer 0, M140/M104 (no wait) layer 1, empty thereafter
 
 ### Pending Todos
 
@@ -113,5 +117,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 03-03-PLAN.md -- surface classification, extrusion math, toolpaths
-Resume file: .planning/phases/03-vertical-slice-stl-to-gcode/03-03-SUMMARY.md
+Stopped at: Completed 03-04-PLAN.md -- planner (skirt/brim/retraction/temp/fan) + G-code generation
+Resume file: .planning/phases/03-vertical-slice-stl-to-gcode/03-04-SUMMARY.md
