@@ -5,6 +5,7 @@
 //!
 //! Pipeline modules:
 //! - [`config`]: Print configuration with TOML deserialization
+//! - [`engine`]: Pipeline orchestrator (Engine struct)
 //! - [`perimeter`]: Perimeter shell generation via polygon offsetting
 //! - [`infill`]: Rectilinear infill pattern generation
 //! - [`surface`]: Top/bottom solid layer classification
@@ -20,6 +21,7 @@
 //! unspecified fields use sensible FDM defaults.
 
 pub mod config;
+pub mod engine;
 pub mod error;
 pub mod extrusion;
 pub mod gcode_gen;
@@ -31,6 +33,7 @@ pub mod toolpath;
 
 // Re-export primary types at crate root.
 pub use config::{PrintConfig, WallOrder};
+pub use engine::{Engine, SliceResult};
 pub use error::EngineError;
 pub use extrusion::{compute_e_value, extrusion_cross_section, move_length};
 pub use infill::{
