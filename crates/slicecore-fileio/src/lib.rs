@@ -10,8 +10,13 @@
 //! |------------|--------|--------|----------------|
 //! | Binary STL | Yes    | -      | [`stl_binary`] |
 //! | ASCII STL  | Yes    | -      | [`stl_ascii`]  |
-//! | 3MF        | Yes    | -      | [`threemf`]    |
+//! | 3MF        | Yes*   | -      | [`threemf`]    |
 //! | OBJ        | Yes    | -      | [`obj`]        |
+//!
+//! *3MF support requires native targets. On `wasm32-unknown-unknown`, 3MF
+//! parsing is unavailable because lib3mf depends on `zip` -> `zstd-sys`
+//! (C library). The [`load_mesh`] function returns
+//! [`FileIOError::ThreeMfError`] for 3MF data on WASM targets.
 //!
 //! # Format Detection
 //!
@@ -30,6 +35,10 @@ pub mod obj;
 pub mod stl;
 pub mod stl_ascii;
 pub mod stl_binary;
+
+// 3MF support is only available on native targets.
+// lib3mf -> zip -> zstd-sys (C library) cannot compile for wasm32-unknown-unknown.
+#[cfg(not(target_arch = "wasm32"))]
 pub mod threemf;
 
 // Re-export primary types at crate root.
@@ -45,8 +54,11 @@ use slicecore_mesh::TriangleMesh;
 /// appropriate parser:
 /// - [`MeshFormat::StlBinary`] -> [`stl_binary::parse`]
 /// - [`MeshFormat::StlAscii`] -> [`stl_ascii::parse`]
-/// - [`MeshFormat::ThreeMf`] -> [`threemf::parse`]
+/// - [`MeshFormat::ThreeMf`] -> [`threemf::parse`] (native only)
 /// - [`MeshFormat::Obj`] -> [`obj::parse`]
+///
+/// On WASM targets, 3MF format returns [`FileIOError::ThreeMfError`] because
+/// the lib3mf dependency is not available.
 ///
 /// # Errors
 ///
@@ -59,9 +71,22 @@ pub fn load_mesh(data: &[u8]) -> Result<TriangleMesh, FileIOError> {
     match format {
         MeshFormat::StlBinary => stl_binary::parse(data),
         MeshFormat::StlAscii => stl_ascii::parse(data),
-        MeshFormat::ThreeMf => threemf::parse(data),
+        MeshFormat::ThreeMf => parse_threemf_dispatch(data),
         MeshFormat::Obj => obj::parse(data),
     }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn parse_threemf_dispatch(data: &[u8]) -> Result<TriangleMesh, FileIOError> {
+    threemf::parse(data)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn parse_threemf_dispatch(_data: &[u8]) -> Result<TriangleMesh, FileIOError> {
+    Err(FileIOError::ThreeMfError(
+        "3MF parsing is not available on WASM targets (lib3mf depends on native C libraries)"
+            .to_string(),
+    ))
 }
 
 /// Load a mesh from a reader, auto-detecting the file format.
