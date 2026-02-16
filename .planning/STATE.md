@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 2 of 9 (Mesh I/O and Repair) -- IN PROGRESS
-Plan: 2 of 5 in current phase (2 complete)
-Status: Completed 02-02 (Mesh repair pipeline), ready for 02-03
-Last activity: 2026-02-16 -- Completed 02-02-PLAN.md (Mesh repair pipeline)
+Plan: 3 of 5 in current phase (3 complete)
+Status: Completed 02-03 (G-code I/O), ready for 02-04
+Last activity: 2026-02-16 -- Completed 02-03-PLAN.md (G-code I/O)
 
-Progress: [######....] 17% (6/~36 overall)
+Progress: [#######...] 19% (7/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 6.5 min
-- Total execution time: 0.65 hours
+- Total plans completed: 7
+- Average duration: 6.3 min
+- Total execution time: 0.73 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01    | 4     | 26min | 6.5min   |
-| 02    | 2     | 13min | 6.5min   |
+| 02    | 3     | 19min | 6.3min   |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (6min), 01-04 (3min), 02-01 (5min), 02-02 (8min)
+- Last 5 plans: 01-04 (3min), 02-01 (5min), 02-02 (8min), 02-03 (6min)
 - Trend: stable/fast
 
 *Updated after each plan completion*
@@ -72,6 +72,10 @@ Recent decisions affecting current work:
 - [02-02]: Stitch tolerance 1e-4 (0.1 micron), well below FDM print resolution
 - [02-02]: Self-intersection detection is O(n^2) brute-force (acceptable for 3D printing meshes)
 - [02-02]: repair() takes owned vecs, returns new TriangleMesh (immutable-after-construction pattern)
+- [02-03]: M83 (relative extrusion) as default for all 4 firmware dialects
+- [02-03]: GcodeCommand enum with Display impl -- structured types, not raw strings
+- [02-03]: GcodeWriter<W: Write> generic over output destination (Vec, File, WASM stream)
+- [02-03]: Validator accepts Klipper extended commands (uppercase-underscore format)
 
 ### Pending Todos
 
@@ -84,5 +88,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 02-02-PLAN.md -- Mesh repair pipeline
-Resume file: .planning/phases/02-mesh-io-and-repair/02-02-SUMMARY.md
+Stopped at: Completed 02-03-PLAN.md -- G-code I/O
+Resume file: .planning/phases/02-mesh-io-and-repair/02-03-SUMMARY.md
