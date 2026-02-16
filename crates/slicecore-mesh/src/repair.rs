@@ -2,11 +2,11 @@
 //!
 //! Implements the admesh-inspired repair order:
 //! 1. Remove degenerate triangles
-//! 2. Stitch nearby unconnected edges (Task 2)
-//! 3. Fill holes in the mesh (Task 2)
-//! 4. Fix normal directions via BFS flood-fill
+//! 2. Stitch nearby unconnected edges
+//! 3. Fix normal directions via BFS flood-fill
+//! 4. Fill holes in the mesh (after normal fix to avoid false boundaries)
 //! 5. Recompute per-face normals
-//! 6. Detect self-intersections (Task 2)
+//! 6. Detect self-intersections (report only)
 //!
 //! The repair function takes raw vertex and index data and returns a valid
 //! `TriangleMesh` along with a `RepairReport` documenting all changes made.
@@ -19,7 +19,10 @@ use crate::error::MeshError;
 use crate::triangle_mesh::TriangleMesh;
 
 pub mod degenerate;
+pub mod holes;
+pub mod intersect;
 pub mod normals;
+pub mod stitch;
 
 /// Report of all repairs performed on a mesh.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -42,11 +45,12 @@ pub struct RepairReport {
 ///
 /// Pipeline order:
 /// 1. Remove degenerate triangles (zero-area, duplicate vertices, collinear)
-/// 2. Stitch edges (merge nearby vertices within tolerance) -- TODO Task 2
-/// 3. Fill holes (triangulate boundary edge loops) -- TODO Task 2
-/// 4. Fix normal directions (BFS flood-fill for consistent winding)
+/// 2. Stitch edges (merge nearby vertices within tolerance)
+/// 3. Fix normal directions (BFS flood-fill for consistent winding)
+/// 4. Fill holes (triangulate boundary edge loops) -- after normal fix to
+///    avoid false boundary edges from inconsistent winding
 /// 5. Recompute per-face normals
-/// 6. Detect self-intersections -- TODO Task 2
+/// 6. Detect self-intersections (count only, not repaired)
 ///
 /// Returns a valid `TriangleMesh` and a `RepairReport` documenting changes.
 ///
@@ -63,19 +67,22 @@ pub fn repair(
     // Step 1: Remove degenerate triangles.
     report.degenerate_removed = degenerate::remove_degenerate_triangles(&vertices, &mut indices);
 
-    // Step 2: Stitch edges (placeholder -- implemented in Task 2).
-    report.edges_stitched = 0;
+    // Step 2: Stitch edges (merge nearby vertices within tolerance).
+    report.edges_stitched =
+        stitch::stitch_edges(&vertices, &mut indices, stitch::STITCH_TOLERANCE);
 
-    // Step 3: Fill holes (placeholder -- implemented in Task 2).
-    report.holes_filled = 0;
-
-    // Step 4: Fix normal directions.
+    // Step 3: Fix normal directions BEFORE hole filling, because inconsistent
+    // winding creates false boundary edges that confuse the hole detector.
     report.normals_fixed = normals::fix_normal_directions(&vertices, &mut indices);
+
+    // Step 4: Fill holes (triangulate boundary edge loops).
+    report.holes_filled = holes::fill_holes(&vertices, &mut indices);
 
     // Step 5: Recompute normals (handled by TriangleMesh::new).
 
-    // Step 6: Detect self-intersections (placeholder -- implemented in Task 2).
-    report.self_intersections_detected = 0;
+    // Step 6: Detect self-intersections.
+    report.self_intersections_detected =
+        intersect::detect_self_intersections(&vertices, &indices);
 
     // Determine if mesh was already clean.
     report.was_already_clean = report.degenerate_removed == 0
@@ -94,40 +101,48 @@ pub fn repair(
 mod tests {
     use super::*;
 
-    #[test]
-    fn repair_clean_mesh_reports_already_clean() {
+    /// Creates a closed tetrahedron mesh (4 faces, all edges shared by 2
+    /// triangles). This is a minimal closed manifold mesh.
+    fn tetrahedron() -> (Vec<Point3>, Vec<[u32; 3]>) {
         let vertices = vec![
             Point3::new(0.0, 0.0, 0.0),
             Point3::new(1.0, 0.0, 0.0),
             Point3::new(0.5, 1.0, 0.0),
+            Point3::new(0.5, 0.5, 1.0),
         ];
-        let indices = vec![[0, 1, 2]];
+        // Consistent CCW winding when viewed from outside.
+        let indices = vec![
+            [0, 2, 1], // bottom face (z=0)
+            [0, 1, 3], // front face
+            [1, 2, 3], // right face
+            [2, 0, 3], // left face
+        ];
+        (vertices, indices)
+    }
+
+    #[test]
+    fn repair_clean_closed_mesh_reports_already_clean() {
+        let (vertices, indices) = tetrahedron();
         let (mesh, report) = repair(vertices, indices).unwrap();
-        assert!(report.was_already_clean);
+        assert!(report.was_already_clean, "report: {:?}", report);
         assert_eq!(report.degenerate_removed, 0);
         assert_eq!(report.normals_fixed, 0);
-        assert_eq!(mesh.triangle_count(), 1);
+        assert_eq!(report.holes_filled, 0);
+        assert_eq!(mesh.triangle_count(), 4);
     }
 
     #[test]
     fn repair_removes_degenerate_and_fixes_normals() {
-        // 4 vertices forming a "bowtie" of two triangles plus one degenerate.
-        let vertices = vec![
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(1.0, 0.0, 0.0),
-            Point3::new(0.5, 1.0, 0.0),
-            Point3::new(0.5, -1.0, 0.0),
-        ];
-        let indices = vec![
-            [0, 1, 2],    // valid, edge 0->1
-            [0, 1, 3],    // valid but inconsistent winding (same edge direction as tri 0)
-            [0, 0, 1],    // degenerate: duplicate index
-        ];
+        let (vertices, mut indices) = tetrahedron();
+        // Flip one triangle's winding to create inconsistent normals.
+        indices[2].swap(1, 2); // [1, 2, 3] -> [1, 3, 2] (reversed winding)
+        // Add a degenerate triangle.
+        indices.push([0, 0, 1]);
         let (mesh, report) = repair(vertices, indices).unwrap();
         assert_eq!(report.degenerate_removed, 1);
-        assert_eq!(report.normals_fixed, 1);
+        assert!(report.normals_fixed >= 1, "Expected at least 1 flip");
         assert!(!report.was_already_clean);
-        assert_eq!(mesh.triangle_count(), 2);
+        assert_eq!(mesh.triangle_count(), 4);
     }
 
     #[test]
@@ -139,5 +154,23 @@ mod tests {
         let indices = vec![[0, 0, 1], [1, 1, 0]];
         let result = repair(vertices, indices);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn full_pipeline_end_to_end() {
+        // Start with a tetrahedron and introduce multiple defects:
+        // - A degenerate triangle
+        // - Inconsistent winding on one face
+        let (vertices, mut indices) = tetrahedron();
+        // Flip winding on face 1 to create normal inconsistency.
+        indices[1].swap(1, 2);
+        // Add degenerate triangle.
+        indices.push([2, 2, 0]);
+        let result = repair(vertices, indices);
+        assert!(result.is_ok());
+        let (mesh, report) = result.unwrap();
+        assert_eq!(report.degenerate_removed, 1);
+        assert!(report.normals_fixed >= 1);
+        assert_eq!(mesh.triangle_count(), 4);
     }
 }
