@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 2 of 9 (Mesh I/O and Repair) -- IN PROGRESS
-Plan: 1 of 5 in current phase (1 complete)
-Status: Completed 02-01 (STL import and format detection), ready for 02-02
-Last activity: 2026-02-16 -- Completed 02-01-PLAN.md (STL import and format detection)
+Plan: 2 of 5 in current phase (2 complete)
+Status: Completed 02-02 (Mesh repair pipeline), ready for 02-03
+Last activity: 2026-02-16 -- Completed 02-02-PLAN.md (Mesh repair pipeline)
 
-Progress: [#####.....] 14% (5/~36 overall)
+Progress: [######....] 17% (6/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 6.2 min
-- Total execution time: 0.52 hours
+- Total plans completed: 6
+- Average duration: 6.5 min
+- Total execution time: 0.65 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01    | 4     | 26min | 6.5min   |
-| 02    | 1     | 5min  | 5min     |
+| 02    | 2     | 13min | 6.5min   |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (9min), 01-03 (6min), 01-04 (3min), 02-01 (5min)
+- Last 5 plans: 01-03 (6min), 01-04 (3min), 02-01 (5min), 02-02 (8min)
 - Trend: stable/fast
 
 *Updated after each plan completion*
@@ -68,6 +68,10 @@ Recent decisions affecting current work:
 - [02-01]: Vertex deduplication uses quantized i64 keys at 1e5 scale (10nm tolerance)
 - [02-01]: Format detection order: 3MF (ZIP magic) > ASCII STL (solid + facet normal) > binary STL (size) > OBJ (v line)
 - [02-01]: Binary STL solid-header ambiguity resolved by requiring 'facet normal' for ASCII classification
+- [02-02]: Pipeline order: degenerate -> stitch -> normals -> holes -> intersect (normals before holes to avoid false boundaries)
+- [02-02]: Stitch tolerance 1e-4 (0.1 micron), well below FDM print resolution
+- [02-02]: Self-intersection detection is O(n^2) brute-force (acceptable for 3D printing meshes)
+- [02-02]: repair() takes owned vecs, returns new TriangleMesh (immutable-after-construction pattern)
 
 ### Pending Todos
 
@@ -80,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 02-01-PLAN.md -- STL import and format detection
-Resume file: .planning/phases/02-mesh-io-and-repair/02-01-SUMMARY.md
+Stopped at: Completed 02-02-PLAN.md -- Mesh repair pipeline
+Resume file: .planning/phases/02-mesh-io-and-repair/02-02-SUMMARY.md
