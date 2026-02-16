@@ -1,0 +1,21 @@
+[package]
+name = "slicecore-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Slicing pipeline orchestrator and print configuration for the slicecore engine"
+
+[dependencies]
+slicecore-math = { path = "../slicecore-math" }
+slicecore-mesh = { path = "../slicecore-mesh" }
+slicecore-geo = { path = "../slicecore-geo" }
+slicecore-slicer = { path = "../slicecore-slicer" }
+slicecore-fileio = { path = "../slicecore-fileio" }
+slicecore-gcode-io = { path = "../slicecore-gcode-io" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = "0.8"
+
+[dev-dependencies]
+serde_json = { workspace = true }
