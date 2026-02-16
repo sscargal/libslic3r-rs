@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 2 of 9 (Mesh I/O and Repair) -- IN PROGRESS
-Plan: 3 of 5 in current phase (3 complete)
-Status: Completed 02-03 (G-code I/O), ready for 02-04
-Last activity: 2026-02-16 -- Completed 02-03-PLAN.md (G-code I/O)
+Plan: 4 of 5 in current phase (4 complete)
+Status: Completed 02-04 (3MF/OBJ parsers + unified load_mesh), ready for 02-05
+Last activity: 2026-02-16 -- Completed 02-04-PLAN.md (3MF/OBJ parsers)
 
-Progress: [#######...] 19% (7/~36 overall)
+Progress: [########..] 22% (8/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 6.3 min
-- Total execution time: 0.73 hours
+- Total execution time: 0.83 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01    | 4     | 26min | 6.5min   |
-| 02    | 3     | 19min | 6.3min   |
+| 02    | 4     | 25min | 6.3min   |
 
 **Recent Trend:**
-- Last 5 plans: 01-04 (3min), 02-01 (5min), 02-02 (8min), 02-03 (6min)
+- Last 5 plans: 02-01 (5min), 02-02 (8min), 02-03 (6min), 02-04 (6min)
 - Trend: stable/fast
 
 *Updated after each plan completion*
@@ -76,6 +76,11 @@ Recent decisions affecting current work:
 - [02-03]: GcodeCommand enum with Display impl -- structured types, not raw strings
 - [02-03]: GcodeWriter<W: Write> generic over output destination (Vec, File, WASM stream)
 - [02-03]: Validator accepts Klipper extended commands (uppercase-underscore format)
+- [02-04]: lib3mf cfg-gated behind not(wasm32) due to zip -> zstd-sys C dependency
+- [02-04]: tobj default-features = false for minimal WASM-compatible footprint
+- [02-04]: 3MF on WASM returns ThreeMfError gracefully (not compile error)
+- [02-04]: OBJ parser uses single_index + triangulate for consistent triangle output
+- [02-04]: lib3mf default-features = false to exclude parry3d/nalgebra/clipper2
 
 ### Pending Todos
 
@@ -88,5 +93,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 02-03-PLAN.md -- G-code I/O
-Resume file: .planning/phases/02-mesh-io-and-repair/02-03-SUMMARY.md
+Stopped at: Completed 02-04-PLAN.md -- 3MF/OBJ parsers and unified load_mesh
+Resume file: .planning/phases/02-mesh-io-and-repair/02-04-SUMMARY.md
