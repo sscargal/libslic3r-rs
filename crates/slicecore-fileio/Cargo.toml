@@ -12,6 +12,8 @@ slicecore-mesh = { path = "../slicecore-mesh" }
 byteorder = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
+lib3mf = { version = "0.1", default-features = false }
+tobj = { version = "4", default-features = false }
 
 [dev-dependencies]
 proptest = { workspace = true }
