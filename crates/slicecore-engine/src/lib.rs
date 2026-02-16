@@ -3,16 +3,15 @@
 //! This crate ties together all pipeline stages: mesh loading, slicing,
 //! perimeter generation, infill, toolpath planning, and G-code emission.
 //!
-//! Current pipeline modules:
+//! Pipeline modules:
 //! - [`config`]: Print configuration with TOML deserialization
 //! - [`perimeter`]: Perimeter shell generation via polygon offsetting
 //! - [`infill`]: Rectilinear infill pattern generation
 //! - [`surface`]: Top/bottom solid layer classification
 //! - [`extrusion`]: E-axis value computation (Slic3r cross-section model)
 //! - [`toolpath`]: Toolpath segment types and layer toolpath assembly
-//!
-//! Future pipeline modules:
-//! - G-code generation (plan 03-05)
+//! - [`planner`]: Skirt/brim generation, retraction, temperature, fan control
+//! - [`gcode_gen`]: Toolpath-to-GcodeCommand conversion
 //!
 //! # Configuration
 //!
@@ -23,14 +22,12 @@
 pub mod config;
 pub mod error;
 pub mod extrusion;
+pub mod gcode_gen;
 pub mod infill;
 pub mod perimeter;
+pub mod planner;
 pub mod surface;
 pub mod toolpath;
-
-// Future pipeline modules:
-// pub mod planner;
-// pub mod gcode_gen;
 
 // Re-export primary types at crate root.
 pub use config::{PrintConfig, WallOrder};
@@ -41,6 +38,9 @@ pub use infill::{
 };
 pub use perimeter::{generate_perimeters, ContourPerimeters, PerimeterShell};
 pub use surface::{classify_surfaces, SurfaceClassification};
+pub use planner::{
+    generate_brim, generate_skirt, plan_fan, plan_retraction, plan_temperatures, RetractionMove,
+};
 pub use toolpath::{
     assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment,
 };
