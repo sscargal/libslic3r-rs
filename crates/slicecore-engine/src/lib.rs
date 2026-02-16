@@ -20,9 +20,9 @@
 
 pub mod config;
 pub mod error;
+pub mod perimeter;
 
 // Future pipeline modules:
-// pub mod perimeter;
 // pub mod infill;
 // pub mod surface;
 // pub mod toolpath;
@@ -32,3 +32,4 @@ pub mod error;
 // Re-export primary types at crate root.
 pub use config::{PrintConfig, WallOrder};
 pub use error::EngineError;
+pub use perimeter::{generate_perimeters, ContourPerimeters, PerimeterShell};
