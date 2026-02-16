@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 3 - Vertical Slice STL-to-GCode
+**Current focus:** Phase 3 COMPLETE - Vertical Slice STL-to-GCode
 
 ## Current Position
 
-Phase: 3 of 9 (Vertical Slice STL-to-GCode)
-Plan: 5 of 6 in current phase (5 complete)
-Status: Plan 03-05 complete, engine orchestrator + CLI binary
-Last activity: 2026-02-16 -- Completed 03-05-PLAN.md (engine pipeline, CLI)
+Phase: 3 of 9 (Vertical Slice STL-to-GCode) -- COMPLETE
+Plan: 6 of 6 in current phase (6 complete)
+Status: Phase 3 complete, all success criteria verified by automated tests
+Last activity: 2026-02-16 -- Completed 03-06-PLAN.md (integration tests, phase verification)
 
-Progress: [###############] 39% (14/~36 overall)
+Progress: [################] 42% (15/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
-- Average duration: 5.1 min
-- Total execution time: 1.25 hours
+- Total plans completed: 15
+- Average duration: 5.0 min
+- Total execution time: 1.30 hours
 
 **By Phase:**
 
@@ -29,10 +29,10 @@ Progress: [###############] 39% (14/~36 overall)
 |-------|-------|-------|----------|
 | 01    | 4     | 26min | 6.5min   |
 | 02    | 5     | 28min | 5.6min   |
-| 03    | 5     | 22min | 4.4min   |
+| 03    | 6     | 25min | 4.2min   |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (5min), 03-02 (3min), 03-03 (5min), 03-04 (5min), 03-05 (4min)
+- Last 5 plans: 03-02 (3min), 03-03 (5min), 03-04 (5min), 03-05 (4min), 03-06 (3min)
 - Trend: stable/fast
 
 *Updated after each plan completion*
@@ -110,6 +110,9 @@ Recent decisions affecting current work:
 - [03-05]: Skirt/brim toolpath segments prepended to layer 0 (not separate layer)
 - [03-05]: CLI binary named 'slicecore' with slice/validate/analyze subcommands
 - [03-05]: CLI uses eprintln + exit(1) error handling (no anyhow/eyre in Phase 3)
+- [03-06]: Synthetic 20mm calibration cube mesh centered at (100,100) on 220x220 bed
+- [03-06]: Determinism verified with both default and custom configs
+- [03-06]: G-code structure verified via line position checks (first 20, last 10)
 
 ### Pending Todos
 
@@ -122,5 +125,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 03-05-PLAN.md -- engine orchestrator + CLI binary
-Resume file: .planning/phases/03-vertical-slice-stl-to-gcode/03-05-SUMMARY.md
+Stopped at: Completed 03-06-PLAN.md -- Phase 3 complete, all SC verified
+Resume file: .planning/phases/03-vertical-slice-stl-to-gcode/03-06-SUMMARY.md
