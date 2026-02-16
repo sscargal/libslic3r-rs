@@ -5,33 +5,34 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 1 - Foundation Types and Geometry Core
+**Current focus:** Phase 2 - Mesh I/O and Repair
 
 ## Current Position
 
-Phase: 1 of 9 (Foundation Types and Geometry Core) -- COMPLETE
-Plan: 4 of 4 in current phase (all complete)
-Status: Phase 1 complete, ready for Phase 2
-Last activity: 2026-02-15 -- Completed 01-04-PLAN.md (WASM validation and CI)
+Phase: 2 of 9 (Mesh I/O and Repair) -- IN PROGRESS
+Plan: 1 of 5 in current phase (1 complete)
+Status: Completed 02-01 (STL import and format detection), ready for 02-02
+Last activity: 2026-02-16 -- Completed 02-01-PLAN.md (STL import and format detection)
 
-Progress: [####......] 11% (4/4 plans in phase 1, 4/~36 overall)
+Progress: [#####.....] 14% (5/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 6.5 min
-- Total execution time: 0.43 hours
+- Total plans completed: 5
+- Average duration: 6.2 min
+- Total execution time: 0.52 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01    | 4     | 26min | 6.5min   |
+| 02    | 1     | 5min  | 5min     |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (8min), 01-02 (9min), 01-03 (6min), 01-04 (3min)
-- Trend: improving
+- Last 5 plans: 01-02 (9min), 01-03 (6min), 01-04 (3min), 02-01 (5min)
+- Trend: stable/fast
 
 *Updated after each plan completion*
 
@@ -64,6 +65,9 @@ Recent decisions affecting current work:
 - [01-04]: WASM compilation works out-of-box for all Phase 1 crates (clipper2-rust is WASM-compatible)
 - [01-04]: CI runs 5 parallel jobs: check, test, clippy, fmt, wasm (no sequential dependencies)
 - [01-04]: rustfmt max_width=100, clippy too-many-arguments-threshold=8
+- [02-01]: Vertex deduplication uses quantized i64 keys at 1e5 scale (10nm tolerance)
+- [02-01]: Format detection order: 3MF (ZIP magic) > ASCII STL (solid + facet normal) > binary STL (size) > OBJ (v line)
+- [02-01]: Binary STL solid-header ambiguity resolved by requiring 'facet normal' for ASCII classification
 
 ### Pending Todos
 
@@ -75,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-15
-Stopped at: Completed 01-04-PLAN.md -- Phase 1 complete, ready for Phase 2
-Resume file: .planning/phases/01-foundation-types-and-geometry-core/01-04-SUMMARY.md
+Last session: 2026-02-16
+Stopped at: Completed 02-01-PLAN.md -- STL import and format detection
+Resume file: .planning/phases/02-mesh-io-and-repair/02-01-SUMMARY.md
