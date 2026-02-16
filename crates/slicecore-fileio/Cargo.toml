@@ -1,0 +1,18 @@
+[package]
+name = "slicecore-fileio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "File I/O for 3D mesh formats (STL, 3MF, OBJ) in the slicecore slicing engine"
+
+[dependencies]
+slicecore-math = { path = "../slicecore-math" }
+slicecore-mesh = { path = "../slicecore-mesh" }
+byteorder = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+tempfile = { workspace = true }
