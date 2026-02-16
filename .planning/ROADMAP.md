@@ -12,8 +12,8 @@ This roadmap delivers a modular Rust-based 3D printer slicing engine from the gr
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation Types and Geometry Core** - Coordinate system, polygon booleans, mesh data structures, WASM CI gate
-- [ ] **Phase 2: Mesh I/O and Repair** - Import STL/3MF/OBJ, auto-repair, transformations, validation
+- [x] **Phase 1: Foundation Types and Geometry Core** - Coordinate system, polygon booleans, mesh data structures, WASM CI gate
+- [x] **Phase 2: Mesh I/O and Repair** - Import STL/3MF/OBJ, auto-repair, transformations, validation
 - [ ] **Phase 3: Vertical Slice (STL to G-code)** - Minimum pipeline producing a printable calibration cube
 - [ ] **Phase 4: Perimeter and Infill Completeness** - All perimeter modes, all standard infill patterns, adaptive layers
 - [ ] **Phase 5: Support Structures** - Automatic, manual, tree, organic supports with bridge/overhang handling
@@ -186,8 +186,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation Types and Geometry Core | 0/4 | Planning complete | - |
-| 2. Mesh I/O and Repair | 0/TBD | Not started | - |
+| 1. Foundation Types and Geometry Core | 4/4 | ✓ Complete | 2026-02-15 |
+| 2. Mesh I/O and Repair | 5/5 | ✓ Complete | 2026-02-16 |
 | 3. Vertical Slice (STL to G-code) | 0/TBD | Not started | - |
 | 4. Perimeter and Infill Completeness | 0/TBD | Not started | - |
 | 5. Support Structures | 0/TBD | Not started | - |
