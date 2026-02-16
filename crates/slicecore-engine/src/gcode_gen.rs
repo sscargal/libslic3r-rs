@@ -3,4 +3,552 @@
 //! Converts the internal toolpath representation ([`LayerToolpath`]) into
 //! [`GcodeCommand`] sequences ready for output via [`GcodeWriter`].
 //!
-//! Placeholder -- full implementation in Task 2.
+//! The main entry points are:
+//! - [`generate_layer_gcode`]: Converts a single layer's toolpath to G-code commands
+//! - [`generate_full_gcode`]: Converts all layers into a complete print body
+//!
+//! Start/end G-code is NOT generated here -- that is handled by
+//! [`GcodeWriter`](slicecore_gcode_io::GcodeWriter) from slicecore-gcode-io.
+//! This module produces only the print body commands.
+
+use slicecore_gcode_io::GcodeCommand;
+
+use crate::config::PrintConfig;
+use crate::planner::{plan_fan, plan_retraction, plan_temperatures};
+use crate::toolpath::{FeatureType, LayerToolpath};
+
+/// Generates G-code commands for a single layer's toolpath.
+///
+/// Converts each [`ToolpathSegment`](crate::toolpath::ToolpathSegment) in the
+/// layer into the appropriate [`GcodeCommand`] sequence, handling:
+/// - Feature type comments for readability
+/// - Z-moves for layer changes
+/// - Travel moves with optional retraction and Z-hop
+/// - Extrusion moves with E-values and feedrates
+///
+/// The `retracted` state is tracked across layers via a mutable reference.
+pub fn generate_layer_gcode(
+    toolpath: &LayerToolpath,
+    config: &PrintConfig,
+    retracted: &mut bool,
+) -> Vec<GcodeCommand> {
+    let mut cmds = Vec::new();
+
+    // 1. Layer comment.
+    cmds.push(GcodeCommand::Comment(format!(
+        "Layer {} at Z={:.3}",
+        toolpath.layer_index, toolpath.z
+    )));
+
+    // 2. Z-move to layer height.
+    cmds.push(GcodeCommand::RapidMove {
+        x: None,
+        y: None,
+        z: Some(toolpath.z),
+        f: None,
+    });
+
+    let retract_feedrate = config.retract_speed * 60.0; // mm/s -> mm/min
+
+    // Track the last feature type to insert comments on transitions.
+    let mut last_feature: Option<FeatureType> = None;
+
+    // 3. Process each segment.
+    for seg in &toolpath.segments {
+        // Insert feature type comment when feature changes.
+        if last_feature != Some(seg.feature) {
+            let label = feature_label(seg.feature);
+            cmds.push(GcodeCommand::Comment(format!("TYPE:{label}")));
+            last_feature = Some(seg.feature);
+        }
+
+        match seg.feature {
+            FeatureType::Travel => {
+                // Check if retraction is needed.
+                let retraction = plan_retraction(seg.length(), config);
+
+                if let Some(ret) = &retraction {
+                    // Retract if not already retracted.
+                    if !*retracted {
+                        cmds.push(GcodeCommand::Retract {
+                            distance: ret.retract_length,
+                            feedrate: retract_feedrate,
+                        });
+                        *retracted = true;
+                    }
+
+                    // Z-hop if configured.
+                    if ret.z_hop > 0.0 {
+                        cmds.push(GcodeCommand::RapidMove {
+                            x: None,
+                            y: None,
+                            z: Some(seg.z + ret.z_hop),
+                            f: None,
+                        });
+                    }
+                }
+
+                // Emit rapid move to travel destination.
+                cmds.push(GcodeCommand::RapidMove {
+                    x: Some(seg.end.x),
+                    y: Some(seg.end.y),
+                    z: None,
+                    f: Some(seg.feedrate),
+                });
+
+                // If Z-hop was applied, move back down.
+                if let Some(ret) = &retraction {
+                    if ret.z_hop > 0.0 {
+                        cmds.push(GcodeCommand::RapidMove {
+                            x: None,
+                            y: None,
+                            z: Some(seg.z),
+                            f: None,
+                        });
+                    }
+                }
+
+                // Unretract after travel if retracted.
+                if *retracted {
+                    if let Some(ret) = &retraction {
+                        cmds.push(GcodeCommand::Unretract {
+                            distance: ret.retract_length,
+                            feedrate: retract_feedrate,
+                        });
+                        *retracted = false;
+                    }
+                }
+            }
+
+            // Extrusion features: perimeter, infill, skirt, brim.
+            _ => {
+                // If retracted from a previous travel, unretract first.
+                if *retracted {
+                    cmds.push(GcodeCommand::Unretract {
+                        distance: config.retract_length,
+                        feedrate: retract_feedrate,
+                    });
+                    *retracted = false;
+                }
+
+                // Emit linear extrusion move.
+                cmds.push(GcodeCommand::LinearMove {
+                    x: Some(seg.end.x),
+                    y: Some(seg.end.y),
+                    z: None,
+                    e: Some(seg.e_value),
+                    f: Some(seg.feedrate),
+                });
+            }
+        }
+    }
+
+    cmds
+}
+
+/// Generates a complete print body from all layer toolpaths.
+///
+/// This produces:
+/// 1. Relative extrusion mode (M83) and extruder reset (G92 E0)
+/// 2. For each layer: temperature commands, fan commands, and toolpath G-code
+///
+/// Start/end G-code is NOT included -- that is handled by the
+/// [`GcodeWriter`](slicecore_gcode_io::GcodeWriter).
+pub fn generate_full_gcode(
+    layer_toolpaths: &[LayerToolpath],
+    config: &PrintConfig,
+) -> Vec<GcodeCommand> {
+    let mut cmds = Vec::new();
+
+    // Preamble: relative extrusion mode and extruder reset.
+    cmds.push(GcodeCommand::SetRelativeExtrusion);
+    cmds.push(GcodeCommand::ResetExtruder);
+
+    let mut retracted = false;
+
+    for toolpath in layer_toolpaths {
+        // Temperature commands for this layer.
+        let temp_cmds = plan_temperatures(toolpath.layer_index, config);
+        cmds.extend(temp_cmds);
+
+        // Fan commands for this layer.
+        let layer_time = toolpath.estimated_time_seconds();
+        let fan_cmds = plan_fan(toolpath.layer_index, layer_time, config);
+        cmds.extend(fan_cmds);
+
+        // Generate layer G-code.
+        let layer_cmds = generate_layer_gcode(toolpath, config, &mut retracted);
+        cmds.extend(layer_cmds);
+    }
+
+    cmds
+}
+
+/// Returns a human-readable label for a feature type.
+fn feature_label(feature: FeatureType) -> &'static str {
+    match feature {
+        FeatureType::OuterPerimeter => "Outer perimeter",
+        FeatureType::InnerPerimeter => "Inner perimeter",
+        FeatureType::SolidInfill => "Solid infill",
+        FeatureType::SparseInfill => "Sparse infill",
+        FeatureType::Skirt => "Skirt",
+        FeatureType::Brim => "Brim",
+        FeatureType::Travel => "Travel",
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::toolpath::{ToolpathSegment, LayerToolpath};
+    use slicecore_math::Point2;
+
+    fn default_config() -> PrintConfig {
+        PrintConfig::default()
+    }
+
+    /// Helper: creates a simple 2-segment extrusion layer.
+    fn simple_extrusion_layer() -> LayerToolpath {
+        LayerToolpath {
+            layer_index: 1,
+            z: 0.4,
+            layer_height: 0.2,
+            segments: vec![
+                ToolpathSegment {
+                    start: Point2::new(0.0, 0.0),
+                    end: Point2::new(10.0, 0.0),
+                    feature: FeatureType::OuterPerimeter,
+                    e_value: 0.5,
+                    feedrate: 2700.0,
+                    z: 0.4,
+                },
+                ToolpathSegment {
+                    start: Point2::new(10.0, 0.0),
+                    end: Point2::new(10.0, 10.0),
+                    feature: FeatureType::OuterPerimeter,
+                    e_value: 0.5,
+                    feedrate: 2700.0,
+                    z: 0.4,
+                },
+            ],
+        }
+    }
+
+    /// Helper: creates a layer with travel + extrusion.
+    fn travel_and_extrusion_layer(travel_length: f64) -> LayerToolpath {
+        LayerToolpath {
+            layer_index: 1,
+            z: 0.4,
+            layer_height: 0.2,
+            segments: vec![
+                ToolpathSegment {
+                    start: Point2::new(0.0, 0.0),
+                    end: Point2::new(5.0, 0.0),
+                    feature: FeatureType::OuterPerimeter,
+                    e_value: 0.25,
+                    feedrate: 2700.0,
+                    z: 0.4,
+                },
+                ToolpathSegment {
+                    start: Point2::new(5.0, 0.0),
+                    end: Point2::new(5.0 + travel_length, 0.0),
+                    feature: FeatureType::Travel,
+                    e_value: 0.0,
+                    feedrate: 9000.0,
+                    z: 0.4,
+                },
+                ToolpathSegment {
+                    start: Point2::new(5.0 + travel_length, 0.0),
+                    end: Point2::new(5.0 + travel_length + 5.0, 0.0),
+                    feature: FeatureType::OuterPerimeter,
+                    e_value: 0.25,
+                    feedrate: 2700.0,
+                    z: 0.4,
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn simple_extrusion_produces_g1_moves() {
+        let layer = simple_extrusion_layer();
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+
+        // Should contain G1 moves with E values.
+        let g1_moves: Vec<_> = cmds
+            .iter()
+            .filter(|c| matches!(c, GcodeCommand::LinearMove { e: Some(_), .. }))
+            .collect();
+
+        assert_eq!(
+            g1_moves.len(),
+            2,
+            "Should have 2 G1 extrusion moves, got {}",
+            g1_moves.len()
+        );
+    }
+
+    #[test]
+    fn travel_produces_g0_move() {
+        let layer = travel_and_extrusion_layer(0.5); // short travel, no retract
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+
+        let g0_moves: Vec<_> = cmds
+            .iter()
+            .filter(|c| {
+                matches!(
+                    c,
+                    GcodeCommand::RapidMove {
+                        x: Some(_),
+                        y: Some(_),
+                        ..
+                    }
+                )
+            })
+            .collect();
+
+        assert!(
+            !g0_moves.is_empty(),
+            "Should have at least one G0 travel move"
+        );
+    }
+
+    #[test]
+    fn long_travel_inserts_retraction() {
+        // Travel of 5mm, default min_travel_for_retract is 1.5mm.
+        let layer = travel_and_extrusion_layer(5.0);
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+
+        let has_retract = cmds.iter().any(|c| matches!(c, GcodeCommand::Retract { .. }));
+        let has_unretract = cmds
+            .iter()
+            .any(|c| matches!(c, GcodeCommand::Unretract { .. }));
+
+        assert!(has_retract, "Long travel should insert Retract command");
+        assert!(has_unretract, "Long travel should insert Unretract command");
+    }
+
+    #[test]
+    fn short_travel_skips_retraction() {
+        // Travel of 0.5mm, well under default 1.5mm threshold.
+        let layer = travel_and_extrusion_layer(0.5);
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+
+        let has_retract = cmds.iter().any(|c| matches!(c, GcodeCommand::Retract { .. }));
+        assert!(
+            !has_retract,
+            "Short travel (0.5mm) should not insert Retract"
+        );
+    }
+
+    #[test]
+    fn z_hop_during_retraction() {
+        let layer = travel_and_extrusion_layer(5.0);
+        let config = PrintConfig {
+            retract_z_hop: 0.4,
+            ..Default::default()
+        };
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+
+        // Should have a Z-hop up (Z > layer Z) and then Z-hop down (back to layer Z).
+        let z_hops: Vec<_> = cmds
+            .iter()
+            .filter(|c| {
+                matches!(
+                    c,
+                    GcodeCommand::RapidMove {
+                        x: None,
+                        y: None,
+                        z: Some(_),
+                        ..
+                    }
+                )
+            })
+            .collect();
+
+        // Should have: initial Z-move, Z-hop up, Z-hop down = 3 Z-only rapid moves
+        assert!(
+            z_hops.len() >= 3,
+            "Should have at least 3 Z-only rapid moves (layer + hop up + hop down), got {}",
+            z_hops.len()
+        );
+    }
+
+    #[test]
+    fn full_gcode_starts_with_m83_and_g92() {
+        let layers = vec![simple_extrusion_layer()];
+        let config = default_config();
+
+        let cmds = generate_full_gcode(&layers, &config);
+
+        assert!(cmds.len() >= 2);
+        assert_eq!(cmds[0], GcodeCommand::SetRelativeExtrusion, "First command should be M83");
+        assert_eq!(cmds[1], GcodeCommand::ResetExtruder, "Second command should be G92 E0");
+    }
+
+    #[test]
+    fn full_gcode_includes_temperature_and_fan() {
+        let layer0 = LayerToolpath {
+            layer_index: 0,
+            z: 0.3,
+            layer_height: 0.3,
+            segments: vec![ToolpathSegment {
+                start: Point2::new(0.0, 0.0),
+                end: Point2::new(10.0, 0.0),
+                feature: FeatureType::OuterPerimeter,
+                e_value: 0.5,
+                feedrate: 1200.0,
+                z: 0.3,
+            }],
+        };
+
+        let layer1 = LayerToolpath {
+            layer_index: 1,
+            z: 0.5,
+            layer_height: 0.2,
+            segments: vec![ToolpathSegment {
+                start: Point2::new(0.0, 0.0),
+                end: Point2::new(10.0, 0.0),
+                feature: FeatureType::OuterPerimeter,
+                e_value: 0.5,
+                feedrate: 2700.0,
+                z: 0.5,
+            }],
+        };
+
+        let config = default_config();
+        let cmds = generate_full_gcode(&[layer0, layer1], &config);
+
+        // Should contain temperature commands.
+        let has_bed_temp = cmds
+            .iter()
+            .any(|c| matches!(c, GcodeCommand::SetBedTemp { .. }));
+        let has_nozzle_temp = cmds
+            .iter()
+            .any(|c| matches!(c, GcodeCommand::SetExtruderTemp { .. }));
+        let has_fan = cmds.iter().any(|c| {
+            matches!(c, GcodeCommand::FanOff | GcodeCommand::SetFanSpeed(_))
+        });
+
+        assert!(has_bed_temp, "Full G-code should contain bed temperature commands");
+        assert!(has_nozzle_temp, "Full G-code should contain nozzle temperature commands");
+        assert!(has_fan, "Full G-code should contain fan commands");
+    }
+
+    #[test]
+    fn feature_comments_included() {
+        let layer = simple_extrusion_layer();
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+
+        let has_feature_comment = cmds.iter().any(|c| {
+            if let GcodeCommand::Comment(text) = c {
+                text.starts_with("TYPE:")
+            } else {
+                false
+            }
+        });
+
+        assert!(
+            has_feature_comment,
+            "Should include feature type comments (TYPE:...)"
+        );
+    }
+
+    #[test]
+    fn layer_comment_included() {
+        let layer = simple_extrusion_layer();
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+
+        let has_layer_comment = cmds.iter().any(|c| {
+            if let GcodeCommand::Comment(text) = c {
+                text.starts_with("Layer ")
+            } else {
+                false
+            }
+        });
+
+        assert!(has_layer_comment, "Should include layer comment");
+    }
+
+    #[test]
+    fn retracted_state_persists_across_layers() {
+        // If a layer ends in a retracted state, the next layer should unretract.
+        // layer1 would end in a retracted state in a real scenario.
+        // We simulate this by starting with retracted = true.
+
+        let layer2 = LayerToolpath {
+            layer_index: 2,
+            z: 0.6,
+            layer_height: 0.2,
+            segments: vec![ToolpathSegment {
+                start: Point2::new(50.0, 0.0),
+                end: Point2::new(60.0, 0.0),
+                feature: FeatureType::OuterPerimeter,
+                e_value: 0.5,
+                feedrate: 2700.0,
+                z: 0.6,
+            }],
+        };
+
+        let config = default_config();
+        let mut retracted = true; // Simulate being in retracted state.
+
+        let cmds = generate_layer_gcode(&layer2, &config, &mut retracted);
+
+        // The extrusion move should trigger an unretract first.
+        let has_unretract = cmds
+            .iter()
+            .any(|c| matches!(c, GcodeCommand::Unretract { .. }));
+
+        assert!(
+            has_unretract,
+            "Extrusion after retracted state should emit Unretract"
+        );
+        assert!(!retracted, "Should no longer be retracted after extrusion");
+    }
+
+    #[test]
+    fn empty_layer_produces_minimal_commands() {
+        let layer = LayerToolpath {
+            layer_index: 5,
+            z: 1.2,
+            layer_height: 0.2,
+            segments: Vec::new(),
+        };
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+
+        // Should have at least the layer comment and Z-move.
+        assert!(
+            cmds.len() >= 2,
+            "Empty layer should still have comment and Z-move"
+        );
+        assert!(matches!(&cmds[0], GcodeCommand::Comment(text) if text.starts_with("Layer")));
+    }
+}

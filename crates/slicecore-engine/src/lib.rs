@@ -41,6 +41,7 @@ pub use surface::{classify_surfaces, SurfaceClassification};
 pub use planner::{
     generate_brim, generate_skirt, plan_fan, plan_retraction, plan_temperatures, RetractionMove,
 };
+pub use gcode_gen::{generate_full_gcode, generate_layer_gcode};
 pub use toolpath::{
     assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment,
 };
