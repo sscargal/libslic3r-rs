@@ -71,12 +71,15 @@ Plans:
   3. Slicing is deterministic: the same STL + same config produces bit-for-bit identical G-code across multiple runs
   4. Layer slicing at configurable heights works correctly -- changing layer height from 0.2mm to 0.1mm doubles the layer count (within rounding tolerance) and produces valid G-code at both settings
   5. Skirt/brim generation works for bed adhesion, and infill density is configurable from 0-100%
-**Plans**: TBD
+**Plans:** 6 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
-- [ ] 03-03: TBD
+- [ ] 03-01-PLAN.md -- PrintConfig + slicecore-slicer crate (triangle-plane intersection, segment chaining, contour extraction)
+- [ ] 03-02-PLAN.md -- Perimeter generation (polygon offset shells) and rectilinear infill pattern generation
+- [ ] 03-03-PLAN.md -- Surface classification (top/bottom solid), extrusion math, toolpath segment types
+- [ ] 03-04-PLAN.md -- Planner (skirt/brim, retraction, temperature, fan) and G-code generation from toolpaths
+- [ ] 03-05-PLAN.md -- Engine orchestrator (full pipeline) and CLI binary (slice/validate/analyze)
+- [ ] 03-06-PLAN.md -- Integration tests, determinism verification, phase success criteria validation
 
 ### Phase 4: Perimeter and Infill Completeness
 **Goal**: Users have access to the full range of perimeter generation modes and infill patterns needed for real-world printing -- thin walls, seam control, and pattern variety
