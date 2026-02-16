@@ -9,7 +9,7 @@ use std::io::Write;
 use crate::commands::GcodeCommand;
 use crate::dialect::{EndConfig, GcodeDialect, StartConfig};
 use crate::error::GcodeError;
-use crate::marlin;
+use crate::{bambu, klipper, marlin, reprap};
 
 /// A dialect-aware G-code writer.
 ///
@@ -52,10 +52,9 @@ impl<W: Write> GcodeWriter<W> {
     pub fn write_start_gcode(&mut self, config: &StartConfig) -> Result<(), GcodeError> {
         let cmds = match self.dialect {
             GcodeDialect::Marlin => marlin::start_gcode(config),
-            // Other dialects will be wired in Task 2
-            GcodeDialect::Klipper => marlin::start_gcode(config),
-            GcodeDialect::RepRapFirmware => marlin::start_gcode(config),
-            GcodeDialect::Bambu => marlin::start_gcode(config),
+            GcodeDialect::Klipper => klipper::start_gcode(config),
+            GcodeDialect::RepRapFirmware => reprap::start_gcode(config),
+            GcodeDialect::Bambu => bambu::start_gcode(config),
         };
         self.write_commands(&cmds)
     }
@@ -64,10 +63,9 @@ impl<W: Write> GcodeWriter<W> {
     pub fn write_end_gcode(&mut self, config: &EndConfig) -> Result<(), GcodeError> {
         let cmds = match self.dialect {
             GcodeDialect::Marlin => marlin::end_gcode(config),
-            // Other dialects will be wired in Task 2
-            GcodeDialect::Klipper => marlin::end_gcode(config),
-            GcodeDialect::RepRapFirmware => marlin::end_gcode(config),
-            GcodeDialect::Bambu => marlin::end_gcode(config),
+            GcodeDialect::Klipper => klipper::end_gcode(config),
+            GcodeDialect::RepRapFirmware => reprap::end_gcode(config),
+            GcodeDialect::Bambu => bambu::end_gcode(config),
         };
         self.write_commands(&cmds)
     }
@@ -154,5 +152,87 @@ mod tests {
         let writer = GcodeWriter::new(buf, GcodeDialect::Marlin);
         let inner = writer.into_inner();
         assert!(inner.is_empty());
+    }
+
+    #[test]
+    fn full_marlin_gcode_passes_validator() {
+        let buf = Vec::new();
+        let mut writer = GcodeWriter::new(buf, GcodeDialect::Marlin);
+        writer
+            .write_start_gcode(&StartConfig {
+                bed_temp: 60.0,
+                nozzle_temp: 200.0,
+                bed_x: 220.0,
+                bed_y: 220.0,
+            })
+            .unwrap();
+        // Simulate some print moves
+        writer
+            .write_command(&GcodeCommand::LinearMove {
+                x: Some(100.0),
+                y: Some(100.0),
+                z: Some(0.3),
+                e: Some(0.5),
+                f: Some(1800.0),
+            })
+            .unwrap();
+        writer
+            .write_command(&GcodeCommand::LinearMove {
+                x: Some(150.0),
+                y: Some(100.0),
+                z: None,
+                e: Some(0.8),
+                f: None,
+            })
+            .unwrap();
+        writer
+            .write_end_gcode(&EndConfig {
+                retract_distance: 5.0,
+            })
+            .unwrap();
+        let output = String::from_utf8(writer.into_inner()).unwrap();
+        let result = crate::validate::validate_gcode(&output);
+        assert!(
+            result.valid,
+            "Full Marlin G-code should pass validation with 0 errors: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn all_dialects_produce_distinct_output() {
+        let start_cfg = StartConfig {
+            bed_temp: 60.0,
+            nozzle_temp: 200.0,
+            bed_x: 220.0,
+            bed_y: 220.0,
+        };
+        let end_cfg = EndConfig {
+            retract_distance: 5.0,
+        };
+        let dialects = [
+            GcodeDialect::Marlin,
+            GcodeDialect::Klipper,
+            GcodeDialect::RepRapFirmware,
+            GcodeDialect::Bambu,
+        ];
+        let mut outputs = Vec::new();
+        for dialect in &dialects {
+            let buf = Vec::new();
+            let mut writer = GcodeWriter::new(buf, *dialect);
+            writer.write_start_gcode(&start_cfg).unwrap();
+            writer.write_end_gcode(&end_cfg).unwrap();
+            outputs.push(String::from_utf8(writer.into_inner()).unwrap());
+        }
+        // Verify each dialect produces distinct output
+        for i in 0..outputs.len() {
+            for j in (i + 1)..outputs.len() {
+                assert_ne!(
+                    outputs[i], outputs[j],
+                    "{:?} and {:?} should produce distinct output",
+                    dialects[i], dialects[j]
+                );
+            }
+        }
     }
 }

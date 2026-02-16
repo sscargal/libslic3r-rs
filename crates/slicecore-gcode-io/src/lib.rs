@@ -32,14 +32,19 @@
 //! writer.write_end_gcode(&EndConfig { retract_distance: 5.0 }).unwrap();
 //! ```
 
+pub mod bambu;
 pub mod commands;
 pub mod dialect;
 pub mod error;
+pub mod klipper;
 pub mod marlin;
+pub mod reprap;
+pub mod validate;
 pub mod writer;
 
 // Re-export primary types at crate root for ergonomic imports.
 pub use commands::GcodeCommand;
 pub use dialect::{EndConfig, GcodeDialect, StartConfig};
 pub use error::GcodeError;
+pub use validate::{validate_gcode, ValidationResult};
 pub use writer::GcodeWriter;
