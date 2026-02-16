@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 2 - Mesh I/O and Repair -- COMPLETE
+**Current focus:** Phase 3 - Vertical Slice STL-to-GCode
 
 ## Current Position
 
-Phase: 2 of 9 (Mesh I/O and Repair) -- COMPLETE
-Plan: 5 of 5 in current phase (5 complete)
-Status: Phase 2 complete, all 5 success criteria verified, ready for Phase 3
-Last activity: 2026-02-16 -- Completed 02-05-PLAN.md (integration tests + phase verification)
+Phase: 3 of 9 (Vertical Slice STL-to-GCode)
+Plan: 1 of 6 in current phase (1 complete)
+Status: Plan 03-01 complete, slicer + engine crates created
+Last activity: 2026-02-16 -- Completed 03-01-PLAN.md (slicer + engine foundation)
 
-Progress: [#########.] 25% (9/~36 overall)
+Progress: [##########] 28% (10/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 5.9 min
-- Total execution time: 0.88 hours
+- Total plans completed: 10
+- Average duration: 5.8 min
+- Total execution time: 0.97 hours
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [#########.] 25% (9/~36 overall)
 |-------|-------|-------|----------|
 | 01    | 4     | 26min | 6.5min   |
 | 02    | 5     | 28min | 5.6min   |
+| 03    | 1     | 5min  | 5.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (5min), 02-02 (8min), 02-03 (6min), 02-04 (6min), 02-05 (3min)
-- Trend: stable/fast, accelerating
+- Last 5 plans: 02-02 (8min), 02-03 (6min), 02-04 (6min), 02-05 (3min), 03-01 (5min)
+- Trend: stable/fast
 
 *Updated after each plan completion*
 
@@ -84,6 +85,11 @@ Recent decisions affecting current work:
 - [02-05]: Synthetic STL/OBJ fixtures constructed in-memory (no external fixture files)
 - [02-05]: 3MF integration test omitted (unit tests in threemf.rs provide equivalent coverage)
 - [02-05]: ValidPolygon (SC5) verified at compile time, no runtime test needed
+- [03-01]: HashMap for segment adjacency in chain_segments (iteration order doesn't affect output)
+- [03-01]: PLANE_EPSILON = 1e-12 for vertex-on-plane classification
+- [03-01]: Open chains from mesh defects silently skipped (non-fatal)
+- [03-01]: extrusion_width = nozzle_diameter * 1.1 as Phase 3 single-width heuristic
+- [03-01]: PrintConfig with serde(default) for partial TOML override pattern
 
 ### Pending Todos
 
@@ -96,5 +102,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed 02-05-PLAN.md -- Phase 2 complete (integration tests + all 5 SC verified)
-Resume file: .planning/phases/02-mesh-io-and-repair/02-05-SUMMARY.md
+Stopped at: Completed 03-01-PLAN.md -- slicer + engine foundation crates
+Resume file: .planning/phases/03-vertical-slice-stl-to-gcode/03-01-SUMMARY.md
