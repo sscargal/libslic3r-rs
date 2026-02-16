@@ -52,11 +52,14 @@ Plans:
   3. Mesh transformations (scale, rotate, translate, mirror) produce correct results, verified by comparing bounding boxes and vertex positions before/after
   4. G-code writer can emit valid Marlin-dialect output (used by Phase 3; tested with G-code syntax validation, not yet print-tested)
   5. ValidPolygon type system enforces that only cleaned/validated geometry enters downstream algorithms -- raw Polygon cannot be passed where ValidPolygon is required
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-01-PLAN.md -- slicecore-fileio crate scaffold, STL parsers (binary + ASCII), format detection
+- [ ] 02-02-PLAN.md -- Mesh repair pipeline (degenerate removal, edge stitching, hole filling, normal fix, self-intersection detection)
+- [ ] 02-03-PLAN.md -- slicecore-gcode-io crate (structured commands, writer, 4 firmware dialects, validator)
+- [ ] 02-04-PLAN.md -- 3MF parser (lib3mf), OBJ parser (tobj), unified load_mesh(), WASM validation
+- [ ] 02-05-PLAN.md -- Integration tests, synthetic test fixtures, Phase 2 success criteria verification
 
 ### Phase 3: Vertical Slice (STL to G-code)
 **Goal**: The full slicing pipeline works end-to-end: a real STL file goes in and valid, printable G-code comes out -- proving the architecture before investing in breadth
