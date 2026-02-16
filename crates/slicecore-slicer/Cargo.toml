@@ -1,0 +1,16 @@
+[package]
+name = "slicecore-slicer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Mesh-to-contour slicing: triangle-plane intersection and segment chaining for the slicecore engine"
+
+[dependencies]
+slicecore-math = { path = "../slicecore-math" }
+slicecore-mesh = { path = "../slicecore-mesh" }
+slicecore-geo = { path = "../slicecore-geo" }
+serde = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
