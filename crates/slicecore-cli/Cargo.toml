@@ -1,0 +1,18 @@
+[package]
+name = "slicecore-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "CLI binary for the slicecore 3D slicing engine"
+
+[[bin]]
+name = "slicecore"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+slicecore-engine = { path = "../slicecore-engine" }
+slicecore-fileio = { path = "../slicecore-fileio" }
+slicecore-mesh = { path = "../slicecore-mesh" }
+slicecore-gcode-io = { path = "../slicecore-gcode-io" }
