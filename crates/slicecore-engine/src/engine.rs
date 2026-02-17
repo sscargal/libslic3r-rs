@@ -2492,4 +2492,301 @@ mod tests {
             result.layer_count
         );
     }
+
+    // ---- SC4: Print time and filament estimation accuracy ----
+
+    #[test]
+    fn test_phase_6_sc4_estimation() {
+        let config = PrintConfig::default();
+        let engine = Engine::new(config);
+        let mesh = calibration_cube_20mm();
+
+        let result = engine.slice(&mesh).expect("slice should succeed");
+
+        // SC4.1: time_estimate.total_seconds > 0
+        assert!(
+            result.time_estimate.total_seconds > 0.0,
+            "time_estimate.total_seconds should be positive, got {}",
+            result.time_estimate.total_seconds
+        );
+
+        // SC4.2: Trapezoid time > naive time (proves acceleration modeling adds time).
+        // Compute a naive estimate: sum all move distances / feedrate.
+        let gcode_str = String::from_utf8_lossy(&result.gcode);
+        let mut naive_time = 0.0;
+        let mut prev_x = 0.0f64;
+        let mut prev_y = 0.0f64;
+        let mut prev_z = 0.0f64;
+        let mut feedrate = 60.0f64; // mm/s default
+
+        for line in gcode_str.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("G1 ") || trimmed.starts_with("G0 ") {
+                let mut x = prev_x;
+                let mut y = prev_y;
+                let mut z = prev_z;
+                for part in trimmed.split_whitespace().skip(1) {
+                    if let Some(val) = part.strip_prefix('X') {
+                        x = val.parse().unwrap_or(x);
+                    } else if let Some(val) = part.strip_prefix('Y') {
+                        y = val.parse().unwrap_or(y);
+                    } else if let Some(val) = part.strip_prefix('Z') {
+                        z = val.parse().unwrap_or(z);
+                    } else if let Some(val) = part.strip_prefix('F') {
+                        feedrate = val.parse::<f64>().unwrap_or(feedrate) / 60.0;
+                    }
+                }
+                let dx = x - prev_x;
+                let dy = y - prev_y;
+                let dz = z - prev_z;
+                let dist = (dx * dx + dy * dy + dz * dz).sqrt();
+                if dist > 0.001 && feedrate > 0.0 {
+                    naive_time += dist / feedrate;
+                }
+                prev_x = x;
+                prev_y = y;
+                prev_z = z;
+            }
+        }
+
+        assert!(
+            naive_time > 0.0,
+            "Naive time should be positive for a 20mm cube"
+        );
+        assert!(
+            result.time_estimate.total_seconds > naive_time,
+            "Trapezoid estimate ({:.2}s) should exceed naive estimate ({:.2}s)",
+            result.time_estimate.total_seconds,
+            naive_time
+        );
+
+        // SC4.3: filament_usage.length_mm > 0
+        assert!(
+            result.filament_usage.length_mm > 0.0,
+            "filament_usage.length_mm should be positive, got {}",
+            result.filament_usage.length_mm
+        );
+
+        // SC4.4: filament_usage.weight_g > 0
+        assert!(
+            result.filament_usage.weight_g > 0.0,
+            "filament_usage.weight_g should be positive, got {}",
+            result.filament_usage.weight_g
+        );
+
+        // SC4.5: filament_usage.cost > 0
+        assert!(
+            result.filament_usage.cost > 0.0,
+            "filament_usage.cost should be positive, got {}",
+            result.filament_usage.cost
+        );
+
+        // SC4.6: Filament length is reasonable for a 20mm cube.
+        // Roughly 1000-10000mm depending on infill density.
+        assert!(
+            result.filament_usage.length_mm > 500.0,
+            "Filament usage for 20mm cube should be >500mm, got {:.1}mm",
+            result.filament_usage.length_mm
+        );
+        assert!(
+            result.filament_usage.length_mm < 50000.0,
+            "Filament usage for 20mm cube should be <50000mm, got {:.1}mm",
+            result.filament_usage.length_mm
+        );
+    }
+
+    #[test]
+    fn test_phase_6_sc4_estimation_acceleration_impact() {
+        let mesh = calibration_cube_20mm();
+
+        // Low acceleration config: 500 mm/s^2.
+        let config_low_accel = PrintConfig {
+            print_acceleration: 500.0,
+            travel_acceleration: 750.0,
+            ..Default::default()
+        };
+        let result_low = Engine::new(config_low_accel)
+            .slice(&mesh)
+            .expect("low-accel slice should succeed");
+
+        // High acceleration config: 3000 mm/s^2.
+        let config_high_accel = PrintConfig {
+            print_acceleration: 3000.0,
+            travel_acceleration: 4500.0,
+            ..Default::default()
+        };
+        let result_high = Engine::new(config_high_accel)
+            .slice(&mesh)
+            .expect("high-accel slice should succeed");
+
+        // Low acceleration should produce a longer time estimate because
+        // the machine spends more time in ramp phases.
+        assert!(
+            result_low.time_estimate.total_seconds > result_high.time_estimate.total_seconds,
+            "Low acceleration ({:.2}s) should take longer than high acceleration ({:.2}s)",
+            result_low.time_estimate.total_seconds,
+            result_high.time_estimate.total_seconds
+        );
+    }
+
+    // ---- SC5: Arc fitting file size reduction ----
+
+    #[test]
+    fn test_phase_6_sc5_arc_fitting() {
+        // Arc fitting on a cube won't produce arcs (no curves), so we test
+        // the arc fitting machinery directly with synthetic circular G1 moves
+        // to verify G2/G3 output and command count reduction.
+
+        // Generate G1 commands forming a semicircle (many short segments).
+        let center_x = 100.0;
+        let center_y = 100.0;
+        let radius = 10.0;
+        let num_segments = 36; // 10-degree increments for a full circle
+
+        let mut commands = Vec::new();
+        // Move to the starting point.
+        let start_x = center_x + radius;
+        let start_y = center_y;
+        commands.push(slicecore_gcode_io::GcodeCommand::LinearMove {
+            x: Some(start_x),
+            y: Some(start_y),
+            z: Some(0.2),
+            e: Some(0.0),
+            f: Some(3000.0),
+        });
+
+        for i in 1..=num_segments {
+            let angle = 2.0 * std::f64::consts::PI * (i as f64) / (num_segments as f64);
+            let x = center_x + radius * angle.cos();
+            let y = center_y + radius * angle.sin();
+            let seg_len = 2.0 * radius * std::f64::consts::PI / (num_segments as f64);
+            let e = seg_len * 0.02; // Small E per segment
+            commands.push(slicecore_gcode_io::GcodeCommand::LinearMove {
+                x: Some(x),
+                y: Some(y),
+                z: None,
+                e: Some(e),
+                f: Some(3000.0),
+            });
+        }
+
+        let original_count = commands.len();
+
+        // Apply arc fitting.
+        let arc_commands = slicecore_gcode_io::fit_arcs(&commands, 0.05, 3);
+        let arc_count = arc_commands.len();
+
+        // Arc-fitted output should contain G2 and/or G3 commands.
+        let has_arcs = arc_commands.iter().any(|cmd| {
+            matches!(
+                cmd,
+                slicecore_gcode_io::GcodeCommand::ArcMoveCW { .. }
+                    | slicecore_gcode_io::GcodeCommand::ArcMoveCCW { .. }
+            )
+        });
+        assert!(
+            has_arcs,
+            "Arc fitting should produce G2/G3 arc commands from circular G1 segments"
+        );
+
+        // Arc-fitted output should have fewer commands.
+        assert!(
+            arc_count < original_count,
+            "Arc-fitted command count ({}) should be less than original ({})",
+            arc_count,
+            original_count
+        );
+
+        // Arc-fitted output should be smaller in bytes (serialized form).
+        let original_bytes: usize = commands.iter().map(|c| c.to_string().len() + 1).sum();
+        let arc_bytes: usize = arc_commands.iter().map(|c| c.to_string().len() + 1).sum();
+        assert!(
+            arc_bytes < original_bytes,
+            "Arc-fitted byte size ({}) should be less than original ({})",
+            arc_bytes,
+            original_bytes
+        );
+
+        // Both outputs should pass G-code validation.
+        let original_gcode: String = commands.iter().map(|c| c.to_string() + "\n").collect();
+        let arc_gcode: String = arc_commands.iter().map(|c| c.to_string() + "\n").collect();
+
+        let original_validation = slicecore_gcode_io::validate_gcode(&original_gcode);
+        assert!(
+            original_validation.valid,
+            "Original G-code should pass validation: {:?}",
+            original_validation.errors
+        );
+
+        let arc_validation = slicecore_gcode_io::validate_gcode(&arc_gcode);
+        assert!(
+            arc_validation.valid,
+            "Arc-fitted G-code should pass validation: {:?}",
+            arc_validation.errors
+        );
+
+        // Verify the arc endpoints match the original endpoints (within tolerance).
+        // Check that the last command in both sequences ends at approximately
+        // the same position.
+        fn last_xy(cmds: &[slicecore_gcode_io::GcodeCommand]) -> (f64, f64) {
+            let mut x = 0.0;
+            let mut y = 0.0;
+            for cmd in cmds {
+                match cmd {
+                    slicecore_gcode_io::GcodeCommand::LinearMove {
+                        x: Some(cx),
+                        y: Some(cy),
+                        ..
+                    } => {
+                        x = *cx;
+                        y = *cy;
+                    }
+                    slicecore_gcode_io::GcodeCommand::ArcMoveCW {
+                        x: Some(cx),
+                        y: Some(cy),
+                        ..
+                    }
+                    | slicecore_gcode_io::GcodeCommand::ArcMoveCCW {
+                        x: Some(cx),
+                        y: Some(cy),
+                        ..
+                    } => {
+                        x = *cx;
+                        y = *cy;
+                    }
+                    _ => {}
+                }
+            }
+            (x, y)
+        }
+
+        let (orig_x, orig_y) = last_xy(&commands);
+        let (arc_x, arc_y) = last_xy(&arc_commands);
+        let endpoint_error = ((orig_x - arc_x).powi(2) + (orig_y - arc_y).powi(2)).sqrt();
+        assert!(
+            endpoint_error < 0.5,
+            "Arc endpoint ({:.3}, {:.3}) should be within 0.5mm of original ({:.3}, {:.3}), error = {:.4}mm",
+            arc_x, arc_y, orig_x, orig_y, endpoint_error
+        );
+
+        // Also verify arc fitting works through the full engine pipeline
+        // (even if a cube doesn't produce arcs, the pipeline should not error).
+        let cube_config = PrintConfig {
+            arc_fitting_enabled: true,
+            arc_fitting_tolerance: 0.05,
+            arc_fitting_min_points: 3,
+            ..Default::default()
+        };
+        let engine = Engine::new(cube_config);
+        let mesh = calibration_cube_20mm();
+        let cube_result = engine.slice(&mesh).expect("arc-fitting engine slice should succeed");
+        assert!(
+            !cube_result.gcode.is_empty(),
+            "Arc-fitting enabled should still produce valid G-code"
+        );
+        assert!(
+            cube_result.layer_count > 0,
+            "Arc-fitting enabled should still produce layers"
+        );
+    }
 }
