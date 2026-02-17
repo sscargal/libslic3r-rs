@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8 of 9 (AI Integration)
-Plan: 2 of 5 in current phase (2 complete)
-Status: Completed 08-02 -- OpenAI, Anthropic, Ollama providers with create_provider factory
-Last activity: 2026-02-17 -- Completed 08-02-PLAN.md (LLM provider backends)
+Plan: 3 of 5 in current phase (3 complete)
+Status: Completed 08-03 -- Geometry feature extraction and profile suggestion pipeline
+Last activity: 2026-02-17 -- Completed 08-03-PLAN.md (Geometry & Profile Pipeline)
 
-Progress: [################################################--] 98% (56/~57 overall)
+Progress: [################################################--] 98% (57/~59 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 56
+- Total plans completed: 57
 - Average duration: 5.4 min
-- Total execution time: 5.40 hours
+- Total execution time: 5.47 hours
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [################################################--] 98% (56/~57 overa
 | 05    | 8     | 69min | 8.6min   |
 | 06    | 9     | 45min | 5.0min   |
 | 07    | 7     | 50min | 7.1min   |
-| 08    | 2     | 6min  | 3.0min   |
+| 08    | 3     | 10min | 3.3min   |
 
 **Recent Trend:**
-- Last 5 plans: 07-02 (5min), 07-06 (3min), 07-07 (9min), 08-01 (3min), 08-02 (3min)
-- Trend: Phase 8 continues fast (3min avg) -- provider implementations
+- Last 5 plans: 07-07 (9min), 08-01 (3min), 08-02 (3min), 08-03 (4min)
+- Trend: Phase 8 continues fast (3.3min avg) -- AI integration pipeline
 
 *Updated after each plan completion*
 
@@ -275,6 +275,11 @@ Recent decisions affecting current work:
 - [08-02]: Anthropic JSON mode via system prompt instruction (no native response_format field)
 - [08-02]: Ollama format field uses serde_json::Value for both Json and JsonSchema modes
 - [08-02]: Anthropic stop_reason 'end_turn' maps to FinishReason::Stop (not 'end_stop' as plan stated)
+- [08-03]: Overhang detection via face normal dot Z-up, angle from vertical > 45 degrees = overhang
+- [08-03]: Three-strategy JSON extraction: direct parse, markdown fence strip, brace-matching
+- [08-03]: All ProfileSuggestion numeric fields use f64::clamp for safe range enforcement
+- [08-03]: PrintDifficulty: Hard if overhang_ratio > 0.15, min_dim < 0.5mm, or height > 150mm
+- [08-03]: serde(default) on all ProfileSuggestion fields for robustness against partial LLM responses
 
 ### Pending Todos
 
@@ -287,5 +292,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08-02-PLAN.md (LLM provider backends)
-Resume file: .planning/phases/08-ai-integration/08-02-SUMMARY.md
+Stopped at: Completed 08-03-PLAN.md (Geometry & Profile Pipeline)
+Resume file: .planning/phases/08-ai-integration/08-03-SUMMARY.md
