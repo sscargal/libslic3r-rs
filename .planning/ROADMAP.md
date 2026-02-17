@@ -115,12 +115,17 @@ Plans:
   3. Bridge detection identifies unsupported spans and applies bridge-specific speed/fan/flow settings -- a bridge test model prints clean horizontal bridges at 20mm+ spans
   4. Manual support enforcers and blockers override automatic support placement -- enforcers add support where auto-detection missed, blockers remove support from areas where removal would damage the part
   5. Support interface layers (dense contact layers between support and part surface) produce better surface finish on the supported face compared to direct support contact
-**Plans**: TBD
+**Plans:** 8 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
-- [ ] 05-03: TBD
+- [ ] 05-01-PLAN.md -- Support configuration types and overhang detection (hybrid layer-diff + raycast)
+- [ ] 05-02-PLAN.md -- Traditional grid/line support generation with XY gap
+- [ ] 05-03-PLAN.md -- Bridge detection (combined angle/endpoint/span criteria) and G-code integration
+- [ ] 05-04-PLAN.md -- Tree support generation (bottom-up growth, branching, merging, organic/geometric)
+- [ ] 05-05-PLAN.md -- Support interface layers, quality presets, material-specific defaults
+- [ ] 05-06-PLAN.md -- Manual override system (enforcers/blockers, volume modifiers, conflict resolution)
+- [ ] 05-07-PLAN.md -- 4-tier overhang control, auto support type selection, engine pipeline integration
+- [ ] 05-08-PLAN.md -- Integration tests and Phase 5 success criteria verification
 
 ### Phase 6: G-code Completeness and Advanced Features
 **Goal**: Users can target any major firmware dialect and use advanced print features -- multi-material, per-region settings, and dimensional accuracy tools
