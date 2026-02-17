@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 4 of 9 (Perimeter and Infill Completeness)
-Plan: 1 of 10 in current phase (1 complete)
-Status: Executing Phase 4 -- infill dispatch architecture and Grid/Monotonic patterns done
-Last activity: 2026-02-17 -- Completed 04-01-PLAN.md (infill refactor, Grid, Monotonic)
+Plan: 3 of 10 in current phase (3 complete)
+Status: Executing Phase 4 -- adaptive layer heights integrated
+Last activity: 2026-02-17 -- Completed 04-03-PLAN.md (adaptive layer heights)
 
-Progress: [#################] 44% (16/~36 overall)
+Progress: [##################] 50% (18/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 16
-- Average duration: 5.1 min
-- Total execution time: 1.40 hours
+- Total plans completed: 18
+- Average duration: 5.3 min
+- Total execution time: 1.75 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [#################] 44% (16/~36 overall)
 | 01    | 4     | 26min | 6.5min   |
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
-| 04    | 1     | 6min  | 6.0min   |
+| 04    | 3     | 27min | 9.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 03-03 (5min), 03-04 (5min), 03-05 (4min), 03-06 (3min), 04-01 (6min)
+- Last 5 plans: 03-05 (4min), 03-06 (3min), 04-01 (6min), 04-02 (10min), 04-03 (11min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -120,6 +120,10 @@ Recent decisions affecting current work:
 - [04-01]: Solid infill always uses Rectilinear regardless of config infill_pattern
 - [04-01]: generate_rectilinear_infill kept as backward-compatible wrapper
 - [04-01]: compute_bounding_box and compute_spacing extracted as pub(crate) shared helpers
+- [04-02]: Sequential edge cross product for concavity detection (not vertex-based angle comparison)
+- [04-02]: Knuth multiplicative hash (2654435761) for deterministic Random seam placement
+- [04-02]: assemble_layer_toolpath returns (LayerToolpath, Option<IPoint2>) tuple for cross-layer seam tracking
+- [04-02]: 5-degree angle deviation threshold for NearestCorner smooth-curve fallback to Aligned
 
 ### Pending Todos
 
@@ -132,5 +136,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 04-01-PLAN.md -- infill dispatch + Grid + Monotonic
-Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-01-SUMMARY.md
+Stopped at: Completed 04-02-PLAN.md -- seam placement strategies with cross-layer alignment
+Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-02-SUMMARY.md
