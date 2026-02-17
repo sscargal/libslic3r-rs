@@ -129,6 +129,9 @@ Recent decisions affecting current work:
 - [04-03]: Forward+backward smoothing enforces max 50% height change between adjacent layers
 - [04-03]: Adaptive defaults: disabled, min=0.05mm, max=0.3mm, quality=0.5
 - [04-03]: slice_mesh_adaptive takes pre-computed (z, height) pairs -- separates analysis from slicing
+- [04-04]: Honeycomb uses zigzag polyline approach with parametric segment-polygon clipping (2D cross-product)
+- [04-04]: Cubic uses rotation approach: rotate polygon to horizontal frame, generate scanlines, rotate back
+- [04-04]: Cubic Z-frequency = 1.0 for vertical cube period matching horizontal spacing
 - [04-05]: Gyroid grid step = line_width for detail-vs-performance balance (250x250 for 100mm region)
 - [04-05]: Both-endpoint point-in-polygon clipping (simple, correct, may lose edge segments)
 - [04-05]: Saddle disambiguation via center value average of 4 corners (standard approach)
