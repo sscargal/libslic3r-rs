@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 5 Complete -- Ready for Phase 6
+**Current focus:** Phase 6 -- G-code Completeness and Advanced Features
 
 ## Current Position
 
-Phase: 5 of 9 (Support Structures) -- COMPLETE
-Plan: 8 of 8 in current phase (8 complete)
-Status: Phase 5 Complete -- All 5 success criteria verified by automated tests
-Last activity: 2026-02-17 -- Completed 05-08-PLAN.md (integration tests and Phase 5 success criteria verification)
+Phase: 6 of 9 (G-code Completeness and Advanced Features) -- IN PROGRESS
+Plan: 3 of 9 in current phase (3 complete)
+Status: Executing Phase 6 plans
+Last activity: 2026-02-17 -- Completed 06-03-PLAN.md (TPMS-D and TPMS-FK infill patterns)
 
-Progress: [####################################] 94% (34/~36 overall)
+Progress: [####################################--] 95% (37/~43 overall)
 
 ## Performance Metrics
 
@@ -32,10 +32,11 @@ Progress: [####################################] 94% (34/~36 overall)
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
 | 05    | 8     | 69min | 8.6min   |
+| 06    | 3     | 8min  | 2.7min   |
 
 **Recent Trend:**
-- Last 5 plans: 05-04 (6min), 05-05 (3min), 05-06 (6min), 05-07 (7min), 05-08 (35min)
-- Trend: 05-08 took longer due to mesh triangulation debugging and raycast bug fix
+- Last 5 plans: 05-06 (6min), 05-07 (7min), 05-08 (35min), 06-03 (8min)
+- Trend: 06-03 fast execution -- TPMS patterns follow established gyroid template
 
 *Updated after each plan completion*
 
@@ -200,6 +201,9 @@ Recent decisions affecting current work:
 - [05-08]: Multi-box mesh composition for test fixtures (separate axis-aligned boxes avoid non-manifold junction issues)
 - [05-08]: Raycast min_t=1.0 threshold to skip overhang surface self-hits in validation
 - [05-08]: SC2 tests distinct algorithm output (tree vs traditional) rather than asserting tree < traditional material
+- [06-03]: Duplicated marching squares into each TPMS module rather than refactoring gyroid.rs (per plan)
+- [06-03]: InfillPattern now has 10 total variants including TpmsD and TpmsFk
+- [06-03]: Both TPMS patterns use snake_case serde for TOML: tpms_d and tpms_fk
 
 ### Pending Todos
 
@@ -212,5 +216,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 05-08-PLAN.md (integration tests and Phase 5 success criteria verification -- Phase 5 COMPLETE)
-Resume file: .planning/phases/05-support-structures/05-08-SUMMARY.md
+Stopped at: Completed 06-03-PLAN.md (TPMS-D and TPMS-FK infill patterns)
+Resume file: .planning/phases/06-gcode-completeness-and-advanced-features/06-03-SUMMARY.md
