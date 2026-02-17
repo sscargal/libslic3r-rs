@@ -93,6 +93,34 @@ pub fn slice_mesh(
         .collect()
 }
 
+/// Slices a triangle mesh into horizontal layers using pre-computed adaptive
+/// layer heights.
+///
+/// This is the adaptive counterpart to [`slice_mesh`]. Instead of computing
+/// uniform layer heights, it uses pre-computed `(z_position, layer_height)`
+/// pairs from the adaptive layer height algorithm.
+///
+/// # Arguments
+///
+/// * `mesh` - The triangle mesh to slice
+/// * `heights` - Pre-computed adaptive heights as `(z_position, layer_height)` pairs
+pub fn slice_mesh_adaptive(
+    mesh: &TriangleMesh,
+    heights: &[(f64, f64)],
+) -> Vec<SliceLayer> {
+    heights
+        .iter()
+        .map(|&(z, lh)| {
+            let contours = slice_at_height(mesh, z);
+            SliceLayer {
+                z,
+                layer_height: lh,
+                contours,
+            }
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

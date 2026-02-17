@@ -116,6 +116,16 @@ pub struct PrintConfig {
     pub extrusion_multiplier: f64,
     /// Filament diameter in mm.
     pub filament_diameter: f64,
+
+    // --- Adaptive Layer Heights ---
+    /// Enable adaptive layer heights based on surface curvature.
+    pub adaptive_layer_height: bool,
+    /// Minimum layer height for adaptive layers (mm).
+    pub adaptive_min_layer_height: f64,
+    /// Maximum layer height for adaptive layers (mm).
+    pub adaptive_max_layer_height: f64,
+    /// Adaptive layer quality (0.0 = speed, 1.0 = quality).
+    pub adaptive_layer_quality: f64,
 }
 
 impl Default for PrintConfig {
@@ -162,6 +172,11 @@ impl Default for PrintConfig {
 
             extrusion_multiplier: 1.0,
             filament_diameter: 1.75,
+
+            adaptive_layer_height: false,
+            adaptive_min_layer_height: 0.05,
+            adaptive_max_layer_height: 0.3,
+            adaptive_layer_quality: 0.5,
         }
     }
 }
@@ -299,5 +314,29 @@ mod tests {
         config.nozzle_diameter = 0.6;
         let expected = 0.6 * 1.1;
         assert!((config.extrusion_width() - expected).abs() < 1e-9);
+    }
+
+    #[test]
+    fn adaptive_layer_defaults() {
+        let config = PrintConfig::default();
+        assert!(!config.adaptive_layer_height);
+        assert!((config.adaptive_min_layer_height - 0.05).abs() < 1e-9);
+        assert!((config.adaptive_max_layer_height - 0.3).abs() < 1e-9);
+        assert!((config.adaptive_layer_quality - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn adaptive_fields_from_toml() {
+        let toml = r#"
+adaptive_layer_height = true
+adaptive_min_layer_height = 0.04
+adaptive_max_layer_height = 0.25
+adaptive_layer_quality = 0.8
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert!(config.adaptive_layer_height);
+        assert!((config.adaptive_min_layer_height - 0.04).abs() < 1e-9);
+        assert!((config.adaptive_max_layer_height - 0.25).abs() < 1e-9);
+        assert!((config.adaptive_layer_quality - 0.8).abs() < 1e-9);
     }
 }
