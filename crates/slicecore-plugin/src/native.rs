@@ -2,7 +2,7 @@
 //!
 //! Loads native dynamic libraries (`.so`, `.dll`, `.dylib`) as infill plugins.
 //! The loader resolves library paths from plugin manifests and uses
-//! `abi_stable`'s [`RootModule`] infrastructure for ABI-safe loading with
+//! `abi_stable`'s `RootModule` infrastructure for ABI-safe loading with
 //! automatic type layout verification.
 
 #[cfg(not(target_family = "wasm"))]

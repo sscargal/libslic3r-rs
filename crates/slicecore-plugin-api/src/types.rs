@@ -13,18 +13,36 @@ use abi_stable::StableAbi;
 /// An FFI-safe infill line segment in integer coordinate space.
 ///
 /// Represents a single extrusion path segment with start and end points.
-/// Coordinates use the same scale as the host engine (`COORD_SCALE = 1_000_000`,
-/// i.e. nanometer precision).
+/// Coordinates use the engine's integer scale: `COORD_SCALE = 1_000_000`,
+/// meaning 1 internal unit = 1 nanometer and 1 mm = 1,000,000 units.
+///
+/// The `i64` coordinate type provides a range of approximately +/- 9.2 x 10^12 mm,
+/// which is far beyond any physical print volume.
+///
+/// # Example
+///
+/// A line from (10mm, 20mm) to (30mm, 20mm):
+///
+/// ```
+/// use slicecore_plugin_api::FfiInfillLine;
+///
+/// let line = FfiInfillLine {
+///     start_x: 10_000_000, // 10mm
+///     start_y: 20_000_000, // 20mm
+///     end_x:   30_000_000, // 30mm
+///     end_y:   20_000_000, // 20mm
+/// };
+/// ```
 #[repr(C)]
 #[derive(StableAbi, Clone, Debug, PartialEq, Eq)]
 pub struct FfiInfillLine {
-    /// X coordinate of the line start point (in internal units).
+    /// X coordinate of the line start point (in internal units, `COORD_SCALE = 1_000_000`).
     pub start_x: i64,
-    /// Y coordinate of the line start point (in internal units).
+    /// Y coordinate of the line start point (in internal units, `COORD_SCALE = 1_000_000`).
     pub start_y: i64,
-    /// X coordinate of the line end point (in internal units).
+    /// X coordinate of the line end point (in internal units, `COORD_SCALE = 1_000_000`).
     pub end_x: i64,
-    /// Y coordinate of the line end point (in internal units).
+    /// Y coordinate of the line end point (in internal units, `COORD_SCALE = 1_000_000`).
     pub end_y: i64,
 }
 
@@ -37,36 +55,70 @@ pub struct FfiInfillLine {
 ///
 /// # Boundary Encoding
 ///
-/// `boundary_points` contains flattened `[x0, y0, x1, y1, ...]` coordinate pairs.
+/// `boundary_points` contains flattened `[x0, y0, x1, y1, ...]` coordinate pairs
+/// in integer coordinate space (`COORD_SCALE = 1_000_000`).
+///
 /// `boundary_lengths` contains the number of **points** (not coordinate values)
-/// per polygon. For example, a request with two polygons of 4 and 3 vertices would have:
-/// - `boundary_points` with 14 elements (7 points * 2 coords)
-/// - `boundary_lengths` of `[4, 3]`
+/// per polygon. For example, a request with two polygons of 4 and 3 vertices:
+/// - `boundary_points` has 14 elements (7 points x 2 coords each)
+/// - `boundary_lengths` is `[4, 3]`
+///
+/// Winding convention: CCW = outer boundary (positive area), CW = hole (negative area).
+///
+/// # Units
+///
+/// - `boundary_points`: integer units (`COORD_SCALE = 1_000_000` per mm)
+/// - `density`: dimensionless ratio `[0.0, 1.0]`
+/// - `layer_z`, `line_width`: millimeters (floating point)
 #[repr(C)]
 #[derive(StableAbi, Clone, Debug)]
 pub struct InfillRequest {
     /// Flattened polygon boundary points as `[x0, y0, x1, y1, ...]` pairs.
+    ///
+    /// Coordinates are in internal integer units where `COORD_SCALE = 1_000_000`
+    /// (1 mm = 1,000,000 units).
     pub boundary_points: RVec<i64>,
     /// Number of points per polygon boundary.
+    ///
+    /// Each entry specifies how many `(x, y)` pairs in `boundary_points` belong
+    /// to that polygon. The sum of all lengths times 2 must equal the length of
+    /// `boundary_points`.
     pub boundary_lengths: RVec<u32>,
     /// Fill density from 0.0 (empty) to 1.0 (solid).
+    ///
+    /// Controls the spacing between infill lines. A density of 0.2 means
+    /// approximately 20% of the infill region will be filled with material.
     pub density: f64,
-    /// Zero-based layer index.
+    /// Zero-based layer index within the sliced object.
+    ///
+    /// Can be used by patterns that vary their angle or offset per layer
+    /// (e.g., alternating 0/90 degree rectilinear).
     pub layer_index: u64,
-    /// Layer Z height in millimeters.
+    /// Layer Z height in millimeters from the build plate.
     pub layer_z: f64,
     /// Extrusion line width in millimeters.
+    ///
+    /// Used to calculate infill line spacing: `spacing = line_width / density`.
     pub line_width: f64,
 }
 
 /// The FFI-safe result of infill generation.
 ///
 /// Contains the generated infill line segments that the host will convert
-/// back to internal types for toolpath assembly.
+/// back to internal types for toolpath assembly. The host handles E-value
+/// computation, travel moves, and ordering -- plugins only need to provide
+/// the geometric line segments.
+///
+/// An empty `lines` vector is valid and means no infill was generated
+/// for the given region (e.g., when the boundary is too small).
 #[repr(C)]
 #[derive(StableAbi, Clone, Debug)]
 pub struct InfillResult {
-    /// Generated infill line segments.
+    /// Generated infill line segments in integer coordinate space.
+    ///
+    /// Each line represents an extrusion path segment. Lines do not need
+    /// to be ordered or connected -- the host applies its own ordering
+    /// heuristics (nearest-neighbor, etc.) during toolpath assembly.
     pub lines: RVec<FfiInfillLine>,
 }
 

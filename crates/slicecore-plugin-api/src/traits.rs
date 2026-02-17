@@ -50,16 +50,38 @@ use crate::types::{InfillRequest, InfillResult};
 /// ```
 #[sabi_trait]
 pub trait InfillPatternPlugin: Send + Sync + Debug {
-    /// Returns the unique name of this infill pattern (e.g., "zigzag").
+    /// Returns the unique name of this infill pattern (e.g., `"zigzag"`).
+    ///
+    /// This name is used as the identifier in configuration files and as the
+    /// lookup key in the [`PluginRegistry`](crate::traits::InfillPluginMod).
+    /// It should be lowercase, hyphen-separated, and globally unique among
+    /// all loaded plugins.
     fn name(&self) -> RString;
 
     /// Returns a human-readable description of this infill pattern.
+    ///
+    /// This is displayed in user interfaces and documentation. It should
+    /// briefly describe the visual and structural characteristics of the
+    /// generated infill pattern.
     fn description(&self) -> RString;
 
-    /// Generate infill lines for the given request.
+    /// Generate infill lines for the given boundary region.
     ///
-    /// Returns `ROk(InfillResult)` on success, or `RErr(RString)` with
-    /// an error message on failure.
+    /// Called once per infill region per layer during the slicing pipeline.
+    /// The `request` contains the polygon boundary, fill density, layer
+    /// information, and extrusion parameters. All coordinates use the
+    /// engine's integer coordinate system (`COORD_SCALE = 1_000_000`,
+    /// i.e., 1 unit = 1 nanometer).
+    ///
+    /// Returns `ROk(InfillResult)` with the generated line segments on
+    /// success, or `RErr(RString)` with an error message on failure.
+    ///
+    /// # Errors
+    ///
+    /// Should return `RErr` if the boundary is malformed, coordinates are
+    /// out of range, or the infill algorithm encounters an unrecoverable
+    /// error. The host will report the error and may fall back to a default
+    /// infill pattern.
     #[sabi(last_prefix_field)]
     fn generate(&self, request: &InfillRequest) -> RResult<InfillResult, RString>;
 }

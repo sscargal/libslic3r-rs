@@ -2,7 +2,8 @@
 //!
 //! These functions bridge the gap between the engine's internal types
 //! ([`ValidPolygon`], [`IPoint2`]) and the FFI-safe types used by plugins
-//! ([`InfillRequest`], [`InfillResult`], [`FfiInfillLine`]).
+//! ([`InfillRequest`], [`InfillResult`],
+//! [`FfiInfillLine`](slicecore_plugin_api::FfiInfillLine)).
 
 use abi_stable::std_types::RVec;
 
@@ -13,7 +14,7 @@ use slicecore_plugin_api::{InfillRequest, InfillResult};
 /// An infill line converted from FFI-safe format to internal coordinates.
 ///
 /// This is a simple (start, end) pair that the engine integration layer
-/// can use to construct its own [`InfillLine`] type.
+/// can use to construct its own infill line type.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConvertedInfillLine {
     /// Start point of the infill line.

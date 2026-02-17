@@ -6,7 +6,7 @@
 //!
 //! The WIT interface definition (`wit/slicecore-plugin.wit`) mirrors the
 //! native plugin API, enabling both native and WASM plugins to be loaded
-//! through the same [`InfillPluginAdapter`] trait.
+//! through the same `InfillPluginAdapter` trait.
 
 #[cfg(feature = "wasm-plugins")]
 mod wasm_impl {

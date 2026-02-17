@@ -57,9 +57,27 @@ pub trait InfillPluginAdapter: Send + Sync {
 
 /// Central plugin registry managing all loaded plugins.
 ///
-/// Provides discovery, registration, and lookup of infill plugins.
-/// Supports both native (abi_stable) and WASM (wasmtime) plugins
-/// through the unified [`InfillPluginAdapter`] trait.
+/// The `PluginRegistry` is the primary entry point for the plugin system.
+/// It handles the full plugin lifecycle:
+///
+/// 1. **Discovery** -- [`discover_and_load()`](Self::discover_and_load) scans a
+///    directory for `plugin.toml` manifests
+/// 2. **Validation** -- Checks API version compatibility before loading
+/// 3. **Loading** -- Creates plugin instances via `abi_stable` (native) or
+///    `wasmtime` (WASM) depending on the manifest's `plugin_type`
+/// 4. **Lookup** -- [`get_infill_plugin()`](Self::get_infill_plugin) retrieves
+///    plugins by name for infill generation
+///
+/// Plugins can also be registered programmatically via
+/// [`register_infill_plugin()`](Self::register_infill_plugin), which is useful
+/// for built-in patterns or test fixtures.
+///
+/// # Thread Safety
+///
+/// The registry itself is not `Sync`, but all registered plugins implement
+/// `Send + Sync` via the [`InfillPluginAdapter`] trait bound. The typical
+/// pattern is to populate the registry during initialization, then share
+/// plugin references across threads.
 pub struct PluginRegistry {
     /// Loaded infill plugins keyed by name.
     infill_plugins: HashMap<String, Box<dyn InfillPluginAdapter>>,
@@ -72,6 +90,10 @@ pub struct PluginRegistry {
 
 impl PluginRegistry {
     /// Creates a new empty plugin registry with default sandbox configuration.
+    ///
+    /// The default sandbox configuration allows 64 MiB of memory and 10M fuel
+    /// units for WASM plugins. Use [`with_sandbox_config()`](Self::with_sandbox_config)
+    /// to customize these limits.
     pub fn new() -> Self {
         Self {
             infill_plugins: HashMap::new(),
@@ -96,11 +118,30 @@ impl PluginRegistry {
 
     /// Discovers and loads all plugins from a directory.
     ///
-    /// Scans the directory for `plugin.toml` manifests, validates version
-    /// compatibility, and loads each plugin based on its type (native or WASM).
+    /// Scans the directory for subdirectories containing `plugin.toml` manifests,
+    /// validates API version compatibility, and loads each plugin based on its
+    /// type (native or WASM).
     ///
-    /// If a plugin fails to load, the error is logged and loading continues
-    /// with the remaining plugins. Only successfully loaded plugins are returned.
+    /// # Directory Structure
+    ///
+    /// Expects the following layout:
+    ///
+    /// ```text
+    /// dir/
+    ///   zigzag-infill/
+    ///     plugin.toml
+    ///     libzigzag.so (or target/debug/libzigzag.so)
+    ///   spiral-infill/
+    ///     plugin.toml
+    ///     spiral.wasm
+    /// ```
+    ///
+    /// # Error Handling
+    ///
+    /// If a plugin fails to load, the error is logged to stderr and loading
+    /// continues with the remaining plugins. Only successfully loaded plugins
+    /// are included in the returned list. Returns `Err` only for discovery-level
+    /// failures (I/O errors, invalid manifests, version incompatibility).
     #[cfg(not(target_family = "wasm"))]
     pub fn discover_and_load(&mut self, dir: &Path) -> Result<Vec<PluginInfo>, PluginSystemError> {
         let discovered = discovery::discover_plugins(dir)?;
@@ -199,18 +240,26 @@ impl PluginRegistry {
 
     /// Manually registers an infill plugin.
     ///
-    /// Useful for built-in plugins or test fixtures.
+    /// Useful for built-in plugins or test fixtures. If a plugin with the
+    /// same name is already registered, it is replaced by the new one.
     pub fn register_infill_plugin(&mut self, plugin: Box<dyn InfillPluginAdapter>) {
         let name = plugin.name();
         self.infill_plugins.insert(name, plugin);
     }
 
     /// Looks up an infill plugin by name.
+    ///
+    /// Returns `None` if no plugin with the given name is registered.
+    /// The returned reference can be used to call [`InfillPluginAdapter::generate()`].
     pub fn get_infill_plugin(&self, name: &str) -> Option<&dyn InfillPluginAdapter> {
         self.infill_plugins.get(name).map(|p| p.as_ref())
     }
 
     /// Returns information about all registered infill plugins.
+    ///
+    /// The returned list includes the plugin name, description, and loading
+    /// mechanism ([`PluginKind`]) for each registered plugin. The order is
+    /// not guaranteed (HashMap iteration order).
     pub fn list_infill_plugins(&self) -> Vec<PluginInfo> {
         self.infill_plugins
             .values()
@@ -224,6 +273,9 @@ impl PluginRegistry {
     }
 
     /// Checks if an infill plugin with the given name is registered.
+    ///
+    /// This is a lightweight existence check that avoids the overhead of
+    /// constructing a [`PluginInfo`].
     pub fn has_infill_plugin(&self, name: &str) -> bool {
         self.infill_plugins.contains_key(name)
     }

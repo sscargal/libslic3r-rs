@@ -1,20 +1,25 @@
 //! # slicecore-plugin-api
 //!
-//! FFI-safe plugin interface types for the slicecore slicing engine.
+//! Shared interface types for the slicecore plugin system.
 //!
-//! This crate defines the shared interface between the **host** application
-//! (`slicecore-plugin`) and individual **plugin** crates. It is the foundation
-//! of a three-crate plugin architecture:
+//! This crate defines the FFI-safe types and traits that form the contract
+//! between the slicecore host application and plugins. Both native (dynamic
+//! library) and WASM plugins implement the same logical interface.
+//!
+//! ## Architecture
+//!
+//! The plugin system uses a three-crate architecture:
 //!
 //! 1. **`slicecore-plugin-api`** (this crate) -- Shared types and traits.
 //!    Both the host and plugins depend on this crate. Type layout agreement
 //!    at load time prevents undefined behavior.
 //!
-//! 2. **`slicecore-plugin`** -- Plugin registry, native loader (`abi_stable`),
-//!    and WASM loader (`wasmtime`). Only the host depends on this crate.
+//! 2. **`slicecore-plugin`** -- Host-side registry, loading, and lifecycle.
+//!    Handles plugin discovery, native loading via `abi_stable`, and WASM
+//!    loading via `wasmtime`.
 //!
-//! 3. **Plugin crates** (e.g., `zigzag-infill`) -- Individual plugin
-//!    implementations. Each depends only on `slicecore-plugin-api`.
+//! 3. **Plugin crates** -- Individual plugin implementations. Each depends
+//!    only on `slicecore-plugin-api`.
 //!
 //! ## FFI Safety
 //!
@@ -23,12 +28,46 @@
 //! standard library types. **Never** pass `Vec<T>`, `String`, or `Box<T>`
 //! across the FFI boundary.
 //!
+//! ## Creating a Native Plugin
+//!
+//! Native plugins are compiled as dynamic libraries (`.so` / `.dll` / `.dylib`)
+//! and loaded at runtime via `abi_stable`'s type-layout-verified FFI.
+//!
+//! Steps:
+//!
+//! 1. Create a new crate with `crate-type = ["cdylib"]` in `Cargo.toml`
+//! 2. Depend on `slicecore-plugin-api` and `abi_stable = "0.11"`
+//! 3. Implement the [`InfillPatternPlugin`] trait on your plugin struct
+//! 4. Export the root module via `#[export_root_module]` returning an
+//!    [`InfillPluginMod_Ref`]
+//! 5. Create a `plugin.toml` manifest alongside the built library
+//! 6. Build with `cargo build`
+//!
+//! See `plugins/examples/native-zigzag-infill/` for a complete working example.
+//!
+//! ## Creating a WASM Plugin
+//!
+//! WASM plugins are compiled as WebAssembly components and loaded at runtime
+//! via `wasmtime` with sandboxed execution (memory limits, CPU fuel).
+//!
+//! Steps:
+//!
+//! 1. Create a new crate with `crate-type = ["cdylib"]` in `Cargo.toml`
+//! 2. Depend on `wit-bindgen` for guest binding generation
+//! 3. Copy the WIT file from `crates/slicecore-plugin/wit/slicecore-plugin.wit`
+//! 4. Use `wit_bindgen::generate!` to create guest bindings
+//! 5. Implement the generated `Guest` trait
+//! 6. Create a `plugin.toml` manifest alongside the built `.wasm` file
+//! 7. Build with `cargo build --target wasm32-wasip2`
+//!
+//! See `plugins/examples/wasm-spiral-infill/` for a complete working example.
+//!
 //! ## Modules
 //!
-//! - [`types`] -- FFI-safe infill request/result types
-//! - [`error`] -- FFI-safe error types
+//! - [`types`] -- FFI-safe infill request/result types ([`InfillRequest`], [`InfillResult`], [`FfiInfillLine`])
+//! - [`error`] -- FFI-safe error types ([`PluginError`])
 //! - [`metadata`] -- Plugin metadata and manifest (serde-serializable, not FFI)
-//! - [`traits`] -- FFI-safe plugin traits (`InfillPatternPlugin`) and root module
+//! - [`traits`] -- FFI-safe plugin traits ([`InfillPatternPlugin`]) and root module ([`InfillPluginMod`])
 
 // The abi_stable sabi_trait macro generates non-local impl blocks that trigger
 // this lint on newer Rust compilers. Suppressed at crate level since the macro
