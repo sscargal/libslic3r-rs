@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 5 of 9 (Support Structures)
-Plan: 3 of 8 in current phase (3 complete)
-Status: Executing Phase 5 -- Plan 03 complete (bridge detection and G-code integration)
-Last activity: 2026-02-17 -- Completed 05-03-PLAN.md (Bridge detection and bridge-specific print settings)
+Plan: 4 of 8 in current phase (4 complete)
+Status: Executing Phase 5 -- Plan 04 complete (tree support generation)
+Last activity: 2026-02-17 -- Completed 05-04-PLAN.md (Tree support generation with bottom-up growth)
 
-Progress: [##############################] 81% (29/~36 overall)
+Progress: [###############################] 83% (30/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 29
+- Total plans completed: 30
 - Average duration: 5.2 min
-- Total execution time: 3.02 hours
+- Total execution time: 3.12 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [##############################] 81% (29/~36 overall)
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
-| 05    | 3     | 12min | 4.0min   |
+| 05    | 4     | 18min | 4.5min   |
 
 **Recent Trend:**
-- Last 5 plans: 04-10 (6min), 05-01 (5min), 05-02 (4min), 05-03 (3min)
+- Last 5 plans: 05-01 (5min), 05-02 (4min), 05-03 (3min), 05-04 (6min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -177,6 +177,12 @@ Recent decisions affecting current work:
 - [05-03]: Endpoint support via probe-strip polygon intersection with 0.5mm expanded below_contours
 - [05-03]: Probe strip thickness 0.3mm for robust but precise intersection detection
 - [05-03]: SupportInterface variant added alongside Bridge for Plan 05 readiness
+- [05-04]: Arena-based flat Vec<TreeNode> with index references (not recursive pointers) for tree support
+- [05-04]: Auto taper defaults to Linear; Auto branch style defaults to Geometric
+- [05-04]: Load-based taper uses sqrt(contacts_above/total_contacts) for proportional scaling
+- [05-04]: Merge distance = max(merge_distance_factor * max_trunk_diameter, 5mm) per research
+- [05-04]: Organic branch smoothing inserts Bezier-like control points with 15% perpendicular offset
+- [05-04]: Circle approximation: 8 segments for collision checking, 16 segments for sliced output
 
 ### Pending Todos
 
@@ -189,5 +195,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 05-03-PLAN.md (Bridge detection and bridge-specific print settings)
-Resume file: .planning/phases/05-support-structures/05-03-SUMMARY.md
+Stopped at: Completed 05-04-PLAN.md (Tree support generation with bottom-up growth)
+Resume file: .planning/phases/05-support-structures/05-04-SUMMARY.md
