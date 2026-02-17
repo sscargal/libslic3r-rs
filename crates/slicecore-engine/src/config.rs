@@ -121,6 +121,10 @@ pub struct PrintConfig {
     pub extrusion_multiplier: f64,
     /// Filament diameter in mm.
     pub filament_diameter: f64,
+    /// Filament density in g/cm^3 (PLA ~1.24, ABS ~1.04, PETG ~1.27).
+    pub filament_density: f64,
+    /// Filament cost per kilogram in currency units (e.g., USD/kg).
+    pub filament_cost_per_kg: f64,
 
     // --- Adaptive Layer Heights ---
     /// Enable adaptive layer heights based on surface curvature.
@@ -165,6 +169,14 @@ pub struct PrintConfig {
     // --- G-code Dialect ---
     /// G-code firmware dialect (Marlin, Klipper, RepRapFirmware, Bambu).
     pub gcode_dialect: GcodeDialect,
+
+    // --- Arc Fitting ---
+    /// Enable arc fitting post-processing (G1 -> G2/G3 conversion).
+    pub arc_fitting_enabled: bool,
+    /// Maximum deviation (mm) for arc fitting tolerance.
+    pub arc_fitting_tolerance: f64,
+    /// Minimum number of consecutive G1 moves to consider for arc fitting.
+    pub arc_fitting_min_points: usize,
 
     // --- Acceleration / Jerk / Pressure Advance ---
     /// Print acceleration in mm/s^2.
@@ -296,6 +308,8 @@ impl Default for PrintConfig {
 
             extrusion_multiplier: 1.0,
             filament_diameter: 1.75,
+            filament_density: 1.24,
+            filament_cost_per_kg: 25.0,
 
             adaptive_layer_height: false,
             adaptive_min_layer_height: 0.05,
@@ -318,6 +332,10 @@ impl Default for PrintConfig {
             custom_gcode: CustomGcodeHooks::default(),
 
             gcode_dialect: GcodeDialect::Marlin,
+
+            arc_fitting_enabled: false,
+            arc_fitting_tolerance: 0.05,
+            arc_fitting_min_points: 3,
 
             print_acceleration: 1000.0,
             travel_acceleration: 1500.0,
@@ -352,6 +370,61 @@ impl PrintConfig {
     /// Currently uses a simple heuristic of `nozzle_diameter * 1.1`.
     pub fn extrusion_width(&self) -> f64 {
         self.nozzle_diameter * 1.1
+    }
+}
+
+/// Per-region setting overrides for modifier meshes.
+///
+/// Each field is optional: `Some(value)` overrides the corresponding
+/// [`PrintConfig`] field, `None` inherits the base config value.
+/// Use [`merge_into`](SettingOverrides::merge_into) to produce an
+/// effective config for a modifier region.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SettingOverrides {
+    /// Override infill density (0.0-1.0).
+    pub infill_density: Option<f64>,
+    /// Override infill pattern.
+    pub infill_pattern: Option<InfillPattern>,
+    /// Override number of perimeter walls.
+    pub wall_count: Option<u32>,
+    /// Override perimeter speed (mm/s).
+    pub perimeter_speed: Option<f64>,
+    /// Override infill speed (mm/s).
+    pub infill_speed: Option<f64>,
+    /// Override number of top solid layers.
+    pub top_solid_layers: Option<u32>,
+    /// Override number of bottom solid layers.
+    pub bottom_solid_layers: Option<u32>,
+}
+
+impl SettingOverrides {
+    /// Produces an effective [`PrintConfig`] by cloning `base` and applying
+    /// any `Some()` overrides from this struct.
+    pub fn merge_into(&self, base: &PrintConfig) -> PrintConfig {
+        let mut config = base.clone();
+        if let Some(v) = self.infill_density {
+            config.infill_density = v;
+        }
+        if let Some(v) = self.infill_pattern {
+            config.infill_pattern = v;
+        }
+        if let Some(v) = self.wall_count {
+            config.wall_count = v;
+        }
+        if let Some(v) = self.perimeter_speed {
+            config.perimeter_speed = v;
+        }
+        if let Some(v) = self.infill_speed {
+            config.infill_speed = v;
+        }
+        if let Some(v) = self.top_solid_layers {
+            config.top_solid_layers = v;
+        }
+        if let Some(v) = self.bottom_solid_layers {
+            config.bottom_solid_layers = v;
+        }
+        config
     }
 }
 
@@ -587,5 +660,74 @@ custom_gcode_per_z = [[5.0, "M600"]]
         let config = PrintConfig::from_toml(toml).unwrap();
         assert_eq!(config.custom_gcode.after_layer_change, "M117 Layer {layer_num}");
         assert_eq!(config.custom_gcode.custom_gcode_per_z.len(), 1);
+    }
+
+    #[test]
+    fn setting_overrides_default_all_none() {
+        let overrides = SettingOverrides::default();
+        assert!(overrides.infill_density.is_none());
+        assert!(overrides.infill_pattern.is_none());
+        assert!(overrides.wall_count.is_none());
+        assert!(overrides.perimeter_speed.is_none());
+        assert!(overrides.infill_speed.is_none());
+        assert!(overrides.top_solid_layers.is_none());
+        assert!(overrides.bottom_solid_layers.is_none());
+    }
+
+    #[test]
+    fn setting_overrides_merge_applies_some_fields() {
+        let base = PrintConfig::default();
+        let overrides = SettingOverrides {
+            infill_density: Some(0.8),
+            wall_count: Some(4),
+            perimeter_speed: Some(30.0),
+            ..Default::default()
+        };
+        let merged = overrides.merge_into(&base);
+        // Overridden fields.
+        assert!((merged.infill_density - 0.8).abs() < 1e-9);
+        assert_eq!(merged.wall_count, 4);
+        assert!((merged.perimeter_speed - 30.0).abs() < 1e-9);
+        // Non-overridden fields preserved.
+        assert!((merged.infill_speed - base.infill_speed).abs() < 1e-9);
+        assert_eq!(merged.top_solid_layers, base.top_solid_layers);
+        assert_eq!(merged.bottom_solid_layers, base.bottom_solid_layers);
+        assert!((merged.layer_height - base.layer_height).abs() < 1e-9);
+    }
+
+    #[test]
+    fn setting_overrides_merge_preserves_non_overridden() {
+        let base = PrintConfig {
+            infill_density: 0.3,
+            wall_count: 3,
+            perimeter_speed: 50.0,
+            ..Default::default()
+        };
+        let overrides = SettingOverrides::default(); // all None
+        let merged = overrides.merge_into(&base);
+        assert!((merged.infill_density - 0.3).abs() < 1e-9);
+        assert_eq!(merged.wall_count, 3);
+        assert!((merged.perimeter_speed - 50.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn arc_fitting_defaults() {
+        let config = PrintConfig::default();
+        assert!(!config.arc_fitting_enabled);
+        assert!((config.arc_fitting_tolerance - 0.05).abs() < 1e-9);
+        assert_eq!(config.arc_fitting_min_points, 3);
+    }
+
+    #[test]
+    fn arc_fitting_from_toml() {
+        let toml = r#"
+arc_fitting_enabled = true
+arc_fitting_tolerance = 0.1
+arc_fitting_min_points = 5
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert!(config.arc_fitting_enabled);
+        assert!((config.arc_fitting_tolerance - 0.1).abs() < 1e-9);
+        assert_eq!(config.arc_fitting_min_points, 5);
     }
 }

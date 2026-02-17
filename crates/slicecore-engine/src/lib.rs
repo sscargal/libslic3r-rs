@@ -27,11 +27,13 @@ pub mod engine;
 pub mod error;
 pub mod estimation;
 pub mod extrusion;
+pub mod filament;
 pub mod flow_control;
 pub mod gap_fill;
 pub mod gcode_gen;
 pub mod infill;
 pub mod ironing;
+pub mod modifier;
 pub mod perimeter;
 pub mod planner;
 pub mod preview;
@@ -42,13 +44,14 @@ pub mod surface;
 pub mod toolpath;
 
 // Re-export primary types at crate root.
-pub use config::{PrintConfig, ScarfJointConfig, ScarfJointType, WallOrder};
+pub use config::{PrintConfig, ScarfJointConfig, ScarfJointType, SettingOverrides, WallOrder};
 pub use custom_gcode::{substitute_placeholders, CustomGcodeHooks};
 pub use flow_control::PerFeatureFlow;
 pub use seam::{select_seam_point, SeamPosition};
 pub use engine::{Engine, SliceResult};
 pub use error::EngineError;
 pub use estimation::{estimate_print_time, trapezoid_time, PrintTimeEstimate};
+pub use filament::{estimate_filament_usage, FilamentUsage};
 pub use extrusion::{compute_e_value, extrusion_cross_section, move_length};
 pub use infill::{
     alternate_infill_angle, generate_infill, generate_rectilinear_infill, InfillLine,
@@ -64,6 +67,7 @@ pub use gap_fill::{detect_and_fill_gaps, GapFillPath};
 pub use arachne::{generate_arachne_perimeters, ArachnePerimeter, ArachneResult};
 pub use preview::{generate_preview, LayerPreview, SlicePreview};
 pub use ironing::{generate_ironing_passes, IroningConfig};
+pub use modifier::{slice_modifier, split_by_modifiers, ModifierMesh, ModifierRegion};
 pub use scarf::apply_scarf_joint;
 pub use support::config::SupportConfig;
 pub use support::{SupportRegion, SupportResult};

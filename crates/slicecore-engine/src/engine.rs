@@ -21,10 +21,13 @@ use slicecore_slicer::{compute_adaptive_layer_heights, slice_mesh, slice_mesh_ad
 use crate::arachne::generate_arachne_perimeters;
 use crate::config::PrintConfig;
 use crate::error::EngineError;
+use crate::estimation::{estimate_print_time, PrintTimeEstimate};
+use crate::filament::{estimate_filament_usage, FilamentUsage};
 use crate::gap_fill::detect_and_fill_gaps;
 use crate::gcode_gen::generate_full_gcode;
 use crate::infill::{generate_infill, lightning, InfillPattern, LayerInfill};
 use crate::ironing::generate_ironing_passes;
+use crate::modifier::{slice_modifier, split_by_modifiers, ModifierMesh};
 use crate::perimeter::generate_perimeters;
 use crate::planner::{generate_brim, generate_skirt};
 use crate::preview::{generate_preview, SlicePreview};
@@ -44,8 +47,12 @@ pub struct SliceResult {
     pub gcode: Vec<u8>,
     /// Number of layers sliced.
     pub layer_count: usize,
-    /// Total estimated print time in seconds.
+    /// Total estimated print time in seconds (backward compatibility).
     pub estimated_time_seconds: f64,
+    /// Detailed print time estimate using trapezoid motion model.
+    pub time_estimate: PrintTimeEstimate,
+    /// Filament usage breakdown (length, weight, cost).
+    pub filament_usage: FilamentUsage,
     /// Optional preview data for visualization.
     pub preview: Option<SlicePreview>,
 }
@@ -286,6 +293,8 @@ impl Engine {
             gcode: buf,
             layer_count: result.layer_count,
             estimated_time_seconds: result.estimated_time_seconds,
+            time_estimate: result.time_estimate,
+            filament_usage: result.filament_usage,
             preview: None,
         })
     }
@@ -758,11 +767,32 @@ impl Engine {
         // 4. G-code generation.
         let gcode_commands = generate_full_gcode(&layer_toolpaths, &self.config);
 
-        // 5. Compute estimated time.
-        let estimated_time: f64 = layer_toolpaths
-            .iter()
-            .map(|lt| lt.estimated_time_seconds())
-            .sum();
+        // 4b. Arc fitting post-processing (optional).
+        let gcode_commands = if self.config.arc_fitting_enabled {
+            slicecore_gcode_io::fit_arcs(
+                &gcode_commands,
+                self.config.arc_fitting_tolerance,
+                self.config.arc_fitting_min_points,
+            )
+        } else {
+            gcode_commands
+        };
+
+        // 5. Compute estimated time using trapezoid motion model.
+        let time_estimate = estimate_print_time(
+            &gcode_commands,
+            self.config.print_acceleration,
+            self.config.travel_acceleration,
+        );
+        let estimated_time = time_estimate.total_seconds;
+
+        // 5b. Compute filament usage.
+        let filament_usage = estimate_filament_usage(
+            &gcode_commands,
+            self.config.filament_diameter,
+            self.config.filament_density,
+            self.config.filament_cost_per_kg,
+        );
 
         let layer_count = layer_toolpaths.len();
 
@@ -791,6 +821,8 @@ impl Engine {
             gcode: Vec::new(), // Not used in writer path.
             layer_count,
             estimated_time_seconds: estimated_time,
+            time_estimate,
+            filament_usage,
             preview: None,
         })
     }
@@ -1071,6 +1103,452 @@ impl Engine {
         result.preview = Some(preview);
 
         Ok(result)
+    }
+
+    /// Slices a mesh with modifier mesh overrides.
+    ///
+    /// Modifier meshes define 3D regions where different settings apply.
+    /// At each layer, modifier meshes are sliced at the layer Z, and model
+    /// contours are split into regions with per-region effective configs.
+    ///
+    /// This method extends the standard pipeline by applying
+    /// [`split_by_modifiers`] before perimeter and infill generation.
+    ///
+    /// # Errors
+    ///
+    /// Same errors as [`Engine::slice`].
+    pub fn slice_with_modifiers(
+        &self,
+        mesh: &TriangleMesh,
+        modifiers: &[ModifierMesh],
+    ) -> Result<SliceResult, EngineError> {
+        if modifiers.is_empty() {
+            return self.slice(mesh);
+        }
+
+        // Validate mesh.
+        if mesh.triangle_count() == 0 {
+            return Err(EngineError::EmptyMesh);
+        }
+
+        // 1. Slice mesh into layers.
+        let layers = if self.config.adaptive_layer_height {
+            let heights = compute_adaptive_layer_heights(
+                mesh,
+                self.config.adaptive_min_layer_height,
+                self.config.adaptive_max_layer_height,
+                self.config.adaptive_layer_quality,
+                self.config.first_layer_height,
+            );
+            slice_mesh_adaptive(mesh, &heights)
+        } else {
+            slice_mesh(
+                mesh,
+                self.config.layer_height,
+                self.config.first_layer_height,
+            )
+        };
+
+        if layers.is_empty() {
+            return Err(EngineError::NoLayers);
+        }
+
+        // 1b. Lightning context (if needed).
+        let lightning_ctx = if self.config.infill_pattern == InfillPattern::Lightning {
+            let layer_contours: Vec<Vec<_>> = layers.iter().map(|l| l.contours.clone()).collect();
+            Some(lightning::build_lightning_context(
+                &layer_contours,
+                self.config.infill_density,
+                self.config.extrusion_width(),
+            ))
+        } else {
+            None
+        };
+
+        // 1c. Support structures.
+        let extrusion_width = self.config.extrusion_width();
+        let support_result = if self.config.support.enabled {
+            support::generate_supports(&layers, mesh, &self.config.support, extrusion_width)
+        } else {
+            support::SupportResult::empty()
+        };
+
+        // 2. Per-layer processing with modifier support.
+        let mut layer_toolpaths: Vec<LayerToolpath> = Vec::with_capacity(layers.len());
+        let mut previous_seam: Option<slicecore_math::IPoint2> = None;
+
+        for (layer_idx, layer) in layers.iter().enumerate() {
+            if layer.contours.is_empty() {
+                layer_toolpaths.push(LayerToolpath {
+                    layer_index: layer_idx,
+                    z: layer.z,
+                    layer_height: layer.layer_height,
+                    segments: Vec::new(),
+                });
+                continue;
+            }
+
+            // 2a. Slice modifiers at this layer Z.
+            let modifier_regions: Vec<_> = modifiers
+                .iter()
+                .filter_map(|m| slice_modifier(m, layer.z))
+                .collect();
+
+            // 2b. Split contours by modifiers.
+            let region_configs =
+                split_by_modifiers(&layer.contours, &modifier_regions, &self.config);
+
+            // 2c. Process each region separately.
+            let mut all_segments = Vec::new();
+
+            for (region_contours, region_config) in &region_configs {
+                // Perimeters.
+                let perimeters = generate_perimeters(region_contours, region_config);
+
+                // Surface classification.
+                let classification = classify_surfaces(
+                    &layers,
+                    layer_idx,
+                    region_config.top_solid_layers,
+                    region_config.bottom_solid_layers,
+                );
+
+                // Infill.
+                let region_extrusion_width = region_config.extrusion_width();
+                let mut all_infill_lines = Vec::new();
+                let mut infill_is_solid = false;
+
+                if !classification.solid_regions.is_empty() {
+                    let solid_lines = generate_infill(
+                        InfillPattern::Rectilinear,
+                        &classification.solid_regions,
+                        1.0,
+                        layer_idx,
+                        layer.z,
+                        region_extrusion_width,
+                        None,
+                    );
+                    if !solid_lines.is_empty() {
+                        all_infill_lines.extend(solid_lines);
+                        infill_is_solid = true;
+                    }
+                }
+
+                if !classification.sparse_regions.is_empty()
+                    && region_config.infill_density > 0.0
+                {
+                    let sparse_lines = generate_infill(
+                        region_config.infill_pattern,
+                        &classification.sparse_regions,
+                        region_config.infill_density,
+                        layer_idx,
+                        layer.z,
+                        region_extrusion_width,
+                        lightning_ctx.as_ref(),
+                    );
+                    all_infill_lines.extend(sparse_lines);
+                }
+
+                if classification.solid_regions.is_empty()
+                    && classification.sparse_regions.is_empty()
+                    && !perimeters.is_empty()
+                {
+                    let inner = &perimeters[0].inner_contour;
+                    if !inner.is_empty() && region_config.infill_density > 0.0 {
+                        let lines = generate_infill(
+                            region_config.infill_pattern,
+                            inner,
+                            region_config.infill_density,
+                            layer_idx,
+                            layer.z,
+                            region_extrusion_width,
+                            lightning_ctx.as_ref(),
+                        );
+                        all_infill_lines.extend(lines);
+                    }
+                }
+
+                let infill = LayerInfill {
+                    lines: all_infill_lines,
+                    is_solid: infill_is_solid,
+                };
+
+                // Gap fill.
+                let gap_fills = if region_config.gap_fill_enabled && !perimeters.is_empty() {
+                    detect_and_fill_gaps(
+                        &perimeters[0].shells,
+                        &perimeters[0].inner_contour,
+                        region_contours,
+                        region_config.gap_fill_min_width,
+                        region_config.nozzle_diameter,
+                        region_extrusion_width,
+                    )
+                } else {
+                    Vec::new()
+                };
+
+                // Assemble toolpath for this region.
+                let (region_toolpath, layer_seam) = assemble_layer_toolpath(
+                    layer_idx,
+                    layer.z,
+                    layer.layer_height,
+                    &perimeters,
+                    &gap_fills,
+                    &infill,
+                    region_config,
+                    previous_seam,
+                );
+
+                all_segments.extend(region_toolpath.segments);
+
+                if layer_seam.is_some() {
+                    previous_seam = layer_seam;
+                }
+            }
+
+            let mut toolpath = LayerToolpath {
+                layer_index: layer_idx,
+                z: layer.z,
+                layer_height: layer.layer_height,
+                segments: all_segments,
+            };
+
+            // 2d. Support toolpaths.
+            if let Some(layer_support) = support_result.regions.get(layer_idx) {
+                if !layer_support.is_empty() {
+                    let support_segs = assemble_support_toolpath(
+                        layer_support,
+                        &self.config,
+                        layer.z,
+                        layer.layer_height,
+                    );
+                    toolpath.segments.extend(support_segs);
+                }
+            }
+
+            // 2e. Bridge toolpaths.
+            if let Some(layer_bridges) = support_result.bridge_regions.get(layer_idx) {
+                if !layer_bridges.is_empty() {
+                    let bridge_segs = assemble_bridge_toolpath(
+                        layer_bridges,
+                        &self.config,
+                        layer.z,
+                        layer.layer_height,
+                    );
+                    toolpath.segments.extend(bridge_segs);
+                }
+            }
+
+            // 2f. Ironing.
+            if self.config.ironing.enabled {
+                let classification = classify_surfaces(
+                    &layers,
+                    layer_idx,
+                    self.config.top_solid_layers,
+                    self.config.bottom_solid_layers,
+                );
+                if !classification.solid_regions.is_empty() {
+                    let is_top_layer = layer_idx
+                        >= layers.len().saturating_sub(self.config.top_solid_layers as usize);
+                    let has_top_exposure = if layer_idx + 1 < layers.len() {
+                        !layers[layer_idx + 1].contours.is_empty()
+                            && !classification.solid_regions.is_empty()
+                    } else {
+                        true
+                    };
+
+                    if is_top_layer || has_top_exposure {
+                        let ironing_segs = generate_ironing_passes(
+                            &classification.solid_regions,
+                            &self.config.ironing,
+                            layer.z,
+                            self.config.nozzle_diameter,
+                            layer.layer_height,
+                            self.config.filament_diameter,
+                            self.config.extrusion_multiplier,
+                        );
+                        toolpath.segments.extend(ironing_segs);
+                    }
+                }
+            }
+
+            layer_toolpaths.push(toolpath);
+        }
+
+        // 3. First-layer extras: skirt/brim.
+        if !layers.is_empty() && !layers[0].contours.is_empty() {
+            let first_contours = &layers[0].contours;
+            let first_z = layers[0].z;
+            let first_layer_height = layers[0].layer_height;
+
+            let extra_polygons = if self.config.brim_width > 0.0 {
+                generate_brim(first_contours, &self.config)
+            } else {
+                generate_skirt(first_contours, &self.config)
+            };
+
+            if !extra_polygons.is_empty() && !layer_toolpaths.is_empty() {
+                let feature = if self.config.brim_width > 0.0 {
+                    FeatureType::Brim
+                } else {
+                    FeatureType::Skirt
+                };
+
+                let speed = self.config.first_layer_speed * 60.0;
+                let travel_speed = self.config.travel_speed * 60.0;
+                let ext_width = self.config.extrusion_width();
+
+                let mut extra_segments = Vec::new();
+                let mut current_pos: Option<Point2> = None;
+
+                for polygon in &extra_polygons {
+                    let pts = polygon.points();
+                    if pts.len() < 2 {
+                        continue;
+                    }
+
+                    let (fx, fy) = pts[0].to_mm();
+                    let first_pt = Point2::new(fx, fy);
+
+                    if let Some(pos) = current_pos {
+                        let dx = first_pt.x - pos.x;
+                        let dy = first_pt.y - pos.y;
+                        let dist = (dx * dx + dy * dy).sqrt();
+                        if dist > 0.001 {
+                            extra_segments.push(ToolpathSegment {
+                                start: pos,
+                                end: first_pt,
+                                feature: FeatureType::Travel,
+                                e_value: 0.0,
+                                feedrate: travel_speed,
+                                z: first_z,
+                                extrusion_width: None,
+                            });
+                        }
+                    }
+
+                    let mut prev = first_pt;
+                    for ipt in pts.iter().skip(1) {
+                        let (px, py) = ipt.to_mm();
+                        let pt = Point2::new(px, py);
+                        let dx = pt.x - prev.x;
+                        let dy = pt.y - prev.y;
+                        let seg_len = (dx * dx + dy * dy).sqrt();
+
+                        if seg_len > 0.0001 {
+                            let e = compute_e_value(
+                                seg_len,
+                                ext_width,
+                                first_layer_height,
+                                self.config.filament_diameter,
+                                self.config.extrusion_multiplier,
+                            );
+                            extra_segments.push(ToolpathSegment {
+                                start: prev,
+                                end: pt,
+                                feature,
+                                e_value: e,
+                                feedrate: speed,
+                                z: first_z,
+                                extrusion_width: None,
+                            });
+                        }
+                        prev = pt;
+                    }
+
+                    let dx = first_pt.x - prev.x;
+                    let dy = first_pt.y - prev.y;
+                    let close_len = (dx * dx + dy * dy).sqrt();
+                    if close_len > 0.0001 {
+                        let e = compute_e_value(
+                            close_len,
+                            ext_width,
+                            first_layer_height,
+                            self.config.filament_diameter,
+                            self.config.extrusion_multiplier,
+                        );
+                        extra_segments.push(ToolpathSegment {
+                            start: prev,
+                            end: first_pt,
+                            feature,
+                            e_value: e,
+                            feedrate: speed,
+                            z: first_z,
+                            extrusion_width: None,
+                        });
+                        current_pos = Some(first_pt);
+                    } else {
+                        current_pos = Some(prev);
+                    }
+                }
+
+                if !extra_segments.is_empty() {
+                    let layer0 = &mut layer_toolpaths[0];
+                    let mut new_segments = extra_segments;
+                    new_segments.append(&mut layer0.segments);
+                    layer0.segments = new_segments;
+                }
+            }
+        }
+
+        // 4. G-code generation.
+        let gcode_commands = generate_full_gcode(&layer_toolpaths, &self.config);
+
+        // 4b. Arc fitting post-processing (optional).
+        let gcode_commands = if self.config.arc_fitting_enabled {
+            slicecore_gcode_io::fit_arcs(
+                &gcode_commands,
+                self.config.arc_fitting_tolerance,
+                self.config.arc_fitting_min_points,
+            )
+        } else {
+            gcode_commands
+        };
+
+        // 5. Compute estimated time using trapezoid motion model.
+        let time_estimate = estimate_print_time(
+            &gcode_commands,
+            self.config.print_acceleration,
+            self.config.travel_acceleration,
+        );
+        let estimated_time = time_estimate.total_seconds;
+
+        // 5b. Compute filament usage.
+        let filament_usage = estimate_filament_usage(
+            &gcode_commands,
+            self.config.filament_diameter,
+            self.config.filament_density,
+            self.config.filament_cost_per_kg,
+        );
+
+        let layer_count = layer_toolpaths.len();
+
+        // 6. Write G-code.
+        let mut buf = Vec::new();
+        let mut gcode_writer = GcodeWriter::new(&mut buf, self.config.gcode_dialect);
+
+        let start_config = StartConfig {
+            bed_temp: self.config.first_layer_bed_temp,
+            nozzle_temp: self.config.first_layer_nozzle_temp,
+            bed_x: self.config.bed_x,
+            bed_y: self.config.bed_y,
+        };
+        gcode_writer.write_start_gcode(&start_config)?;
+        gcode_writer.write_commands(&gcode_commands)?;
+
+        let end_config = EndConfig {
+            retract_distance: self.config.retract_length,
+        };
+        gcode_writer.write_end_gcode(&end_config)?;
+
+        Ok(SliceResult {
+            gcode: buf,
+            layer_count,
+            estimated_time_seconds: estimated_time,
+            time_estimate,
+            filament_usage,
+            preview: None,
+        })
     }
 }
 
@@ -1483,6 +1961,65 @@ mod tests {
         assert!(
             !config.support.enabled,
             "support.enabled should default to false"
+        );
+    }
+
+    #[test]
+    fn arc_fitting_disabled_by_default() {
+        let config = PrintConfig::default();
+        assert!(
+            !config.arc_fitting_enabled,
+            "arc_fitting_enabled should default to false"
+        );
+    }
+
+    #[test]
+    fn arc_fitting_disabled_produces_identical_output() {
+        let mesh = unit_cube();
+
+        let config_default = PrintConfig::default();
+        let result_default = Engine::new(config_default.clone())
+            .slice(&mesh)
+            .expect("default slice should succeed");
+
+        let mut config_explicit = config_default;
+        config_explicit.arc_fitting_enabled = false;
+        let result_explicit = Engine::new(config_explicit)
+            .slice(&mesh)
+            .expect("arc-fitting-disabled slice should succeed");
+
+        assert_eq!(
+            result_default.gcode, result_explicit.gcode,
+            "Arc fitting disabled should produce identical output to default"
+        );
+    }
+
+    #[test]
+    fn arc_fitting_enabled_produces_valid_gcode() {
+        let mesh = unit_cube();
+
+        let config = PrintConfig {
+            arc_fitting_enabled: true,
+            arc_fitting_tolerance: 0.05,
+            arc_fitting_min_points: 3,
+            ..Default::default()
+        };
+        let engine = Engine::new(config);
+
+        let result = engine.slice(&mesh).expect("arc-fitting slice should succeed");
+        assert!(
+            !result.gcode.is_empty(),
+            "Arc-fitting-enabled G-code output should be non-empty"
+        );
+        assert!(
+            result.layer_count > 0,
+            "Arc-fitting-enabled should produce at least 1 layer"
+        );
+
+        let gcode_str = String::from_utf8_lossy(&result.gcode);
+        assert!(
+            gcode_str.contains("G1"),
+            "Arc-fitting G-code should contain extrusion moves"
         );
     }
 }
