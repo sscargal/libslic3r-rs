@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (G-code Completeness and Advanced Features) -- IN PROGRESS
-Plan: 5 of 9 in current phase (5 complete)
+Plan: 6 of 9 in current phase (5 complete)
 Status: Executing Phase 6 plans
-Last activity: 2026-02-17 -- Completed 06-02-PLAN.md (per-feature flow, custom gcode, ironing)
+Last activity: 2026-02-17 -- Completed 06-04-PLAN.md (arc fitting G2/G3 post-processing)
 
-Progress: [####################################--] 95% (39/~43 overall)
+Progress: [####################################--] 95% (40/~43 overall)
 
 ## Performance Metrics
 
@@ -32,10 +32,10 @@ Progress: [####################################--] 95% (39/~43 overall)
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
 | 05    | 8     | 69min | 8.6min   |
-| 06    | 5     | 21min | 4.2min   |
+| 06    | 6     | 28min | 4.7min   |
 
 **Recent Trend:**
-- Last 5 plans: 05-08 (35min), 06-03 (8min), 06-01 (9min), 06-02 (4min)
+- Last 5 plans: 06-03 (8min), 06-01 (9min), 06-02 (4min), 06-04 (7min)
 - Trend: Phase 6 plans executing efficiently with established patterns
 
 *Updated after each plan completion*
@@ -213,6 +213,10 @@ Recent decisions affecting current work:
 - [06-02]: Ironing reuses rectilinear infill with tight spacing (0.1mm) at 100% density and 10% flow
 - [06-02]: Ironing integrated after bridge toolpaths as final feature on top-surface layers
 - [06-02]: IroningConfig defaults: enabled=false, flow_rate=0.1, speed=15.0, spacing=0.1, angle=45.0
+- [06-04]: Arc fitting uses circumcircle from first/middle/last points with greedy sliding window
+- [06-04]: Arc radius constraints: 0.5mm min, 1000mm max (prevents degenerate arcs)
+- [06-04]: Arc E-value = sum of replaced segment E-values; feedrate = last segment feedrate
+- [06-04]: arc_fitting_enabled defaults to false for backward compatibility
 
 ### Pending Todos
 
@@ -225,5 +229,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 06-02-PLAN.md (per-feature flow, custom gcode, ironing)
-Resume file: .planning/phases/06-gcode-completeness-and-advanced-features/06-02-SUMMARY.md
+Stopped at: Completed 06-04-PLAN.md (arc fitting G2/G3 post-processing)
+Resume file: .planning/phases/06-gcode-completeness-and-advanced-features/06-04-SUMMARY.md
