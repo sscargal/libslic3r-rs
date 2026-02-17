@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 4 Complete -- Ready for Phase 5
+**Current focus:** Phase 5 In Progress -- Support Structures
 
 ## Current Position
 
-Phase: 4 of 9 (Perimeter and Infill Completeness) -- COMPLETE
-Plan: 10 of 10 in current phase (10 complete)
-Status: Phase 4 Complete -- All 5 success criteria verified by automated tests
-Last activity: 2026-02-17 -- Completed 04-10-PLAN.md (Preview data and Phase 4 integration tests)
+Phase: 5 of 9 (Support Structures)
+Plan: 1 of 8 in current phase (1 complete)
+Status: Executing Phase 5 -- Plan 01 complete (config types and overhang detection)
+Last activity: 2026-02-17 -- Completed 05-01-PLAN.md (Support config types and overhang detection)
 
-Progress: [###########################] 72% (26/~36 overall)
+Progress: [############################] 75% (27/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26
-- Average duration: 5.5 min
-- Total execution time: 2.82 hours
+- Total plans completed: 27
+- Average duration: 5.4 min
+- Total execution time: 2.90 hours
 
 **By Phase:**
 
@@ -31,9 +31,10 @@ Progress: [###########################] 72% (26/~36 overall)
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
+| 05    | 1     | 5min  | 5.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 04-06 (7min), 04-07 (12min), 04-08 (8min), 04-09 (25min), 04-10 (6min)
+- Last 5 plans: 04-08 (8min), 04-09 (25min), 04-10 (6min), 05-01 (5min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -164,6 +165,10 @@ Recent decisions affecting current work:
 - [04-10]: Engine::slice_with_preview re-runs pipeline to capture toolpaths (correctness over perf)
 - [04-10]: Perimeter polylines built by contiguity detection (0.01mm gap threshold)
 - [04-10]: Synthetic sphere uses 2x icosahedron subdivision (~320 triangles) for curvature
+- [05-01]: SupportConfig defaults match research: 45-degree angle, 15% body density, 80% interface density, Line pattern, 0.2mm z-gap, 0.4mm xy-gap
+- [05-01]: Two-tier area filtering: discard below extrusion_width^2 (unprintable), keep between that and min_area (thin pillars)
+- [05-01]: Raycast validation uses >50% threshold for internal-support classification
+- [05-01]: Quality presets override density, interface_density, z_gap, and interface_layers
 
 ### Pending Todos
 
@@ -176,5 +181,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 04-10-PLAN.md -- Phase 4 Complete (Preview data and integration tests)
-Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-10-SUMMARY.md
+Stopped at: Completed 05-01-PLAN.md (Support config types and overhang detection)
+Resume file: .planning/phases/05-support-structures/05-01-SUMMARY.md
