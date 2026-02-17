@@ -14,9 +14,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation Types and Geometry Core** - Coordinate system, polygon booleans, mesh data structures, WASM CI gate
 - [x] **Phase 2: Mesh I/O and Repair** - Import STL/3MF/OBJ, auto-repair, transformations, validation
-- [ ] **Phase 3: Vertical Slice (STL to G-code)** - Minimum pipeline producing a printable calibration cube
-- [ ] **Phase 4: Perimeter and Infill Completeness** - All perimeter modes, all standard infill patterns, adaptive layers
-- [ ] **Phase 5: Support Structures** - Automatic, manual, tree, organic supports with bridge/overhang handling
+- [x] **Phase 3: Vertical Slice (STL to G-code)** - Minimum pipeline producing a printable calibration cube
+- [x] **Phase 4: Perimeter and Infill Completeness** - All perimeter modes, all standard infill patterns, adaptive layers
+- [x] **Phase 5: Support Structures** - Automatic, manual, tree, organic supports with bridge/overhang handling
 - [ ] **Phase 6: G-code Completeness and Advanced Features** - All firmware dialects, multi-material, modifier meshes, advanced print features
 - [ ] **Phase 7: Plugin System** - Plugin trait API, registry, native and WASM loading, example plugin
 - [ ] **Phase 8: AI Integration** - LLM abstraction, geometry analysis, profile suggestions
@@ -205,7 +205,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 2. Mesh I/O and Repair | 5/5 | ✓ Complete | 2026-02-16 |
 | 3. Vertical Slice (STL to G-code) | 6/6 | ✓ Complete | 2026-02-16 |
 | 4. Perimeter and Infill Completeness | 10/10 | ✓ Complete | 2026-02-17 |
-| 5. Support Structures | 0/TBD | Not started | - |
+| 5. Support Structures | 8/8 | ✓ Complete | 2026-02-17 |
 | 6. G-code Completeness and Advanced Features | 0/TBD | Not started | - |
 | 7. Plugin System | 0/TBD | Not started | - |
 | 8. AI Integration | 0/TBD | Not started | - |
