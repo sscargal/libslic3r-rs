@@ -1,0 +1,21 @@
+[package]
+name = "slicecore-ai"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "AI/LLM integration for geometry analysis and print profile suggestions"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+tokio = { version = "1", features = ["rt", "macros"] }
+async-trait = "0.1"
+secrecy = { version = "0.10", features = ["serde"] }
+url = "2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros", "rt-multi-thread"] }
