@@ -1,0 +1,12 @@
+[package]
+name = "native-zigzag-infill"
+version = "0.1.0"
+edition = "2021"
+description = "Example native infill plugin: zigzag pattern"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+slicecore-plugin-api = { path = "../../../crates/slicecore-plugin-api" }
+abi_stable = "0.11"

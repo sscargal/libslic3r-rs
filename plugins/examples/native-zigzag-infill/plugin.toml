@@ -1,0 +1,15 @@
+[plugin]
+name = "zigzag"
+version = "0.1.0"
+description = "Zigzag infill pattern - diagonal lines bouncing between boundaries"
+author = "slicecore"
+license = "MIT OR Apache-2.0"
+min_api_version = "0.1.0"
+max_api_version = "0.2.0"
+
+[plugin.type]
+kind = "native"
+library = "libnative_zigzag_infill.so"  # .dll on Windows, .dylib on macOS
+
+[capabilities]
+provides = ["infill_pattern"]
