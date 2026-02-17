@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::EngineError;
 use crate::infill::InfillPattern;
 use crate::seam::SeamPosition;
+use crate::support::config::SupportConfig;
 
 /// Controls the order in which perimeter walls are printed.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -142,6 +143,10 @@ pub struct PrintConfig {
     // --- Scarf Joint Seam ---
     /// Scarf joint seam configuration.
     pub scarf_joint: ScarfJointConfig,
+
+    // --- Support Structures ---
+    /// Support structure generation configuration.
+    pub support: SupportConfig,
 }
 
 /// Scarf joint seam configuration.
@@ -269,6 +274,8 @@ impl Default for PrintConfig {
             arachne_enabled: false,
 
             scarf_joint: ScarfJointConfig::default(),
+
+            support: SupportConfig::default(),
         }
     }
 }

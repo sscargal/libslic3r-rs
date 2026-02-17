@@ -33,6 +33,7 @@ pub mod planner;
 pub mod preview;
 pub mod scarf;
 pub mod seam;
+pub mod support;
 pub mod surface;
 pub mod toolpath;
 
@@ -56,6 +57,8 @@ pub use gap_fill::{detect_and_fill_gaps, GapFillPath};
 pub use arachne::{generate_arachne_perimeters, ArachnePerimeter, ArachneResult};
 pub use preview::{generate_preview, LayerPreview, SlicePreview};
 pub use scarf::apply_scarf_joint;
+pub use support::config::SupportConfig;
+pub use support::{SupportRegion, SupportResult};
 pub use toolpath::{
     assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment,
 };
