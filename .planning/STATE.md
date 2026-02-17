@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8 of 9 (AI Integration)
-Plan: 3 of 5 in current phase (3 complete)
-Status: Completed 08-03 -- Geometry feature extraction and profile suggestion pipeline
-Last activity: 2026-02-17 -- Completed 08-03-PLAN.md (Geometry & Profile Pipeline)
+Plan: 4 of 5 in current phase (4 complete)
+Status: Completed 08-04 -- Suggest pipeline and engine integration
+Last activity: 2026-02-17 -- Completed 08-04-PLAN.md (Suggest Pipeline & Engine Integration)
 
-Progress: [################################################--] 98% (57/~59 overall)
+Progress: [################################################--] 98% (58/~59 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 57
+- Total plans completed: 58
 - Average duration: 5.4 min
-- Total execution time: 5.47 hours
+- Total execution time: 5.54 hours
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [################################################--] 98% (57/~59 overa
 | 05    | 8     | 69min | 8.6min   |
 | 06    | 9     | 45min | 5.0min   |
 | 07    | 7     | 50min | 7.1min   |
-| 08    | 3     | 10min | 3.3min   |
+| 08    | 4     | 14min | 3.5min   |
 
 **Recent Trend:**
-- Last 5 plans: 07-07 (9min), 08-01 (3min), 08-02 (3min), 08-03 (4min)
-- Trend: Phase 8 continues fast (3.3min avg) -- AI integration pipeline
+- Last 5 plans: 08-01 (3min), 08-02 (3min), 08-03 (4min), 08-04 (4min)
+- Trend: Phase 8 continues fast (3.5min avg) -- AI integration pipeline
 
 *Updated after each plan completion*
 
@@ -280,6 +280,9 @@ Recent decisions affecting current work:
 - [08-03]: All ProfileSuggestion numeric fields use f64::clamp for safe range enforcement
 - [08-03]: PrintDifficulty: Hard if overhang_ratio > 0.15, min_dim < 0.5mm, or height > 150mm
 - [08-03]: serde(default) on all ProfileSuggestion fields for robustness against partial LLM responses
+- [08-04]: AiConfig passed as separate parameter to suggest_profile, not added to PrintConfig
+- [08-04]: Sync wrapper uses tokio new_current_thread runtime for minimal overhead
+- [08-04]: AI feature flag named 'ai' matching plugins feature naming pattern
 
 ### Pending Todos
 
@@ -292,5 +295,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08-03-PLAN.md (Geometry & Profile Pipeline)
-Resume file: .planning/phases/08-ai-integration/08-03-SUMMARY.md
+Stopped at: Completed 08-04-PLAN.md (Suggest Pipeline & Engine Integration)
+Resume file: .planning/phases/08-ai-integration/08-04-SUMMARY.md
