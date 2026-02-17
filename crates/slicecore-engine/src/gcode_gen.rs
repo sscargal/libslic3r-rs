@@ -653,4 +653,41 @@ mod tests {
             "Uniform Z segments should not include Z in G1 moves"
         );
     }
+
+    #[test]
+    fn variable_width_perimeter_produces_correct_comment() {
+        let layer = LayerToolpath {
+            layer_index: 1,
+            z: 0.4,
+            layer_height: 0.2,
+            segments: vec![
+                ToolpathSegment {
+                    start: Point2::new(0.0, 0.0),
+                    end: Point2::new(5.0, 0.0),
+                    feature: FeatureType::VariableWidthPerimeter,
+                    e_value: 0.15,
+                    feedrate: 2700.0,
+                    z: 0.4,
+                    extrusion_width: Some(0.35),
+                },
+            ],
+        };
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+
+        let has_vw_comment = cmds.iter().any(|c| {
+            if let GcodeCommand::Comment(text) = c {
+                text.contains("Variable width perimeter")
+            } else {
+                false
+            }
+        });
+
+        assert!(
+            has_vw_comment,
+            "Variable-width perimeter feature should produce TYPE comment"
+        );
+    }
 }

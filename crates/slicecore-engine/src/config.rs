@@ -133,6 +133,12 @@ pub struct PrintConfig {
     /// Minimum gap width to fill (mm).
     pub gap_fill_min_width: f64,
 
+    // --- Arachne Variable-Width Perimeters ---
+    /// Enable Arachne variable-width perimeters for thin walls.
+    /// When enabled, thin-wall regions use medial-axis-derived perimeters
+    /// with per-segment width instead of fixed-width perimeters.
+    pub arachne_enabled: bool,
+
     // --- Scarf Joint Seam ---
     /// Scarf joint seam configuration.
     pub scarf_joint: ScarfJointConfig,
@@ -259,6 +265,8 @@ impl Default for PrintConfig {
 
             gap_fill_enabled: true,
             gap_fill_min_width: 0.1,
+
+            arachne_enabled: false,
 
             scarf_joint: ScarfJointConfig::default(),
         }

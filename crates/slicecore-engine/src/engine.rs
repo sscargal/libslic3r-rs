@@ -18,6 +18,7 @@ use slicecore_gcode_io::{EndConfig, GcodeDialect, GcodeWriter, StartConfig};
 use slicecore_mesh::TriangleMesh;
 use slicecore_slicer::{compute_adaptive_layer_heights, slice_mesh, slice_mesh_adaptive};
 
+use crate::arachne::generate_arachne_perimeters;
 use crate::config::PrintConfig;
 use crate::error::EngineError;
 use crate::gap_fill::detect_and_fill_gaps;
@@ -149,8 +150,71 @@ impl Engine {
                 continue;
             }
 
-            // 2a. Generate perimeters.
-            let perimeters = generate_perimeters(&layer.contours, &self.config);
+            // 2a. Generate perimeters (with optional Arachne variable-width).
+            let (perimeters, arachne_segments) = if self.config.arachne_enabled {
+                let arachne_results =
+                    generate_arachne_perimeters(&layer.contours, &self.config);
+
+                let mut classic_perimeters = Vec::new();
+                let mut var_width_segs = Vec::new();
+
+                for result in &arachne_results {
+                    if let Some(ref classic) = result.classic_fallback {
+                        classic_perimeters.push(classic.clone());
+                    }
+                    // Convert Arachne perimeters to ToolpathSegments.
+                    for perim in &result.perimeters {
+                        if perim.points.len() < 2 {
+                            continue;
+                        }
+                        let feature = if perim.is_outer {
+                            FeatureType::VariableWidthPerimeter
+                        } else {
+                            FeatureType::InnerPerimeter
+                        };
+                        let perim_speed =
+                            self.config.perimeter_speed * 60.0; // mm/s -> mm/min
+                        for i in 1..perim.points.len() {
+                            let (sx, sy) = perim.points[i - 1].to_mm();
+                            let (ex, ey) = perim.points[i].to_mm();
+                            let start_pt = Point2::new(sx, sy);
+                            let end_pt = Point2::new(ex, ey);
+                            let seg_len = {
+                                let dx = end_pt.x - start_pt.x;
+                                let dy = end_pt.y - start_pt.y;
+                                (dx * dx + dy * dy).sqrt()
+                            };
+                            if seg_len < 0.0001 {
+                                continue;
+                            }
+                            // Use average width of start and end points.
+                            let width =
+                                (perim.widths[i - 1] + perim.widths[i]) / 2.0;
+                            let e = compute_e_value(
+                                seg_len,
+                                width,
+                                layer.layer_height,
+                                self.config.filament_diameter,
+                                self.config.extrusion_multiplier,
+                            );
+                            var_width_segs.push(ToolpathSegment {
+                                start: start_pt,
+                                end: end_pt,
+                                feature,
+                                e_value: e,
+                                feedrate: perim_speed,
+                                z: layer.z,
+                                extrusion_width: Some(width),
+                            });
+                        }
+                    }
+                }
+
+                (classic_perimeters, var_width_segs)
+            } else {
+                let perimeters = generate_perimeters(&layer.contours, &self.config);
+                (perimeters, Vec::new())
+            };
 
             // 2b. Surface classification.
             let classification = classify_surfaces(
@@ -242,7 +306,7 @@ impl Engine {
             };
 
             // 2e. Assemble toolpath with seam placement.
-            let (toolpath, layer_seam) = assemble_layer_toolpath(
+            let (mut toolpath, layer_seam) = assemble_layer_toolpath(
                 layer_idx,
                 layer.z,
                 layer.layer_height,
@@ -252,6 +316,39 @@ impl Engine {
                 &self.config,
                 previous_seam,
             );
+
+            // 2f. Insert Arachne variable-width perimeter segments.
+            // Arachne segments are prepended before classic perimeters,
+            // with travel moves inserted between disconnected paths.
+            if !arachne_segments.is_empty() {
+                let travel_speed = self.config.travel_speed * 60.0;
+                let mut var_segs = Vec::new();
+                let mut current_pos: Option<Point2> = None;
+                for seg in &arachne_segments {
+                    // Insert travel to segment start if needed.
+                    if let Some(pos) = current_pos {
+                        let dx = seg.start.x - pos.x;
+                        let dy = seg.start.y - pos.y;
+                        let dist = (dx * dx + dy * dy).sqrt();
+                        if dist > 0.001 {
+                            var_segs.push(ToolpathSegment {
+                                start: pos,
+                                end: seg.start,
+                                feature: FeatureType::Travel,
+                                e_value: 0.0,
+                                feedrate: travel_speed,
+                                z: layer.z,
+                                extrusion_width: None,
+                            });
+                        }
+                    }
+                    var_segs.push(seg.clone());
+                    current_pos = Some(seg.end);
+                }
+                // Prepend variable-width segments before classic perimeters.
+                var_segs.append(&mut toolpath.segments);
+                toolpath.segments = var_segs;
+            }
 
             // Update cross-layer seam tracking.
             if layer_seam.is_some() {
@@ -710,6 +807,63 @@ mod tests {
             ratio,
             result_01.layer_count,
             result_02.layer_count
+        );
+    }
+
+    #[test]
+    fn arachne_disabled_produces_same_as_default() {
+        let mesh = unit_cube();
+
+        let config_default = PrintConfig::default();
+        let result_default = Engine::new(config_default.clone())
+            .slice(&mesh)
+            .expect("default slice should succeed");
+
+        let mut config_off = config_default;
+        config_off.arachne_enabled = false;
+        let result_off = Engine::new(config_off)
+            .slice(&mesh)
+            .expect("arachne=false slice should succeed");
+
+        assert_eq!(
+            result_default.gcode, result_off.gcode,
+            "arachne_enabled=false should produce same output as default"
+        );
+    }
+
+    #[test]
+    fn arachne_enabled_produces_valid_gcode() {
+        let mesh = unit_cube();
+
+        let config = PrintConfig {
+            arachne_enabled: true,
+            ..Default::default()
+        };
+        let engine = Engine::new(config);
+
+        let result = engine.slice(&mesh).expect("arachne slice should succeed");
+        assert!(
+            !result.gcode.is_empty(),
+            "Arachne-enabled G-code output should be non-empty"
+        );
+        assert!(
+            result.layer_count > 0,
+            "Arachne-enabled should produce at least 1 layer"
+        );
+
+        let gcode_str = String::from_utf8_lossy(&result.gcode);
+        assert!(
+            gcode_str.contains("G1"),
+            "Arachne G-code should contain extrusion moves"
+        );
+    }
+
+    #[test]
+    fn arachne_config_defaults_to_disabled() {
+        let config = PrintConfig::default();
+        assert!(
+            !config.arachne_enabled,
+            "arachne_enabled should default to false"
         );
     }
 }

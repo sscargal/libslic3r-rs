@@ -1023,4 +1023,46 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn toolpath_segments_default_extrusion_width_is_none() {
+        // All segments from assemble_layer_toolpath should have extrusion_width: None.
+        let square = make_square(20.0);
+        let config = default_config();
+        let perimeters = generate_perimeters(&[square], &config);
+        let infill = LayerInfill {
+            lines: Vec::new(),
+            is_solid: false,
+        };
+
+        let (toolpath, _) = assemble_layer_toolpath(
+            1, 0.4, 0.2, &perimeters, &[], &infill, &config, None,
+        );
+
+        for seg in &toolpath.segments {
+            assert!(
+                seg.extrusion_width.is_none(),
+                "Classic perimeter segments should have extrusion_width: None, got {:?}",
+                seg.extrusion_width
+            );
+        }
+    }
+
+    #[test]
+    fn variable_width_perimeter_feature_type_exists() {
+        // Verify the VariableWidthPerimeter feature type can be used in a segment.
+        let seg = ToolpathSegment {
+            start: Point2::new(0.0, 0.0),
+            end: Point2::new(5.0, 0.0),
+            feature: FeatureType::VariableWidthPerimeter,
+            e_value: 0.1,
+            feedrate: 2700.0,
+            z: 0.4,
+            extrusion_width: Some(0.35),
+        };
+
+        assert_eq!(seg.feature, FeatureType::VariableWidthPerimeter);
+        assert_eq!(seg.extrusion_width, Some(0.35));
+        assert!(seg.length() > 0.0);
+    }
 }
