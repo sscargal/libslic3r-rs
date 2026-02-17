@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 8 of 9 (AI Integration)
-Plan: 1 of 5 in current phase (1 complete)
-Status: Completed 08-01 -- slicecore-ai crate foundation with AiProvider trait and core types
-Last activity: 2026-02-17 -- Completed 08-01-PLAN.md (AI crate foundation types)
+Plan: 2 of 5 in current phase (2 complete)
+Status: Completed 08-02 -- OpenAI, Anthropic, Ollama providers with create_provider factory
+Last activity: 2026-02-17 -- Completed 08-02-PLAN.md (LLM provider backends)
 
-Progress: [################################################--] 97% (55/~57 overall)
+Progress: [################################################--] 98% (56/~57 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 55
+- Total plans completed: 56
 - Average duration: 5.4 min
-- Total execution time: 5.35 hours
+- Total execution time: 5.40 hours
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [################################################--] 97% (55/~57 overa
 | 05    | 8     | 69min | 8.6min   |
 | 06    | 9     | 45min | 5.0min   |
 | 07    | 7     | 50min | 7.1min   |
-| 08    | 1     | 3min  | 3.0min   |
+| 08    | 2     | 6min  | 3.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 07-03-wasm (9min), 07-02 (5min), 07-06 (3min), 07-07 (9min), 08-01 (3min)
-- Trend: Phase 8 starts fast (3min) -- crate scaffold + type definitions
+- Last 5 plans: 07-02 (5min), 07-06 (3min), 07-07 (9min), 08-01 (3min), 08-02 (3min)
+- Trend: Phase 8 continues fast (3min avg) -- provider implementations
 
 *Updated after each plan completion*
 
@@ -271,6 +271,10 @@ Recent decisions affecting current work:
 - [08-01]: Default provider: Ollama with llama3.2 model (local-first, no API key needed)
 - [08-01]: Custom Debug on AiConfig shows [REDACTED] for API keys
 - [08-01]: ParseError(String) instead of ParseError(reqwest::Error) to allow non-reqwest parse errors
+- [08-02]: SecretString built from expose_secret() in create_provider (SecretString has no Clone)
+- [08-02]: Anthropic JSON mode via system prompt instruction (no native response_format field)
+- [08-02]: Ollama format field uses serde_json::Value for both Json and JsonSchema modes
+- [08-02]: Anthropic stop_reason 'end_turn' maps to FinishReason::Stop (not 'end_stop' as plan stated)
 
 ### Pending Todos
 
@@ -283,5 +287,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08-01-PLAN.md (AI crate foundation types)
-Resume file: .planning/phases/08-ai-integration/08-01-SUMMARY.md
+Stopped at: Completed 08-02-PLAN.md (LLM provider backends)
+Resume file: .planning/phases/08-ai-integration/08-02-SUMMARY.md
