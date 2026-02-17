@@ -14,6 +14,7 @@
 //! 3. **Filtering**: Remove unprintable tiny regions below area thresholds.
 //! 4. **Generation**: Build support geometry from validated regions (traditional or tree).
 
+pub mod bridge;
 pub mod config;
 pub mod detect;
 pub mod traditional;
