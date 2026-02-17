@@ -20,20 +20,23 @@
 //! # Example
 //!
 //! ```rust,ignore
-//! use slicecore_ai::{AiConfig, AiProvider, CompletionRequest, Message, Role};
+//! use slicecore_ai::{AiConfig, providers::create_provider, CompletionRequest, Message, Role};
 //!
 //! let config = AiConfig::default(); // Ollama, llama3.2
-//! // Provider implementations are in separate plan (08-02)
+//! let provider = create_provider(&config).unwrap();
+//! assert_eq!(provider.name(), "ollama");
 //! ```
 
 pub mod config;
 pub mod error;
 pub mod provider;
+pub mod providers;
 pub mod types;
 
 pub use config::{AiConfig, ProviderType};
 pub use error::AiError;
 pub use provider::AiProvider;
+pub use providers::{create_provider, AnthropicProvider, OllamaProvider, OpenAiProvider};
 pub use types::{
     CompletionRequest, CompletionResponse, FinishReason, Message, ProviderCapabilities,
     ResponseFormat, Role, Usage,
