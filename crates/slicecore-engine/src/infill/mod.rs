@@ -13,6 +13,7 @@
 //! - [`Cubic`](InfillPattern::Cubic) -- 3-angle cycling with Z-dependent offset for 3D cubes
 //!
 //! - [`TpmsD`](InfillPattern::TpmsD) -- TPMS Schwarz Diamond surface for tetrahedral strength
+//! - [`TpmsFk`](InfillPattern::TpmsFk) -- TPMS Fischer-Koch S surface for interconnected channels
 //! - [`AdaptiveCubic`](InfillPattern::AdaptiveCubic) -- variable density using quadtree subdivision
 //! - [`Lightning`](InfillPattern::Lightning) -- minimal tree-branching support for top surfaces
 
@@ -25,6 +26,7 @@ pub mod lightning;
 pub mod monotonic;
 pub mod rectilinear;
 pub mod tpms_d;
+pub mod tpms_fk;
 
 use serde::{Deserialize, Serialize};
 use slicecore_geo::polygon::ValidPolygon;
@@ -74,6 +76,8 @@ pub enum InfillPattern {
     Monotonic,
     /// TPMS Schwarz Diamond surface for tetrahedral stress distribution.
     TpmsD,
+    /// TPMS Fischer-Koch S surface for interconnected channel topology.
+    TpmsFk,
 }
 
 /// Generates infill lines for the given pattern, dispatching to the correct submodule.
@@ -126,6 +130,9 @@ pub fn generate_infill(
         }
         InfillPattern::TpmsD => {
             tpms_d::generate(infill_region, density, layer_index, layer_z, line_width)
+        }
+        InfillPattern::TpmsFk => {
+            tpms_fk::generate(infill_region, density, layer_index, layer_z, line_width)
         }
     }
 }

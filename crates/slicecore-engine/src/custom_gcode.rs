@@ -32,7 +32,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Serialized as a TOML section `[custom_gcode]` within
 /// [`PrintConfig`](crate::config::PrintConfig).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CustomGcodeHooks {
     /// G-code injected before each layer's Z move.
@@ -47,18 +47,6 @@ pub struct CustomGcodeHooks {
     /// G-code injected at specific Z heights.
     /// Each entry is a `(z_height, gcode_string)` pair.
     pub custom_gcode_per_z: Vec<(f64, String)>,
-}
-
-impl Default for CustomGcodeHooks {
-    fn default() -> Self {
-        Self {
-            before_layer_change: String::new(),
-            after_layer_change: String::new(),
-            tool_change_gcode: String::new(),
-            before_every_layer: String::new(),
-            custom_gcode_per_z: Vec::new(),
-        }
-    }
 }
 
 impl CustomGcodeHooks {

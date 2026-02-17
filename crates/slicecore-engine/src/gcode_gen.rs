@@ -11,7 +11,7 @@
 //! [`GcodeWriter`](slicecore_gcode_io::GcodeWriter) from slicecore-gcode-io.
 //! This module produces only the print body commands.
 
-use slicecore_gcode_io::GcodeCommand;
+use slicecore_gcode_io::{format_acceleration, format_pressure_advance, GcodeCommand};
 
 use crate::config::PrintConfig;
 use crate::custom_gcode::substitute_placeholders;
@@ -127,6 +127,20 @@ pub fn generate_layer_gcode(
 
             let label = feature_label(seg.feature);
             cmds.push(GcodeCommand::Comment(format!("TYPE:{label}")));
+
+            // Emit acceleration commands at feature transitions when enabled.
+            if config.acceleration_enabled {
+                let (print_accel, travel_accel) = match seg.feature {
+                    FeatureType::Travel => {
+                        (config.travel_acceleration, config.travel_acceleration)
+                    }
+                    _ => (config.print_acceleration, config.travel_acceleration),
+                };
+                let accel_str =
+                    format_acceleration(config.gcode_dialect, print_accel, travel_accel);
+                cmds.push(GcodeCommand::Raw(accel_str));
+            }
+
             last_feature = Some(seg.feature);
         }
 
@@ -245,6 +259,12 @@ pub fn generate_full_gcode(
     // Preamble: relative extrusion mode and extruder reset.
     cmds.push(GcodeCommand::SetRelativeExtrusion);
     cmds.push(GcodeCommand::ResetExtruder);
+
+    // Emit pressure advance at print start if configured.
+    if config.pressure_advance > 0.0 {
+        let pa_str = format_pressure_advance(config.gcode_dialect, config.pressure_advance);
+        cmds.push(GcodeCommand::Raw(pa_str));
+    }
 
     let mut retracted = false;
     let total_layers = layer_toolpaths.len();

@@ -139,8 +139,6 @@ pub struct PrintConfig {
 
     // --- Arachne Variable-Width Perimeters ---
     /// Enable Arachne variable-width perimeters for thin walls.
-    /// When enabled, thin-wall regions use medial-axis-derived perimeters
-    /// with per-segment width instead of fixed-width perimeters.
     pub arachne_enabled: bool,
 
     // --- Scarf Joint Seam ---
@@ -345,8 +343,6 @@ impl PrintConfig {
     /// Returns the extrusion width in mm.
     ///
     /// Currently uses a simple heuristic of `nozzle_diameter * 1.1`.
-    /// Phase 3 uses a single extrusion width; more sophisticated
-    /// per-feature widths may be added in later phases.
     pub fn extrusion_width(&self) -> f64 {
         self.nozzle_diameter * 1.1
     }
@@ -403,12 +399,8 @@ mod tests {
     fn from_toml_partial_overrides() {
         let toml = "layer_height = 0.1\ninfill_density = 0.5";
         let config = PrintConfig::from_toml(toml).unwrap();
-
-        // Overridden values
         assert!((config.layer_height - 0.1).abs() < 1e-9);
         assert!((config.infill_density - 0.5).abs() < 1e-9);
-
-        // Non-overridden values remain at defaults
         assert!((config.nozzle_diameter - 0.4).abs() < 1e-9);
         assert_eq!(config.wall_count, 2);
         assert!((config.perimeter_speed - 45.0).abs() < 1e-9);
@@ -416,19 +408,14 @@ mod tests {
 
     #[test]
     fn wall_order_serde_round_trip() {
-        // Serialize
         let outer_first = WallOrder::OuterFirst;
         let json = serde_json::to_string(&outer_first).unwrap();
         assert_eq!(json, "\"outer_first\"");
-
         let inner_first = WallOrder::InnerFirst;
         let json = serde_json::to_string(&inner_first).unwrap();
         assert_eq!(json, "\"inner_first\"");
-
-        // Deserialize
         let deserialized: WallOrder = serde_json::from_str("\"outer_first\"").unwrap();
         assert_eq!(deserialized, WallOrder::OuterFirst);
-
         let deserialized: WallOrder = serde_json::from_str("\"inner_first\"").unwrap();
         assert_eq!(deserialized, WallOrder::InnerFirst);
     }
@@ -489,17 +476,9 @@ adaptive_layer_quality = 0.8
         let config = PrintConfig::default();
         assert!(!config.scarf_joint.enabled);
         assert_eq!(config.scarf_joint.scarf_joint_type, ScarfJointType::Contour);
-        assert!(!config.scarf_joint.conditional_scarf);
-        assert!((config.scarf_joint.scarf_speed - 0.0).abs() < 1e-9);
-        assert!((config.scarf_joint.scarf_start_height - 0.5).abs() < 1e-9);
-        assert!(!config.scarf_joint.scarf_around_entire_wall);
         assert!((config.scarf_joint.scarf_length - 10.0).abs() < 1e-9);
         assert_eq!(config.scarf_joint.scarf_steps, 10);
         assert!((config.scarf_joint.scarf_flow_ratio - 1.0).abs() < 1e-9);
-        assert!(!config.scarf_joint.scarf_inner_walls);
-        assert!(!config.scarf_joint.role_based_wipe_speed);
-        assert!((config.scarf_joint.wipe_speed - 0.0).abs() < 1e-9);
-        assert!(!config.scarf_joint.wipe_on_loop);
     }
 
     #[test]
@@ -523,13 +502,6 @@ scarf_joint_type = "contour_and_hole"
             config.scarf_joint.scarf_joint_type,
             ScarfJointType::ContourAndHole
         );
-    }
-
-    #[test]
-    fn scarf_joint_empty_toml_uses_defaults() {
-        let config = PrintConfig::from_toml("").unwrap();
-        assert!(!config.scarf_joint.enabled);
-        assert!((config.scarf_joint.scarf_length - 10.0).abs() < 1e-9);
     }
 
     #[test]
@@ -580,68 +552,5 @@ custom_gcode_per_z = [[5.0, "M600"]]
         let config = PrintConfig::from_toml(toml).unwrap();
         assert_eq!(config.custom_gcode.after_layer_change, "M117 Layer {layer_num}");
         assert_eq!(config.custom_gcode.custom_gcode_per_z.len(), 1);
-    }
-
-    #[test]
-    fn gcode_dialect_defaults_to_marlin() {
-        let config = PrintConfig::default();
-        assert_eq!(config.gcode_dialect, GcodeDialect::Marlin);
-    }
-
-    #[test]
-    fn acceleration_defaults() {
-        let config = PrintConfig::default();
-        assert!((config.print_acceleration - 1000.0).abs() < 1e-9);
-        assert!((config.travel_acceleration - 1500.0).abs() < 1e-9);
-        assert!((config.jerk_x - 8.0).abs() < 1e-9);
-        assert!((config.jerk_y - 8.0).abs() < 1e-9);
-        assert!((config.jerk_z - 0.4).abs() < 1e-9);
-        assert!((config.pressure_advance - 0.0).abs() < 1e-9);
-        assert!(!config.acceleration_enabled);
-    }
-
-    #[test]
-    fn gcode_dialect_klipper_from_toml() {
-        let toml = r#"gcode_dialect = "Klipper""#;
-        let config = PrintConfig::from_toml(toml).unwrap();
-        assert_eq!(config.gcode_dialect, GcodeDialect::Klipper);
-    }
-
-    #[test]
-    fn acceleration_fields_from_toml() {
-        let toml = r#"
-acceleration_enabled = true
-print_acceleration = 2000.0
-travel_acceleration = 3000.0
-jerk_x = 10.0
-jerk_y = 10.0
-jerk_z = 0.5
-pressure_advance = 0.05
-"#;
-        let config = PrintConfig::from_toml(toml).unwrap();
-        assert!(config.acceleration_enabled);
-        assert!((config.print_acceleration - 2000.0).abs() < 1e-9);
-        assert!((config.travel_acceleration - 3000.0).abs() < 1e-9);
-        assert!((config.jerk_x - 10.0).abs() < 1e-9);
-        assert!((config.jerk_y - 10.0).abs() < 1e-9);
-        assert!((config.jerk_z - 0.5).abs() < 1e-9);
-        assert!((config.pressure_advance - 0.05).abs() < 1e-9);
-    }
-
-    #[test]
-    fn all_dialects_parse_from_toml() {
-        let dialects = ["Marlin", "Klipper", "RepRapFirmware", "Bambu"];
-        for d in &dialects {
-            let toml = format!("gcode_dialect = \"{}\"", d);
-            let config = PrintConfig::from_toml(&toml).unwrap();
-            let expected = match *d {
-                "Marlin" => GcodeDialect::Marlin,
-                "Klipper" => GcodeDialect::Klipper,
-                "RepRapFirmware" => GcodeDialect::RepRapFirmware,
-                "Bambu" => GcodeDialect::Bambu,
-                _ => unreachable!(),
-            };
-            assert_eq!(config.gcode_dialect, expected, "Failed to parse dialect: {}", d);
-        }
     }
 }

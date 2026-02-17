@@ -14,7 +14,7 @@
 
 use std::io::Write;
 
-use slicecore_gcode_io::{EndConfig, GcodeDialect, GcodeWriter, StartConfig};
+use slicecore_gcode_io::{EndConfig, GcodeWriter, StartConfig};
 use slicecore_mesh::TriangleMesh;
 use slicecore_slicer::{compute_adaptive_layer_heights, slice_mesh, slice_mesh_adaptive};
 
@@ -732,8 +732,8 @@ impl Engine {
 
         let layer_count = layer_toolpaths.len();
 
-        // 6. Write G-code.
-        let mut gcode_writer = GcodeWriter::new(writer, GcodeDialect::Marlin);
+        // 6. Write G-code (using configured dialect instead of hardcoded Marlin).
+        let mut gcode_writer = GcodeWriter::new(writer, self.config.gcode_dialect);
 
         // Start G-code.
         let start_config = StartConfig {
