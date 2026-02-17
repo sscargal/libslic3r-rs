@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (G-code Completeness and Advanced Features) -- IN PROGRESS
-Plan: 4 of 9 in current phase (4 complete)
+Plan: 5 of 9 in current phase (5 complete)
 Status: Executing Phase 6 plans
-Last activity: 2026-02-17 -- Completed 06-01-PLAN.md (dialect-specific inline commands)
+Last activity: 2026-02-17 -- Completed 06-02-PLAN.md (per-feature flow, custom gcode, ironing)
 
-Progress: [####################################--] 95% (38/~43 overall)
+Progress: [####################################--] 95% (39/~43 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 35
-- Average duration: 5.5 min
-- Total execution time: 4.11 hours
+- Total plans completed: 36
+- Average duration: 5.4 min
+- Total execution time: 4.18 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [####################################--] 95% (38/~43 overall)
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
 | 05    | 8     | 69min | 8.6min   |
-| 06    | 4     | 17min | 4.3min   |
+| 06    | 5     | 21min | 4.2min   |
 
 **Recent Trend:**
-- Last 5 plans: 05-07 (7min), 05-08 (35min), 06-03 (8min), 06-01 (9min)
+- Last 5 plans: 05-08 (35min), 06-03 (8min), 06-01 (9min), 06-02 (4min)
 - Trend: Phase 6 plans executing efficiently with established patterns
 
 *Updated after each plan completion*
@@ -208,6 +208,11 @@ Recent decisions affecting current work:
 - [06-01]: acceleration_enabled defaults to false for backward compatibility
 - [06-01]: Pressure advance emitted once at print body start (not per-layer)
 - [06-01]: Acceleration emitted at every feature transition when enabled
+- [06-02]: PerFeatureFlow uses named struct fields (not HashMap) for compile-time safety and TOML ergonomics
+- [06-02]: Custom G-code per-Z matching uses 0.001mm tolerance for floating-point Z height comparison
+- [06-02]: Ironing reuses rectilinear infill with tight spacing (0.1mm) at 100% density and 10% flow
+- [06-02]: Ironing integrated after bridge toolpaths as final feature on top-surface layers
+- [06-02]: IroningConfig defaults: enabled=false, flow_rate=0.1, speed=15.0, spacing=0.1, angle=45.0
 
 ### Pending Todos
 
@@ -220,5 +225,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 06-01-PLAN.md (dialect-specific inline commands)
-Resume file: .planning/phases/06-gcode-completeness-and-advanced-features/06-01-SUMMARY.md
+Stopped at: Completed 06-02-PLAN.md (per-feature flow, custom gcode, ironing)
+Resume file: .planning/phases/06-gcode-completeness-and-advanced-features/06-02-SUMMARY.md
