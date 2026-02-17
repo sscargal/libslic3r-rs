@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 4 of 9 (Perimeter and Infill Completeness)
-Plan: 7 of 10 in current phase (6 complete)
-Status: Executing Phase 4 -- scarf joint seam implemented
-Last activity: 2026-02-17 -- Completed 04-06-PLAN.md (scarf joint seam)
+Plan: 9 of 10 in current phase (8 complete)
+Status: Executing Phase 4 -- gap fill between perimeters implemented
+Last activity: 2026-02-17 -- Completed 04-08-PLAN.md (gap fill between perimeters)
 
-Progress: [#####################] 58% (21/~36 overall)
+Progress: [########################] 64% (23/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
-- Average duration: 5.3 min
-- Total execution time: 1.97 hours
+- Total plans completed: 23
+- Average duration: 5.4 min
+- Total execution time: 2.10 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [#####################] 58% (21/~36 overall)
 | 01    | 4     | 26min | 6.5min   |
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
-| 04    | 6     | 44min | 7.3min   |
+| 04    | 8     | 52min | 6.5min   |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (10min), 04-03 (11min), 04-04 (5min), 04-05 (5min), 04-06 (7min)
+- Last 5 plans: 04-04 (5min), 04-05 (5min), 04-06 (7min), 04-07 (?min), 04-08 (8min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -142,6 +142,11 @@ Recent decisions affecting current work:
 - [04-06]: Per-segment Z emitted in G1 only when delta from current_z exceeds 1e-6
 - [04-06]: Effective scarf length capped at half perimeter length to prevent ramp overlap
 - [04-06]: Polygon segments collected per-polygon, scarf applied, then extended into main list
+- [04-08]: Simplified centerline via inward offset (not full medial axis -- Arachne handles that)
+- [04-08]: Gap width estimated as area / half-perimeter (fast O(n), sufficient accuracy)
+- [04-08]: Gap fill defaults: enabled=true, min_width=0.1mm (matching common slicer behavior)
+- [04-08]: Gap fill uses perimeter speed; separate gap fill speed deferred to future phases
+- [04-08]: GapFill E-values computed with gap's actual width, not standard extrusion width
 
 ### Pending Todos
 
@@ -154,5 +159,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 04-06-PLAN.md -- scarf joint seam implemented
-Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-06-SUMMARY.md
+Stopped at: Completed 04-08-PLAN.md -- gap fill between perimeters implemented
+Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-08-SUMMARY.md
