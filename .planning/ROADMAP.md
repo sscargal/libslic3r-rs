@@ -179,11 +179,14 @@ Plans:
   2. Profile suggestion works end-to-end: upload a model, geometry is analyzed, features are sent to an LLM, and the response is parsed into a valid print profile that can be used for slicing
   3. Both local LLM (ollama) and cloud LLM (OpenAI or Anthropic API) providers work through the same abstraction layer -- switching providers requires only a config change, not code changes
   4. AI suggestions are reasonable: for a model with large overhangs, the AI suggests enabling supports; for a model with thin walls, the AI suggests appropriate wall settings
-**Plans**: TBD
+**Plans:** 5 plans
 
 Plans:
-- [ ] 08-01: TBD
-- [ ] 08-02: TBD
+- [ ] 08-01-PLAN.md -- slicecore-ai crate scaffold, core types, AiProvider trait, AiConfig, AiError (AI-01)
+- [ ] 08-02-PLAN.md -- OpenAI, Anthropic, and Ollama provider implementations (AI-04, AI-05)
+- [ ] 08-03-PLAN.md -- Geometry feature extraction, prompt templates, profile suggestion parsing (AI-02)
+- [ ] 08-04-PLAN.md -- End-to-end suggest pipeline, sync wrapper, engine integration with ai feature flag (AI-03)
+- [ ] 08-05-PLAN.md -- Integration tests verifying all success criteria with mock providers (AI-06)
 
 ### Phase 9: API Polish, Testing, and Platform Validation
 **Goal**: The library is production-ready -- documented public API, structured output, cross-platform builds pass, performance and memory targets are met, and test coverage exceeds 80%
@@ -219,5 +222,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 5. Support Structures | 8/8 | ✓ Complete | 2026-02-17 |
 | 6. G-code Completeness and Advanced Features | 9/9 | ✓ Complete | 2026-02-17 |
 | 7. Plugin System | 0/7 | Not started | - |
-| 8. AI Integration | 0/TBD | Not started | - |
+| 8. AI Integration | 0/5 | Not started | - |
 | 9. API Polish, Testing, and Platform Validation | 0/TBD | Not started | - |
