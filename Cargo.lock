@@ -2183,6 +2183,7 @@ dependencies = [
  "slicecore-geo",
  "slicecore-math",
  "slicecore-mesh",
+ "slicecore-plugin",
  "slicecore-slicer",
  "thiserror 2.0.18",
  "toml 0.8.23",

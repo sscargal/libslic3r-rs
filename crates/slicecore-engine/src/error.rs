@@ -32,4 +32,13 @@ pub enum EngineError {
     /// I/O error.
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+
+    /// Plugin error during infill generation or plugin system operation.
+    #[error("Plugin error in '{plugin}': {message}")]
+    Plugin {
+        /// The name of the plugin that failed.
+        plugin: String,
+        /// Human-readable error description.
+        message: String,
+    },
 }

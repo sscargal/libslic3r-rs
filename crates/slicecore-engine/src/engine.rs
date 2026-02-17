@@ -196,7 +196,7 @@ fn assemble_bridge_toolpath(
         // Generate bridge infill lines perpendicular to span direction.
         let _infill_angle = support::bridge::compute_bridge_infill_angle(bridge);
         let bridge_lines = crate::infill::generate_infill(
-            crate::infill::InfillPattern::Rectilinear,
+            &crate::infill::InfillPattern::Rectilinear,
             std::slice::from_ref(&bridge.contour),
             1.0, // Bridges use 100% density
             bridge.layer_index,
@@ -475,7 +475,7 @@ impl Engine {
             // Solid infill always uses Rectilinear regardless of config pattern.
             if !classification.solid_regions.is_empty() {
                 let solid_lines = generate_infill(
-                    InfillPattern::Rectilinear,
+                    &InfillPattern::Rectilinear,
                     &classification.solid_regions,
                     1.0,
                     layer_idx,
@@ -494,7 +494,7 @@ impl Engine {
                 && self.config.infill_density > 0.0
             {
                 let sparse_lines = generate_infill(
-                    self.config.infill_pattern,
+                    &self.config.infill_pattern,
                     &classification.sparse_regions,
                     self.config.infill_density,
                     layer_idx,
@@ -513,7 +513,7 @@ impl Engine {
                 let inner = &perimeters[0].inner_contour;
                 if !inner.is_empty() && self.config.infill_density > 0.0 {
                     let lines = generate_infill(
-                        self.config.infill_pattern,
+                        &self.config.infill_pattern,
                         inner,
                         self.config.infill_density,
                         layer_idx,
@@ -1012,7 +1012,7 @@ impl Engine {
 
             if !classification.solid_regions.is_empty() {
                 let solid_lines = generate_infill(
-                    InfillPattern::Rectilinear,
+                    &InfillPattern::Rectilinear,
                     &classification.solid_regions,
                     1.0,
                     layer_idx,
@@ -1030,7 +1030,7 @@ impl Engine {
                 && self.config.infill_density > 0.0
             {
                 let sparse_lines = generate_infill(
-                    self.config.infill_pattern,
+                    &self.config.infill_pattern,
                     &classification.sparse_regions,
                     self.config.infill_density,
                     layer_idx,
@@ -1048,7 +1048,7 @@ impl Engine {
                 let inner = &perimeters[0].inner_contour;
                 if !inner.is_empty() && self.config.infill_density > 0.0 {
                     let lines = generate_infill(
-                        self.config.infill_pattern,
+                        &self.config.infill_pattern,
                         inner,
                         self.config.infill_density,
                         layer_idx,
@@ -1246,7 +1246,7 @@ impl Engine {
 
                 if !classification.solid_regions.is_empty() {
                     let solid_lines = generate_infill(
-                        InfillPattern::Rectilinear,
+                        &InfillPattern::Rectilinear,
                         &classification.solid_regions,
                         1.0,
                         layer_idx,
@@ -1264,7 +1264,7 @@ impl Engine {
                     && region_config.infill_density > 0.0
                 {
                     let sparse_lines = generate_infill(
-                        region_config.infill_pattern,
+                        &region_config.infill_pattern,
                         &classification.sparse_regions,
                         region_config.infill_density,
                         layer_idx,
@@ -1282,7 +1282,7 @@ impl Engine {
                     let inner = &perimeters[0].inner_contour;
                     if !inner.is_empty() && region_config.infill_density > 0.0 {
                         let lines = generate_infill(
-                            region_config.infill_pattern,
+                            &region_config.infill_pattern,
                             inner,
                             region_config.infill_density,
                             layer_idx,

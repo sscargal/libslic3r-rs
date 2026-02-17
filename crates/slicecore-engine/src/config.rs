@@ -577,8 +577,8 @@ impl SettingOverrides {
         if let Some(v) = self.infill_density {
             config.infill_density = v;
         }
-        if let Some(v) = self.infill_pattern {
-            config.infill_pattern = v;
+        if let Some(ref v) = self.infill_pattern {
+            config.infill_pattern = v.clone();
         }
         if let Some(v) = self.wall_count {
             config.wall_count = v;

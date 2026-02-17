@@ -402,7 +402,7 @@ fn sc2_all_infill_patterns() {
     ];
     for pattern in &patterns {
         let config = PrintConfig {
-            infill_pattern: *pattern,
+            infill_pattern: pattern.clone(),
             infill_density: 0.2,
             ..Default::default()
         };
@@ -427,19 +427,20 @@ fn sc2_all_infill_patterns() {
 fn sc2_patterns_produce_different_gcode() {
     let mesh = calibration_cube_20mm();
     let mut gcodes: Vec<(InfillPattern, Vec<u8>)> = Vec::new();
-    for pattern in [
+    let patterns = [
         InfillPattern::Rectilinear,
         InfillPattern::Grid,
         InfillPattern::Honeycomb,
         InfillPattern::Gyroid,
-    ] {
+    ];
+    for pattern in &patterns {
         let config = PrintConfig {
-            infill_pattern: pattern,
+            infill_pattern: pattern.clone(),
             infill_density: 0.2,
             ..Default::default()
         };
         let result = Engine::new(config).slice(&mesh).unwrap();
-        gcodes.push((pattern, result.gcode));
+        gcodes.push((pattern.clone(), result.gcode));
     }
     // Each pattern should produce different G-code.
     for i in 0..gcodes.len() {
@@ -468,7 +469,7 @@ fn sc2_all_patterns_produce_valid_gcode() {
     ];
     for pattern in &patterns {
         let config = PrintConfig {
-            infill_pattern: *pattern,
+            infill_pattern: pattern.clone(),
             infill_density: 0.2,
             ..Default::default()
         };
@@ -689,7 +690,7 @@ fn determinism_all_patterns() {
     ];
     for pattern in &patterns {
         let config = PrintConfig {
-            infill_pattern: *pattern,
+            infill_pattern: pattern.clone(),
             infill_density: 0.2,
             ..Default::default()
         };

@@ -54,7 +54,11 @@ pub struct LayerInfill {
 ///
 /// Each variant maps to a specific infill algorithm. The default is
 /// [`Rectilinear`](InfillPattern::Rectilinear).
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// The [`Plugin`](InfillPattern::Plugin) variant selects a plugin-provided
+/// infill pattern by its registered name. Plugin dispatch is handled by
+/// the engine, not by [`generate_infill`].
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InfillPattern {
     /// Parallel lines alternating between 0 and 90 degrees per layer.
@@ -78,12 +82,20 @@ pub enum InfillPattern {
     TpmsD,
     /// TPMS Fischer-Koch S surface for interconnected channel topology.
     TpmsFk,
+    /// A plugin-provided infill pattern, identified by registered name.
+    ///
+    /// The engine checks for this variant before calling [`generate_infill`]
+    /// and routes the request to the plugin registry. If generate_infill is
+    /// called directly with this variant (without engine interception), it
+    /// returns an empty vector as a fallback.
+    #[serde(rename = "plugin")]
+    Plugin(String),
 }
 
 /// Generates infill lines for the given pattern, dispatching to the correct submodule.
 ///
 /// # Parameters
-/// - `pattern`: The infill pattern to use.
+/// - `pattern`: The infill pattern to use (by reference to avoid cloning).
 /// - `infill_region`: The boundary polygons defining the infill area.
 /// - `density`: Fill density as a fraction (0.0 = empty, 1.0 = solid).
 /// - `layer_index`: Current layer index (used for angle alternation).
@@ -94,8 +106,13 @@ pub enum InfillPattern {
 ///
 /// # Returns
 /// A vector of [`InfillLine`] segments for the requested pattern.
+///
+/// # Plugin patterns
+/// The [`InfillPattern::Plugin`] variant is handled by the engine's plugin
+/// dispatch layer, not by this function. If reached here (engine didn't
+/// intercept), returns an empty vector as fallback.
 pub fn generate_infill(
-    pattern: InfillPattern,
+    pattern: &InfillPattern,
     infill_region: &[ValidPolygon],
     density: f64,
     layer_index: usize,
@@ -133,6 +150,12 @@ pub fn generate_infill(
         }
         InfillPattern::TpmsFk => {
             tpms_fk::generate(infill_region, density, layer_index, layer_z, line_width)
+        }
+        InfillPattern::Plugin(_) => {
+            // Plugin dispatch is handled by the engine (Engine::generate_infill_for_layer).
+            // If we reach here, it means the engine didn't intercept the Plugin variant.
+            // Return empty as fallback.
+            Vec::new()
         }
     }
 }

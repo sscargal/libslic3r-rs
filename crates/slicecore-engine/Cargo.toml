@@ -6,6 +6,10 @@ license.workspace = true
 rust-version.workspace = true
 description = "Slicing pipeline orchestrator and print configuration for the slicecore engine"
 
+[features]
+default = []
+plugins = ["dep:slicecore-plugin"]
+
 [dependencies]
 slicecore-math = { path = "../slicecore-math" }
 slicecore-mesh = { path = "../slicecore-mesh" }
@@ -13,6 +17,7 @@ slicecore-geo = { path = "../slicecore-geo" }
 slicecore-slicer = { path = "../slicecore-slicer" }
 slicecore-fileio = { path = "../slicecore-fileio" }
 slicecore-gcode-io = { path = "../slicecore-gcode-io" }
+slicecore-plugin = { path = "../slicecore-plugin", optional = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 toml = "0.8"

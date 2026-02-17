@@ -195,7 +195,7 @@ pub fn generate_support_infill(
         SupportPattern::Grid => {
             // Cross-hatched grid using the Grid infill dispatch.
             infill::generate_infill(
-                InfillPattern::Grid,
+                &InfillPattern::Grid,
                 support_regions,
                 density,
                 layer_index,
@@ -207,7 +207,7 @@ pub fn generate_support_infill(
         SupportPattern::Rectilinear => {
             // Alternating 0/90 rectilinear using the Rectilinear infill dispatch.
             infill::generate_infill(
-                InfillPattern::Rectilinear,
+                &InfillPattern::Rectilinear,
                 support_regions,
                 density,
                 layer_index,
