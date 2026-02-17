@@ -38,6 +38,8 @@ pub enum FeatureType {
     GapFill,
     /// Variable-width perimeter (Arachne).
     VariableWidthPerimeter,
+    /// Support structure extrusion.
+    Support,
     /// Non-extrusion travel move.
     Travel,
 }

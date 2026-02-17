@@ -12,17 +12,21 @@
 //! 1. **Detection**: Identify overhang regions by comparing adjacent layers.
 //! 2. **Validation**: Filter false positives using downward raycasting.
 //! 3. **Filtering**: Remove unprintable tiny regions below area thresholds.
-//! 4. **Generation**: (future plans) Build support geometry from validated regions.
+//! 4. **Generation**: Build support geometry from validated regions (traditional or tree).
 
 pub mod config;
 pub mod detect;
+pub mod traditional;
 
 use slicecore_geo::ValidPolygon;
+
+use crate::infill::InfillLine;
 
 /// A support region on a single layer.
 ///
 /// Contains the contours defining the support boundary, along with metadata
 /// about the layer position and whether this region was detected as a bridge.
+/// The `infill` field contains generated infill lines for the support body.
 #[derive(Clone, Debug)]
 pub struct SupportRegion {
     /// Polygonal contours defining the support region boundary.
@@ -33,6 +37,8 @@ pub struct SupportRegion {
     pub layer_index: usize,
     /// Whether this region was detected as a bridge (unsupported horizontal span).
     pub is_bridge: bool,
+    /// Infill lines generated for this support region.
+    pub infill: Vec<InfillLine>,
 }
 
 /// Result of support detection across all layers.

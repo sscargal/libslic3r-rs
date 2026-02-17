@@ -209,6 +209,7 @@ fn feature_label(feature: FeatureType) -> &'static str {
         FeatureType::Travel => "Travel",
         FeatureType::GapFill => "Gap fill",
         FeatureType::VariableWidthPerimeter => "Variable width perimeter",
+        FeatureType::Support => "Support",
     }
 }
 
