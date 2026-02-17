@@ -8,9 +8,13 @@
 //! - [`Rectilinear`](InfillPattern::Rectilinear) -- parallel scanlines alternating 0/90 degrees
 //! - [`Grid`](InfillPattern::Grid) -- crosshatch (both 0 and 90 degrees on same layer)
 //! - [`Monotonic`](InfillPattern::Monotonic) -- unidirectional scanlines (no bidirectional overlap)
+//! - [`Honeycomb`](InfillPattern::Honeycomb) -- hexagonal pattern for strength-to-weight ratio
+//! - [`Gyroid`](InfillPattern::Gyroid) -- TPMS-based smooth curves for isotropic strength
+//! - [`Cubic`](InfillPattern::Cubic) -- 3-angle cycling with Z-dependent offset for 3D cubes
 //!
-//! Future patterns (Honeycomb, Gyroid, etc.) currently fall back to Rectilinear.
+//! Future patterns (AdaptiveCubic, Lightning) currently fall back to Rectilinear.
 
+pub mod cubic;
 pub mod grid;
 pub mod gyroid;
 pub mod honeycomb;
@@ -72,7 +76,7 @@ pub enum InfillPattern {
 /// - `infill_region`: The boundary polygons defining the infill area.
 /// - `density`: Fill density as a fraction (0.0 = empty, 1.0 = solid).
 /// - `layer_index`: Current layer index (used for angle alternation).
-/// - `_layer_z`: Z height of the current layer (reserved for future patterns).
+/// - `layer_z`: Z height of the current layer (used by Gyroid and future 3D patterns).
 /// - `line_width`: Extrusion line width in mm.
 ///
 /// # Returns
@@ -82,7 +86,7 @@ pub fn generate_infill(
     infill_region: &[ValidPolygon],
     density: f64,
     layer_index: usize,
-    _layer_z: f64,
+    layer_z: f64,
     line_width: f64,
 ) -> Vec<InfillLine> {
     let angle = alternate_infill_angle(layer_index);
@@ -98,19 +102,17 @@ pub fn generate_infill(
         InfillPattern::Honeycomb => {
             honeycomb::generate(infill_region, density, layer_index, line_width)
         }
-        // TODO: implement in plan 04-03
         InfillPattern::Gyroid => {
-            rectilinear::generate(infill_region, density, angle, line_width)
+            gyroid::generate(infill_region, density, layer_index, layer_z, line_width)
         }
-        // TODO: implement in plan 04-04
+        // TODO: implement in plan 04-06
         InfillPattern::AdaptiveCubic => {
             rectilinear::generate(infill_region, density, angle, line_width)
         }
-        // TODO: implement in plan 04-05
         InfillPattern::Cubic => {
-            rectilinear::generate(infill_region, density, angle, line_width)
+            cubic::generate(infill_region, density, layer_index, layer_z, line_width)
         }
-        // TODO: implement in plan 04-06
+        // TODO: implement in plan 04-08
         InfillPattern::Lightning => {
             rectilinear::generate(infill_region, density, angle, line_width)
         }

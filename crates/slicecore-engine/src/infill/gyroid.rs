@@ -523,4 +523,169 @@ mod tests {
             "Single positive corner should produce 1 segment"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Integration tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn integration_end_to_end_multiple_layers() {
+        // Generate gyroid on a 20mm square at density=0.3 for 3 different Z heights.
+        let square = make_square(20.0);
+        let layers = [
+            generate(&[square.clone()], 0.3, 0, 0.2, 0.4),
+            generate(&[square.clone()], 0.3, 1, 0.4, 0.4),
+            generate(&[square], 0.3, 2, 0.6, 0.4),
+        ];
+
+        let min = mm_to_coord(0.0);
+        let max = mm_to_coord(20.0);
+
+        for (i, lines) in layers.iter().enumerate() {
+            assert!(
+                !lines.is_empty(),
+                "Layer {} (z={}) should produce non-empty infill",
+                i,
+                0.2 + i as f64 * 0.2
+            );
+            // Verify all endpoints are within bbox.
+            for line in lines {
+                assert!(
+                    line.start.x >= min && line.start.x <= max
+                        && line.start.y >= min && line.start.y <= max
+                        && line.end.x >= min && line.end.x <= max
+                        && line.end.y >= min && line.end.y <= max,
+                    "Layer {} has line outside bounding box",
+                    i
+                );
+            }
+        }
+
+        // Verify Z-variation: at least 2 of 3 layers differ in line count or positions.
+        let counts: Vec<usize> = layers.iter().map(|l| l.len()).collect();
+        let starts_0: Vec<_> = layers[0].iter().map(|l| (l.start.x, l.start.y)).collect();
+        let starts_1: Vec<_> = layers[1].iter().map(|l| (l.start.x, l.start.y)).collect();
+        let starts_2: Vec<_> = layers[2].iter().map(|l| (l.start.x, l.start.y)).collect();
+
+        let differ_01 = counts[0] != counts[1] || starts_0 != starts_1;
+        let differ_12 = counts[1] != counts[2] || starts_1 != starts_2;
+        let differ_02 = counts[0] != counts[2] || starts_0 != starts_2;
+
+        assert!(
+            differ_01 || differ_12 || differ_02,
+            "At least two layers should produce different patterns (Z variation)"
+        );
+    }
+
+    #[test]
+    fn integration_density_variation() {
+        // 10% density should produce fewer/wider-spaced lines than 50% density.
+        let square = make_square(20.0);
+        let lines_10 = generate(&[square.clone()], 0.1, 0, 0.3, 0.4);
+        let lines_50 = generate(&[square], 0.5, 0, 0.3, 0.4);
+
+        assert!(
+            !lines_10.is_empty(),
+            "10% density should produce some lines"
+        );
+        assert!(
+            !lines_50.is_empty(),
+            "50% density should produce some lines"
+        );
+        assert!(
+            lines_50.len() > lines_10.len(),
+            "50% density ({}) should produce more lines than 10% ({})",
+            lines_50.len(),
+            lines_10.len()
+        );
+    }
+
+    #[test]
+    fn integration_stress_test_large_region() {
+        // 100mm x 100mm region at 15% density -- should complete quickly
+        // and produce many lines without panicking.
+        let square = make_square(100.0);
+        let start = std::time::Instant::now();
+        let lines = generate(&[square], 0.15, 0, 0.3, 0.4);
+        let elapsed = start.elapsed();
+
+        assert!(
+            !lines.is_empty(),
+            "100mm region at 15% density should produce infill lines"
+        );
+        assert!(
+            lines.len() > 100,
+            "100mm region should produce many lines, got {}",
+            lines.len()
+        );
+        assert!(
+            elapsed.as_secs_f64() < 1.0,
+            "100mm region should complete in < 1 second, took {:.3}s",
+            elapsed.as_secs_f64()
+        );
+    }
+
+    #[test]
+    fn integration_marching_squares_all_16_cases() {
+        // Craft a grid that exercises all 16 marching squares cases.
+        // We build a 4x4 grid (5x5 nodes) with carefully chosen values.
+        //
+        // Case index is: BL | (BR << 1) | (TR << 2) | (TL << 3)
+        // where each bit indicates value > 0.
+        //
+        // We need cells producing cases 0-15. We'll create them in a
+        // 4x4 arrangement of cells.
+        //
+        // For each case, we set the four corners appropriately.
+        // Rather than constructing a continuous grid (which constrains
+        // neighboring cells), we test each case in isolation.
+
+        let p = 1.0_f64;
+        let n = -1.0_f64;
+
+        // Test each case individually with a 1x1 cell (2x2 grid).
+        let cases: [(u8, [f64; 4]); 16] = [
+            (0, [n, n, n, n]),   // all negative
+            (1, [p, n, n, n]),   // BL only
+            (2, [n, p, n, n]),   // BR only
+            (3, [p, p, n, n]),   // BL + BR
+            (4, [n, n, p, n]),   // TR only
+            (5, [p, n, p, n]),   // BL + TR (saddle)
+            (6, [n, p, p, n]),   // BR + TR
+            (7, [p, p, p, n]),   // BL + BR + TR
+            (8, [n, n, n, p]),   // TL only
+            (9, [p, n, n, p]),   // BL + TL
+            (10, [n, p, n, p]),  // BR + TL (saddle)
+            (11, [p, p, n, p]),  // BL + BR + TL
+            (12, [n, n, p, p]),  // TR + TL
+            (13, [p, n, p, p]),  // BL + TR + TL
+            (14, [n, p, p, p]),  // BR + TR + TL
+            (15, [p, p, p, p]), // all positive
+        ];
+
+        for (case_idx, corners) in &cases {
+            // Grid layout: BL=grid[0], BR=grid[1], TL=grid[2], TR=grid[3]
+            // In row-major: row 0 = [BL, BR], row 1 = [TL, TR]
+            let grid = vec![corners[0], corners[1], corners[3], corners[2]];
+            let segments = marching_squares(&grid, 1, 1, 0.0, 0.0, 1.0);
+
+            match case_idx {
+                0 | 15 => assert!(
+                    segments.is_empty(),
+                    "Case {} should produce 0 segments",
+                    case_idx
+                ),
+                5 | 10 => assert_eq!(
+                    segments.len(), 2,
+                    "Saddle case {} should produce 2 segments, got {}",
+                    case_idx, segments.len()
+                ),
+                _ => assert_eq!(
+                    segments.len(), 1,
+                    "Case {} should produce 1 segment, got {}",
+                    case_idx, segments.len()
+                ),
+            }
+        }
+    }
 }
