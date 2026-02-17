@@ -40,6 +40,10 @@ pub enum FeatureType {
     VariableWidthPerimeter,
     /// Support structure extrusion.
     Support,
+    /// Support interface layer extrusion (dense contact surface).
+    SupportInterface,
+    /// Bridge extrusion (unsupported horizontal span).
+    Bridge,
     /// Non-extrusion travel move.
     Travel,
 }

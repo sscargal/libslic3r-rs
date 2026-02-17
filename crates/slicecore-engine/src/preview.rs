@@ -124,7 +124,11 @@ pub fn generate_preview(
                     }
                     current_perim_polyline.push(end);
                 }
-                FeatureType::SolidInfill | FeatureType::SparseInfill | FeatureType::Support => {
+                FeatureType::SolidInfill
+                | FeatureType::SparseInfill
+                | FeatureType::Support
+                | FeatureType::SupportInterface
+                | FeatureType::Bridge => {
                     // Flush any in-progress perimeter polyline.
                     if !current_perim_polyline.is_empty() {
                         perimeters.push(std::mem::take(&mut current_perim_polyline));
@@ -192,6 +196,8 @@ fn feature_type_label(feature: FeatureType) -> String {
         FeatureType::GapFill => "gap_fill".to_string(),
         FeatureType::VariableWidthPerimeter => "variable_width_perimeter".to_string(),
         FeatureType::Support => "support".to_string(),
+        FeatureType::SupportInterface => "support_interface".to_string(),
+        FeatureType::Bridge => "bridge".to_string(),
         FeatureType::Travel => "travel".to_string(),
     }
 }

@@ -251,7 +251,7 @@ fn check_intersection(polygons: &[ValidPolygon], probe: &Option<ValidPolygon>) -
         None => return false,
     };
 
-    match polygon_intersection(polygons, &[probe.clone()]) {
+    match polygon_intersection(polygons, std::slice::from_ref(probe)) {
         Ok(result) => !result.is_empty(),
         Err(_) => false,
     }
