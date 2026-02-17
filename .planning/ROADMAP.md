@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Vertical Slice (STL to G-code)** - Minimum pipeline producing a printable calibration cube
 - [x] **Phase 4: Perimeter and Infill Completeness** - All perimeter modes, all standard infill patterns, adaptive layers
 - [x] **Phase 5: Support Structures** - Automatic, manual, tree, organic supports with bridge/overhang handling
-- [ ] **Phase 6: G-code Completeness and Advanced Features** - All firmware dialects, multi-material, modifier meshes, advanced print features
+- [x] **Phase 6: G-code Completeness and Advanced Features** - All firmware dialects, multi-material, modifier meshes, advanced print features
 - [ ] **Phase 7: Plugin System** - Plugin trait API, registry, native and WASM loading, example plugin
 - [ ] **Phase 8: AI Integration** - LLM abstraction, geometry analysis, profile suggestions
 - [ ] **Phase 9: API Polish, Testing, and Platform Validation** - Public API, structured output, cross-platform, performance/memory targets, test coverage
@@ -159,11 +159,16 @@ Plans:
   2. A WASM plugin loaded via wasmtime Component Model can provide a custom infill pattern, and a bug/crash in the WASM plugin does not crash or corrupt the host process
   3. PluginRegistry discovers, validates, and manages plugins -- listing available plugins, their capabilities, and version compatibility
   4. Plugin API is documented with rustdoc and includes at least two working example plugins (one native, one WASM) with build instructions that a developer can follow to create their own
-**Plans**: TBD
+**Plans:** 7 plans
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md -- slicecore-plugin-api crate (FFI-safe types, sabi_trait InfillPatternPlugin, metadata)
+- [ ] 07-02-PLAN.md -- slicecore-plugin crate scaffold, PluginRegistry, native plugin loader via abi_stable
+- [ ] 07-03-PLAN.md -- WASM plugin loader (wasmtime Component Model), WIT interface, sandboxing
+- [ ] 07-04-PLAN.md -- Engine integration (InfillPattern::Plugin variant, generate_infill dispatch, feature gating)
+- [ ] 07-05-PLAN.md -- Example native zigzag-infill plugin (cdylib with abi_stable)
+- [ ] 07-06-PLAN.md -- Example WASM spiral-infill plugin (Component Model with wit-bindgen)
+- [ ] 07-07-PLAN.md -- Integration tests (SC1-SC3) and rustdoc documentation (SC4)
 
 ### Phase 8: AI Integration
 **Goal**: Users can send a 3D model and receive intelligent print profile suggestions from a local or cloud LLM -- the second core differentiator works end-to-end
@@ -213,6 +218,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 4. Perimeter and Infill Completeness | 10/10 | ✓ Complete | 2026-02-17 |
 | 5. Support Structures | 8/8 | ✓ Complete | 2026-02-17 |
 | 6. G-code Completeness and Advanced Features | 9/9 | ✓ Complete | 2026-02-17 |
-| 7. Plugin System | 0/TBD | Not started | - |
+| 7. Plugin System | 0/7 | Not started | - |
 | 8. AI Integration | 0/TBD | Not started | - |
 | 9. API Polish, Testing, and Platform Validation | 0/TBD | Not started | - |
