@@ -26,6 +26,7 @@ use crate::gcode_gen::generate_full_gcode;
 use crate::infill::{generate_infill, lightning, InfillPattern, LayerInfill};
 use crate::perimeter::generate_perimeters;
 use crate::planner::{generate_brim, generate_skirt};
+use crate::preview::{generate_preview, SlicePreview};
 use crate::surface::classify_surfaces;
 use crate::toolpath::{
     assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment,
@@ -43,6 +44,8 @@ pub struct SliceResult {
     pub layer_count: usize,
     /// Total estimated print time in seconds.
     pub estimated_time_seconds: f64,
+    /// Optional preview data for visualization.
+    pub preview: Option<SlicePreview>,
 }
 
 /// The slicing engine -- orchestrates the full pipeline.
@@ -76,6 +79,7 @@ impl Engine {
             gcode: buf,
             layer_count: result.layer_count,
             estimated_time_seconds: result.estimated_time_seconds,
+            preview: None,
         })
     }
 
@@ -515,7 +519,286 @@ impl Engine {
             gcode: Vec::new(), // Not used in writer path.
             layer_count,
             estimated_time_seconds: estimated_time,
+            preview: None,
         })
+    }
+
+    /// Slices a mesh and returns the result with preview data for visualization.
+    ///
+    /// This runs the same pipeline as [`Engine::slice`] but additionally
+    /// generates [`SlicePreview`] data containing per-layer contours,
+    /// perimeter paths, infill lines, and travel moves.
+    ///
+    /// # Errors
+    ///
+    /// Same errors as [`Engine::slice`].
+    pub fn slice_with_preview(&self, mesh: &TriangleMesh) -> Result<SliceResult, EngineError> {
+        // Validate mesh.
+        if mesh.triangle_count() == 0 {
+            return Err(EngineError::EmptyMesh);
+        }
+
+        // 1. Slice mesh into layers.
+        let layers = if self.config.adaptive_layer_height {
+            let heights = compute_adaptive_layer_heights(
+                mesh,
+                self.config.adaptive_min_layer_height,
+                self.config.adaptive_max_layer_height,
+                self.config.adaptive_layer_quality,
+                self.config.first_layer_height,
+            );
+            slice_mesh_adaptive(mesh, &heights)
+        } else {
+            slice_mesh(
+                mesh,
+                self.config.layer_height,
+                self.config.first_layer_height,
+            )
+        };
+
+        if layers.is_empty() {
+            return Err(EngineError::NoLayers);
+        }
+
+        // Capture contours for preview.
+        let contours_per_layer: Vec<Vec<_>> = layers
+            .iter()
+            .map(|l| l.contours.clone())
+            .collect();
+
+        // Compute bounding box from mesh vertices.
+        let vertices = mesh.vertices();
+        let (mut min_x, mut min_y, mut min_z) = (f64::MAX, f64::MAX, f64::MAX);
+        let (mut max_x, mut max_y, mut max_z) = (f64::MIN, f64::MIN, f64::MIN);
+        for v in vertices {
+            min_x = min_x.min(v.x);
+            min_y = min_y.min(v.y);
+            min_z = min_z.min(v.z);
+            max_x = max_x.max(v.x);
+            max_y = max_y.max(v.y);
+            max_z = max_z.max(v.z);
+        }
+        let bounding_box = [min_x, min_y, min_z, max_x, max_y, max_z];
+
+        // Run slicing pipeline to get G-code (reuses slice method).
+        let mut result = self.slice(mesh)?;
+
+        // Build preview from the toolpaths.
+        // We need to re-run the pipeline to capture layer toolpaths.
+        // Instead, run a lightweight internal pipeline to extract toolpaths.
+        // For efficiency, re-slice and capture toolpaths inline.
+        let lightning_ctx = if self.config.infill_pattern == InfillPattern::Lightning {
+            Some(lightning::build_lightning_context(
+                &contours_per_layer,
+                self.config.infill_density,
+                self.config.extrusion_width(),
+            ))
+        } else {
+            None
+        };
+
+        let mut layer_toolpaths: Vec<LayerToolpath> = Vec::with_capacity(layers.len());
+        let mut previous_seam: Option<slicecore_math::IPoint2> = None;
+
+        for (layer_idx, layer) in layers.iter().enumerate() {
+            if layer.contours.is_empty() {
+                layer_toolpaths.push(LayerToolpath {
+                    layer_index: layer_idx,
+                    z: layer.z,
+                    layer_height: layer.layer_height,
+                    segments: Vec::new(),
+                });
+                continue;
+            }
+
+            let (perimeters, arachne_segments) = if self.config.arachne_enabled {
+                let arachne_results =
+                    generate_arachne_perimeters(&layer.contours, &self.config);
+                let mut classic_perimeters = Vec::new();
+                let mut var_width_segs = Vec::new();
+                for r in &arachne_results {
+                    if let Some(ref classic) = r.classic_fallback {
+                        classic_perimeters.push(classic.clone());
+                    }
+                    for perim in &r.perimeters {
+                        if perim.points.len() < 2 {
+                            continue;
+                        }
+                        let feature = if perim.is_outer {
+                            FeatureType::VariableWidthPerimeter
+                        } else {
+                            FeatureType::InnerPerimeter
+                        };
+                        let perim_speed = self.config.perimeter_speed * 60.0;
+                        for i in 1..perim.points.len() {
+                            let (sx, sy) = perim.points[i - 1].to_mm();
+                            let (ex, ey) = perim.points[i].to_mm();
+                            let start_pt = Point2::new(sx, sy);
+                            let end_pt = Point2::new(ex, ey);
+                            let seg_len = {
+                                let dx = end_pt.x - start_pt.x;
+                                let dy = end_pt.y - start_pt.y;
+                                (dx * dx + dy * dy).sqrt()
+                            };
+                            if seg_len < 0.0001 {
+                                continue;
+                            }
+                            let width = (perim.widths[i - 1] + perim.widths[i]) / 2.0;
+                            let e = compute_e_value(
+                                seg_len,
+                                width,
+                                layer.layer_height,
+                                self.config.filament_diameter,
+                                self.config.extrusion_multiplier,
+                            );
+                            var_width_segs.push(ToolpathSegment {
+                                start: start_pt,
+                                end: end_pt,
+                                feature,
+                                e_value: e,
+                                feedrate: perim_speed,
+                                z: layer.z,
+                                extrusion_width: Some(width),
+                            });
+                        }
+                    }
+                }
+                (classic_perimeters, var_width_segs)
+            } else {
+                let perimeters = generate_perimeters(&layer.contours, &self.config);
+                (perimeters, Vec::new())
+            };
+
+            let classification = classify_surfaces(
+                &layers,
+                layer_idx,
+                self.config.top_solid_layers,
+                self.config.bottom_solid_layers,
+            );
+
+            let extrusion_width = self.config.extrusion_width();
+            let mut all_infill_lines = Vec::new();
+            let mut infill_is_solid = false;
+
+            if !classification.solid_regions.is_empty() {
+                let solid_lines = generate_infill(
+                    InfillPattern::Rectilinear,
+                    &classification.solid_regions,
+                    1.0,
+                    layer_idx,
+                    layer.z,
+                    extrusion_width,
+                    None,
+                );
+                if !solid_lines.is_empty() {
+                    all_infill_lines.extend(solid_lines);
+                    infill_is_solid = true;
+                }
+            }
+
+            if !classification.sparse_regions.is_empty()
+                && self.config.infill_density > 0.0
+            {
+                let sparse_lines = generate_infill(
+                    self.config.infill_pattern,
+                    &classification.sparse_regions,
+                    self.config.infill_density,
+                    layer_idx,
+                    layer.z,
+                    extrusion_width,
+                    lightning_ctx.as_ref(),
+                );
+                all_infill_lines.extend(sparse_lines);
+            }
+
+            if classification.solid_regions.is_empty()
+                && classification.sparse_regions.is_empty()
+                && !perimeters.is_empty()
+            {
+                let inner = &perimeters[0].inner_contour;
+                if !inner.is_empty() && self.config.infill_density > 0.0 {
+                    let lines = generate_infill(
+                        self.config.infill_pattern,
+                        inner,
+                        self.config.infill_density,
+                        layer_idx,
+                        layer.z,
+                        extrusion_width,
+                        lightning_ctx.as_ref(),
+                    );
+                    all_infill_lines.extend(lines);
+                }
+            }
+
+            let infill = LayerInfill {
+                lines: all_infill_lines,
+                is_solid: infill_is_solid,
+            };
+
+            let gap_fills = if self.config.gap_fill_enabled && !perimeters.is_empty() {
+                crate::gap_fill::detect_and_fill_gaps(
+                    &perimeters[0].shells,
+                    &perimeters[0].inner_contour,
+                    &layer.contours,
+                    self.config.gap_fill_min_width,
+                    self.config.nozzle_diameter,
+                    extrusion_width,
+                )
+            } else {
+                Vec::new()
+            };
+
+            let (mut toolpath, layer_seam) = assemble_layer_toolpath(
+                layer_idx,
+                layer.z,
+                layer.layer_height,
+                &perimeters,
+                &gap_fills,
+                &infill,
+                &self.config,
+                previous_seam,
+            );
+
+            if !arachne_segments.is_empty() {
+                let travel_speed = self.config.travel_speed * 60.0;
+                let mut var_segs = Vec::new();
+                let mut current_pos: Option<Point2> = None;
+                for seg in &arachne_segments {
+                    if let Some(pos) = current_pos {
+                        let dx = seg.start.x - pos.x;
+                        let dy = seg.start.y - pos.y;
+                        let dist = (dx * dx + dy * dy).sqrt();
+                        if dist > 0.001 {
+                            var_segs.push(ToolpathSegment {
+                                start: pos,
+                                end: seg.start,
+                                feature: FeatureType::Travel,
+                                e_value: 0.0,
+                                feedrate: travel_speed,
+                                z: layer.z,
+                                extrusion_width: None,
+                            });
+                        }
+                    }
+                    var_segs.push(seg.clone());
+                    current_pos = Some(seg.end);
+                }
+                var_segs.append(&mut toolpath.segments);
+                toolpath.segments = var_segs;
+            }
+
+            if layer_seam.is_some() {
+                previous_seam = layer_seam;
+            }
+
+            layer_toolpaths.push(toolpath);
+        }
+
+        // Generate preview from captured data.
+        let preview = generate_preview(&layer_toolpaths, &contours_per_layer, bounding_box);
+        result.preview = Some(preview);
+
+        Ok(result)
     }
 }
 
