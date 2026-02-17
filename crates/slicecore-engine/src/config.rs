@@ -199,6 +199,14 @@ pub struct PrintConfig {
     pub pressure_advance: f64,
     /// Enable acceleration command emission at feature transitions.
     pub acceleration_enabled: bool,
+
+    // --- Multi-Material ---
+    /// Multi-material printing configuration (MMU tool changes and purge tower).
+    pub multi_material: MultiMaterialConfig,
+
+    // --- Sequential Printing ---
+    /// Sequential (object-by-object) printing configuration.
+    pub sequential: SequentialConfig,
 }
 
 /// Scarf joint seam configuration.
@@ -353,6 +361,9 @@ impl Default for PrintConfig {
             jerk_z: 0.4,
             pressure_advance: 0.0,
             acceleration_enabled: false,
+
+            multi_material: MultiMaterialConfig::default(),
+            sequential: SequentialConfig::default(),
         }
     }
 }
@@ -379,6 +390,157 @@ impl PrintConfig {
     /// Currently uses a simple heuristic of `nozzle_diameter * 1.1`.
     pub fn extrusion_width(&self) -> f64 {
         self.nozzle_diameter * 1.1
+    }
+}
+
+/// Per-tool configuration for multi-material printing.
+///
+/// Each tool (extruder) can have independent temperature and retraction
+/// settings for optimal tool-change sequences.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ToolConfig {
+    /// Nozzle temperature for this tool in degrees Celsius.
+    pub nozzle_temp: f64,
+    /// Retraction length for this tool in mm.
+    pub retract_length: f64,
+    /// Retraction speed for this tool in mm/s.
+    pub retract_speed: f64,
+}
+
+impl Default for ToolConfig {
+    fn default() -> Self {
+        Self {
+            nozzle_temp: 200.0,
+            retract_length: 0.8,
+            retract_speed: 45.0,
+        }
+    }
+}
+
+/// Multi-material printing configuration.
+///
+/// Controls MMU (multi-material unit) tool change sequences and purge tower
+/// generation. When enabled, the slicer generates retract-park-change-prime
+/// sequences at tool transitions and maintains a purge tower on every layer.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MultiMaterialConfig {
+    /// Enable multi-material printing.
+    pub enabled: bool,
+    /// Number of tools (extruders) available.
+    pub tool_count: u8,
+    /// Per-tool configuration.
+    pub tools: Vec<ToolConfig>,
+    /// Purge tower position [x, y] in mm.
+    pub purge_tower_position: [f64; 2],
+    /// Purge tower width in mm.
+    pub purge_tower_width: f64,
+    /// Purge volume per tool change in mm^3.
+    pub purge_volume: f64,
+    /// Wipe length across the purge tower in mm.
+    pub wipe_length: f64,
+}
+
+impl Default for MultiMaterialConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            tool_count: 1,
+            tools: Vec::new(),
+            purge_tower_position: [200.0, 200.0],
+            purge_tower_width: 15.0,
+            purge_volume: 70.0,
+            wipe_length: 2.0,
+        }
+    }
+}
+
+/// Sequential (object-by-object) printing configuration.
+///
+/// In sequential mode, each object is printed completely before moving to
+/// the next. This requires collision detection to ensure the extruder
+/// clearance envelope does not hit previously printed objects.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SequentialConfig {
+    /// Enable sequential (object-by-object) printing.
+    pub enabled: bool,
+    /// Extruder clearance radius in mm (XY distance from nozzle to widest
+    /// part of the print head assembly).
+    pub extruder_clearance_radius: f64,
+    /// Extruder clearance height in mm (height above nozzle tip to the
+    /// bottom of the X carriage / gantry).
+    pub extruder_clearance_height: f64,
+}
+
+impl Default for SequentialConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            extruder_clearance_radius: 35.0,
+            extruder_clearance_height: 40.0,
+        }
+    }
+}
+
+/// Configuration for pressure advance calibration pattern generation.
+///
+/// This configures a standalone G-code generator that produces a test print
+/// with varying pressure advance (PA) values. The pattern prints alternating
+/// slow/fast extrusion sections at incrementally increasing PA values, allowing
+/// users to visually identify the optimal PA setting for their printer/filament
+/// combination.
+///
+/// All fields have sensible defaults via `#[serde(default)]`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PaCalibrationConfig {
+    /// Starting PA value.
+    pub pa_start: f64,
+    /// Ending PA value.
+    pub pa_end: f64,
+    /// PA increment per line.
+    pub pa_step: f64,
+    /// Slow extrusion speed in mm/s (reveals PA artifacts at transitions).
+    pub slow_speed: f64,
+    /// Fast extrusion speed in mm/s (reveals PA artifacts at transitions).
+    pub fast_speed: f64,
+    /// Extrusion line width in mm.
+    pub line_width: f64,
+    /// Layer height in mm.
+    pub layer_height: f64,
+    /// Bed center X coordinate in mm.
+    pub bed_center_x: f64,
+    /// Bed center Y coordinate in mm.
+    pub bed_center_y: f64,
+    /// Total pattern width in mm.
+    pub pattern_width: f64,
+    /// Nozzle temperature in degrees Celsius.
+    pub nozzle_temp: f64,
+    /// Bed temperature in degrees Celsius.
+    pub bed_temp: f64,
+    /// Filament diameter in mm.
+    pub filament_diameter: f64,
+}
+
+impl Default for PaCalibrationConfig {
+    fn default() -> Self {
+        Self {
+            pa_start: 0.0,
+            pa_end: 0.1,
+            pa_step: 0.005,
+            slow_speed: 20.0,
+            fast_speed: 100.0,
+            line_width: 0.5,
+            layer_height: 0.2,
+            bed_center_x: 110.0,
+            bed_center_y: 110.0,
+            pattern_width: 100.0,
+            nozzle_temp: 200.0,
+            bed_temp: 60.0,
+            filament_diameter: 1.75,
+        }
     }
 }
 

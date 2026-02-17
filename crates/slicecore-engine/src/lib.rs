@@ -21,6 +21,7 @@
 //! unspecified fields use sensible FDM defaults.
 
 pub mod arachne;
+pub mod calibration;
 pub mod config;
 pub mod custom_gcode;
 pub mod engine;
@@ -34,6 +35,7 @@ pub mod gcode_gen;
 pub mod infill;
 pub mod ironing;
 pub mod modifier;
+pub mod multimaterial;
 pub mod perimeter;
 pub mod planner;
 pub mod polyhole;
@@ -45,7 +47,11 @@ pub mod surface;
 pub mod toolpath;
 
 // Re-export primary types at crate root.
-pub use config::{PrintConfig, ScarfJointConfig, ScarfJointType, SettingOverrides, WallOrder};
+pub use calibration::{generate_pa_calibration, generate_pa_calibration_gcode};
+pub use config::{
+    MultiMaterialConfig, PaCalibrationConfig, PrintConfig, ScarfJointConfig, ScarfJointType,
+    SequentialConfig, SettingOverrides, ToolConfig, WallOrder,
+};
 pub use custom_gcode::{substitute_placeholders, CustomGcodeHooks};
 pub use flow_control::PerFeatureFlow;
 pub use seam::{select_seam_point, SeamPosition};
@@ -69,6 +75,10 @@ pub use arachne::{generate_arachne_perimeters, ArachnePerimeter, ArachneResult};
 pub use preview::{generate_preview, LayerPreview, SlicePreview};
 pub use ironing::{generate_ironing_passes, IroningConfig};
 pub use modifier::{slice_modifier, split_by_modifiers, ModifierMesh, ModifierRegion};
+pub use multimaterial::{
+    assign_tools_per_region, generate_purge_tower_layer, generate_tool_change,
+    PurgeTowerLayer, ToolChangeSequence,
+};
 pub use polyhole::{convert_polyholes, convert_to_polyhole, is_circular_hole, polyhole_radius, polyhole_sides};
 pub use scarf::apply_scarf_joint;
 pub use support::config::SupportConfig;
