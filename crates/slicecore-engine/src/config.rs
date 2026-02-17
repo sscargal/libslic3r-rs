@@ -15,6 +15,7 @@ use crate::custom_gcode::CustomGcodeHooks;
 use crate::error::EngineError;
 use crate::flow_control::PerFeatureFlow;
 use crate::infill::InfillPattern;
+use crate::ironing::IroningConfig;
 use crate::seam::SeamPosition;
 use crate::support::config::SupportConfig;
 
@@ -148,6 +149,10 @@ pub struct PrintConfig {
     // --- Support Structures ---
     /// Support structure generation configuration.
     pub support: SupportConfig,
+
+    // --- Ironing ---
+    /// Ironing pass configuration for smooth top surfaces.
+    pub ironing: IroningConfig,
 
     // --- Per-Feature Flow ---
     /// Per-feature flow multipliers for fine-tuning extrusion per feature type.
@@ -305,6 +310,8 @@ impl Default for PrintConfig {
             scarf_joint: ScarfJointConfig::default(),
 
             support: SupportConfig::default(),
+
+            ironing: IroningConfig::default(),
 
             per_feature_flow: PerFeatureFlow::default(),
 
@@ -540,6 +547,34 @@ bridge = 1.1
         assert!(config.custom_gcode.before_layer_change.is_empty());
         assert!(config.custom_gcode.after_layer_change.is_empty());
         assert!(config.custom_gcode.custom_gcode_per_z.is_empty());
+    }
+
+    #[test]
+    fn ironing_defaults() {
+        let config = PrintConfig::default();
+        assert!(!config.ironing.enabled);
+        assert!((config.ironing.flow_rate - 0.1).abs() < 1e-9);
+        assert!((config.ironing.speed - 15.0).abs() < 1e-9);
+        assert!((config.ironing.spacing - 0.1).abs() < 1e-9);
+        assert!((config.ironing.angle - 45.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn ironing_from_toml() {
+        let toml = r#"
+[ironing]
+enabled = true
+flow_rate = 0.08
+speed = 25.0
+spacing = 0.15
+angle = 60.0
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert!(config.ironing.enabled);
+        assert!((config.ironing.flow_rate - 0.08).abs() < 1e-9);
+        assert!((config.ironing.speed - 25.0).abs() < 1e-9);
+        assert!((config.ironing.spacing - 0.15).abs() < 1e-9);
+        assert!((config.ironing.angle - 60.0).abs() < 1e-9);
     }
 
     #[test]

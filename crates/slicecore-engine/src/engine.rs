@@ -24,6 +24,7 @@ use crate::error::EngineError;
 use crate::gap_fill::detect_and_fill_gaps;
 use crate::gcode_gen::generate_full_gcode;
 use crate::infill::{generate_infill, lightning, InfillPattern, LayerInfill};
+use crate::ironing::generate_ironing_passes;
 use crate::perimeter::generate_perimeters;
 use crate::planner::{generate_brim, generate_skirt};
 use crate::preview::{generate_preview, SlicePreview};
@@ -589,6 +590,39 @@ impl Engine {
                         layer.layer_height,
                     );
                     toolpath.segments.extend(bridge_segs);
+                }
+            }
+
+            // 2i. Ironing passes for top surfaces.
+            // Ironing is applied after all other features (perimeters, infill,
+            // support, bridges) so it smooths the final top surface.
+            if self.config.ironing.enabled && !classification.solid_regions.is_empty() {
+                // Only iron layers that have top surfaces.
+                // Top surface detection: a layer has top surfaces if it's in the
+                // last `top_solid_layers` layers OR if the layer above has a
+                // different (smaller) footprint.
+                let is_top_layer = layer_idx
+                    >= layers.len().saturating_sub(self.config.top_solid_layers as usize);
+                let has_top_exposure = if layer_idx + 1 < layers.len() {
+                    // If the layer above is different from this one, there are
+                    // exposed top surfaces (already captured in solid_regions).
+                    !layers[layer_idx + 1].contours.is_empty()
+                        && !classification.solid_regions.is_empty()
+                } else {
+                    true // Last layer is always a top surface
+                };
+
+                if is_top_layer || has_top_exposure {
+                    let ironing_segs = generate_ironing_passes(
+                        &classification.solid_regions,
+                        &self.config.ironing,
+                        layer.z,
+                        self.config.nozzle_diameter,
+                        layer.layer_height,
+                        self.config.filament_diameter,
+                        self.config.extrusion_multiplier,
+                    );
+                    toolpath.segments.extend(ironing_segs);
                 }
             }
 
