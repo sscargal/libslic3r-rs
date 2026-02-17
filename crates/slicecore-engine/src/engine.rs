@@ -378,10 +378,23 @@ impl Engine {
                 continue;
             }
 
+            // 2a-pre. Polyhole conversion (before perimeters).
+            let contours = if self.config.polyhole_enabled {
+                let mut contours = layer.contours.clone();
+                crate::polyhole::convert_polyholes(
+                    &mut contours,
+                    self.config.nozzle_diameter,
+                    self.config.polyhole_min_diameter,
+                );
+                contours
+            } else {
+                layer.contours.clone()
+            };
+
             // 2a. Generate perimeters (with optional Arachne variable-width).
             let (perimeters, arachne_segments) = if self.config.arachne_enabled {
                 let arachne_results =
-                    generate_arachne_perimeters(&layer.contours, &self.config);
+                    generate_arachne_perimeters(&contours, &self.config);
 
                 let mut classic_perimeters = Vec::new();
                 let mut var_width_segs = Vec::new();
@@ -440,7 +453,7 @@ impl Engine {
 
                 (classic_perimeters, var_width_segs)
             } else {
-                let perimeters = generate_perimeters(&layer.contours, &self.config);
+                let perimeters = generate_perimeters(&contours, &self.config);
                 (perimeters, Vec::new())
             };
 
@@ -522,7 +535,7 @@ impl Engine {
                 detect_and_fill_gaps(
                     &perimeters[0].shells,
                     &perimeters[0].inner_contour,
-                    &layer.contours,
+                    &contours,
                     self.config.gap_fill_min_width,
                     self.config.nozzle_diameter,
                     extrusion_width,
@@ -915,9 +928,22 @@ impl Engine {
                 continue;
             }
 
+            // Polyhole conversion in preview pipeline.
+            let preview_contours = if self.config.polyhole_enabled {
+                let mut c = layer.contours.clone();
+                crate::polyhole::convert_polyholes(
+                    &mut c,
+                    self.config.nozzle_diameter,
+                    self.config.polyhole_min_diameter,
+                );
+                c
+            } else {
+                layer.contours.clone()
+            };
+
             let (perimeters, arachne_segments) = if self.config.arachne_enabled {
                 let arachne_results =
-                    generate_arachne_perimeters(&layer.contours, &self.config);
+                    generate_arachne_perimeters(&preview_contours, &self.config);
                 let mut classic_perimeters = Vec::new();
                 let mut var_width_segs = Vec::new();
                 for r in &arachne_results {
@@ -969,7 +995,7 @@ impl Engine {
                 }
                 (classic_perimeters, var_width_segs)
             } else {
-                let perimeters = generate_perimeters(&layer.contours, &self.config);
+                let perimeters = generate_perimeters(&preview_contours, &self.config);
                 (perimeters, Vec::new())
             };
 
@@ -1043,7 +1069,7 @@ impl Engine {
                 crate::gap_fill::detect_and_fill_gaps(
                     &perimeters[0].shells,
                     &perimeters[0].inner_contour,
-                    &layer.contours,
+                    &preview_contours,
                     self.config.gap_fill_min_width,
                     self.config.nozzle_diameter,
                     extrusion_width,

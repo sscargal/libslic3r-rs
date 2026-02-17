@@ -142,6 +142,12 @@ pub struct PrintConfig {
     /// Minimum gap width to fill (mm).
     pub gap_fill_min_width: f64,
 
+    // --- Polyhole Conversion ---
+    /// Enable polyhole conversion for circular holes (dimensional accuracy).
+    pub polyhole_enabled: bool,
+    /// Minimum hole diameter (mm) for polyhole conversion (skip very small holes).
+    pub polyhole_min_diameter: f64,
+
     // --- Arachne Variable-Width Perimeters ---
     /// Enable Arachne variable-width perimeters for thin walls.
     pub arachne_enabled: bool,
@@ -318,6 +324,9 @@ impl Default for PrintConfig {
 
             gap_fill_enabled: true,
             gap_fill_min_width: 0.1,
+
+            polyhole_enabled: false,
+            polyhole_min_diameter: 1.0,
 
             arachne_enabled: false,
 
@@ -759,5 +768,23 @@ filament_cost_per_kg = 30.0
             (config.filament_cost_per_kg - 30.0).abs() < 1e-9,
             "filament_cost_per_kg should parse from TOML"
         );
+    }
+
+    #[test]
+    fn polyhole_defaults() {
+        let config = PrintConfig::default();
+        assert!(!config.polyhole_enabled);
+        assert!((config.polyhole_min_diameter - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn polyhole_from_toml() {
+        let toml = r#"
+polyhole_enabled = true
+polyhole_min_diameter = 0.5
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert!(config.polyhole_enabled);
+        assert!((config.polyhole_min_diameter - 0.5).abs() < 1e-9);
     }
 }
