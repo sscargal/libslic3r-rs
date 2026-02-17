@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 7 -- Plugin System (COMPLETE -- all 7 plans executed)
+**Current focus:** Phase 8 -- AI Integration (in progress)
 
 ## Current Position
 
-Phase: 7 of 9 (Plugin System)
-Plan: 7 of 7 in current phase (7 complete -- PHASE COMPLETE)
-Status: Phase 7 complete -- integration tests and documentation verified all success criteria
-Last activity: 2026-02-17 -- Completed 07-07-PLAN.md (Integration tests and documentation)
+Phase: 8 of 9 (AI Integration)
+Plan: 1 of 5 in current phase (1 complete)
+Status: Completed 08-01 -- slicecore-ai crate foundation with AiProvider trait and core types
+Last activity: 2026-02-17 -- Completed 08-01-PLAN.md (AI crate foundation types)
 
-Progress: [################################################--] 96% (54/~56 overall)
+Progress: [################################################--] 97% (55/~57 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 54
+- Total plans completed: 55
 - Average duration: 5.4 min
-- Total execution time: 5.30 hours
+- Total execution time: 5.35 hours
 
 **By Phase:**
 
@@ -34,10 +34,11 @@ Progress: [################################################--] 96% (54/~56 overa
 | 05    | 8     | 69min | 8.6min   |
 | 06    | 9     | 45min | 5.0min   |
 | 07    | 7     | 50min | 7.1min   |
+| 08    | 1     | 3min  | 3.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 07-05 (3min), 07-03-wasm (9min), 07-02 (5min), 07-06 (3min), 07-07 (9min)
-- Trend: Final phase 7 plan (9min) -- integration tests with native plugin build + comprehensive rustdoc
+- Last 5 plans: 07-03-wasm (9min), 07-02 (5min), 07-06 (3min), 07-07 (9min), 08-01 (3min)
+- Trend: Phase 8 starts fast (3min) -- crate scaffold + type definitions
 
 *Updated after each plan completion*
 
@@ -264,6 +265,12 @@ Recent decisions affecting current work:
 - [07-07]: SC1 tests use load_native_plugin directly (not discover_and_load) due to plugin.toml format mismatch
 - [07-07]: SC2 inline WAT always runs; full component tests optional when .wasm is built
 - [07-07]: abi_stable symlink created in test setup to map BASE_NAME to actual library filename
+- [08-01]: reqwest with rustls-tls (not native-tls) for pure Rust TLS, matching project philosophy
+- [08-01]: async-trait for AiProvider dyn dispatch (native async fn in trait does not support dyn)
+- [08-01]: secrecy 0.10 with serde feature for SecretString deserialization from TOML
+- [08-01]: Default provider: Ollama with llama3.2 model (local-first, no API key needed)
+- [08-01]: Custom Debug on AiConfig shows [REDACTED] for API keys
+- [08-01]: ParseError(String) instead of ParseError(reqwest::Error) to allow non-reqwest parse errors
 
 ### Pending Todos
 
@@ -276,5 +283,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 07-07-PLAN.md (Integration tests and documentation -- Phase 7 COMPLETE)
-Resume file: .planning/phases/07-plugin-system/07-07-SUMMARY.md
+Stopped at: Completed 08-01-PLAN.md (AI crate foundation types)
+Resume file: .planning/phases/08-ai-integration/08-01-SUMMARY.md
