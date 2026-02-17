@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 4 of 9 (Perimeter and Infill Completeness)
-Plan: 6 of 10 in current phase (5 complete)
-Status: Executing Phase 4 -- gyroid infill implemented
-Last activity: 2026-02-17 -- Completed 04-05-PLAN.md (gyroid infill)
+Plan: 7 of 10 in current phase (6 complete)
+Status: Executing Phase 4 -- scarf joint seam implemented
+Last activity: 2026-02-17 -- Completed 04-06-PLAN.md (scarf joint seam)
 
-Progress: [####################] 56% (20/~36 overall)
+Progress: [#####################] 58% (21/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
+- Total plans completed: 21
 - Average duration: 5.3 min
-- Total execution time: 1.85 hours
+- Total execution time: 1.97 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [####################] 56% (20/~36 overall)
 | 01    | 4     | 26min | 6.5min   |
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
-| 04    | 5     | 37min | 7.4min   |
+| 04    | 6     | 44min | 7.3min   |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (6min), 04-02 (10min), 04-03 (11min), 04-04 (5min), 04-05 (5min)
+- Last 5 plans: 04-02 (10min), 04-03 (11min), 04-04 (5min), 04-05 (5min), 04-06 (7min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -136,6 +136,12 @@ Recent decisions affecting current work:
 - [04-05]: Both-endpoint point-in-polygon clipping (simple, correct, may lose edge segments)
 - [04-05]: Saddle disambiguation via center value average of 4 corners (standard approach)
 - [04-05]: Gyroid frequency = 2*PI / (line_width / density) maps density to period spacing
+- [04-06]: Scarf joint disabled by default, no impact on existing behavior
+- [04-06]: Leading ramp Z increases from seam start, trailing ramp Z decreases before seam close
+- [04-06]: E values adjusted proportionally: e * (current_z / layer_z) * scarf_flow_ratio
+- [04-06]: Per-segment Z emitted in G1 only when delta from current_z exceeds 1e-6
+- [04-06]: Effective scarf length capped at half perimeter length to prevent ramp overlap
+- [04-06]: Polygon segments collected per-polygon, scarf applied, then extended into main list
 
 ### Pending Todos
 
@@ -148,5 +154,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 04-05-PLAN.md -- gyroid infill implemented
-Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-05-SUMMARY.md
+Stopped at: Completed 04-06-PLAN.md -- scarf joint seam implemented
+Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-06-SUMMARY.md
