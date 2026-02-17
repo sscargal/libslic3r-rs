@@ -96,6 +96,13 @@ pub fn validate_overhangs_raycast(
     let max_support_dist = layer_z; // Max distance to check for internal support
     let direction = Vec3::new(0.0, 0.0, -1.0);
 
+    // Minimum ray distance to count as internal support. Hits closer than
+    // this threshold are the overhang surface itself (the face at the layer
+    // boundary) and should not count as internal support. Using 1mm ensures
+    // we skip the immediate overhang face while still catching genuine
+    // internal geometry support (e.g., closed internal voids).
+    let min_t = 1.0;
+
     let mut validated = Vec::new();
 
     for region in candidate_regions {
@@ -145,9 +152,11 @@ pub fn validate_overhangs_raycast(
                         mesh.vertices(),
                         mesh.indices(),
                     ) {
-                        // If hit is within max_support_dist, the point is
-                        // internally supported by model geometry.
-                        if hit.t > 0.0 && hit.t < max_support_dist {
+                        // If hit is within max_support_dist AND beyond the
+                        // minimum threshold, the point is internally supported
+                        // by model geometry. Hits closer than min_t are the
+                        // overhang surface itself and should be ignored.
+                        if hit.t > min_t && hit.t < max_support_dist {
                             supported_samples += 1;
                         }
                     }
