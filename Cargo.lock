@@ -1211,6 +1211,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "slicecore-plugin"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "semver",
+ "serde",
+ "slicecore-geo",
+ "slicecore-math",
+ "slicecore-plugin-api",
+ "tempfile",
+ "thiserror 2.0.18",
+ "toml",
+]
+
+[[package]]
 name = "slicecore-plugin-api"
 version = "0.1.0"
 dependencies = [
