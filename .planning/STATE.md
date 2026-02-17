@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 5 of 9 (Support Structures)
-Plan: 4 of 8 in current phase (4 complete)
-Status: Executing Phase 5 -- Plan 04 complete (tree support generation)
-Last activity: 2026-02-17 -- Completed 05-04-PLAN.md (Tree support generation with bottom-up growth)
+Plan: 5 of 8 in current phase (5 complete)
+Status: Executing Phase 5 -- Plan 05 complete (support interface layers)
+Last activity: 2026-02-17 -- Completed 05-05-PLAN.md (Support interface layers with Z-gap and material defaults)
 
-Progress: [###############################] 83% (30/~36 overall)
+Progress: [################################] 86% (31/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30
-- Average duration: 5.2 min
-- Total execution time: 3.12 hours
+- Total plans completed: 31
+- Average duration: 5.1 min
+- Total execution time: 3.17 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [###############################] 83% (30/~36 overall)
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
-| 05    | 4     | 18min | 4.5min   |
+| 05    | 5     | 21min | 4.2min   |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (5min), 05-02 (4min), 05-03 (3min), 05-04 (6min)
+- Last 5 plans: 05-01 (5min), 05-02 (4min), 05-03 (3min), 05-04 (6min), 05-05 (3min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -183,6 +183,10 @@ Recent decisions affecting current work:
 - [05-04]: Merge distance = max(merge_distance_factor * max_trunk_diameter, 5mm) per research
 - [05-04]: Organic branch smoothing inserts Bezier-like control points with 15% perpendicular offset
 - [05-04]: Circle approximation: 8 segments for collision checking, 16 segments for sliced output
+- [05-05]: Concentric interface infill uses iterative inward offset of polygon boundary
+- [05-05]: Z-gap uses ceil rounding: 0.3mm gap / 0.2mm layer = 2 layers removed
+- [05-05]: Bottom interface layers identified at support column start (no support in layer below)
+- [05-05]: Material defaults: TPU largest gaps (z=0.3, xy=0.5mm), PLA/ABS standard (z=0.2, xy=0.4mm)
 
 ### Pending Todos
 
@@ -195,5 +199,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 05-04-PLAN.md (Tree support generation with bottom-up growth)
-Resume file: .planning/phases/05-support-structures/05-04-SUMMARY.md
+Stopped at: Completed 05-05-PLAN.md (Support interface layers with Z-gap and material defaults)
+Resume file: .planning/phases/05-support-structures/05-05-SUMMARY.md
