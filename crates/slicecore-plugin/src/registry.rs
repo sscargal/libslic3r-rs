@@ -11,6 +11,7 @@ use slicecore_plugin_api::{InfillRequest, InfillResult, PluginManifest};
 
 use crate::discovery;
 use crate::error::PluginSystemError;
+use crate::sandbox::SandboxConfig;
 
 /// The kind of plugin (loading mechanism).
 ///
@@ -57,20 +58,40 @@ pub trait InfillPluginAdapter: Send + Sync {
 /// Central plugin registry managing all loaded plugins.
 ///
 /// Provides discovery, registration, and lookup of infill plugins.
+/// Supports both native (abi_stable) and WASM (wasmtime) plugins
+/// through the unified [`InfillPluginAdapter`] trait.
 pub struct PluginRegistry {
     /// Loaded infill plugins keyed by name.
     infill_plugins: HashMap<String, Box<dyn InfillPluginAdapter>>,
     /// Discovered manifests (for informational purposes).
     manifests: Vec<PluginManifest>,
+    /// Default sandbox configuration for WASM plugins.
+    /// Used when a plugin manifest does not specify resource_limits.
+    sandbox_config: SandboxConfig,
 }
 
 impl PluginRegistry {
-    /// Creates a new empty plugin registry.
+    /// Creates a new empty plugin registry with default sandbox configuration.
     pub fn new() -> Self {
         Self {
             infill_plugins: HashMap::new(),
             manifests: Vec::new(),
+            sandbox_config: SandboxConfig::default(),
         }
+    }
+
+    /// Sets the default sandbox configuration for WASM plugins.
+    ///
+    /// This configuration is used when a plugin's manifest does not specify
+    /// its own `resource_limits`. Returns `self` for builder-style chaining.
+    pub fn with_sandbox_config(mut self, config: SandboxConfig) -> Self {
+        self.sandbox_config = config;
+        self
+    }
+
+    /// Returns a reference to the current sandbox configuration.
+    pub fn sandbox_config(&self) -> &SandboxConfig {
+        &self.sandbox_config
     }
 
     /// Discovers and loads all plugins from a directory.
@@ -78,38 +99,102 @@ impl PluginRegistry {
     /// Scans the directory for `plugin.toml` manifests, validates version
     /// compatibility, and loads each plugin based on its type (native or WASM).
     ///
-    /// Returns information about all successfully loaded plugins.
+    /// If a plugin fails to load, the error is logged and loading continues
+    /// with the remaining plugins. Only successfully loaded plugins are returned.
     #[cfg(not(target_family = "wasm"))]
     pub fn discover_and_load(&mut self, dir: &Path) -> Result<Vec<PluginInfo>, PluginSystemError> {
         let discovered = discovery::discover_plugins(dir)?;
         let mut loaded = Vec::new();
 
         for (plugin_dir, manifest) in discovered {
-            match manifest.plugin_type {
-                slicecore_plugin_api::PluginType::Native => {
-                    let plugin = crate::native::load_native_plugin(&plugin_dir, &manifest)?;
-                    let info = PluginInfo {
-                        name: plugin.name(),
-                        description: plugin.description(),
-                        plugin_kind: PluginKind::Native,
-                        version: manifest.metadata.version.clone(),
-                    };
-                    self.manifests.push(manifest);
-                    self.infill_plugins
-                        .insert(info.name.clone(), Box::new(plugin));
-                    loaded.push(info);
-                }
-                slicecore_plugin_api::PluginType::Wasm => {
-                    // WASM loading will be added in plan 03
-                    return Err(PluginSystemError::LoadFailed {
-                        path: plugin_dir,
-                        reason: "WASM plugin loading not yet implemented".to_string(),
-                    });
+            match self.load_single_plugin(&plugin_dir, manifest) {
+                Ok(info) => loaded.push(info),
+                Err(e) => {
+                    // Log the error but continue loading other plugins.
+                    // A single plugin failure should not abort discovery.
+                    eprintln!(
+                        "Warning: Failed to load plugin from {}: {}",
+                        plugin_dir.display(),
+                        e
+                    );
                 }
             }
         }
 
         Ok(loaded)
+    }
+
+    /// Loads a single plugin based on its manifest type.
+    #[cfg(not(target_family = "wasm"))]
+    fn load_single_plugin(
+        &mut self,
+        plugin_dir: &Path,
+        manifest: PluginManifest,
+    ) -> Result<PluginInfo, PluginSystemError> {
+        match manifest.plugin_type {
+            slicecore_plugin_api::PluginType::Native => {
+                let plugin = crate::native::load_native_plugin(plugin_dir, &manifest)?;
+                let info = PluginInfo {
+                    name: plugin.name(),
+                    description: plugin.description(),
+                    plugin_kind: PluginKind::Native,
+                    version: manifest.metadata.version.clone(),
+                };
+                self.manifests.push(manifest);
+                self.infill_plugins
+                    .insert(info.name.clone(), Box::new(plugin));
+                Ok(info)
+            }
+            slicecore_plugin_api::PluginType::Wasm => {
+                self.load_wasm_plugin(plugin_dir, manifest)
+            }
+        }
+    }
+
+    /// Loads a WASM plugin using wasmtime.
+    ///
+    /// When the `wasm-plugins` feature is enabled, resolves the .wasm file
+    /// from the manifest's library_filename and loads it with sandboxing.
+    /// When the feature is disabled, returns an error with a clear message.
+    #[cfg(not(target_family = "wasm"))]
+    fn load_wasm_plugin(
+        &mut self,
+        plugin_dir: &Path,
+        manifest: PluginManifest,
+    ) -> Result<PluginInfo, PluginSystemError> {
+        #[cfg(feature = "wasm-plugins")]
+        {
+            // Determine sandbox config: use manifest resource_limits if present,
+            // otherwise use registry default.
+            let sandbox_config = match &manifest.resource_limits {
+                Some(limits) => SandboxConfig::from_resource_limits(limits),
+                None => self.sandbox_config.clone(),
+            };
+
+            let wasm_path = plugin_dir.join(&manifest.library_filename);
+            let plugin = crate::wasm::WasmInfillPlugin::load(&wasm_path, sandbox_config)?;
+            let info = PluginInfo {
+                name: plugin.name(),
+                description: plugin.description(),
+                plugin_kind: PluginKind::Wasm,
+                version: manifest.metadata.version.clone(),
+            };
+            self.manifests.push(manifest);
+            self.infill_plugins
+                .insert(info.name.clone(), Box::new(plugin));
+            Ok(info)
+        }
+
+        #[cfg(not(feature = "wasm-plugins"))]
+        {
+            Err(PluginSystemError::LoadFailed {
+                path: plugin_dir.to_path_buf(),
+                reason: format!(
+                    "WASM plugin '{}' requires the 'wasm-plugins' feature to be enabled",
+                    manifest.metadata.name
+                ),
+            })
+        }
     }
 
     /// Manually registers an infill plugin.
@@ -170,6 +255,7 @@ mod tests {
     struct MockInfillPlugin {
         name: String,
         description: String,
+        kind: PluginKind,
     }
 
     impl MockInfillPlugin {
@@ -177,6 +263,15 @@ mod tests {
             Self {
                 name: name.to_string(),
                 description: description.to_string(),
+                kind: PluginKind::Builtin,
+            }
+        }
+
+        fn with_kind(name: &str, description: &str, kind: PluginKind) -> Self {
+            Self {
+                name: name.to_string(),
+                description: description.to_string(),
+                kind,
             }
         }
     }
@@ -195,7 +290,7 @@ mod tests {
         }
 
         fn plugin_type(&self) -> PluginKind {
-            PluginKind::Builtin
+            self.kind
         }
     }
 
@@ -210,6 +305,26 @@ mod tests {
     fn registry_default_is_empty() {
         let registry = PluginRegistry::default();
         assert_eq!(registry.infill_plugin_count(), 0);
+    }
+
+    #[test]
+    fn registry_new_has_default_sandbox_config() {
+        let registry = PluginRegistry::new();
+        let config = registry.sandbox_config();
+        assert_eq!(config.max_memory_bytes, 64 * 1024 * 1024);
+        assert_eq!(config.max_cpu_fuel, 10_000_000);
+    }
+
+    #[test]
+    fn registry_with_sandbox_config() {
+        let custom_config = SandboxConfig {
+            max_memory_bytes: 32 * 1024 * 1024,
+            max_cpu_fuel: 5_000_000,
+        };
+        let registry = PluginRegistry::new().with_sandbox_config(custom_config);
+        let config = registry.sandbox_config();
+        assert_eq!(config.max_memory_bytes, 32 * 1024 * 1024);
+        assert_eq!(config.max_cpu_fuel, 5_000_000);
     }
 
     #[test]
@@ -283,5 +398,62 @@ mod tests {
         let result = plugin.generate(&request);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().lines.len(), 0);
+    }
+
+    #[test]
+    fn registry_mixed_plugin_kinds() {
+        let mut registry = PluginRegistry::new();
+        registry.register_infill_plugin(Box::new(MockInfillPlugin::with_kind(
+            "native-pattern",
+            "A native plugin",
+            PluginKind::Native,
+        )));
+        registry.register_infill_plugin(Box::new(MockInfillPlugin::with_kind(
+            "wasm-pattern",
+            "A WASM plugin",
+            PluginKind::Wasm,
+        )));
+        registry.register_infill_plugin(Box::new(MockInfillPlugin::with_kind(
+            "builtin-pattern",
+            "A built-in plugin",
+            PluginKind::Builtin,
+        )));
+
+        assert_eq!(registry.infill_plugin_count(), 3);
+
+        let native = registry.get_infill_plugin("native-pattern").unwrap();
+        assert_eq!(native.plugin_type(), PluginKind::Native);
+
+        let wasm = registry.get_infill_plugin("wasm-pattern").unwrap();
+        assert_eq!(wasm.plugin_type(), PluginKind::Wasm);
+
+        let builtin = registry.get_infill_plugin("builtin-pattern").unwrap();
+        assert_eq!(builtin.plugin_type(), PluginKind::Builtin);
+    }
+
+    #[test]
+    fn registry_list_shows_correct_kinds() {
+        let mut registry = PluginRegistry::new();
+        registry.register_infill_plugin(Box::new(MockInfillPlugin::with_kind(
+            "native-one",
+            "Native",
+            PluginKind::Native,
+        )));
+        registry.register_infill_plugin(Box::new(MockInfillPlugin::with_kind(
+            "wasm-one",
+            "WASM",
+            PluginKind::Wasm,
+        )));
+
+        let list = registry.list_infill_plugins();
+        assert_eq!(list.len(), 2);
+
+        for info in &list {
+            match info.name.as_str() {
+                "native-one" => assert_eq!(info.plugin_kind, PluginKind::Native),
+                "wasm-one" => assert_eq!(info.plugin_kind, PluginKind::Wasm),
+                _ => panic!("Unexpected plugin: {}", info.name),
+            }
+        }
     }
 }

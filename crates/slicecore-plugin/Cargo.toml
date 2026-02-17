@@ -27,3 +27,4 @@ wasmtime-wasi = { version = "41", optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+serde_json = { workspace = true }

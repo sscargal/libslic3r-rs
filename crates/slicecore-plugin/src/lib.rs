@@ -21,6 +21,8 @@
 //! - [`discovery`] -- Directory scanning and manifest parsing
 //! - [`native`] -- Native plugin loader via `abi_stable` (cfg-gated for non-WASM)
 //! - [`convert`] -- Type conversion between internal and FFI-safe types
+//! - [`sandbox`] -- WASM plugin sandbox configuration
+//! - [`wasm`] -- WASM plugin loader via `wasmtime` Component Model (cfg-gated behind `wasm-plugins`)
 
 pub mod convert;
 pub mod discovery;
@@ -36,6 +38,7 @@ pub mod wasm;
 pub use convert::{ffi_result_to_lines, regions_to_request, ConvertedInfillLine};
 pub use error::PluginSystemError;
 pub use registry::{InfillPluginAdapter, PluginInfo, PluginKind, PluginRegistry};
+pub use sandbox::SandboxConfig;
 
 // Re-export key types from the API crate for convenience
 pub use slicecore_plugin_api::{
