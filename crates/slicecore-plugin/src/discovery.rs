@@ -28,9 +28,7 @@ const HOST_API_VERSION: &str = env!("CARGO_PKG_VERSION");
 ///
 /// Returns a list of `(plugin_dir, manifest)` pairs for all valid plugins.
 /// Invalid manifests are reported as errors.
-pub fn discover_plugins(
-    dir: &Path,
-) -> Result<Vec<(PathBuf, PluginManifest)>, PluginSystemError> {
+pub fn discover_plugins(dir: &Path) -> Result<Vec<(PathBuf, PluginManifest)>, PluginSystemError> {
     if !dir.is_dir() {
         return Ok(Vec::new());
     }
@@ -60,11 +58,9 @@ pub fn discover_plugins(
 
 /// Parses a `plugin.toml` file into a [`PluginManifest`].
 fn parse_manifest(path: &Path) -> Result<PluginManifest, PluginSystemError> {
-    let contents = std::fs::read_to_string(path).map_err(|e| {
-        PluginSystemError::ManifestError {
-            path: path.to_path_buf(),
-            reason: format!("Failed to read: {}", e),
-        }
+    let contents = std::fs::read_to_string(path).map_err(|e| PluginSystemError::ManifestError {
+        path: path.to_path_buf(),
+        reason: format!("Failed to read: {}", e),
     })?;
 
     toml::from_str(&contents).map_err(|e| PluginSystemError::ManifestError {
@@ -78,34 +74,31 @@ fn validate_version_compatibility(
     manifest: &PluginManifest,
     manifest_path: &Path,
 ) -> Result<(), PluginSystemError> {
-    let host_version = semver::Version::parse(HOST_API_VERSION).map_err(|e| {
-        PluginSystemError::ManifestError {
+    let host_version =
+        semver::Version::parse(HOST_API_VERSION).map_err(|e| PluginSystemError::ManifestError {
             path: manifest_path.to_path_buf(),
             reason: format!("Host API version parse error: {}", e),
+        })?;
+
+    let min_version = semver::Version::parse(&manifest.metadata.min_api_version).map_err(|e| {
+        PluginSystemError::ManifestError {
+            path: manifest_path.to_path_buf(),
+            reason: format!(
+                "Invalid min_api_version '{}': {}",
+                manifest.metadata.min_api_version, e
+            ),
         }
     })?;
 
-    let min_version =
-        semver::Version::parse(&manifest.metadata.min_api_version).map_err(|e| {
-            PluginSystemError::ManifestError {
-                path: manifest_path.to_path_buf(),
-                reason: format!(
-                    "Invalid min_api_version '{}': {}",
-                    manifest.metadata.min_api_version, e
-                ),
-            }
-        })?;
-
-    let max_version =
-        semver::Version::parse(&manifest.metadata.max_api_version).map_err(|e| {
-            PluginSystemError::ManifestError {
-                path: manifest_path.to_path_buf(),
-                reason: format!(
-                    "Invalid max_api_version '{}': {}",
-                    manifest.metadata.max_api_version, e
-                ),
-            }
-        })?;
+    let max_version = semver::Version::parse(&manifest.metadata.max_api_version).map_err(|e| {
+        PluginSystemError::ManifestError {
+            path: manifest_path.to_path_buf(),
+            reason: format!(
+                "Invalid max_api_version '{}': {}",
+                manifest.metadata.max_api_version, e
+            ),
+        }
+    })?;
 
     if host_version < min_version || host_version > max_version {
         return Err(PluginSystemError::VersionIncompatible {
@@ -185,7 +178,11 @@ max_api_version = "99.99.99"
         let dir = TempDir::new().unwrap();
         let plugin_dir = dir.path().join("bad-manifest");
         fs::create_dir(&plugin_dir).unwrap();
-        fs::write(plugin_dir.join("plugin.toml"), "this is not valid toml {{{{").unwrap();
+        fs::write(
+            plugin_dir.join("plugin.toml"),
+            "this is not valid toml {{{{",
+        )
+        .unwrap();
 
         let result = discover_plugins(dir.path());
         assert!(result.is_err());

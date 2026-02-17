@@ -80,18 +80,14 @@ impl PluginRegistry {
     ///
     /// Returns information about all successfully loaded plugins.
     #[cfg(not(target_family = "wasm"))]
-    pub fn discover_and_load(
-        &mut self,
-        dir: &Path,
-    ) -> Result<Vec<PluginInfo>, PluginSystemError> {
+    pub fn discover_and_load(&mut self, dir: &Path) -> Result<Vec<PluginInfo>, PluginSystemError> {
         let discovered = discovery::discover_plugins(dir)?;
         let mut loaded = Vec::new();
 
         for (plugin_dir, manifest) in discovered {
             match manifest.plugin_type {
                 slicecore_plugin_api::PluginType::Native => {
-                    let plugin =
-                        crate::native::load_native_plugin(&plugin_dir, &manifest)?;
+                    let plugin = crate::native::load_native_plugin(&plugin_dir, &manifest)?;
                     let info = PluginInfo {
                         name: plugin.name(),
                         description: plugin.description(),
@@ -194,13 +190,8 @@ mod tests {
             self.description.clone()
         }
 
-        fn generate(
-            &self,
-            _request: &InfillRequest,
-        ) -> Result<InfillResult, PluginSystemError> {
-            Ok(InfillResult {
-                lines: RVec::new(),
-            })
+        fn generate(&self, _request: &InfillRequest) -> Result<InfillResult, PluginSystemError> {
+            Ok(InfillResult { lines: RVec::new() })
         }
 
         fn plugin_type(&self) -> PluginKind {
@@ -264,14 +255,10 @@ mod tests {
     #[test]
     fn registry_register_overwrites_existing() {
         let mut registry = PluginRegistry::new();
-        registry.register_infill_plugin(Box::new(MockInfillPlugin::new(
-            "pattern",
-            "First version",
-        )));
-        registry.register_infill_plugin(Box::new(MockInfillPlugin::new(
-            "pattern",
-            "Second version",
-        )));
+        registry
+            .register_infill_plugin(Box::new(MockInfillPlugin::new("pattern", "First version")));
+        registry
+            .register_infill_plugin(Box::new(MockInfillPlugin::new("pattern", "Second version")));
 
         assert_eq!(registry.infill_plugin_count(), 1);
         let plugin = registry.get_infill_plugin("pattern").unwrap();
@@ -281,10 +268,7 @@ mod tests {
     #[test]
     fn registry_plugin_generate() {
         let mut registry = PluginRegistry::new();
-        registry.register_infill_plugin(Box::new(MockInfillPlugin::new(
-            "test",
-            "Test pattern",
-        )));
+        registry.register_infill_plugin(Box::new(MockInfillPlugin::new("test", "Test pattern")));
 
         let plugin = registry.get_infill_plugin("test").unwrap();
         let request = InfillRequest {

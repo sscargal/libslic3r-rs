@@ -13,7 +13,7 @@ mod imp {
     use abi_stable::std_types::RResult::{RErr, ROk};
 
     use slicecore_plugin_api::{
-        InfillPluginMod_Ref, InfillPatternPlugin_TO, InfillRequest, InfillResult, PluginManifest,
+        InfillPatternPlugin_TO, InfillPluginMod_Ref, InfillRequest, InfillResult, PluginManifest,
     };
 
     use crate::error::PluginSystemError;
@@ -45,10 +45,7 @@ mod imp {
             self.inner.description().into()
         }
 
-        fn generate(
-            &self,
-            request: &InfillRequest,
-        ) -> Result<InfillResult, PluginSystemError> {
+        fn generate(&self, request: &InfillRequest) -> Result<InfillResult, PluginSystemError> {
             match self.inner.generate(request) {
                 ROk(result) => Ok(result),
                 RErr(err_msg) => Err(PluginSystemError::ExecutionFailed {
@@ -85,16 +82,13 @@ mod imp {
         // abi_stable's RootModule::load_from_directory scans for a library
         // matching the module name in the given directory. We pass the parent
         // directory of the resolved library path.
-        let lib_dir = library_path
-            .parent()
-            .unwrap_or(plugin_dir);
-        let module =
-            InfillPluginMod_Ref::load_from_directory(lib_dir).map_err(|e| {
-                PluginSystemError::LoadFailed {
-                    path: library_path.clone(),
-                    reason: format!("abi_stable load failed: {}", e),
-                }
-            })?;
+        let lib_dir = library_path.parent().unwrap_or(plugin_dir);
+        let module = InfillPluginMod_Ref::load_from_directory(lib_dir).map_err(|e| {
+            PluginSystemError::LoadFailed {
+                path: library_path.clone(),
+                reason: format!("abi_stable load failed: {}", e),
+            }
+        })?;
 
         let plugin_instance = module.new()();
         Ok(NativeInfillPlugin {

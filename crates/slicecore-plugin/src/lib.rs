@@ -20,7 +20,9 @@
 //! - [`registry`] -- Plugin registry with discover, register, get, list operations
 //! - [`discovery`] -- Directory scanning and manifest parsing
 //! - [`native`] -- Native plugin loader via `abi_stable` (cfg-gated for non-WASM)
+//! - [`convert`] -- Type conversion between internal and FFI-safe types
 
+pub mod convert;
 pub mod discovery;
 pub mod error;
 #[cfg(not(target_family = "wasm"))]
@@ -28,6 +30,7 @@ pub mod native;
 pub mod registry;
 
 // Re-export primary types
+pub use convert::{ffi_result_to_lines, regions_to_request, ConvertedInfillLine};
 pub use error::PluginSystemError;
 pub use registry::{InfillPluginAdapter, PluginInfo, PluginKind, PluginRegistry};
 
