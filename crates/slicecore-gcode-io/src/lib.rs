@@ -32,6 +32,7 @@
 //! writer.write_end_gcode(&EndConfig { retract_distance: 5.0 }).unwrap();
 //! ```
 
+pub mod arc;
 pub mod bambu;
 pub mod commands;
 pub mod dialect;
@@ -50,4 +51,5 @@ pub use dialect::{
 };
 pub use error::GcodeError;
 pub use validate::{validate_gcode, ValidationResult};
+pub use arc::fit_arcs;
 pub use writer::GcodeWriter;
