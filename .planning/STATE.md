@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 4 of 9 (Perimeter and Infill Completeness)
-Plan: 9 of 10 in current phase (8 complete)
-Status: Executing Phase 4 -- adaptive cubic and lightning infill implemented
-Last activity: 2026-02-17 -- Completed 04-07-PLAN.md (adaptive cubic and lightning infill)
+Plan: 10 of 10 in current phase (9 complete)
+Status: Executing Phase 4 -- Arachne variable-width perimeters implemented
+Last activity: 2026-02-17 -- Completed 04-09-PLAN.md (Arachne variable-width perimeters)
 
-Progress: [########################] 64% (23/~36 overall)
+Progress: [########################] 67% (24/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24
-- Average duration: 5.5 min
-- Total execution time: 2.30 hours
+- Total plans completed: 25
+- Average duration: 5.6 min
+- Total execution time: 2.72 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [########################] 64% (23/~36 overall)
 | 01    | 4     | 26min | 6.5min   |
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
-| 04    | 9     | 64min | 7.1min   |
+| 04    | 10    | 89min | 8.9min   |
 
 **Recent Trend:**
-- Last 5 plans: 04-05 (5min), 04-06 (7min), 04-07 (12min), 04-08 (8min)
+- Last 5 plans: 04-05 (5min), 04-06 (7min), 04-07 (12min), 04-08 (8min), 04-09 (25min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -153,6 +153,12 @@ Recent decisions affecting current work:
 - [04-07]: Column merge distance = 2 * line_width to prevent redundant columns
 - [04-07]: Cross marks only for isolated columns to minimize material waste
 - [04-07]: LightningContext passed as Option to generate_infill (None for all other patterns)
+- [04-09]: boostvoronoi 0.11.1 for medial axis (0.12+ requires rustc 1.87+, project uses 1.75)
+- [04-09]: VORONOI_SCALE=1000 maps i64 COORD_SCALE to i32 (micrometer precision, +/-2147mm range)
+- [04-09]: Thin-wall threshold: >30% of medial axis length thin activates Arachne (not any thin segment)
+- [04-09]: Width smoothing: forward+backward passes limiting 50% change between adjacent points
+- [04-09]: arachne_enabled defaults to false for backward compatibility
+- [04-09]: extrusion_width: Option<f64> on ToolpathSegment for variable-width E-value computation
 
 ### Pending Todos
 
@@ -165,5 +171,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 04-07-PLAN.md -- adaptive cubic and lightning infill
-Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-07-SUMMARY.md
+Stopped at: Completed 04-09-PLAN.md -- Arachne variable-width perimeters
+Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-09-SUMMARY.md
