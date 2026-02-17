@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (G-code Completeness and Advanced Features) -- IN PROGRESS
-Plan: 7 of 9 in current phase (6 complete)
+Plan: 7 of 9 in current phase (7 complete)
 Status: Executing Phase 6 plans
-Last activity: 2026-02-17 -- Completed 06-05-PLAN.md (print time and filament estimation)
+Last activity: 2026-02-17 -- Completed 06-06-PLAN.md (modifier meshes and polyhole conversion)
 
-Progress: [####################################--] 95% (41/~43 overall)
+Progress: [#####################################-] 96% (42/~43 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 36
-- Average duration: 5.4 min
-- Total execution time: 4.18 hours
+- Total plans completed: 37
+- Average duration: 5.5 min
+- Total execution time: 4.35 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [####################################--] 95% (41/~43 overall)
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
 | 05    | 8     | 69min | 8.6min   |
-| 06    | 6     | 28min | 4.7min   |
+| 06    | 7     | 38min | 5.4min   |
 
 **Recent Trend:**
-- Last 5 plans: 06-01 (9min), 06-02 (4min), 06-04 (7min), 06-05 (7min)
+- Last 5 plans: 06-02 (4min), 06-04 (7min), 06-05 (7min), 06-06 (10min)
 - Trend: Phase 6 plans executing efficiently with established patterns
 
 *Updated after each plan completion*
@@ -221,6 +221,11 @@ Recent decisions affecting current work:
 - [06-05]: Fixed overhead per retraction (0.5s) and per layer change (0.2s) for non-move time
 - [06-05]: Filament density defaults to 1.24 g/cm3 (PLA), cost defaults to 25.0 USD/kg
 - [06-05]: estimated_time_seconds kept for backward compat, populated from time_estimate.total_seconds
+- [06-06]: Minimum 8 vertices for circular hole detection (4-vertex square equidistant from centroid)
+- [06-06]: SettingOverrides uses Option<T> fields with merge_into cloning base config
+- [06-06]: split_by_modifiers subtracts each modifier from remainder iteratively
+- [06-06]: Polyhole disabled by default (polyhole_enabled=false, min_diameter=1.0mm)
+- [06-06]: Polyhole circumradius = desired_radius / cos(PI/n) for correct inscribed circle
 
 ### Pending Todos
 
@@ -233,5 +238,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 06-05-PLAN.md (print time and filament estimation)
-Resume file: .planning/phases/06-gcode-completeness-and-advanced-features/06-05-SUMMARY.md
+Stopped at: Completed 06-06-PLAN.md (modifier meshes and polyhole conversion)
+Resume file: .planning/phases/06-gcode-completeness-and-advanced-features/06-06-SUMMARY.md
