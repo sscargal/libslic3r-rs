@@ -140,15 +140,15 @@ Plans:
 **Plans:** 9 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- Firmware dialect enrichment, GcodeCommand extension, configurable dialect in engine (GCODE-02, GCODE-03, GCODE-04, GCODE-06)
-- [ ] 06-02-PLAN.md -- Per-feature flow control, custom G-code injection, ironing (ADV-04, ADV-05, ADV-08)
-- [ ] 06-03-PLAN.md -- TPMS-D and TPMS-FK infill patterns (INFILL-09, INFILL-10)
-- [ ] 06-04-PLAN.md -- Arc fitting algorithm and engine integration (GCODE-11)
-- [ ] 06-05-PLAN.md -- Print time estimation (trapezoid model) and filament usage estimation (GCODE-12, GCODE-13)
-- [ ] 06-06-PLAN.md -- Modifier meshes and polyhole conversion (ADV-03, ADV-07)
-- [ ] 06-07-PLAN.md -- Multi-material support, purge tower, sequential printing (ADV-01, ADV-02)
-- [ ] 06-08-PLAN.md -- Pressure advance calibration pattern generation (ADV-06)
-- [ ] 06-09-PLAN.md -- Integration tests and Phase 6 success criteria verification
+- [x] 06-01-PLAN.md -- Firmware dialect enrichment, GcodeCommand extension, configurable dialect in engine (GCODE-02, GCODE-03, GCODE-04, GCODE-06)
+- [x] 06-02-PLAN.md -- Per-feature flow control, custom G-code injection, ironing (ADV-04, ADV-05, ADV-08)
+- [x] 06-03-PLAN.md -- TPMS-D and TPMS-FK infill patterns (INFILL-09, INFILL-10)
+- [x] 06-04-PLAN.md -- Arc fitting algorithm and engine integration (GCODE-11)
+- [x] 06-05-PLAN.md -- Print time estimation (trapezoid model) and filament usage estimation (GCODE-12, GCODE-13)
+- [x] 06-06-PLAN.md -- Modifier meshes and polyhole conversion (ADV-03, ADV-07)
+- [x] 06-07-PLAN.md -- Multi-material support, purge tower, sequential printing (ADV-01, ADV-02)
+- [x] 06-08-PLAN.md -- Pressure advance calibration pattern generation (ADV-06)
+- [x] 06-09-PLAN.md -- Integration tests and Phase 6 success criteria verification
 
 ### Phase 7: Plugin System
 **Goal**: External developers can write custom infill patterns, support strategies, or G-code post-processors as plugins and load them without modifying or recompiling the core -- the core architectural differentiator works
@@ -212,7 +212,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 3. Vertical Slice (STL to G-code) | 6/6 | ✓ Complete | 2026-02-16 |
 | 4. Perimeter and Infill Completeness | 10/10 | ✓ Complete | 2026-02-17 |
 | 5. Support Structures | 8/8 | ✓ Complete | 2026-02-17 |
-| 6. G-code Completeness and Advanced Features | 0/9 | Not started | - |
+| 6. G-code Completeness and Advanced Features | 9/9 | ✓ Complete | 2026-02-17 |
 | 7. Plugin System | 0/TBD | Not started | - |
 | 8. AI Integration | 0/TBD | Not started | - |
 | 9. API Polish, Testing, and Platform Validation | 0/TBD | Not started | - |
