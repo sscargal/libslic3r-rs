@@ -94,3 +94,10 @@ pub use toolpath::{
 // Re-export plugin types when the plugins feature is enabled.
 #[cfg(feature = "plugins")]
 pub use slicecore_plugin::{PluginInfo, PluginKind, PluginRegistry};
+
+// Re-export AI integration types when the ai feature is enabled.
+#[cfg(feature = "ai")]
+pub use slicecore_ai::{
+    AiConfig, AiError as AiIntegrationError, AiProvider, GeometryFeatures,
+    ProfileSuggestion, ProviderType, extract_geometry_features,
+};

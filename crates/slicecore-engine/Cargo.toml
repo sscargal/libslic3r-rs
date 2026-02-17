@@ -9,6 +9,7 @@ description = "Slicing pipeline orchestrator and print configuration for the sli
 [features]
 default = []
 plugins = ["dep:slicecore-plugin"]
+ai = ["dep:slicecore-ai"]
 
 [dependencies]
 slicecore-math = { path = "../slicecore-math" }
@@ -18,6 +19,7 @@ slicecore-slicer = { path = "../slicecore-slicer" }
 slicecore-fileio = { path = "../slicecore-fileio" }
 slicecore-gcode-io = { path = "../slicecore-gcode-io" }
 slicecore-plugin = { path = "../slicecore-plugin", optional = true }
+slicecore-ai = { path = "../slicecore-ai", optional = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 toml = "0.8"

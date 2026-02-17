@@ -1699,6 +1699,45 @@ impl Engine {
 }
 
 // ---------------------------------------------------------------------------
+// AI Integration (feature-gated)
+// ---------------------------------------------------------------------------
+
+/// AI-powered profile suggestion, available when the `ai` feature is enabled.
+///
+/// This impl block adds `suggest_profile` to the Engine, which analyzes a mesh's
+/// geometry and sends features to a configured LLM provider to receive validated
+/// print settings.
+///
+/// AI configuration (API keys, provider selection, model) should come from
+/// environment variables or a separate config file, NOT from `PrintConfig`.
+/// This keeps the core print configuration clean and avoids coupling the slicing
+/// pipeline to AI dependencies.
+#[cfg(feature = "ai")]
+impl Engine {
+    /// Suggest optimal print settings for a mesh using AI.
+    ///
+    /// Analyzes the mesh geometry and sends features to the configured
+    /// LLM provider, returning a validated profile suggestion.
+    ///
+    /// Requires the `ai` feature flag and a valid [`slicecore_ai::AiConfig`].
+    /// The `AiConfig` should be sourced from environment variables or a
+    /// separate configuration file, not from `PrintConfig`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`slicecore_ai::AiError`] on provider failures, parse errors,
+    /// or runtime issues (e.g., cannot create async runtime).
+    pub fn suggest_profile(
+        &self,
+        mesh: &slicecore_mesh::TriangleMesh,
+        ai_config: &slicecore_ai::AiConfig,
+    ) -> Result<slicecore_ai::ProfileSuggestion, slicecore_ai::AiError> {
+        let provider = slicecore_ai::create_provider(ai_config)?;
+        slicecore_ai::suggest_profile_sync(provider.as_ref(), mesh)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
