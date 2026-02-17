@@ -28,9 +28,16 @@
 //! - [`types`] -- FFI-safe infill request/result types
 //! - [`error`] -- FFI-safe error types
 //! - [`metadata`] -- Plugin metadata and manifest (serde-serializable, not FFI)
+//! - [`traits`] -- FFI-safe plugin traits (`InfillPatternPlugin`) and root module
+
+// The abi_stable sabi_trait macro generates non-local impl blocks that trigger
+// this lint on newer Rust compilers. Suppressed at crate level since the macro
+// expansion cannot be controlled from user code.
+#![allow(non_local_definitions)]
 
 pub mod error;
 pub mod metadata;
+pub mod traits;
 pub mod types;
 
 // Re-export primary types for convenience
@@ -38,4 +45,5 @@ pub use error::PluginError;
 pub use metadata::{
     PluginCapability, PluginManifest, PluginMetadata, PluginType, ResourceLimits,
 };
+pub use traits::{InfillPatternPlugin, InfillPatternPlugin_TO, InfillPluginMod, InfillPluginMod_Ref};
 pub use types::{FfiInfillLine, InfillRequest, InfillResult};
