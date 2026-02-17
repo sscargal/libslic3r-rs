@@ -70,6 +70,41 @@ pub enum GcodeCommand {
     /// Unretract filament: emits `G1 E{distance} F{feedrate}`
     Unretract { distance: f64, feedrate: f64 },
 
+    /// Clockwise arc move: `G2 [X{x}] [Y{y}] I{i} J{j} [E{e}] [F{f}]`
+    ArcMoveCW {
+        x: Option<f64>,
+        y: Option<f64>,
+        i: f64,
+        j: f64,
+        e: Option<f64>,
+        f: Option<f64>,
+    },
+
+    /// Counter-clockwise arc move: `G3 [X{x}] [Y{y}] I{i} J{j} [E{e}] [F{f}]`
+    ArcMoveCCW {
+        x: Option<f64>,
+        y: Option<f64>,
+        i: f64,
+        j: f64,
+        e: Option<f64>,
+        f: Option<f64>,
+    },
+
+    /// Set acceleration: `M204 P{print_accel} T{travel_accel}` (Marlin default)
+    SetAcceleration {
+        print_accel: f64,
+        travel_accel: f64,
+    },
+
+    /// Set jerk: `M205 X{x} Y{y} Z{z}` (Marlin default)
+    SetJerk { x: f64, y: f64, z: f64 },
+
+    /// Set pressure advance: `M900 K{value}` (Marlin default)
+    SetPressureAdvance { value: f64 },
+
+    /// Tool change: `T{n}`
+    ToolChange(u8),
+
     /// Raw G-code pass-through for arbitrary lines.
     Raw(String),
 }
@@ -157,6 +192,71 @@ impl fmt::Display for GcodeCommand {
             GcodeCommand::Unretract { distance, feedrate } => {
                 write!(f, "G1 E{distance:.5} F{feedrate:.1}")
             }
+
+            GcodeCommand::ArcMoveCW {
+                x,
+                y,
+                i,
+                j,
+                e,
+                f: fr,
+            } => {
+                write!(f, "G2")?;
+                if let Some(v) = x {
+                    write!(f, " X{v:.3}")?;
+                }
+                if let Some(v) = y {
+                    write!(f, " Y{v:.3}")?;
+                }
+                write!(f, " I{i:.3} J{j:.3}")?;
+                if let Some(v) = e {
+                    write!(f, " E{v:.5}")?;
+                }
+                if let Some(v) = fr {
+                    write!(f, " F{v:.1}")?;
+                }
+                Ok(())
+            }
+
+            GcodeCommand::ArcMoveCCW {
+                x,
+                y,
+                i,
+                j,
+                e,
+                f: fr,
+            } => {
+                write!(f, "G3")?;
+                if let Some(v) = x {
+                    write!(f, " X{v:.3}")?;
+                }
+                if let Some(v) = y {
+                    write!(f, " Y{v:.3}")?;
+                }
+                write!(f, " I{i:.3} J{j:.3}")?;
+                if let Some(v) = e {
+                    write!(f, " E{v:.5}")?;
+                }
+                if let Some(v) = fr {
+                    write!(f, " F{v:.1}")?;
+                }
+                Ok(())
+            }
+
+            GcodeCommand::SetAcceleration {
+                print_accel,
+                travel_accel,
+            } => write!(f, "M204 P{print_accel:.0} T{travel_accel:.0}"),
+
+            GcodeCommand::SetJerk { x, y, z } => {
+                write!(f, "M205 X{x:.1} Y{y:.1} Z{z:.1}")
+            }
+
+            GcodeCommand::SetPressureAdvance { value } => {
+                write!(f, "M900 K{value:.4}")
+            }
+
+            GcodeCommand::ToolChange(n) => write!(f, "T{n}"),
 
             GcodeCommand::Raw(line) => write!(f, "{line}"),
         }
@@ -364,5 +464,73 @@ mod tests {
             f: None,
         };
         assert_eq!(cmd.to_string(), "G1 E0.12345");
+    }
+
+    #[test]
+    fn arc_move_cw_all_params() {
+        let cmd = GcodeCommand::ArcMoveCW {
+            x: Some(10.0),
+            y: Some(20.0),
+            i: 5.0,
+            j: 0.0,
+            e: Some(0.5),
+            f: Some(1800.0),
+        };
+        assert_eq!(
+            cmd.to_string(),
+            "G2 X10.000 Y20.000 I5.000 J0.000 E0.50000 F1800.0"
+        );
+    }
+
+    #[test]
+    fn arc_move_ccw_minimal_params() {
+        let cmd = GcodeCommand::ArcMoveCCW {
+            x: None,
+            y: None,
+            i: 3.0,
+            j: -2.5,
+            e: None,
+            f: None,
+        };
+        assert_eq!(cmd.to_string(), "G3 I3.000 J-2.500");
+    }
+
+    #[test]
+    fn set_acceleration_formatting() {
+        let cmd = GcodeCommand::SetAcceleration {
+            print_accel: 1000.0,
+            travel_accel: 1500.0,
+        };
+        assert_eq!(cmd.to_string(), "M204 P1000 T1500");
+    }
+
+    #[test]
+    fn set_jerk_formatting() {
+        let cmd = GcodeCommand::SetJerk {
+            x: 8.0,
+            y: 8.0,
+            z: 0.4,
+        };
+        assert_eq!(cmd.to_string(), "M205 X8.0 Y8.0 Z0.4");
+    }
+
+    #[test]
+    fn set_pressure_advance_formatting() {
+        let cmd = GcodeCommand::SetPressureAdvance { value: 0.05 };
+        assert_eq!(cmd.to_string(), "M900 K0.0500");
+    }
+
+    #[test]
+    fn set_pressure_advance_zero() {
+        let cmd = GcodeCommand::SetPressureAdvance { value: 0.0 };
+        assert_eq!(cmd.to_string(), "M900 K0.0000");
+    }
+
+    #[test]
+    fn tool_change_formatting() {
+        let cmd = GcodeCommand::ToolChange(0);
+        assert_eq!(cmd.to_string(), "T0");
+        let cmd = GcodeCommand::ToolChange(3);
+        assert_eq!(cmd.to_string(), "T3");
     }
 }

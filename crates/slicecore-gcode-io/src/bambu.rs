@@ -37,6 +37,13 @@ pub fn start_gcode(config: &StartConfig) -> Vec<GcodeCommand> {
             temp: config.nozzle_temp,
             wait: true,
         },
+        // AMS (Automatic Material System) filament slot commands.
+        // M620 S{slot} selects the AMS filament slot before loading.
+        // M621 S{slot} confirms the filament is loaded from AMS.
+        // Full AMS support requires 3MF format with filament mapping.
+        GcodeCommand::Comment("AMS: M620 S0 / M621 S0 for filament slot selection".to_string()),
+        GcodeCommand::Raw("M620 S0".to_string()),
+        GcodeCommand::Raw("M621 S0".to_string()),
         GcodeCommand::ResetExtruder,
     ]
 }
@@ -93,6 +100,22 @@ mod tests {
             joined.contains("built-in calibration"),
             "should note built-in sequences"
         );
+    }
+
+    #[test]
+    fn start_gcode_contains_ams_commands() {
+        let config = StartConfig {
+            bed_temp: 60.0,
+            nozzle_temp: 200.0,
+            bed_x: 256.0,
+            bed_y: 256.0,
+        };
+        let cmds = start_gcode(&config);
+        let text: Vec<String> = cmds.iter().map(|c| c.to_string()).collect();
+        let joined = text.join("\n");
+
+        assert!(joined.contains("M620"), "should contain M620 AMS select command");
+        assert!(joined.contains("M621"), "should contain M621 AMS confirm command");
     }
 
     #[test]

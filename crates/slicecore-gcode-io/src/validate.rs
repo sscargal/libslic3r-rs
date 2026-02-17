@@ -267,6 +267,75 @@ M84
     }
 
     #[test]
+    fn arc_commands_pass_validation() {
+        let gcode = "G2 X10.000 Y20.000 I5.000 J0.000 E0.50000 F1800.0\n\
+                      G3 X5.000 Y10.000 I-2.000 J3.000\n";
+        let result = validate_gcode(gcode);
+        assert!(
+            result.valid,
+            "G2/G3 arc commands should pass: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn tool_change_commands_pass_validation() {
+        let gcode = "T0\nT1\nT3\n";
+        let result = validate_gcode(gcode);
+        assert!(
+            result.valid,
+            "T commands should pass: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn klipper_pressure_advance_commands_pass() {
+        let gcode = "SET_PRESSURE_ADVANCE ADVANCE=0.0500\n\
+                      SET_VELOCITY_LIMIT ACCEL=1000\n\
+                      SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=8.0\n";
+        let result = validate_gcode(gcode);
+        assert!(
+            result.valid,
+            "Klipper extended PA/velocity commands should pass: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn reprap_pressure_advance_commands_pass() {
+        let gcode = "M572 D0 S0.0500\nM566 X480.0 Y480.0 Z24.0\n";
+        let result = validate_gcode(gcode);
+        assert!(
+            result.valid,
+            "RepRap M572/M566 commands should pass: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn bambu_ams_commands_pass_validation() {
+        let gcode = "M620 S0\nM621 S0\n";
+        let result = validate_gcode(gcode);
+        assert!(
+            result.valid,
+            "Bambu M620/M621 AMS commands should pass: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
+    fn acceleration_commands_pass_validation() {
+        let gcode = "M204 P1000 T1500\nM204 S1000\nM205 X8.0 Y8.0 Z0.4\nM900 K0.0500\n";
+        let result = validate_gcode(gcode);
+        assert!(
+            result.valid,
+            "Acceleration/jerk/PA commands should pass: {:?}",
+            result.errors
+        );
+    }
+
+    #[test]
     fn long_line_produces_warning() {
         let long_line = format!("G1 X{}", "0".repeat(260));
         let result = validate_gcode(&long_line);
