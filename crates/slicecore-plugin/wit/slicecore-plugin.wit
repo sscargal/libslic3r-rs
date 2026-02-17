@@ -1,0 +1,34 @@
+package slicecore:plugin@0.1.0;
+
+interface types {
+    record point2 {
+        x: s64,
+        y: s64,
+    }
+
+    record infill-line {
+        start: point2,
+        end: point2,
+    }
+
+    record infill-request {
+        boundary-points: list<point2>,
+        boundary-lengths: list<u32>,
+        density: f64,
+        layer-index: u64,
+        layer-z: f64,
+        line-width: f64,
+    }
+
+    record infill-result {
+        lines: list<infill-line>,
+    }
+}
+
+world infill-plugin {
+    use types.{infill-request, infill-result};
+
+    export name: func() -> string;
+    export description: func() -> string;
+    export generate: func(request: infill-request) -> result<infill-result, string>;
+}
