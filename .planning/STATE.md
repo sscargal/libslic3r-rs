@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (G-code Completeness and Advanced Features) -- IN PROGRESS
-Plan: 6 of 9 in current phase (5 complete)
+Plan: 7 of 9 in current phase (6 complete)
 Status: Executing Phase 6 plans
-Last activity: 2026-02-17 -- Completed 06-04-PLAN.md (arc fitting G2/G3 post-processing)
+Last activity: 2026-02-17 -- Completed 06-05-PLAN.md (print time and filament estimation)
 
-Progress: [####################################--] 95% (40/~43 overall)
+Progress: [####################################--] 95% (41/~43 overall)
 
 ## Performance Metrics
 
@@ -35,7 +35,7 @@ Progress: [####################################--] 95% (40/~43 overall)
 | 06    | 6     | 28min | 4.7min   |
 
 **Recent Trend:**
-- Last 5 plans: 06-03 (8min), 06-01 (9min), 06-02 (4min), 06-04 (7min)
+- Last 5 plans: 06-01 (9min), 06-02 (4min), 06-04 (7min), 06-05 (7min)
 - Trend: Phase 6 plans executing efficiently with established patterns
 
 *Updated after each plan completion*
@@ -217,6 +217,10 @@ Recent decisions affecting current work:
 - [06-04]: Arc radius constraints: 0.5mm min, 1000mm max (prevents degenerate arcs)
 - [06-04]: Arc E-value = sum of replaced segment E-values; feedrate = last segment feedrate
 - [06-04]: arc_fitting_enabled defaults to false for backward compatibility
+- [06-05]: Trapezoid entry speed uses min(current, previous) feedrate as simple lookahead approximation
+- [06-05]: Fixed overhead per retraction (0.5s) and per layer change (0.2s) for non-move time
+- [06-05]: Filament density defaults to 1.24 g/cm3 (PLA), cost defaults to 25.0 USD/kg
+- [06-05]: estimated_time_seconds kept for backward compat, populated from time_estimate.total_seconds
 
 ### Pending Todos
 
@@ -229,5 +233,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 06-04-PLAN.md (arc fitting G2/G3 post-processing)
-Resume file: .planning/phases/06-gcode-completeness-and-advanced-features/06-04-SUMMARY.md
+Stopped at: Completed 06-05-PLAN.md (print time and filament estimation)
+Resume file: .planning/phases/06-gcode-completeness-and-advanced-features/06-05-SUMMARY.md
