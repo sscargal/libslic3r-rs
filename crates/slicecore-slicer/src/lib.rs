@@ -25,9 +25,11 @@
 //! }
 //! ```
 
+pub mod adaptive;
 pub mod contour;
 pub mod layer;
 
 // Re-export primary types and functions at crate root.
+pub use adaptive::compute_adaptive_layer_heights;
 pub use contour::slice_at_height;
 pub use layer::{compute_layer_heights, slice_mesh, SliceLayer};

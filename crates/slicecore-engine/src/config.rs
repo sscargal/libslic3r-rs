@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::EngineError;
 use crate::infill::InfillPattern;
+use crate::seam::SeamPosition;
 
 /// Controls the order in which perimeter walls are printed.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -45,6 +46,8 @@ pub struct PrintConfig {
     pub wall_count: u32,
     /// Order in which walls are printed.
     pub wall_order: WallOrder,
+    /// Seam placement strategy for perimeter loops.
+    pub seam_position: SeamPosition,
 
     // --- Infill ---
     /// Infill pattern to use for sparse infill regions.
@@ -124,6 +127,7 @@ impl Default for PrintConfig {
 
             wall_count: 2,
             wall_order: WallOrder::default(),
+            seam_position: SeamPosition::default(),
 
             infill_pattern: InfillPattern::default(),
             infill_density: 0.2,

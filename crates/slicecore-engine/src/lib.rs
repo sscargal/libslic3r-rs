@@ -28,11 +28,13 @@ pub mod gcode_gen;
 pub mod infill;
 pub mod perimeter;
 pub mod planner;
+pub mod seam;
 pub mod surface;
 pub mod toolpath;
 
 // Re-export primary types at crate root.
 pub use config::{PrintConfig, WallOrder};
+pub use seam::{select_seam_point, SeamPosition};
 pub use engine::{Engine, SliceResult};
 pub use error::EngineError;
 pub use extrusion::{compute_e_value, extrusion_cross_section, move_length};
