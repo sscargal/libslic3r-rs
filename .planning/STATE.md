@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 5 of 9 (Support Structures)
-Plan: 5 of 8 in current phase (5 complete)
-Status: Executing Phase 5 -- Plan 05 complete (support interface layers)
-Last activity: 2026-02-17 -- Completed 05-05-PLAN.md (Support interface layers with Z-gap and material defaults)
+Plan: 6 of 8 in current phase (6 complete)
+Status: Executing Phase 5 -- Plan 06 complete (manual support override system)
+Last activity: 2026-02-17 -- Completed 05-06-PLAN.md (Manual support override system with enforcers, blockers, and conflict resolution)
 
-Progress: [################################] 86% (31/~36 overall)
+Progress: [##################################] 89% (32/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 31
+- Total plans completed: 32
 - Average duration: 5.1 min
-- Total execution time: 3.17 hours
+- Total execution time: 3.27 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [################################] 86% (31/~36 overall)
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
-| 05    | 5     | 21min | 4.2min   |
+| 05    | 6     | 27min | 4.5min   |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (5min), 05-02 (4min), 05-03 (3min), 05-04 (6min), 05-05 (3min)
+- Last 5 plans: 05-02 (4min), 05-03 (3min), 05-04 (6min), 05-05 (3min), 05-06 (6min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -187,6 +187,10 @@ Recent decisions affecting current work:
 - [05-05]: Z-gap uses ceil rounding: 0.3mm gap / 0.2mm layer = 2 layers removed
 - [05-05]: Bottom interface layers identified at support column start (no support in layer below)
 - [05-05]: Material defaults: TPU largest gaps (z=0.3, xy=0.5mm), PLA/ABS standard (z=0.2, xy=0.4mm)
+- [05-06]: MeshOverride drops source mesh after slicing (TriangleMesh lacks Clone/Debug)
+- [05-06]: net_area_mm2 uses signed-area sum for correct hole accounting in polygon_difference results
+- [05-06]: Conflict warning threshold: 1 mm^2 removed area triggers BlockerRemovesCritical
+- [05-06]: Smart merge preserves support under critical overhangs even when blocker requests removal
 
 ### Pending Todos
 
@@ -199,5 +203,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 05-05-PLAN.md (Support interface layers with Z-gap and material defaults)
-Resume file: .planning/phases/05-support-structures/05-05-SUMMARY.md
+Stopped at: Completed 05-06-PLAN.md (Manual support override system with enforcers, blockers, and conflict resolution)
+Resume file: .planning/phases/05-support-structures/05-06-SUMMARY.md
