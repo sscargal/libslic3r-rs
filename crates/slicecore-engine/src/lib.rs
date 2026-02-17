@@ -42,6 +42,7 @@ pub mod polyhole;
 pub mod preview;
 pub mod scarf;
 pub mod seam;
+pub mod sequential;
 pub mod support;
 pub mod surface;
 pub mod toolpath;
@@ -81,6 +82,9 @@ pub use multimaterial::{
 };
 pub use polyhole::{convert_polyholes, convert_to_polyhole, is_circular_hole, polyhole_radius, polyhole_sides};
 pub use scarf::apply_scarf_joint;
+pub use sequential::{
+    detect_collision, order_objects, plan_sequential_print, ObjectBounds,
+};
 pub use support::config::SupportConfig;
 pub use support::{SupportRegion, SupportResult};
 pub use toolpath::{
