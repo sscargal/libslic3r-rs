@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 4 - Perimeter and Infill Completeness
+**Current focus:** Phase 4 Complete -- Ready for Phase 5
 
 ## Current Position
 
-Phase: 4 of 9 (Perimeter and Infill Completeness)
-Plan: 10 of 10 in current phase (9 complete)
-Status: Executing Phase 4 -- Arachne variable-width perimeters implemented
-Last activity: 2026-02-17 -- Completed 04-09-PLAN.md (Arachne variable-width perimeters)
+Phase: 4 of 9 (Perimeter and Infill Completeness) -- COMPLETE
+Plan: 10 of 10 in current phase (10 complete)
+Status: Phase 4 Complete -- All 5 success criteria verified by automated tests
+Last activity: 2026-02-17 -- Completed 04-10-PLAN.md (Preview data and Phase 4 integration tests)
 
-Progress: [########################] 67% (24/~36 overall)
+Progress: [###########################] 72% (26/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
-- Average duration: 5.6 min
-- Total execution time: 2.72 hours
+- Total plans completed: 26
+- Average duration: 5.5 min
+- Total execution time: 2.82 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [########################] 67% (24/~36 overall)
 | 01    | 4     | 26min | 6.5min   |
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
-| 04    | 10    | 89min | 8.9min   |
+| 04    | 10    | 95min | 9.5min   |
 
 **Recent Trend:**
-- Last 5 plans: 04-05 (5min), 04-06 (7min), 04-07 (12min), 04-08 (8min), 04-09 (25min)
+- Last 5 plans: 04-06 (7min), 04-07 (12min), 04-08 (8min), 04-09 (25min), 04-10 (6min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -159,6 +159,11 @@ Recent decisions affecting current work:
 - [04-09]: Width smoothing: forward+backward passes limiting 50% change between adjacent points
 - [04-09]: arachne_enabled defaults to false for backward compatibility
 - [04-09]: extrusion_width: Option<f64> on ToolpathSegment for variable-width E-value computation
+- [04-10]: Preview data generated from layer toolpaths (not intermediate geometry) for accuracy
+- [04-10]: SlicePreview/LayerPreview fully serde-serializable for JSON visualization pipelines
+- [04-10]: Engine::slice_with_preview re-runs pipeline to capture toolpaths (correctness over perf)
+- [04-10]: Perimeter polylines built by contiguity detection (0.01mm gap threshold)
+- [04-10]: Synthetic sphere uses 2x icosahedron subdivision (~320 triangles) for curvature
 
 ### Pending Todos
 
@@ -171,5 +176,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 04-09-PLAN.md -- Arachne variable-width perimeters
-Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-09-SUMMARY.md
+Stopped at: Completed 04-10-PLAN.md -- Phase 4 Complete (Preview data and integration tests)
+Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-10-SUMMARY.md
