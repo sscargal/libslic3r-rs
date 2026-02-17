@@ -266,14 +266,133 @@ fn assemble_bridge_toolpath(
 ///
 /// Create an engine with a [`PrintConfig`], then call [`Engine::slice`] to
 /// produce G-code from a [`TriangleMesh`].
+///
+/// When the `plugins` feature is enabled, the engine can hold an optional
+/// [`PluginRegistry`](slicecore_plugin::PluginRegistry) that provides
+/// plugin-based infill patterns. Use [`Engine::with_plugin_registry`] to
+/// attach a registry.
 pub struct Engine {
     config: PrintConfig,
+    #[cfg(feature = "plugins")]
+    plugin_registry: Option<slicecore_plugin::PluginRegistry>,
 }
 
 impl Engine {
     /// Creates a new engine with the given print configuration.
     pub fn new(config: PrintConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+            #[cfg(feature = "plugins")]
+            plugin_registry: None,
+        }
+    }
+
+    /// Attaches a plugin registry to the engine for plugin-based infill patterns.
+    ///
+    /// When a layer's infill pattern is [`InfillPattern::Plugin(name)`], the
+    /// engine will look up the named plugin in the registry and delegate infill
+    /// generation to it.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// use slicecore_plugin::PluginRegistry;
+    /// let registry = PluginRegistry::new();
+    /// let engine = Engine::new(config).with_plugin_registry(registry);
+    /// ```
+    #[cfg(feature = "plugins")]
+    pub fn with_plugin_registry(mut self, registry: slicecore_plugin::PluginRegistry) -> Self {
+        self.plugin_registry = Some(registry);
+        self
+    }
+
+    /// Generates infill for a single layer, routing plugin patterns to the
+    /// registry and built-in patterns to [`generate_infill`].
+    ///
+    /// # Plugin dispatch
+    ///
+    /// When the pattern is [`InfillPattern::Plugin(name)`]:
+    /// - If the `plugins` feature is enabled AND a registry is attached:
+    ///   converts regions to an FFI request, calls the plugin, converts back.
+    /// - Otherwise returns [`EngineError::Plugin`] with a clear message.
+    ///
+    /// Built-in patterns pass through to the standard `generate_infill` function.
+    fn generate_infill_for_layer(
+        &self,
+        pattern: &InfillPattern,
+        regions: &[slicecore_geo::polygon::ValidPolygon],
+        density: f64,
+        layer_idx: usize,
+        layer_z: f64,
+        line_width: f64,
+        lightning_ctx: Option<&lightning::LightningContext>,
+    ) -> Result<Vec<crate::infill::InfillLine>, EngineError> {
+        match pattern {
+            InfillPattern::Plugin(name) => {
+                self.generate_plugin_infill(name, regions, density, layer_idx, layer_z, line_width)
+            }
+            _ => Ok(generate_infill(
+                pattern,
+                regions,
+                density,
+                layer_idx,
+                layer_z,
+                line_width,
+                lightning_ctx,
+            )),
+        }
+    }
+
+    /// Dispatches infill generation to a plugin in the registry.
+    ///
+    /// With the `plugins` feature enabled, this converts internal types to
+    /// FFI-safe types, calls the plugin, and converts the result back.
+    /// Without the feature (or without a registry), returns an error.
+    fn generate_plugin_infill(
+        &self,
+        name: &str,
+        _regions: &[slicecore_geo::polygon::ValidPolygon],
+        _density: f64,
+        _layer_idx: usize,
+        _layer_z: f64,
+        _line_width: f64,
+    ) -> Result<Vec<crate::infill::InfillLine>, EngineError> {
+        #[cfg(feature = "plugins")]
+        {
+            if let Some(ref registry) = self.plugin_registry {
+                if let Some(plugin) = registry.get_infill_plugin(name) {
+                    let request = slicecore_plugin::regions_to_request(
+                        _regions,
+                        _density,
+                        _layer_idx,
+                        _layer_z,
+                        _line_width,
+                    );
+                    let result = plugin.generate(&request).map_err(|e| EngineError::Plugin {
+                        plugin: name.to_string(),
+                        message: e.to_string(),
+                    })?;
+                    let converted = slicecore_plugin::ffi_result_to_lines(&result);
+                    return Ok(converted
+                        .into_iter()
+                        .map(|line| crate::infill::InfillLine {
+                            start: line.start,
+                            end: line.end,
+                        })
+                        .collect());
+                } else {
+                    return Err(EngineError::Plugin {
+                        plugin: name.to_string(),
+                        message: format!("Plugin '{}' not found in registry", name),
+                    });
+                }
+            }
+        }
+
+        Err(EngineError::Plugin {
+            plugin: name.to_string(),
+            message: "Plugin system not available (no registry attached or 'plugins' feature disabled)".to_string(),
+        })
     }
 
     /// Slices a mesh and returns the complete G-code output.
@@ -490,10 +609,11 @@ impl Engine {
             }
 
             // Generate sparse infill for sparse regions using configured pattern.
+            // Uses generate_infill_for_layer to support Plugin patterns.
             if !classification.sparse_regions.is_empty()
                 && self.config.infill_density > 0.0
             {
-                let sparse_lines = generate_infill(
+                let sparse_lines = self.generate_infill_for_layer(
                     &self.config.infill_pattern,
                     &classification.sparse_regions,
                     self.config.infill_density,
@@ -501,7 +621,7 @@ impl Engine {
                     layer.z,
                     extrusion_width,
                     lightning_ctx.as_ref(),
-                );
+                )?;
                 all_infill_lines.extend(sparse_lines);
             }
 
@@ -512,7 +632,7 @@ impl Engine {
             {
                 let inner = &perimeters[0].inner_contour;
                 if !inner.is_empty() && self.config.infill_density > 0.0 {
-                    let lines = generate_infill(
+                    let lines = self.generate_infill_for_layer(
                         &self.config.infill_pattern,
                         inner,
                         self.config.infill_density,
@@ -520,7 +640,7 @@ impl Engine {
                         layer.z,
                         extrusion_width,
                         lightning_ctx.as_ref(),
-                    );
+                    )?;
                     all_infill_lines.extend(lines);
                 }
             }
@@ -1029,7 +1149,7 @@ impl Engine {
             if !classification.sparse_regions.is_empty()
                 && self.config.infill_density > 0.0
             {
-                let sparse_lines = generate_infill(
+                let sparse_lines = self.generate_infill_for_layer(
                     &self.config.infill_pattern,
                     &classification.sparse_regions,
                     self.config.infill_density,
@@ -1037,7 +1157,7 @@ impl Engine {
                     layer.z,
                     extrusion_width,
                     lightning_ctx.as_ref(),
-                );
+                )?;
                 all_infill_lines.extend(sparse_lines);
             }
 
@@ -1047,7 +1167,7 @@ impl Engine {
             {
                 let inner = &perimeters[0].inner_contour;
                 if !inner.is_empty() && self.config.infill_density > 0.0 {
-                    let lines = generate_infill(
+                    let lines = self.generate_infill_for_layer(
                         &self.config.infill_pattern,
                         inner,
                         self.config.infill_density,
@@ -1055,7 +1175,7 @@ impl Engine {
                         layer.z,
                         extrusion_width,
                         lightning_ctx.as_ref(),
-                    );
+                    )?;
                     all_infill_lines.extend(lines);
                 }
             }
@@ -1263,7 +1383,7 @@ impl Engine {
                 if !classification.sparse_regions.is_empty()
                     && region_config.infill_density > 0.0
                 {
-                    let sparse_lines = generate_infill(
+                    let sparse_lines = self.generate_infill_for_layer(
                         &region_config.infill_pattern,
                         &classification.sparse_regions,
                         region_config.infill_density,
@@ -1271,7 +1391,7 @@ impl Engine {
                         layer.z,
                         region_extrusion_width,
                         lightning_ctx.as_ref(),
-                    );
+                    )?;
                     all_infill_lines.extend(sparse_lines);
                 }
 
@@ -1281,7 +1401,7 @@ impl Engine {
                 {
                     let inner = &perimeters[0].inner_contour;
                     if !inner.is_empty() && region_config.infill_density > 0.0 {
-                        let lines = generate_infill(
+                        let lines = self.generate_infill_for_layer(
                             &region_config.infill_pattern,
                             inner,
                             region_config.infill_density,
@@ -1289,7 +1409,7 @@ impl Engine {
                             layer.z,
                             region_extrusion_width,
                             lightning_ctx.as_ref(),
-                        );
+                        )?;
                         all_infill_lines.extend(lines);
                     }
                 }
@@ -2787,6 +2907,70 @@ mod tests {
         assert!(
             cube_result.layer_count > 0,
             "Arc-fitting enabled should still produce layers"
+        );
+    }
+
+    #[test]
+    fn engine_builtin_pattern_without_registry_works() {
+        // Verify that built-in patterns continue to work when no plugin registry
+        // is attached (the default case).
+        let config = PrintConfig {
+            infill_pattern: InfillPattern::Rectilinear,
+            infill_density: 0.2,
+            ..Default::default()
+        };
+        let engine = Engine::new(config);
+        let mesh = unit_cube();
+        let result = engine.slice(&mesh);
+        assert!(
+            result.is_ok(),
+            "Built-in pattern should work without plugin registry: {:?}",
+            result.err()
+        );
+        let result = result.unwrap();
+        assert!(!result.gcode.is_empty());
+        assert!(result.layer_count > 0);
+    }
+
+    #[test]
+    fn engine_plugin_pattern_without_registry_returns_error() {
+        // Verify that InfillPattern::Plugin returns EngineError::Plugin
+        // when no plugin registry is attached. Uses 20mm cube so infill
+        // regions are large enough to trigger the Plugin dispatch path.
+        let config = PrintConfig {
+            infill_pattern: InfillPattern::Plugin("zigzag".to_string()),
+            infill_density: 0.2,
+            ..Default::default()
+        };
+        let engine = Engine::new(config);
+        let mesh = calibration_cube_20mm();
+        let result = engine.slice(&mesh);
+        assert!(result.is_err(), "Plugin pattern without registry should fail");
+        let err = result.unwrap_err();
+        match &err {
+            EngineError::Plugin { plugin, message } => {
+                assert_eq!(plugin, "zigzag");
+                assert!(
+                    message.contains("not available") || message.contains("not found"),
+                    "Error message should explain unavailability: {}",
+                    message
+                );
+            }
+            other => panic!(
+                "Expected EngineError::Plugin, got: {:?}",
+                other
+            ),
+        }
+    }
+
+    #[test]
+    fn infill_pattern_plugin_serde_round_trip() {
+        // Verify Plugin(String) serializes/deserializes correctly via TOML.
+        let toml_str = r#"infill_pattern = { plugin = "custom-zigzag" }"#;
+        let config = PrintConfig::from_toml(toml_str).unwrap();
+        assert_eq!(
+            config.infill_pattern,
+            InfillPattern::Plugin("custom-zigzag".to_string())
         );
     }
 }

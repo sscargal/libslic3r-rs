@@ -90,3 +90,7 @@ pub use support::{SupportRegion, SupportResult};
 pub use toolpath::{
     assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment,
 };
+
+// Re-export plugin types when the plugins feature is enabled.
+#[cfg(feature = "plugins")]
+pub use slicecore_plugin::{PluginInfo, PluginKind, PluginRegistry};

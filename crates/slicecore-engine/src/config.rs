@@ -207,6 +207,15 @@ pub struct PrintConfig {
     // --- Sequential Printing ---
     /// Sequential (object-by-object) printing configuration.
     pub sequential: SequentialConfig,
+
+    // --- Plugins ---
+    /// Directory to scan for plugins (optional).
+    ///
+    /// When set, the engine can discover and load infill plugins from this
+    /// directory. Each plugin should be in its own subdirectory containing
+    /// a `plugin.toml` manifest.
+    #[serde(default)]
+    pub plugin_dir: Option<String>,
 }
 
 /// Scarf joint seam configuration.
@@ -364,6 +373,7 @@ impl Default for PrintConfig {
 
             multi_material: MultiMaterialConfig::default(),
             sequential: SequentialConfig::default(),
+            plugin_dir: None,
         }
     }
 }
