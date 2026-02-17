@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 7 -- Plugin System (plan 1 of 7 complete)
+**Current focus:** Phase 7 -- Plugin System (plan 2 of 7 complete)
 
 ## Current Position
 
 Phase: 7 of 9 (Plugin System)
-Plan: 1 of 7 in current phase (1 complete)
-Status: Executing Phase 7 -- plugin API crate complete
-Last activity: 2026-02-17 -- Completed 07-01-PLAN.md (Plugin API types and traits)
+Plan: 2 of 7 in current phase (2 complete)
+Status: Executing Phase 7 -- plugin registry and native loader complete
+Last activity: 2026-02-17 -- Completed 07-02-PLAN.md (Plugin registry, native loader, discovery, type conversion)
 
-Progress: [#########################################---------] 82% (46/~56 overall)
+Progress: [##########################################--------] 84% (47/~56 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 46
+- Total plans completed: 47
 - Average duration: 5.3 min
-- Total execution time: 4.6 hours
+- Total execution time: 4.7 hours
 
 **By Phase:**
 
@@ -33,11 +33,11 @@ Progress: [#########################################---------] 82% (46/~56 overa
 | 04    | 10    | 95min | 9.5min   |
 | 05    | 8     | 69min | 8.6min   |
 | 06    | 9     | 45min | 5.0min   |
-| 07    | 1     | 5min  | 5.0min   |
+| 07    | 2     | 10min | 5.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 06-06 (10min), 06-08 (3min), 06-09 (4min), 07-01 (5min)
-- Trend: Phase 7 started with plugin API crate creation
+- Last 5 plans: 06-08 (3min), 06-09 (4min), 07-01 (5min), 07-02 (5min)
+- Trend: Phase 7 plugin system steady at 5min/plan
 
 *Updated after each plan completion*
 
@@ -238,6 +238,11 @@ Recent decisions affecting current work:
 - [07-01]: RVec<i64> flattened boundary encoding (not RVec<RVec<i64>>) for simplicity and StableAbi compatibility
 - [07-01]: Metadata types are plain serde (not FFI-safe) since they are parsed before plugin loading
 - [07-01]: non_local_definitions lint suppressed at crate level due to sabi_trait macro expansion limitation
+- [07-02]: InfillPluginAdapter host-side trait wraps both native and WASM plugins uniformly
+- [07-02]: resolve_library_path searches direct, target/debug, target/release in priority order
+- [07-02]: PluginManifest.library_filename is just a filename; loader resolves full path at runtime
+- [07-02]: CI WASM build uses --exclude flags (not workspace exclude) to keep crate in workspace
+- [07-02]: PluginKind enum separate from PluginType (host-side includes Builtin variant)
 
 ### Pending Todos
 
@@ -250,5 +255,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 07-01-PLAN.md (Plugin API types and traits)
-Resume file: .planning/phases/07-plugin-system/07-01-SUMMARY.md
+Stopped at: Completed 07-02-PLAN.md (Plugin registry, native loader, discovery, type conversion)
+Resume file: .planning/phases/07-plugin-system/07-02-SUMMARY.md
