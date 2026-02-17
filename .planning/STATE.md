@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 5 of 9 (Support Structures)
-Plan: 6 of 8 in current phase (6 complete)
-Status: Executing Phase 5 -- Plan 06 complete (manual support override system)
-Last activity: 2026-02-17 -- Completed 05-06-PLAN.md (Manual support override system with enforcers, blockers, and conflict resolution)
+Plan: 7 of 8 in current phase (7 complete)
+Status: Executing Phase 5 -- Plan 07 complete (engine pipeline integration with 4-tier overhang control)
+Last activity: 2026-02-17 -- Completed 05-07-PLAN.md (4-tier overhang control, auto support type selection, and full engine pipeline integration)
 
-Progress: [##################################] 89% (32/~36 overall)
+Progress: [###################################] 92% (33/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 32
+- Total plans completed: 33
 - Average duration: 5.1 min
-- Total execution time: 3.27 hours
+- Total execution time: 3.38 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [##################################] 89% (32/~36 overall)
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
-| 05    | 6     | 27min | 4.5min   |
+| 05    | 7     | 34min | 4.9min   |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (4min), 05-03 (3min), 05-04 (6min), 05-05 (3min), 05-06 (6min)
+- Last 5 plans: 05-03 (3min), 05-04 (6min), 05-05 (3min), 05-06 (6min), 05-07 (7min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -191,6 +191,12 @@ Recent decisions affecting current work:
 - [05-06]: net_area_mm2 uses signed-area sum for correct hole accounting in polygon_difference results
 - [05-06]: Conflict warning threshold: 1 mm^2 removed area triggers BlockerRemovesCritical
 - [05-06]: Smart merge preserves support under critical overhangs even when blocker requests removal
+- [05-07]: 4-tier overhang angle boundaries at 22.5/45/67.5/90 degrees from vertical
+- [05-07]: Speed factors 1.0/0.9/0.75/0.5/0.35 per tier for overhang perimeter slowdown
+- [05-07]: Auto support type threshold: 10 * extrusion_width^2 separates small (Tree) from large (Traditional)
+- [05-07]: Bridge fan override uses feature transition detection in generate_layer_gcode
+- [05-07]: Support pipeline integrated as step 1c (after slicing, before per-layer processing)
+- [05-07]: Support toolpaths appended after model perimeters/infill per standard ordering
 
 ### Pending Todos
 
@@ -203,5 +209,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 05-06-PLAN.md (Manual support override system with enforcers, blockers, and conflict resolution)
-Resume file: .planning/phases/05-support-structures/05-06-SUMMARY.md
+Stopped at: Completed 05-07-PLAN.md (4-tier overhang control, auto support type selection, and full engine pipeline integration)
+Resume file: .planning/phases/05-support-structures/05-07-SUMMARY.md
