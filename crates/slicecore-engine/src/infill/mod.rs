@@ -12,6 +12,7 @@
 //! Future patterns (Honeycomb, Gyroid, etc.) currently fall back to Rectilinear.
 
 pub mod grid;
+pub mod gyroid;
 pub mod honeycomb;
 pub mod monotonic;
 pub mod rectilinear;
