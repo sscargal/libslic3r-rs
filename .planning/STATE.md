@@ -124,6 +124,11 @@ Recent decisions affecting current work:
 - [04-02]: Knuth multiplicative hash (2654435761) for deterministic Random seam placement
 - [04-02]: assemble_layer_toolpath returns (LayerToolpath, Option<IPoint2>) tuple for cross-layer seam tracking
 - [04-02]: 5-degree angle deviation threshold for NearestCorner smooth-curve fallback to Aligned
+- [04-03]: Curvature metric: steepness * windowed_rate_of_steepness_change (combines both signals)
+- [04-03]: Window-averaged rate (5-sample radius) to reduce noise from discrete mesh edges
+- [04-03]: Forward+backward smoothing enforces max 50% height change between adjacent layers
+- [04-03]: Adaptive defaults: disabled, min=0.05mm, max=0.3mm, quality=0.5
+- [04-03]: slice_mesh_adaptive takes pre-computed (z, height) pairs -- separates analysis from slicing
 
 ### Pending Todos
 
@@ -136,5 +141,6 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 04-02-PLAN.md -- seam placement strategies with cross-layer alignment
+Stopped at: Completed 04-03-PLAN.md -- adaptive layer heights integrated
+Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-03-SUMMARY.md
 Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-02-SUMMARY.md
