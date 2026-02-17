@@ -91,12 +91,19 @@ Plans:
   3. Seam placement strategies (aligned, random, rear, smart hiding) produce visually different seam lines on a cylindrical test model, and scarf joint seam produces a smooth, nearly invisible seam transition
   4. Adaptive layer heights vary layer thickness based on surface curvature -- a sphere model uses thinner layers at the equator (high curvature) and thicker layers at the poles (low curvature)
   5. Gap fill between perimeters produces solid walls without voids on a test model with varying wall thicknesses
-**Plans**: TBD
+**Plans:** 10 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
-- [ ] 04-03: TBD
+- [ ] 04-01-PLAN.md -- Infill module refactor, InfillPattern dispatch, Grid + Monotonic patterns
+- [ ] 04-02-PLAN.md -- Seam placement strategies (aligned, random, rear, smart hiding)
+- [ ] 04-03-PLAN.md -- Adaptive layer heights based on surface curvature
+- [ ] 04-04-PLAN.md -- Honeycomb + Cubic infill patterns
+- [ ] 04-05-PLAN.md -- Gyroid infill pattern (TPMS + marching squares)
+- [ ] 04-06-PLAN.md -- Scarf joint seam with 12 configurable parameters
+- [ ] 04-07-PLAN.md -- Adaptive Cubic + Lightning infill patterns
+- [ ] 04-08-PLAN.md -- Gap fill between perimeters
+- [ ] 04-09-PLAN.md -- Arachne variable-width perimeters (boostvoronoi)
+- [ ] 04-10-PLAN.md -- Preview data, engine integration, integration tests + phase verification
 
 ### Phase 5: Support Structures
 **Goal**: Users can print models with overhangs and bridges confidently -- automatic supports are generated where needed, tree supports minimize material waste, and support removal leaves clean surfaces
