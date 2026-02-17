@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 6 of 9 (G-code Completeness and Advanced Features) -- IN PROGRESS
-Plan: 7 of 9 in current phase (7 complete)
+Plan: 9 of 9 in current phase (8 complete)
 Status: Executing Phase 6 plans
-Last activity: 2026-02-17 -- Completed 06-06-PLAN.md (modifier meshes and polyhole conversion)
+Last activity: 2026-02-17 -- Completed 06-08-PLAN.md (pressure advance calibration)
 
-Progress: [#####################################-] 96% (42/~43 overall)
+Progress: [######################################-] 98% (44/~45 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 37
-- Average duration: 5.5 min
-- Total execution time: 4.35 hours
+- Total plans completed: 38
+- Average duration: 5.4 min
+- Total execution time: 4.4 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [#####################################-] 96% (42/~43 overall)
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
 | 05    | 8     | 69min | 8.6min   |
-| 06    | 7     | 38min | 5.4min   |
+| 06    | 8     | 41min | 5.1min   |
 
 **Recent Trend:**
-- Last 5 plans: 06-02 (4min), 06-04 (7min), 06-05 (7min), 06-06 (10min)
+- Last 5 plans: 06-04 (7min), 06-05 (7min), 06-06 (10min), 06-08 (3min)
 - Trend: Phase 6 plans executing efficiently with established patterns
 
 *Updated after each plan completion*
@@ -226,6 +226,9 @@ Recent decisions affecting current work:
 - [06-06]: split_by_modifiers subtracts each modifier from remainder iteratively
 - [06-06]: Polyhole disabled by default (polyhole_enabled=false, min_diameter=1.0mm)
 - [06-06]: Polyhole circumradius = desired_radius / cos(PI/n) for correct inscribed circle
+- [06-08]: PA calibration sections proportionally scaled when pattern_width != 80mm (20/40/20 nominal)
+- [06-08]: PA value clamped to pa_end to prevent floating-point overshoot
+- [06-08]: E-values use Slic3r cross-section model matching rest of pipeline
 
 ### Pending Todos
 
@@ -238,5 +241,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 06-06-PLAN.md (modifier meshes and polyhole conversion)
-Resume file: .planning/phases/06-gcode-completeness-and-advanced-features/06-06-SUMMARY.md
+Stopped at: Completed 06-08-PLAN.md (pressure advance calibration)
+Resume file: .planning/phases/06-gcode-completeness-and-advanced-features/06-08-SUMMARY.md
