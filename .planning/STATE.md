@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 5 of 9 (Support Structures)
-Plan: 1 of 8 in current phase (1 complete)
-Status: Executing Phase 5 -- Plan 01 complete (config types and overhang detection)
-Last activity: 2026-02-17 -- Completed 05-01-PLAN.md (Support config types and overhang detection)
+Plan: 2 of 8 in current phase (2 complete)
+Status: Executing Phase 5 -- Plan 02 complete (traditional support generation)
+Last activity: 2026-02-17 -- Completed 05-02-PLAN.md (Traditional grid/line support generation)
 
-Progress: [############################] 75% (27/~36 overall)
+Progress: [#############################] 78% (28/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 27
-- Average duration: 5.4 min
-- Total execution time: 2.90 hours
+- Total plans completed: 28
+- Average duration: 5.3 min
+- Total execution time: 2.97 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [############################] 75% (27/~36 overall)
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
-| 05    | 1     | 5min  | 5.0min   |
+| 05    | 2     | 9min  | 4.5min   |
 
 **Recent Trend:**
-- Last 5 plans: 04-08 (8min), 04-09 (25min), 04-10 (6min), 05-01 (5min)
+- Last 5 plans: 04-09 (25min), 04-10 (6min), 05-01 (5min), 05-02 (4min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -169,6 +169,10 @@ Recent decisions affecting current work:
 - [05-01]: Two-tier area filtering: discard below extrusion_width^2 (unprintable), keep between that and min_area (thin pillars)
 - [05-01]: Raycast validation uses >50% threshold for internal-support classification
 - [05-01]: Quality presets override density, interface_density, z_gap, and interface_layers
+- [05-02]: Support projects from layer below overhang (layer_idx-1) down to layer 0, not from overhang layer
+- [05-02]: XY gap uses dual offset: inward-offset support + outward-offset model then subtract
+- [05-02]: Line pattern uses fixed 0-degree angle for easy peel; Grid/Rectilinear dispatch to infill module
+- [05-02]: Multiple overlapping projections merged via polygon_union per layer
 
 ### Pending Todos
 
@@ -181,5 +185,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 05-01-PLAN.md (Support config types and overhang detection)
-Resume file: .planning/phases/05-support-structures/05-01-SUMMARY.md
+Stopped at: Completed 05-02-PLAN.md (Traditional grid/line support generation)
+Resume file: .planning/phases/05-support-structures/05-02-SUMMARY.md
