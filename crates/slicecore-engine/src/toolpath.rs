@@ -13,6 +13,7 @@ use slicecore_math::{IPoint2, Point2};
 
 use crate::config::{PrintConfig, ScarfJointType};
 use crate::extrusion::compute_e_value;
+use crate::gap_fill::GapFillPath;
 use crate::infill::LayerInfill;
 use crate::perimeter::ContourPerimeters;
 use crate::scarf::apply_scarf_joint;
@@ -33,6 +34,8 @@ pub enum FeatureType {
     Skirt,
     /// Brim adhesion aid.
     Brim,
+    /// Gap fill between perimeters.
+    GapFill,
     /// Non-extrusion travel move.
     Travel,
 }
@@ -96,7 +99,7 @@ impl LayerToolpath {
     }
 }
 
-/// Assembles perimeters and infill into an ordered layer toolpath.
+/// Assembles perimeters, gap fills, and infill into an ordered layer toolpath.
 ///
 /// The assembly order is:
 /// 1. Perimeters (in wall order per config): outer/inner shells converted to
@@ -104,13 +107,15 @@ impl LayerToolpath {
 ///    Each perimeter polygon starts at the seam-selected vertex.
 ///    If scarf joint is enabled, it is applied to each perimeter polygon
 ///    after segment generation.
-/// 2. Infill lines: nearest-neighbor ordered with Travel moves between lines.
+/// 2. Gap fill paths: thin extrusions filling narrow gaps between perimeters.
+/// 3. Infill lines: nearest-neighbor ordered with Travel moves between lines.
 ///
 /// # Parameters
 /// - `layer_index`: Index of this layer.
 /// - `z`: Z height of this layer in mm.
 /// - `layer_height`: Height of this layer in mm.
 /// - `perimeters`: Perimeter shells from [`generate_perimeters`](crate::perimeter::generate_perimeters).
+/// - `gap_fills`: Gap fill paths from [`detect_and_fill_gaps`](crate::gap_fill::detect_and_fill_gaps).
 /// - `infill`: Infill lines from [`generate_rectilinear_infill`](crate::infill::generate_rectilinear_infill).
 /// - `config`: Print configuration for speeds and extrusion parameters.
 /// - `previous_seam`: Seam point from the previous layer for cross-layer alignment.
@@ -118,11 +123,13 @@ impl LayerToolpath {
 /// # Returns
 /// A tuple of `(LayerToolpath, Option<IPoint2>)` where the second element is
 /// the last seam point used on this layer (for cross-layer seam tracking).
+#[allow(clippy::too_many_arguments)]
 pub fn assemble_layer_toolpath(
     layer_index: usize,
     z: f64,
     layer_height: f64,
     perimeters: &[ContourPerimeters],
+    gap_fills: &[GapFillPath],
     infill: &LayerInfill,
     config: &PrintConfig,
     previous_seam: Option<IPoint2>,
@@ -255,6 +262,66 @@ pub fn assemble_layer_toolpath(
                 // No explicit close needed since we iterate n edges (seam_idx -> ... -> seam_idx).
                 current_pos = Some(seam_pt);
             }
+        }
+    }
+
+    // --- Gap Fill ---
+    if !gap_fills.is_empty() {
+        for gap_path in gap_fills {
+            if gap_path.points.len() < 2 {
+                continue;
+            }
+
+            // Convert first point to mm for travel.
+            let (fx, fy) = gap_path.points[0].to_mm();
+            let first_pt = Point2::new(fx, fy);
+
+            // Insert travel to gap fill path start if needed.
+            if let Some(pos) = current_pos {
+                let dist = distance(&pos, &first_pt);
+                if dist > 0.001 {
+                    segments.push(ToolpathSegment {
+                        start: pos,
+                        end: first_pt,
+                        feature: FeatureType::Travel,
+                        e_value: 0.0,
+                        feedrate: travel_speed,
+                        z,
+                    });
+                }
+            }
+
+            // Emit extrusion segments along the gap fill path.
+            let mut prev = first_pt;
+            for i in 1..gap_path.points.len() {
+                let (px, py) = gap_path.points[i].to_mm();
+                let pt = Point2::new(px, py);
+                let seg_len = distance(&prev, &pt);
+
+                if seg_len > 0.0001 {
+                    // Use the gap fill's width for E-value computation.
+                    let e = compute_e_value(
+                        seg_len,
+                        gap_path.width,
+                        layer_height,
+                        config.filament_diameter,
+                        config.extrusion_multiplier,
+                    );
+
+                    segments.push(ToolpathSegment {
+                        start: prev,
+                        end: pt,
+                        feature: FeatureType::GapFill,
+                        e_value: e,
+                        feedrate: perimeter_speed,
+                        z,
+                    });
+                }
+
+                prev = pt;
+            }
+
+            current_pos = Some(prev);
         }
     }
 
@@ -458,7 +525,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // Should have segments.
         assert!(
@@ -505,7 +572,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         let travel_count = toolpath
             .segments
@@ -533,7 +600,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         for seg in &toolpath.segments {
             match seg.feature {
@@ -573,7 +640,7 @@ mod tests {
         };
 
         // Layer 0 (first layer).
-        let (toolpath, _) = assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &[], &infill, &config, None);
         let first_layer_speed_mmmin = 20.0 * 60.0;
 
         for seg in &toolpath.segments {
@@ -608,7 +675,7 @@ mod tests {
         };
 
         // Layer 2 (not first layer).
-        let (toolpath, _) = assemble_layer_toolpath(2, 0.7, 0.2, &perimeters, &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(2, 0.7, 0.2, &perimeters, &[], &infill, &config, None);
 
         let perim_speed_mmmin = 45.0 * 60.0;
         let infill_speed_mmmin = 80.0 * 60.0;
@@ -659,7 +726,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         let time = toolpath.estimated_time_seconds();
         assert!(
@@ -677,7 +744,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(0, 0.2, 0.2, &[], &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(0, 0.2, 0.2, &[], &[], &infill, &config, None);
         assert!(
             toolpath.segments.is_empty(),
             "Empty perimeters and infill should produce empty toolpath"
@@ -716,7 +783,7 @@ mod tests {
         };
 
         let config = default_config();
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &[], &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &[], &[], &infill, &config, None);
 
         let has_solid = toolpath
             .segments
@@ -743,12 +810,12 @@ mod tests {
         };
 
         // Layer 0 -- no previous seam.
-        let (tp0, seam0) = assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &infill, &config, None);
+        let (tp0, seam0) = assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &[], &infill, &config, None);
         assert!(!tp0.segments.is_empty(), "Layer 0 should have segments");
         assert!(seam0.is_some(), "Layer 0 should have a seam point");
 
         // Layer 1 -- pass previous seam from layer 0.
-        let (tp1, seam1) = assemble_layer_toolpath(1, 0.5, 0.2, &perimeters, &infill, &config, seam0);
+        let (tp1, seam1) = assemble_layer_toolpath(1, 0.5, 0.2, &perimeters, &[], &infill, &config, seam0);
         assert!(!tp1.segments.is_empty(), "Layer 1 should have segments");
         assert!(seam1.is_some(), "Layer 1 should have a seam point");
 
@@ -777,7 +844,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // Find the first perimeter extrusion segment.
         let first_perim = toolpath.segments.iter().find(|s| {
@@ -806,7 +873,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // Count total perimeter extrusion length.
         let total_perim_len: f64 = toolpath
@@ -901,7 +968,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // With scarf enabled, some perimeter segments should have Z != 0.4.
         let has_z_variation = toolpath
@@ -933,7 +1000,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // With scarf disabled, all perimeter segments should have Z == 0.4.
         for seg in &toolpath.segments {

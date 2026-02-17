@@ -16,6 +16,7 @@ slicecore-gcode-io = { path = "../slicecore-gcode-io" }
 serde = { workspace = true }
 thiserror = { workspace = true }
 toml = "0.8"
+boostvoronoi = "0.11.1"
 
 [dev-dependencies]
 serde_json = { workspace = true }

@@ -207,6 +207,7 @@ fn feature_label(feature: FeatureType) -> &'static str {
         FeatureType::Skirt => "Skirt",
         FeatureType::Brim => "Brim",
         FeatureType::Travel => "Travel",
+        FeatureType::GapFill => "Gap fill",
     }
 }
 

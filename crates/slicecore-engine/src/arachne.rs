@@ -115,12 +115,28 @@ pub fn generate_arachne_perimeters(
             continue;
         }
 
-        // Classify: are there any thin-wall segments?
-        let has_thin = medial_segments.iter().any(|seg| {
-            seg.start_width < two_nozzle || seg.end_width < two_nozzle
-        });
+        // Classify: is this polygon predominantly thin-walled?
+        // Compute the fraction of medial axis length that is thin.
+        // Only activate Arachne if a significant portion (>30%) is thin.
+        let mut thin_length = 0.0_f64;
+        let mut total_length = 0.0_f64;
+        for seg in &medial_segments {
+            let seg_len = ((seg.end.0 - seg.start.0).powi(2)
+                + (seg.end.1 - seg.start.1).powi(2))
+            .sqrt();
+            total_length += seg_len;
+            let avg_width = (seg.start_width + seg.end_width) / 2.0;
+            if avg_width < two_nozzle {
+                thin_length += seg_len;
+            }
+        }
+        let thin_fraction = if total_length > 0.0 {
+            thin_length / total_length
+        } else {
+            0.0
+        };
 
-        if !has_thin {
+        if thin_fraction < 0.3 {
             // All standard width: use classic perimeters.
             let classic = generate_perimeters(std::slice::from_ref(polygon), config);
             let fallback = classic.into_iter().next();

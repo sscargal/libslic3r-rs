@@ -20,8 +20,9 @@ use slicecore_slicer::{compute_adaptive_layer_heights, slice_mesh, slice_mesh_ad
 
 use crate::config::PrintConfig;
 use crate::error::EngineError;
+use crate::gap_fill::detect_and_fill_gaps;
 use crate::gcode_gen::generate_full_gcode;
-use crate::infill::{generate_infill, InfillPattern, LayerInfill};
+use crate::infill::{generate_infill, lightning, InfillPattern, LayerInfill};
 use crate::perimeter::generate_perimeters;
 use crate::planner::{generate_brim, generate_skirt};
 use crate::surface::classify_surfaces;
@@ -113,6 +114,24 @@ impl Engine {
             return Err(EngineError::NoLayers);
         }
 
+        // 1b. Build lightning context if lightning infill is selected.
+        // Lightning requires a cross-layer pre-pass to identify top surfaces
+        // and grow support columns downward.
+        let lightning_ctx = if self.config.infill_pattern == InfillPattern::Lightning {
+            let layer_contours: Vec<Vec<_>> = layers
+                .iter()
+                .map(|l| l.contours.clone())
+                .collect();
+            let extrusion_width = self.config.extrusion_width();
+            Some(lightning::build_lightning_context(
+                &layer_contours,
+                self.config.infill_density,
+                extrusion_width,
+            ))
+        } else {
+            None
+        };
+
         // 2. Process each layer: perimeters, surface classification, infill, toolpath.
         let mut layer_toolpaths: Vec<LayerToolpath> = Vec::with_capacity(layers.len());
         // Track seam position across layers for Aligned strategy.
@@ -159,6 +178,7 @@ impl Engine {
                     layer_idx,
                     layer.z,
                     extrusion_width,
+                    None,
                 );
                 if !solid_lines.is_empty() {
                     all_infill_lines.extend(solid_lines);
@@ -177,6 +197,7 @@ impl Engine {
                     layer_idx,
                     layer.z,
                     extrusion_width,
+                    lightning_ctx.as_ref(),
                 );
                 all_infill_lines.extend(sparse_lines);
             }
@@ -195,6 +216,7 @@ impl Engine {
                         layer_idx,
                         layer.z,
                         extrusion_width,
+                        lightning_ctx.as_ref(),
                     );
                     all_infill_lines.extend(lines);
                 }
@@ -205,12 +227,27 @@ impl Engine {
                 is_solid: infill_is_solid,
             };
 
-            // 2d. Assemble toolpath with seam placement.
+            // 2d. Gap fill between perimeters.
+            let gap_fills = if self.config.gap_fill_enabled && !perimeters.is_empty() {
+                detect_and_fill_gaps(
+                    &perimeters[0].shells,
+                    &perimeters[0].inner_contour,
+                    &layer.contours,
+                    self.config.gap_fill_min_width,
+                    self.config.nozzle_diameter,
+                    extrusion_width,
+                )
+            } else {
+                Vec::new()
+            };
+
+            // 2e. Assemble toolpath with seam placement.
             let (toolpath, layer_seam) = assemble_layer_toolpath(
                 layer_idx,
                 layer.z,
                 layer.layer_height,
                 &perimeters,
+                &gap_fills,
                 &infill,
                 &self.config,
                 previous_seam,

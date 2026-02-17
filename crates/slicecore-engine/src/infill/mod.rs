@@ -14,14 +14,13 @@
 //!
 //! - [`AdaptiveCubic`](InfillPattern::AdaptiveCubic) -- variable density using quadtree subdivision
 //! - [`Lightning`](InfillPattern::Lightning) -- minimal tree-branching support for top surfaces
-//!
-//! Lightning currently falls back to Rectilinear pending cross-layer context integration.
 
 pub mod adaptive_cubic;
 pub mod cubic;
 pub mod grid;
 pub mod gyroid;
 pub mod honeycomb;
+pub mod lightning;
 pub mod monotonic;
 pub mod rectilinear;
 
@@ -82,6 +81,8 @@ pub enum InfillPattern {
 /// - `layer_index`: Current layer index (used for angle alternation).
 /// - `layer_z`: Z height of the current layer (used by Gyroid and future 3D patterns).
 /// - `line_width`: Extrusion line width in mm.
+/// - `lightning_context`: Optional cross-layer context for Lightning infill.
+///   Ignored by all other patterns. Built by [`lightning::build_lightning_context`].
 ///
 /// # Returns
 /// A vector of [`InfillLine`] segments for the requested pattern.
@@ -92,6 +93,7 @@ pub fn generate_infill(
     layer_index: usize,
     layer_z: f64,
     line_width: f64,
+    lightning_context: Option<&lightning::LightningContext>,
 ) -> Vec<InfillLine> {
     let angle = alternate_infill_angle(layer_index);
 
@@ -115,9 +117,8 @@ pub fn generate_infill(
         InfillPattern::Cubic => {
             cubic::generate(infill_region, density, layer_index, layer_z, line_width)
         }
-        // TODO: implement in plan 04-08
         InfillPattern::Lightning => {
-            rectilinear::generate(infill_region, density, angle, line_width)
+            lightning::generate(infill_region, density, layer_index, line_width, lightning_context)
         }
     }
 }
