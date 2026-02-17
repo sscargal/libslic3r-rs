@@ -1,0 +1,19 @@
+[plugin]
+name = "spiral"
+version = "0.1.0"
+description = "Spiral infill pattern - concentric spiraling paths for smooth top surfaces"
+author = "slicecore"
+license = "MIT OR Apache-2.0"
+min_api_version = "0.1.0"
+max_api_version = "0.2.0"
+
+[plugin.type]
+kind = "wasm"
+library = "wasm_spiral_infill.wasm"
+
+[capabilities]
+provides = ["infill_pattern"]
+
+[resources]
+max_memory_mb = 64
+max_cpu_fuel = 1000000

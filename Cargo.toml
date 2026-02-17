@@ -1,6 +1,6 @@
 [workspace]
 members = ["crates/*"]
-exclude = ["plugins/examples/native-zigzag-infill"]
+exclude = ["plugins/examples/native-zigzag-infill", "plugins/examples/wasm-spiral-infill"]
 resolver = "2"
 
 [workspace.package]

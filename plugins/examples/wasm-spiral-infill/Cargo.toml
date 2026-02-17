@@ -1,0 +1,15 @@
+[package]
+name = "wasm-spiral-infill"
+version = "0.1.0"
+edition = "2021"
+description = "Example WASM infill plugin: spiral pattern"
+
+# Build target: wasm32-wasip2 (rustup target add wasm32-wasip2)
+# Canonical WIT file lives at: crates/slicecore-plugin/wit/slicecore-plugin.wit
+# A copy is kept in wit/ so this plugin can be built independently.
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.53"
