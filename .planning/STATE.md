@@ -226,6 +226,10 @@ Recent decisions affecting current work:
 - [06-06]: split_by_modifiers subtracts each modifier from remainder iteratively
 - [06-06]: Polyhole disabled by default (polyhole_enabled=false, min_diameter=1.0mm)
 - [06-06]: Polyhole circumradius = desired_radius / cos(PI/n) for correct inscribed circle
+- [06-07]: Purge tower uses simple rectangular geometry with configurable width and position
+- [06-07]: XY gap for collision detection measured as bounding box edge distance (not center-to-center)
+- [06-07]: Object ordering sorts shortest-first then validates all pairs (not just consecutive)
+- [06-07]: Tool change sequence uses per-tool retraction settings from ToolConfig when available
 - [06-08]: PA calibration sections proportionally scaled when pattern_width != 80mm (20/40/20 nominal)
 - [06-08]: PA value clamped to pa_end to prevent floating-point overshoot
 - [06-08]: E-values use Slic3r cross-section model matching rest of pipeline
