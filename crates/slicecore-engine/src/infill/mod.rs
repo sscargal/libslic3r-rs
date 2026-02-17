@@ -12,8 +12,12 @@
 //! - [`Gyroid`](InfillPattern::Gyroid) -- TPMS-based smooth curves for isotropic strength
 //! - [`Cubic`](InfillPattern::Cubic) -- 3-angle cycling with Z-dependent offset for 3D cubes
 //!
-//! Future patterns (AdaptiveCubic, Lightning) currently fall back to Rectilinear.
+//! - [`AdaptiveCubic`](InfillPattern::AdaptiveCubic) -- variable density using quadtree subdivision
+//! - [`Lightning`](InfillPattern::Lightning) -- minimal tree-branching support for top surfaces
+//!
+//! Lightning currently falls back to Rectilinear pending cross-layer context integration.
 
+pub mod adaptive_cubic;
 pub mod cubic;
 pub mod grid;
 pub mod gyroid;
@@ -105,9 +109,8 @@ pub fn generate_infill(
         InfillPattern::Gyroid => {
             gyroid::generate(infill_region, density, layer_index, layer_z, line_width)
         }
-        // TODO: implement in plan 04-06
         InfillPattern::AdaptiveCubic => {
-            rectilinear::generate(infill_region, density, angle, line_width)
+            adaptive_cubic::generate(infill_region, density, layer_index, layer_z, line_width)
         }
         InfillPattern::Cubic => {
             cubic::generate(infill_region, density, layer_index, layer_z, line_width)
