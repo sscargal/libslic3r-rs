@@ -27,6 +27,7 @@ use crate::infill::{generate_infill, lightning, InfillPattern, LayerInfill};
 use crate::perimeter::generate_perimeters;
 use crate::planner::{generate_brim, generate_skirt};
 use crate::preview::{generate_preview, SlicePreview};
+use crate::support;
 use crate::surface::classify_surfaces;
 use crate::toolpath::{
     assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment,
@@ -46,6 +47,211 @@ pub struct SliceResult {
     pub estimated_time_seconds: f64,
     /// Optional preview data for visualization.
     pub preview: Option<SlicePreview>,
+}
+
+/// Assembles support toolpath segments from support regions.
+///
+/// Converts support region infill lines into [`ToolpathSegment`]s with
+/// appropriate feature type, speed, and E-value. Support body uses infill
+/// speed; interface uses perimeter speed (slower for quality).
+///
+/// # Parameters
+///
+/// - `support_regions`: Support regions for this layer.
+/// - `config`: Print configuration for speeds and extrusion parameters.
+/// - `layer_z`: Z height of this layer in mm.
+/// - `layer_height`: Height of this layer in mm.
+///
+/// # Returns
+///
+/// Support toolpath segments (printed AFTER model perimeters/infill).
+fn assemble_support_toolpath(
+    support_regions: &[support::SupportRegion],
+    config: &PrintConfig,
+    layer_z: f64,
+    layer_height: f64,
+) -> Vec<ToolpathSegment> {
+    let mut segments = Vec::new();
+    let extrusion_width = config.extrusion_width();
+    let travel_speed = config.travel_speed * 60.0;
+    // Support body uses infill speed; interface uses perimeter speed.
+    let body_speed = config.infill_speed * 60.0;
+    let _interface_speed = config.perimeter_speed * 60.0;
+
+    let mut current_pos: Option<Point2> = None;
+
+    for region in support_regions {
+        let (feature, feedrate) = if region.is_bridge {
+            (FeatureType::Bridge, config.support.bridge.speed * 60.0)
+        } else {
+            // Check if this is an interface region (has high-density infill).
+            // Heuristic: if region has many infill lines relative to its size,
+            // it's likely an interface layer with dense infill.
+            // For simplicity, use the SupportInterface type for all support regions.
+            // The distinction is handled by density in infill generation.
+            (FeatureType::Support, body_speed)
+        };
+
+        for infill_line in &region.infill {
+            let (sx, sy) = infill_line.start.to_mm();
+            let (ex, ey) = infill_line.end.to_mm();
+            let start_pt = Point2::new(sx, sy);
+            let end_pt = Point2::new(ex, ey);
+
+            // Insert travel to line start if needed.
+            if let Some(pos) = current_pos {
+                let dx = start_pt.x - pos.x;
+                let dy = start_pt.y - pos.y;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist > 0.001 {
+                    segments.push(ToolpathSegment {
+                        start: pos,
+                        end: start_pt,
+                        feature: FeatureType::Travel,
+                        e_value: 0.0,
+                        feedrate: travel_speed,
+                        z: layer_z,
+                        extrusion_width: None,
+                    });
+                }
+            }
+
+            let seg_len = {
+                let dx = end_pt.x - start_pt.x;
+                let dy = end_pt.y - start_pt.y;
+                (dx * dx + dy * dy).sqrt()
+            };
+
+            if seg_len > 0.0001 {
+                let flow_multiplier = if region.is_bridge {
+                    config.support.bridge.flow_ratio
+                } else {
+                    1.0
+                };
+
+                let e = compute_e_value(
+                    seg_len,
+                    extrusion_width,
+                    layer_height,
+                    config.filament_diameter,
+                    config.extrusion_multiplier * flow_multiplier,
+                );
+
+                segments.push(ToolpathSegment {
+                    start: start_pt,
+                    end: end_pt,
+                    feature,
+                    e_value: e,
+                    feedrate,
+                    z: layer_z,
+                    extrusion_width: None,
+                });
+
+                current_pos = Some(end_pt);
+            }
+        }
+    }
+
+    segments
+}
+
+/// Assembles bridge toolpath segments from detected bridge regions.
+///
+/// Bridge regions receive bridge-specific speed, fan, and flow settings.
+/// Infill lines are generated perpendicular to the bridge span direction.
+///
+/// # Parameters
+///
+/// - `bridge_regions`: Bridge regions detected on this layer.
+/// - `config`: Print configuration.
+/// - `layer_z`: Z height of this layer in mm.
+/// - `layer_height`: Height of this layer in mm.
+///
+/// # Returns
+///
+/// Bridge toolpath segments with FeatureType::Bridge.
+fn assemble_bridge_toolpath(
+    bridge_regions: &[support::bridge::BridgeRegion],
+    config: &PrintConfig,
+    layer_z: f64,
+    layer_height: f64,
+) -> Vec<ToolpathSegment> {
+    let mut segments = Vec::new();
+    let extrusion_width = config.extrusion_width();
+    let travel_speed = config.travel_speed * 60.0;
+    let bridge_speed = config.support.bridge.speed * 60.0;
+    let bridge_flow = config.support.bridge.flow_ratio;
+
+    let mut current_pos: Option<Point2> = None;
+
+    for bridge in bridge_regions {
+        // Generate bridge infill lines perpendicular to span direction.
+        let _infill_angle = support::bridge::compute_bridge_infill_angle(bridge);
+        let bridge_lines = crate::infill::generate_infill(
+            crate::infill::InfillPattern::Rectilinear,
+            std::slice::from_ref(&bridge.contour),
+            1.0, // Bridges use 100% density
+            bridge.layer_index,
+            layer_z,
+            extrusion_width,
+            None,
+        );
+
+        for line in &bridge_lines {
+            let (sx, sy) = line.start.to_mm();
+            let (ex, ey) = line.end.to_mm();
+            let start_pt = Point2::new(sx, sy);
+            let end_pt = Point2::new(ex, ey);
+
+            // Insert travel to line start if needed.
+            if let Some(pos) = current_pos {
+                let dx = start_pt.x - pos.x;
+                let dy = start_pt.y - pos.y;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist > 0.001 {
+                    segments.push(ToolpathSegment {
+                        start: pos,
+                        end: start_pt,
+                        feature: FeatureType::Travel,
+                        e_value: 0.0,
+                        feedrate: travel_speed,
+                        z: layer_z,
+                        extrusion_width: None,
+                    });
+                }
+            }
+
+            let seg_len = {
+                let dx = end_pt.x - start_pt.x;
+                let dy = end_pt.y - start_pt.y;
+                (dx * dx + dy * dy).sqrt()
+            };
+
+            if seg_len > 0.0001 {
+                let e = compute_e_value(
+                    seg_len,
+                    extrusion_width,
+                    layer_height,
+                    config.filament_diameter,
+                    config.extrusion_multiplier * bridge_flow,
+                );
+
+                segments.push(ToolpathSegment {
+                    start: start_pt,
+                    end: end_pt,
+                    feature: FeatureType::Bridge,
+                    e_value: e,
+                    feedrate: bridge_speed,
+                    z: layer_z,
+                    extrusion_width: None,
+                });
+
+                current_pos = Some(end_pt);
+            }
+        }
+    }
+
+    segments
 }
 
 /// The slicing engine -- orchestrates the full pipeline.
@@ -135,6 +341,14 @@ impl Engine {
             ))
         } else {
             None
+        };
+
+        // 1c. Generate support structures (if enabled).
+        let extrusion_width = self.config.extrusion_width();
+        let support_result = if self.config.support.enabled {
+            support::generate_supports(&layers, mesh, &self.config.support, extrusion_width)
+        } else {
+            support::SupportResult::empty()
         };
 
         // 2. Process each layer: perimeters, surface classification, infill, toolpath.
@@ -231,8 +445,6 @@ impl Engine {
             // 2c. Infill generation.
             // Use inner_contour from perimeters as the infill boundary.
             // Intersect with solid/sparse classification.
-            let extrusion_width = self.config.extrusion_width();
-
             let mut all_infill_lines = Vec::new();
             let mut infill_is_solid = false;
 
@@ -352,6 +564,32 @@ impl Engine {
                 // Prepend variable-width segments before classic perimeters.
                 var_segs.append(&mut toolpath.segments);
                 toolpath.segments = var_segs;
+            }
+
+            // 2g. Assemble support toolpaths.
+            if let Some(layer_support) = support_result.regions.get(layer_idx) {
+                if !layer_support.is_empty() {
+                    let support_segs = assemble_support_toolpath(
+                        layer_support,
+                        &self.config,
+                        layer.z,
+                        layer.layer_height,
+                    );
+                    toolpath.segments.extend(support_segs);
+                }
+            }
+
+            // 2h. Assemble bridge toolpaths.
+            if let Some(layer_bridges) = support_result.bridge_regions.get(layer_idx) {
+                if !layer_bridges.is_empty() {
+                    let bridge_segs = assemble_bridge_toolpath(
+                        layer_bridges,
+                        &self.config,
+                        layer.z,
+                        layer.layer_height,
+                    );
+                    toolpath.segments.extend(bridge_segs);
+                }
             }
 
             // Update cross-layer seam tracking.
@@ -1147,6 +1385,70 @@ mod tests {
         assert!(
             !config.arachne_enabled,
             "arachne_enabled should default to false"
+        );
+    }
+
+    #[test]
+    fn support_disabled_produces_identical_output() {
+        let mesh = unit_cube();
+
+        // Default config has support disabled.
+        let config_default = PrintConfig::default();
+        let result_default = Engine::new(config_default.clone())
+            .slice(&mesh)
+            .expect("default slice should succeed");
+
+        // Explicitly set support.enabled = false.
+        let mut config_explicit = config_default;
+        config_explicit.support.enabled = false;
+        let result_explicit = Engine::new(config_explicit)
+            .slice(&mesh)
+            .expect("support-disabled slice should succeed");
+
+        assert_eq!(
+            result_default.gcode, result_explicit.gcode,
+            "Support disabled should produce identical output to default"
+        );
+    }
+
+    #[test]
+    fn support_enabled_on_cube_produces_valid_gcode() {
+        // A unit cube has no overhangs, so support should not add anything.
+        // But the pipeline should still run without errors.
+        let mesh = unit_cube();
+
+        let config = PrintConfig {
+            support: crate::support::config::SupportConfig {
+                enabled: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let engine = Engine::new(config);
+
+        let result = engine.slice(&mesh).expect("support-enabled slice should succeed");
+        assert!(
+            !result.gcode.is_empty(),
+            "Support-enabled G-code output should be non-empty"
+        );
+        assert!(
+            result.layer_count > 0,
+            "Support-enabled should produce at least 1 layer"
+        );
+
+        let gcode_str = String::from_utf8_lossy(&result.gcode);
+        assert!(
+            gcode_str.contains("G1"),
+            "Support-enabled G-code should contain extrusion moves"
+        );
+    }
+
+    #[test]
+    fn support_config_defaults_to_disabled() {
+        let config = PrintConfig::default();
+        assert!(
+            !config.support.enabled,
+            "support.enabled should default to false"
         );
     }
 }

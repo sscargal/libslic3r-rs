@@ -14,7 +14,7 @@
 use slicecore_gcode_io::GcodeCommand;
 
 use crate::config::PrintConfig;
-use crate::planner::{plan_fan, plan_retraction, plan_temperatures};
+use crate::planner::{plan_bridge_fan, plan_fan, plan_retraction, plan_temperatures};
 use crate::toolpath::{FeatureType, LayerToolpath};
 
 /// Generates G-code commands for a single layer's toolpath.
@@ -60,6 +60,16 @@ pub fn generate_layer_gcode(
     for seg in &toolpath.segments {
         // Insert feature type comment when feature changes.
         if last_feature != Some(seg.feature) {
+            // Handle bridge fan override: when entering Bridge, set max fan.
+            // When leaving Bridge, restore normal fan.
+            if seg.feature == FeatureType::Bridge {
+                let bridge_fan_cmds = plan_bridge_fan(config.support.bridge.fan_speed);
+                cmds.extend(bridge_fan_cmds);
+            } else if last_feature == Some(FeatureType::Bridge) {
+                // Restore normal fan speed when leaving bridge.
+                cmds.push(GcodeCommand::SetFanSpeed(config.fan_speed));
+            }
+
             let label = feature_label(seg.feature);
             cmds.push(GcodeCommand::Comment(format!("TYPE:{label}")));
             last_feature = Some(seg.feature);

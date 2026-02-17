@@ -214,6 +214,26 @@ pub fn plan_fan(
 }
 
 // ---------------------------------------------------------------------------
+// Bridge fan control
+// ---------------------------------------------------------------------------
+
+/// Generates G-code command to set bridge fan speed.
+///
+/// Used when entering a bridge feature type to ensure maximum cooling
+/// during unsupported bridging.
+///
+/// # Parameters
+///
+/// - `bridge_fan_speed`: Fan speed for bridge sections (0-255, typically 255).
+///
+/// # Returns
+///
+/// A single `SetFanSpeed` command for the bridge fan speed.
+pub fn plan_bridge_fan(bridge_fan_speed: u8) -> Vec<GcodeCommand> {
+    vec![GcodeCommand::SetFanSpeed(bridge_fan_speed)]
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
