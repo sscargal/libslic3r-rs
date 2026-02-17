@@ -11,6 +11,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::error::EngineError;
+use crate::infill::InfillPattern;
 
 /// Controls the order in which perimeter walls are printed.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -46,6 +47,8 @@ pub struct PrintConfig {
     pub wall_order: WallOrder,
 
     // --- Infill ---
+    /// Infill pattern to use for sparse infill regions.
+    pub infill_pattern: InfillPattern,
     /// Infill density as a fraction (0.0 = hollow, 1.0 = solid).
     pub infill_density: f64,
     /// Number of solid top layers.
@@ -122,6 +125,7 @@ impl Default for PrintConfig {
             wall_count: 2,
             wall_order: WallOrder::default(),
 
+            infill_pattern: InfillPattern::default(),
             infill_density: 0.2,
             top_solid_layers: 3,
             bottom_solid_layers: 3,

@@ -1,33 +1,14 @@
 //! Rectilinear infill pattern generation.
 //!
-//! Infill provides internal structural support for printed objects. This module
-//! generates parallel scan lines clipped to an infill region boundary, producing
-//! the line segments that will become infill extrusion moves.
-//!
-//! Phase 3 supports 0-degree (horizontal) and 90-degree (vertical) scan lines.
-//! Per-layer angle alternation creates a cross-hatching pattern for structural
-//! strength.
+//! Generates parallel scan lines clipped to an infill region boundary.
+//! Supports horizontal (0-degree) and vertical (90-degree) scan lines.
+//! Per-layer angle alternation creates a cross-hatching pattern for
+//! structural strength.
 
 use slicecore_geo::polygon::ValidPolygon;
-use slicecore_math::{mm_to_coord, Coord, IPoint2};
+use slicecore_math::Coord;
 
-/// A line segment in integer coordinate space representing one infill extrusion.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct InfillLine {
-    /// Start point of the infill line.
-    pub start: IPoint2,
-    /// End point of the infill line.
-    pub end: IPoint2,
-}
-
-/// Result of infill generation for a single layer.
-#[derive(Clone, Debug)]
-pub struct LayerInfill {
-    /// Infill extrusion segments.
-    pub lines: Vec<InfillLine>,
-    /// True if this is a solid infill region (top/bottom).
-    pub is_solid: bool,
-}
+use super::{compute_bounding_box, compute_spacing, InfillLine};
 
 /// Generates rectilinear infill lines clipped to an infill region.
 ///
@@ -40,7 +21,7 @@ pub struct LayerInfill {
 /// # Returns
 /// A vector of [`InfillLine`] segments, each representing one infill extrusion.
 /// Returns empty if density <= 0.0 or infill_region is empty.
-pub fn generate_rectilinear_infill(
+pub fn generate(
     infill_region: &[ValidPolygon],
     density: f64,
     angle_degrees: f64,
@@ -53,20 +34,39 @@ pub fn generate_rectilinear_infill(
     // Clamp density to 1.0 max.
     let density = density.min(1.0);
 
-    // Compute line spacing in coord units.
-    // At density 1.0 (solid), spacing = line_width.
-    // At lower densities, spacing increases.
-    let spacing_mm = line_width / density;
-    let spacing = mm_to_coord(spacing_mm);
-
-    if spacing <= 0 {
-        return Vec::new();
-    }
+    let spacing = match compute_spacing(density, line_width) {
+        Some(s) => s,
+        None => return Vec::new(),
+    };
 
     // Compute bounding box of all infill region polygons.
     let (min_x, min_y, max_x, max_y) = compute_bounding_box(infill_region);
 
     // Generate scan lines based on angle.
+    generate_at_angle(
+        infill_region,
+        spacing,
+        angle_degrees,
+        min_x,
+        min_y,
+        max_x,
+        max_y,
+    )
+}
+
+/// Generates infill lines at a given angle.
+///
+/// For Phase 4: supports 0 degrees (horizontal) and 90 degrees (vertical).
+/// This helper is reused by Grid infill.
+pub(crate) fn generate_at_angle(
+    infill_region: &[ValidPolygon],
+    spacing: Coord,
+    angle_degrees: f64,
+    min_x: Coord,
+    min_y: Coord,
+    max_x: Coord,
+    max_y: Coord,
+) -> Vec<InfillLine> {
     let is_vertical = (angle_degrees - 90.0).abs() < 1.0;
 
     if is_vertical {
@@ -77,40 +77,9 @@ pub fn generate_rectilinear_infill(
     }
 }
 
-/// Returns the infill angle for a given layer index.
-///
-/// Even layers use 0 degrees (horizontal), odd layers use 90 degrees (vertical).
-/// This creates a cross-hatching pattern for structural strength.
-pub fn alternate_infill_angle(layer_index: usize) -> f64 {
-    if layer_index % 2 == 0 {
-        0.0
-    } else {
-        90.0
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
-
-/// Computes the bounding box of all polygons.
-fn compute_bounding_box(polygons: &[ValidPolygon]) -> (Coord, Coord, Coord, Coord) {
-    let mut min_x = Coord::MAX;
-    let mut min_y = Coord::MAX;
-    let mut max_x = Coord::MIN;
-    let mut max_y = Coord::MIN;
-
-    for poly in polygons {
-        for pt in poly.points() {
-            min_x = min_x.min(pt.x);
-            min_y = min_y.min(pt.y);
-            max_x = max_x.max(pt.x);
-            max_y = max_y.max(pt.y);
-        }
-    }
-
-    (min_x, min_y, max_x, max_y)
-}
 
 /// Generates horizontal scan lines and clips them against the infill region.
 fn generate_horizontal_lines(
@@ -147,8 +116,8 @@ fn generate_horizontal_lines(
 
                 if x_start < x_end {
                     lines.push(InfillLine {
-                        start: IPoint2::new(x_start, y),
-                        end: IPoint2::new(x_end, y),
+                        start: slicecore_math::IPoint2::new(x_start, y),
+                        end: slicecore_math::IPoint2::new(x_end, y),
                     });
                 }
             }
@@ -194,8 +163,8 @@ fn generate_vertical_lines(
 
                 if y_start < y_end {
                     lines.push(InfillLine {
-                        start: IPoint2::new(x, y_start),
-                        end: IPoint2::new(x, y_end),
+                        start: slicecore_math::IPoint2::new(x, y_start),
+                        end: slicecore_math::IPoint2::new(x, y_end),
                     });
                 }
             }
@@ -212,7 +181,10 @@ fn generate_vertical_lines(
 ///
 /// For each edge (p1, p2) where min(p1.y, p2.y) <= y <= max(p1.y, p2.y),
 /// compute the x intersection via linear interpolation.
-fn find_horizontal_intersections(polygons: &[ValidPolygon], y: Coord) -> Vec<Coord> {
+pub(crate) fn find_horizontal_intersections(
+    polygons: &[ValidPolygon],
+    y: Coord,
+) -> Vec<Coord> {
     let mut intersections = Vec::new();
 
     for poly in polygons {
@@ -251,7 +223,10 @@ fn find_horizontal_intersections(polygons: &[ValidPolygon], y: Coord) -> Vec<Coo
 }
 
 /// Finds Y-coordinates where a vertical line at `x` intersects polygon edges.
-fn find_vertical_intersections(polygons: &[ValidPolygon], x: Coord) -> Vec<Coord> {
+pub(crate) fn find_vertical_intersections(
+    polygons: &[ValidPolygon],
+    x: Coord,
+) -> Vec<Coord> {
     let mut intersections = Vec::new();
 
     for poly in polygons {
@@ -296,7 +271,9 @@ fn find_vertical_intersections(polygons: &[ValidPolygon], x: Coord) -> Vec<Coord
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::infill::{alternate_infill_angle, generate_rectilinear_infill};
     use slicecore_geo::polygon::Polygon;
+    use slicecore_math::mm_to_coord;
 
     /// Helper to create a validated CCW square at the origin with given size (mm).
     fn make_square(size: f64) -> ValidPolygon {

@@ -37,7 +37,8 @@ pub use engine::{Engine, SliceResult};
 pub use error::EngineError;
 pub use extrusion::{compute_e_value, extrusion_cross_section, move_length};
 pub use infill::{
-    alternate_infill_angle, generate_rectilinear_infill, InfillLine, LayerInfill,
+    alternate_infill_angle, generate_infill, generate_rectilinear_infill, InfillLine,
+    InfillPattern, LayerInfill,
 };
 pub use perimeter::{generate_perimeters, ContourPerimeters, PerimeterShell};
 pub use surface::{classify_surfaces, SurfaceClassification};

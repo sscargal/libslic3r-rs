@@ -21,7 +21,7 @@ use slicecore_slicer::slice_mesh;
 use crate::config::PrintConfig;
 use crate::error::EngineError;
 use crate::gcode_gen::generate_full_gcode;
-use crate::infill::{generate_rectilinear_infill, alternate_infill_angle, LayerInfill};
+use crate::infill::{generate_infill, InfillPattern, LayerInfill};
 use crate::perimeter::generate_perimeters;
 use crate::planner::{generate_brim, generate_skirt};
 use crate::surface::classify_surfaces;
@@ -131,20 +131,20 @@ impl Engine {
             // 2c. Infill generation.
             // Use inner_contour from perimeters as the infill boundary.
             // Intersect with solid/sparse classification.
-            let angle = alternate_infill_angle(layer_idx);
             let extrusion_width = self.config.extrusion_width();
 
             let mut all_infill_lines = Vec::new();
             let mut infill_is_solid = false;
 
             // Generate solid infill for solid regions.
+            // Solid infill always uses Rectilinear regardless of config pattern.
             if !classification.solid_regions.is_empty() {
-                // In Phase 3, we use the solid_regions directly as the infill boundary
-                // since they represent the areas needing 100% fill.
-                let solid_lines = generate_rectilinear_infill(
+                let solid_lines = generate_infill(
+                    InfillPattern::Rectilinear,
                     &classification.solid_regions,
                     1.0,
-                    angle,
+                    layer_idx,
+                    layer.z,
                     extrusion_width,
                 );
                 if !solid_lines.is_empty() {
@@ -153,14 +153,16 @@ impl Engine {
                 }
             }
 
-            // Generate sparse infill for sparse regions.
+            // Generate sparse infill for sparse regions using configured pattern.
             if !classification.sparse_regions.is_empty()
                 && self.config.infill_density > 0.0
             {
-                let sparse_lines = generate_rectilinear_infill(
+                let sparse_lines = generate_infill(
+                    self.config.infill_pattern,
                     &classification.sparse_regions,
                     self.config.infill_density,
-                    angle,
+                    layer_idx,
+                    layer.z,
                     extrusion_width,
                 );
                 all_infill_lines.extend(sparse_lines);
@@ -173,10 +175,12 @@ impl Engine {
             {
                 let inner = &perimeters[0].inner_contour;
                 if !inner.is_empty() && self.config.infill_density > 0.0 {
-                    let lines = generate_rectilinear_infill(
+                    let lines = generate_infill(
+                        self.config.infill_pattern,
                         inner,
                         self.config.infill_density,
-                        angle,
+                        layer_idx,
+                        layer.z,
                         extrusion_width,
                     );
                     all_infill_lines.extend(lines);
