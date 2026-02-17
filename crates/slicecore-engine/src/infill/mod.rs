@@ -12,6 +12,7 @@
 //! Future patterns (Honeycomb, Gyroid, etc.) currently fall back to Rectilinear.
 
 pub mod grid;
+pub mod honeycomb;
 pub mod monotonic;
 pub mod rectilinear;
 
@@ -93,9 +94,8 @@ pub fn generate_infill(
         InfillPattern::Monotonic => {
             monotonic::generate(infill_region, density, layer_index, line_width)
         }
-        // TODO: implement in plan 04-02
         InfillPattern::Honeycomb => {
-            rectilinear::generate(infill_region, density, angle, line_width)
+            honeycomb::generate(infill_region, density, layer_index, line_width)
         }
         // TODO: implement in plan 04-03
         InfillPattern::Gyroid => {
