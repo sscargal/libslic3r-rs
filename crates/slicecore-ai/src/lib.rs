@@ -29,12 +29,14 @@
 
 pub mod config;
 pub mod error;
+pub mod geometry;
 pub mod provider;
 pub mod providers;
 pub mod types;
 
 pub use config::{AiConfig, ProviderType};
 pub use error::AiError;
+pub use geometry::{extract_geometry_features, Dimensions, GeometryFeatures, PrintDifficulty};
 pub use provider::AiProvider;
 pub use providers::{create_provider, AnthropicProvider, OllamaProvider, OpenAiProvider};
 pub use types::{
