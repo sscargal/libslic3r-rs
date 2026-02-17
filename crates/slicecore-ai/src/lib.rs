@@ -34,6 +34,7 @@ pub mod profile;
 pub mod prompt;
 pub mod provider;
 pub mod providers;
+pub mod suggest;
 pub mod types;
 
 pub use config::{AiConfig, ProviderType};
@@ -43,6 +44,7 @@ pub use profile::{extract_json, parse_profile_suggestion, ProfileSuggestion};
 pub use prompt::build_profile_prompt;
 pub use provider::AiProvider;
 pub use providers::{create_provider, AnthropicProvider, OllamaProvider, OpenAiProvider};
+pub use suggest::{suggest_profile, suggest_profile_from_features, suggest_profile_sync};
 pub use types::{
     CompletionRequest, CompletionResponse, FinishReason, Message, ProviderCapabilities,
     ResponseFormat, Role, Usage,
