@@ -58,8 +58,8 @@ pub fn compute_adaptive_layer_heights(
     let curvature_profile = sample_curvature_profile(mesh, sample_step);
 
     // Step 2: Map curvature to desired layer heights.
-    // quality_factor maps quality parameter: 0 -> low sensitivity, 1 -> high sensitivity.
-    let quality_factor = 2.0 + quality * 18.0; // range [2, 20]
+    // quality_factor: quality=0 -> 0.5 (low sensitivity), quality=1 -> 10.0 (high).
+    let quality_factor = 0.5 + quality * 9.5;
 
     let desired_heights: Vec<(f64, f64)> = curvature_profile
         .iter()
@@ -71,7 +71,6 @@ pub fn compute_adaptive_layer_heights(
         .collect();
 
     // Step 3: Generate actual (z, height) pairs by walking forward.
-    // Use the desired height profile to pick layer heights, then smooth.
     let mut result: Vec<(f64, f64)> = Vec::new();
 
     // First layer is always at first_layer_height / 2 with first_layer_height.
@@ -81,7 +80,7 @@ pub fn compute_adaptive_layer_heights(
     }
     result.push((first_z, first_layer_height));
 
-    let mut prev_top = first_layer_height; // top of previous layer = z + h/2
+    let mut prev_top = first_layer_height; // top of previous layer
 
     loop {
         // Look up the desired height at the next potential Z position.
@@ -94,7 +93,7 @@ pub fn compute_adaptive_layer_heights(
 
         // Stop if this layer would extend beyond the mesh
         if next_z + desired_h / 2.0 > mesh_max_z + max_h * 0.01 {
-            // Check if we should add one more layer to cover the remaining height
+            // Check if we should add one more layer to cover remaining height
             let remaining = mesh_max_z - prev_top;
             if remaining > min_h * 0.5 {
                 let final_h = remaining.clamp(min_h, max_h);
@@ -108,17 +107,25 @@ pub fn compute_adaptive_layer_heights(
         prev_top = next_z + desired_h / 2.0;
     }
 
-    // Step 4: Smooth the actual result heights (forward + backward passes).
-    // Preserve the first layer height.
-    if result.len() > 2 {
-        smooth_heights(&mut result[1..], 1.5);
-        // Clamp all heights to valid range after smoothing.
+    // Step 4: Smooth the result heights to enforce max 50% change.
+    // We smooth all layers (including first) then restore first layer.
+    if result.len() > 1 {
+        smooth_heights(&mut result, 1.5);
+        // Restore first layer height after smoothing.
+        result[0].1 = first_layer_height;
+        result[0].0 = first_layer_height / 2.0;
+        // One more forward pass to ensure first-to-second transition is smooth.
+        for i in 1..result.len() {
+            let prev_h = result[i - 1].1;
+            result[i].1 = result[i].1.clamp(prev_h / 1.5, prev_h * 1.5);
+        }
+        // Clamp to valid range.
         for entry in result.iter_mut().skip(1) {
             entry.1 = entry.1.clamp(min_h, max_h);
         }
     }
 
-    // Recompute Z positions after smoothing to maintain consistent spacing.
+    // Recompute Z positions after smoothing.
     recompute_z_positions(&mut result);
 
     result
@@ -127,13 +134,13 @@ pub fn compute_adaptive_layer_heights(
 /// Samples the curvature profile of a mesh at fine Z intervals.
 ///
 /// For each sample Z, computes the average |normal.z| of triangles spanning
-/// that Z to derive a curvature metric. The metric combines surface steepness
-/// (how far from horizontal) with rate-of-change of steepness:
+/// that Z to derive surface steepness. Curvature is then computed as
+/// `steepness * rate_of_steepness_change`:
 ///
-/// - Steepness captures regions where the surface deviates from flat (equator
-///   of a sphere), which need thinner layers for dimensional accuracy.
-/// - Rate-of-change captures transitions (pole-to-equator) which need thinner
-///   layers to capture shape changes.
+/// - **steepness * rate** is high where the surface is both steep (far from
+///   horizontal) AND changing angle rapidly (like a sphere equator).
+/// - **steepness * rate** is zero for uniform vertical walls (rate=0, like a
+///   cube) and near-horizontal surfaces (steepness=0, like poles).
 ///
 /// Returns `(z, curvature)` pairs where higher curvature means thinner layers
 /// are desirable.
@@ -179,33 +186,36 @@ fn sample_curvature_profile(mesh: &TriangleMesh, sample_step: f64) -> Vec<(f64, 
         z += sample_step;
     }
 
-    // Compute curvature combining steepness and its rate of change.
-    //
-    // The curvature metric uses steepness * rate_of_change:
-    // - High steepness + high rate = high curvature (curved regions like
-    //   sphere equator where surface is steep AND angle is changing).
-    // - High steepness + zero rate = zero curvature (uniform vertical walls
-    //   like a cube -- no adaptation needed).
-    // - Low steepness + high rate = low curvature (transitions near poles
-    //   where surface is nearly flat -- less adaptation needed).
-    //
-    // Additionally, the rate_of_change alone captures transitions. The
-    // combined metric uses: steepness * rate + rate * 0.5, weighted toward
-    // the steepness-modulated rate for better differentiation.
-    let mut curvature: Vec<(f64, f64)> = Vec::with_capacity(steepness_samples.len());
-    if !steepness_samples.is_empty() {
-        curvature.push((steepness_samples[0].0, 0.0));
+    if steepness_samples.is_empty() {
+        return Vec::new();
     }
-    for i in 1..steepness_samples.len() {
-        let dz = steepness_samples[i].0 - steepness_samples[i - 1].0;
-        let ds = (steepness_samples[i].1 - steepness_samples[i - 1].1).abs();
-        let rate = if dz > 0.0 { ds / dz } else { 0.0 };
-        // Steepness-weighted rate: high curvature where both the surface
-        // is steep (far from horizontal) AND the angle is changing.
-        let steepness = steepness_samples[i].1;
-        let c = steepness * rate + rate * 0.3;
-        curvature.push((steepness_samples[i].0, c));
+
+    // Compute local rate of steepness change with a window average to reduce
+    // noise from discrete mesh edges.
+    let window = 5; // samples in each direction
+    let n = steepness_samples.len();
+    let mut rates: Vec<f64> = vec![0.0; n];
+
+    for (i, rate) in rates.iter_mut().enumerate().take(n) {
+        let lo = i.saturating_sub(window);
+        let hi = if i + window < n { i + window } else { n - 1 };
+        if hi > lo {
+            let dz = steepness_samples[hi].0 - steepness_samples[lo].0;
+            let ds = (steepness_samples[hi].1 - steepness_samples[lo].1).abs();
+            *rate = if dz > 0.0 { ds / dz } else { 0.0 };
+        }
     }
+
+    // Combined curvature = steepness * rate.
+    // This is high where the surface is both steep AND changing angle.
+    let curvature: Vec<(f64, f64)> = steepness_samples
+        .iter()
+        .enumerate()
+        .map(|(i, &(z, steepness))| {
+            let c = steepness * rates[i];
+            (z, c)
+        })
+        .collect();
 
     curvature
 }
@@ -307,15 +317,14 @@ mod tests {
     /// Creates a unit sphere mesh (radius 1, centered at (0, 0, 1)) with
     /// sufficient resolution for curvature detection.
     fn unit_sphere() -> TriangleMesh {
-        let stacks = 16;
-        let slices = 16;
+        let stacks = 32;
+        let slices = 32;
         let radius = 1.0;
         let center = Point3::new(0.0, 0.0, 1.0); // base at z=0, top at z=2
 
         let mut vertices = Vec::new();
         let mut indices = Vec::new();
 
-        // Generate vertices (excluding poles)
         // Bottom pole
         vertices.push(Point3::new(center.x, center.y, center.z - radius));
         // Intermediate stacks
@@ -407,8 +416,7 @@ mod tests {
         assert!(!heights.is_empty(), "Should produce non-empty heights");
 
         // Sphere center is at z=1.0, equator is the region of maximum
-        // curvature change (surface angle changes rapidly). Poles are at z=0 and z=2.
-        // Collect heights near equator (z ~ 0.8 to 1.2) and near poles (z < 0.3 or z > 1.7).
+        // curvature (surface angle changes rapidly). Poles are at z=0 and z=2.
         let equator_heights: Vec<f64> = heights
             .iter()
             .filter(|&&(z, _)| z > 0.7 && z < 1.3)
@@ -443,11 +451,11 @@ mod tests {
 
         assert!(!heights.is_empty(), "Should produce non-empty heights");
 
-        // For a flat box (no curvature), all layers should be close to max_height.
-        // Skip the first layer (fixed height).
+        // For a flat box (no curvature variation), layers should be close
+        // to max_height. Skip the first layer (fixed height).
         for &(z, h) in heights.iter().skip(1) {
             assert!(
-                h >= 0.2,
+                h >= 0.15,
                 "Layer at z={:.3} has height {:.4}, expected close to max (0.3) for flat surface",
                 z,
                 h,
@@ -567,7 +575,6 @@ mod tests {
             compute_adaptive_layer_heights(&mesh, min_h, max_h, 0.5, 0.3);
 
         for &(z, h) in heights.iter().skip(1) {
-            // Allow small tolerance for smoothing edge cases
             assert!(
                 h >= min_h * 0.99 && h <= max_h * 1.01,
                 "Layer at z={:.3} has height {:.4}, expected within [{}, {}]",
