@@ -2102,4 +2102,394 @@ mod tests {
             "length_m should be length_mm / 1000"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Phase 6 Success Criteria Integration Tests
+    // -----------------------------------------------------------------------
+
+    /// Creates a 20mm calibration cube mesh centered at (100,100) on the bed.
+    fn calibration_cube_20mm() -> TriangleMesh {
+        let ox = 90.0;
+        let oy = 90.0;
+        let vertices = vec![
+            Point3::new(ox, oy, 0.0),
+            Point3::new(ox + 20.0, oy, 0.0),
+            Point3::new(ox + 20.0, oy + 20.0, 0.0),
+            Point3::new(ox, oy + 20.0, 0.0),
+            Point3::new(ox, oy, 20.0),
+            Point3::new(ox + 20.0, oy, 20.0),
+            Point3::new(ox + 20.0, oy + 20.0, 20.0),
+            Point3::new(ox, oy + 20.0, 20.0),
+        ];
+        let indices = vec![
+            [4, 5, 6],
+            [4, 6, 7],
+            [1, 0, 3],
+            [1, 3, 2],
+            [1, 2, 6],
+            [1, 6, 5],
+            [0, 4, 7],
+            [0, 7, 3],
+            [3, 7, 6],
+            [3, 6, 2],
+            [0, 1, 5],
+            [0, 5, 4],
+        ];
+        TriangleMesh::new(vertices, indices).expect("calibration cube should be valid")
+    }
+
+    /// Creates a box mesh from (x0, y0, z0) to (x1, y1, z1).
+    fn make_box_mesh(x0: f64, y0: f64, z0: f64, x1: f64, y1: f64, z1: f64) -> TriangleMesh {
+        let vertices = vec![
+            Point3::new(x0, y0, z0),
+            Point3::new(x1, y0, z0),
+            Point3::new(x1, y1, z0),
+            Point3::new(x0, y1, z0),
+            Point3::new(x0, y0, z1),
+            Point3::new(x1, y0, z1),
+            Point3::new(x1, y1, z1),
+            Point3::new(x0, y1, z1),
+        ];
+        let indices = vec![
+            [4, 5, 6],
+            [4, 6, 7],
+            [1, 0, 3],
+            [1, 3, 2],
+            [1, 2, 6],
+            [1, 6, 5],
+            [0, 4, 7],
+            [0, 7, 3],
+            [3, 7, 6],
+            [3, 6, 2],
+            [0, 1, 5],
+            [0, 5, 4],
+        ];
+        TriangleMesh::new(vertices, indices).expect("box mesh should be valid")
+    }
+
+    // ---- SC1: Firmware dialect validation ----
+
+    #[test]
+    fn test_phase_6_sc1_klipper_dialect() {
+        let config = PrintConfig {
+            gcode_dialect: slicecore_gcode_io::GcodeDialect::Klipper,
+            ..Default::default()
+        };
+        let engine = Engine::new(config);
+        let mesh = calibration_cube_20mm();
+
+        let result = engine.slice(&mesh).expect("Klipper slice should succeed");
+        let gcode_str = String::from_utf8_lossy(&result.gcode);
+
+        // Validate G-code passes syntax validation.
+        let validation = slicecore_gcode_io::validate_gcode(&gcode_str);
+        assert!(
+            validation.valid,
+            "Klipper G-code should pass validation: {:?}",
+            validation.errors
+        );
+
+        // Check Klipper-specific content.
+        assert!(
+            gcode_str.contains("Klipper dialect"),
+            "Should contain 'Klipper dialect' in start comment"
+        );
+        assert!(
+            gcode_str.contains("BED_MESH_CALIBRATE"),
+            "Should contain Klipper-specific BED_MESH_CALIBRATE"
+        );
+        assert!(
+            gcode_str.contains("TURN_OFF_HEATERS"),
+            "Should contain Klipper-specific TURN_OFF_HEATERS"
+        );
+
+        // G-code should contain extrusion moves.
+        assert!(
+            gcode_str.contains("G1"),
+            "Klipper G-code should contain G1 extrusion moves"
+        );
+    }
+
+    #[test]
+    fn test_phase_6_sc1_reprap_dialect() {
+        let config = PrintConfig {
+            gcode_dialect: slicecore_gcode_io::GcodeDialect::RepRapFirmware,
+            ..Default::default()
+        };
+        let engine = Engine::new(config);
+        let mesh = calibration_cube_20mm();
+
+        let result = engine.slice(&mesh).expect("RepRap slice should succeed");
+        let gcode_str = String::from_utf8_lossy(&result.gcode);
+
+        // Validate G-code passes syntax validation.
+        let validation = slicecore_gcode_io::validate_gcode(&gcode_str);
+        assert!(
+            validation.valid,
+            "RepRap G-code should pass validation: {:?}",
+            validation.errors
+        );
+
+        // Check RepRap-specific content.
+        assert!(
+            gcode_str.contains("RepRapFirmware dialect"),
+            "Should contain 'RepRapFirmware dialect' in start comment"
+        );
+        assert!(
+            gcode_str.contains("M0 H1"),
+            "Should contain RepRap-specific halt command M0 H1"
+        );
+
+        // G-code should contain extrusion moves.
+        assert!(
+            gcode_str.contains("G1"),
+            "RepRap G-code should contain G1 extrusion moves"
+        );
+    }
+
+    #[test]
+    fn test_phase_6_sc1_bambu_dialect() {
+        let config = PrintConfig {
+            gcode_dialect: slicecore_gcode_io::GcodeDialect::Bambu,
+            ..Default::default()
+        };
+        let engine = Engine::new(config);
+        let mesh = calibration_cube_20mm();
+
+        let result = engine.slice(&mesh).expect("Bambu slice should succeed");
+        let gcode_str = String::from_utf8_lossy(&result.gcode);
+
+        // Validate G-code passes syntax validation.
+        let validation = slicecore_gcode_io::validate_gcode(&gcode_str);
+        assert!(
+            validation.valid,
+            "Bambu G-code should pass validation: {:?}",
+            validation.errors
+        );
+
+        // Check Bambu-specific content.
+        assert!(
+            gcode_str.contains("Bambu"),
+            "Should contain 'Bambu' in start comment"
+        );
+        // Bambu printers have AMS commands.
+        assert!(
+            gcode_str.contains("M620") || gcode_str.contains("M621"),
+            "Should contain Bambu-specific AMS commands (M620/M621)"
+        );
+
+        // G-code should contain extrusion moves.
+        assert!(
+            gcode_str.contains("G1"),
+            "Bambu G-code should contain G1 extrusion moves"
+        );
+    }
+
+    // ---- SC2: Multi-material tool changes ----
+
+    #[test]
+    fn test_phase_6_sc2_multi_material() {
+        use crate::config::{MultiMaterialConfig, ToolConfig};
+        use crate::multimaterial::{generate_tool_change, generate_purge_tower_layer};
+
+        let mm_config = MultiMaterialConfig {
+            enabled: true,
+            tool_count: 2,
+            tools: vec![
+                ToolConfig {
+                    nozzle_temp: 200.0,
+                    retract_length: 0.8,
+                    retract_speed: 45.0,
+                },
+                ToolConfig {
+                    nozzle_temp: 210.0,
+                    retract_length: 1.0,
+                    retract_speed: 45.0,
+                },
+            ],
+            purge_tower_position: [200.0, 200.0],
+            purge_tower_width: 15.0,
+            purge_volume: 70.0,
+            wipe_length: 2.0,
+        };
+
+        let print_config = PrintConfig {
+            multi_material: mm_config.clone(),
+            ..Default::default()
+        };
+
+        // 1. Generate a tool change sequence T0 -> T1.
+        let seq = generate_tool_change(0, 1, &mm_config, &print_config);
+
+        // Verify tool change contains T0/T1 commands.
+        let output_lines: Vec<String> = seq.commands.iter().map(|c| c.to_string()).collect();
+        let joined = output_lines.join("\n");
+
+        assert!(
+            joined.contains("T1"),
+            "Tool change should contain T1 command"
+        );
+
+        // Should contain retract and unretract.
+        let has_retract = seq.commands.iter().any(|cmd| {
+            matches!(cmd, slicecore_gcode_io::GcodeCommand::Retract { .. })
+        });
+        assert!(has_retract, "Tool change should include retraction");
+
+        let has_unretract = seq.commands.iter().any(|cmd| {
+            matches!(cmd, slicecore_gcode_io::GcodeCommand::Unretract { .. })
+        });
+        assert!(has_unretract, "Tool change should include prime (unretract)");
+
+        // 2. Generate a dense purge tower layer (tool change layer).
+        let tower_layer = generate_purge_tower_layer(
+            0.4,  // layer_z
+            0.2,  // layer_height
+            &mm_config,
+            true, // has_tool_change
+            0.4,  // nozzle_diameter
+        );
+
+        assert!(tower_layer.is_dense, "Tool-change layer should produce dense tower");
+        let tower_lines: Vec<String> = tower_layer.commands.iter().map(|c| c.to_string()).collect();
+        let tower_joined = tower_lines.join("\n");
+
+        // Purge tower should have extrusion moves at the configured position.
+        assert!(
+            tower_joined.contains("G1"),
+            "Purge tower should contain extrusion (G1) moves"
+        );
+        assert!(
+            tower_joined.contains("200.0") || tower_joined.contains("200.000"),
+            "Purge tower should be at configured position (200, 200)"
+        );
+
+        // 3. Validate the combined output as valid G-code.
+        // Build a minimal full G-code with tool change.
+        let mut full_gcode = String::new();
+        full_gcode.push_str("; start\nG28\nM83\nM104 S200\nM140 S60\nM190 S60\nM109 S200\nG92 E0\n");
+        full_gcode.push_str(&joined);
+        full_gcode.push('\n');
+        full_gcode.push_str(&tower_joined);
+        full_gcode.push_str("\n; end\nM107\nM84\n");
+
+        let validation = slicecore_gcode_io::validate_gcode(&full_gcode);
+        assert!(
+            validation.valid,
+            "Combined multi-material G-code should pass validation: {:?}",
+            validation.errors
+        );
+    }
+
+    // ---- SC3: Modifier mesh region override ----
+
+    #[test]
+    fn test_phase_6_sc3_modifier_mesh() {
+        use crate::config::SettingOverrides;
+        use crate::modifier::ModifierMesh;
+
+        // Model mesh: 20mm cube at (90, 90, 0) to (110, 110, 20).
+        let model_mesh = calibration_cube_20mm();
+
+        // Modifier mesh: 10mm cube positioned inside the model.
+        // Centered at (100, 100, 10) -- the inner volume of the model.
+        let modifier_mesh = make_box_mesh(95.0, 95.0, 0.0, 105.0, 105.0, 20.0);
+
+        // The modifier overrides infill density from 20% (base) to 80%.
+        let modifiers = vec![ModifierMesh {
+            mesh: modifier_mesh,
+            overrides: SettingOverrides {
+                infill_density: Some(0.8),
+                ..Default::default()
+            },
+        }];
+
+        let base_config = PrintConfig {
+            infill_density: 0.2,
+            ..Default::default()
+        };
+        let engine = Engine::new(base_config);
+
+        // Slice with modifiers through the full engine pipeline.
+        let result = engine
+            .slice_with_modifiers(&model_mesh, &modifiers)
+            .expect("modifier slice should succeed");
+
+        let gcode_str = String::from_utf8_lossy(&result.gcode);
+
+        // Validate output is valid G-code.
+        let validation = slicecore_gcode_io::validate_gcode(&gcode_str);
+        assert!(
+            validation.valid,
+            "Modifier mesh G-code should pass validation: {:?}",
+            validation.errors
+        );
+
+        // The output should contain extrusion moves (proving the pipeline ran).
+        assert!(
+            gcode_str.contains("G1"),
+            "Modifier mesh G-code should contain G1 extrusion moves"
+        );
+
+        // Verify that the modifier pipeline produces two distinct config
+        // regions with different infill densities. We test the split_by_modifiers
+        // function directly at a mid-layer Z to confirm region separation.
+        use crate::modifier::{slice_modifier, split_by_modifiers};
+
+        let mid_z = 10.0;
+        let model_layers = slicecore_slicer::slice_mesh(
+            &model_mesh,
+            0.2,
+            0.3,
+        );
+
+        // Find a layer near mid_z.
+        let mid_layer = model_layers
+            .iter()
+            .min_by(|a, b| {
+                (a.z - mid_z).abs().partial_cmp(&(b.z - mid_z).abs()).unwrap()
+            })
+            .expect("should have layers");
+
+        let modifier_regions: Vec<_> = modifiers
+            .iter()
+            .filter_map(|m| slice_modifier(m, mid_layer.z))
+            .collect();
+
+        let base_config = PrintConfig {
+            infill_density: 0.2,
+            ..Default::default()
+        };
+        let regions = split_by_modifiers(&mid_layer.contours, &modifier_regions, &base_config);
+
+        // Should produce 2 regions: modified (0.8 density) and remainder (0.2 density).
+        assert!(
+            regions.len() >= 2,
+            "split_by_modifiers should produce at least 2 regions (modified + remainder), got {}",
+            regions.len()
+        );
+
+        let has_high_density = regions
+            .iter()
+            .any(|(_, cfg)| (cfg.infill_density - 0.8).abs() < 0.01);
+        assert!(
+            has_high_density,
+            "One region should have 80% infill density (modifier override)"
+        );
+
+        let has_low_density = regions
+            .iter()
+            .any(|(_, cfg)| (cfg.infill_density - 0.2).abs() < 0.01);
+        assert!(
+            has_low_density,
+            "One region should have 20% infill density (base config)"
+        );
+
+        // The output should have more layers than zero (basic pipeline sanity).
+        assert!(
+            result.layer_count > 0,
+            "Should produce layers, got {}",
+            result.layer_count
+        );
+    }
 }
