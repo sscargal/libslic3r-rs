@@ -126,6 +126,79 @@ pub struct PrintConfig {
     pub adaptive_max_layer_height: f64,
     /// Adaptive layer quality (0.0 = speed, 1.0 = quality).
     pub adaptive_layer_quality: f64,
+
+    // --- Scarf Joint Seam ---
+    /// Scarf joint seam configuration.
+    pub scarf_joint: ScarfJointConfig,
+}
+
+/// Scarf joint seam configuration.
+///
+/// The scarf joint gradually ramps Z height and flow rate at the perimeter
+/// seam point, creating a smooth overlap instead of an abrupt start/end.
+/// This makes seams nearly invisible on smooth surfaces.
+///
+/// All 12 parameters match OrcaSlicer's scarf joint specification.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ScarfJointConfig {
+    /// Enable scarf joint seam.
+    pub enabled: bool,
+    /// Apply to contours and/or holes.
+    pub scarf_joint_type: ScarfJointType,
+    /// Only apply on smooth perimeters (no sharp corners near seam).
+    pub conditional_scarf: bool,
+    /// Speed during scarf region (mm/s, 0 = use wall speed).
+    pub scarf_speed: f64,
+    /// Z offset at ramp start as fraction of layer height (0.0-1.0).
+    pub scarf_start_height: f64,
+    /// Apply scarf around entire wall (not just seam region).
+    pub scarf_around_entire_wall: bool,
+    /// Horizontal length of the scarf ramp in mm.
+    pub scarf_length: f64,
+    /// Number of discrete steps in the ramp.
+    pub scarf_steps: u32,
+    /// Extrusion flow ratio during scarf (1.0 = normal).
+    pub scarf_flow_ratio: f64,
+    /// Apply scarf to inner walls (not just outer).
+    pub scarf_inner_walls: bool,
+    /// Use role-based wipe speed at seam.
+    pub role_based_wipe_speed: bool,
+    /// Wipe speed at seam end (mm/s).
+    pub wipe_speed: f64,
+    /// Enable inward wipe at seam close.
+    pub wipe_on_loop: bool,
+}
+
+impl Default for ScarfJointConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            scarf_joint_type: ScarfJointType::default(),
+            conditional_scarf: false,
+            scarf_speed: 0.0,
+            scarf_start_height: 0.5,
+            scarf_around_entire_wall: false,
+            scarf_length: 10.0,
+            scarf_steps: 10,
+            scarf_flow_ratio: 1.0,
+            scarf_inner_walls: false,
+            role_based_wipe_speed: false,
+            wipe_speed: 0.0,
+            wipe_on_loop: false,
+        }
+    }
+}
+
+/// Controls which perimeter types receive scarf joint treatment.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScarfJointType {
+    /// Apply scarf to contours (outer boundaries) only.
+    #[default]
+    Contour,
+    /// Apply scarf to both contours and holes.
+    ContourAndHole,
 }
 
 impl Default for PrintConfig {
@@ -177,6 +250,8 @@ impl Default for PrintConfig {
             adaptive_min_layer_height: 0.05,
             adaptive_max_layer_height: 0.3,
             adaptive_layer_quality: 0.5,
+
+            scarf_joint: ScarfJointConfig::default(),
         }
     }
 }

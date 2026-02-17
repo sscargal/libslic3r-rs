@@ -28,12 +28,13 @@ pub mod gcode_gen;
 pub mod infill;
 pub mod perimeter;
 pub mod planner;
+pub mod scarf;
 pub mod seam;
 pub mod surface;
 pub mod toolpath;
 
 // Re-export primary types at crate root.
-pub use config::{PrintConfig, WallOrder};
+pub use config::{PrintConfig, ScarfJointConfig, ScarfJointType, WallOrder};
 pub use seam::{select_seam_point, SeamPosition};
 pub use engine::{Engine, SliceResult};
 pub use error::EngineError;
@@ -48,6 +49,7 @@ pub use planner::{
     generate_brim, generate_skirt, plan_fan, plan_retraction, plan_temperatures, RetractionMove,
 };
 pub use gcode_gen::{generate_full_gcode, generate_layer_gcode};
+pub use scarf::apply_scarf_joint;
 pub use toolpath::{
     assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment,
 };
