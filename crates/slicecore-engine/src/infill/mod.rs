@@ -12,6 +12,7 @@
 //! - [`Gyroid`](InfillPattern::Gyroid) -- TPMS-based smooth curves for isotropic strength
 //! - [`Cubic`](InfillPattern::Cubic) -- 3-angle cycling with Z-dependent offset for 3D cubes
 //!
+//! - [`TpmsD`](InfillPattern::TpmsD) -- TPMS Schwarz Diamond surface for tetrahedral strength
 //! - [`AdaptiveCubic`](InfillPattern::AdaptiveCubic) -- variable density using quadtree subdivision
 //! - [`Lightning`](InfillPattern::Lightning) -- minimal tree-branching support for top surfaces
 
@@ -23,6 +24,7 @@ pub mod honeycomb;
 pub mod lightning;
 pub mod monotonic;
 pub mod rectilinear;
+pub mod tpms_d;
 
 use serde::{Deserialize, Serialize};
 use slicecore_geo::polygon::ValidPolygon;
@@ -70,6 +72,8 @@ pub enum InfillPattern {
     Lightning,
     /// Unidirectional lines (left-to-right) for smooth top surfaces.
     Monotonic,
+    /// TPMS Schwarz Diamond surface for tetrahedral stress distribution.
+    TpmsD,
 }
 
 /// Generates infill lines for the given pattern, dispatching to the correct submodule.
@@ -119,6 +123,9 @@ pub fn generate_infill(
         }
         InfillPattern::Lightning => {
             lightning::generate(infill_region, density, layer_index, line_width, lightning_context)
+        }
+        InfillPattern::TpmsD => {
+            tpms_d::generate(infill_region, density, layer_index, layer_z, line_width)
         }
     }
 }

@@ -22,9 +22,11 @@
 
 pub mod arachne;
 pub mod config;
+pub mod custom_gcode;
 pub mod engine;
 pub mod error;
 pub mod extrusion;
+pub mod flow_control;
 pub mod gap_fill;
 pub mod gcode_gen;
 pub mod infill;
@@ -39,6 +41,8 @@ pub mod toolpath;
 
 // Re-export primary types at crate root.
 pub use config::{PrintConfig, ScarfJointConfig, ScarfJointType, WallOrder};
+pub use custom_gcode::{substitute_placeholders, CustomGcodeHooks};
+pub use flow_control::PerFeatureFlow;
 pub use seam::{select_seam_point, SeamPosition};
 pub use engine::{Engine, SliceResult};
 pub use error::EngineError;

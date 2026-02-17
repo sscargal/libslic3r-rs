@@ -9,8 +9,11 @@
 //! outside-in.
 
 use serde::{Deserialize, Serialize};
+use slicecore_gcode_io::GcodeDialect;
 
+use crate::custom_gcode::CustomGcodeHooks;
 use crate::error::EngineError;
+use crate::flow_control::PerFeatureFlow;
 use crate::infill::InfillPattern;
 use crate::seam::SeamPosition;
 use crate::support::config::SupportConfig;
@@ -147,6 +150,34 @@ pub struct PrintConfig {
     // --- Support Structures ---
     /// Support structure generation configuration.
     pub support: SupportConfig,
+
+    // --- Per-Feature Flow ---
+    /// Per-feature flow multipliers for fine-tuning extrusion per feature type.
+    pub per_feature_flow: PerFeatureFlow,
+
+    // --- Custom G-code Injection ---
+    /// Custom G-code hooks for injection at layer transitions and specific Z heights.
+    pub custom_gcode: CustomGcodeHooks,
+
+    // --- G-code Dialect ---
+    /// G-code firmware dialect (Marlin, Klipper, RepRapFirmware, Bambu).
+    pub gcode_dialect: GcodeDialect,
+
+    // --- Acceleration / Jerk / Pressure Advance ---
+    /// Print acceleration in mm/s^2.
+    pub print_acceleration: f64,
+    /// Travel acceleration in mm/s^2.
+    pub travel_acceleration: f64,
+    /// Jerk X in mm/s.
+    pub jerk_x: f64,
+    /// Jerk Y in mm/s.
+    pub jerk_y: f64,
+    /// Jerk Z in mm/s.
+    pub jerk_z: f64,
+    /// Pressure advance value (0.0 = disabled).
+    pub pressure_advance: f64,
+    /// Enable acceleration command emission at feature transitions.
+    pub acceleration_enabled: bool,
 }
 
 /// Scarf joint seam configuration.
@@ -276,6 +307,20 @@ impl Default for PrintConfig {
             scarf_joint: ScarfJointConfig::default(),
 
             support: SupportConfig::default(),
+
+            per_feature_flow: PerFeatureFlow::default(),
+
+            custom_gcode: CustomGcodeHooks::default(),
+
+            gcode_dialect: GcodeDialect::Marlin,
+
+            print_acceleration: 1000.0,
+            travel_acceleration: 1500.0,
+            jerk_x: 8.0,
+            jerk_y: 8.0,
+            jerk_z: 0.4,
+            pressure_advance: 0.0,
+            acceleration_enabled: false,
         }
     }
 }
@@ -494,6 +539,109 @@ scarf_joint_type = "contour_and_hole"
             let json = serde_json::to_string(t).unwrap();
             let deserialized: ScarfJointType = serde_json::from_str(&json).unwrap();
             assert_eq!(*t, deserialized, "Serde round-trip failed for {:?}", t);
+        }
+    }
+
+    #[test]
+    fn per_feature_flow_defaults() {
+        let config = PrintConfig::default();
+        assert!((config.per_feature_flow.outer_perimeter - 1.0).abs() < 1e-9);
+        assert!((config.per_feature_flow.ironing - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn per_feature_flow_from_toml() {
+        let toml = r#"
+[per_feature_flow]
+outer_perimeter = 0.95
+bridge = 1.1
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert!((config.per_feature_flow.outer_perimeter - 0.95).abs() < 1e-9);
+        assert!((config.per_feature_flow.bridge - 1.1).abs() < 1e-9);
+        assert!((config.per_feature_flow.inner_perimeter - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn custom_gcode_defaults() {
+        let config = PrintConfig::default();
+        assert!(config.custom_gcode.before_layer_change.is_empty());
+        assert!(config.custom_gcode.after_layer_change.is_empty());
+        assert!(config.custom_gcode.custom_gcode_per_z.is_empty());
+    }
+
+    #[test]
+    fn custom_gcode_from_toml() {
+        let toml = r#"
+[custom_gcode]
+after_layer_change = "M117 Layer {layer_num}"
+custom_gcode_per_z = [[5.0, "M600"]]
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert_eq!(config.custom_gcode.after_layer_change, "M117 Layer {layer_num}");
+        assert_eq!(config.custom_gcode.custom_gcode_per_z.len(), 1);
+    }
+
+    #[test]
+    fn gcode_dialect_defaults_to_marlin() {
+        let config = PrintConfig::default();
+        assert_eq!(config.gcode_dialect, GcodeDialect::Marlin);
+    }
+
+    #[test]
+    fn acceleration_defaults() {
+        let config = PrintConfig::default();
+        assert!((config.print_acceleration - 1000.0).abs() < 1e-9);
+        assert!((config.travel_acceleration - 1500.0).abs() < 1e-9);
+        assert!((config.jerk_x - 8.0).abs() < 1e-9);
+        assert!((config.jerk_y - 8.0).abs() < 1e-9);
+        assert!((config.jerk_z - 0.4).abs() < 1e-9);
+        assert!((config.pressure_advance - 0.0).abs() < 1e-9);
+        assert!(!config.acceleration_enabled);
+    }
+
+    #[test]
+    fn gcode_dialect_klipper_from_toml() {
+        let toml = r#"gcode_dialect = "Klipper""#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert_eq!(config.gcode_dialect, GcodeDialect::Klipper);
+    }
+
+    #[test]
+    fn acceleration_fields_from_toml() {
+        let toml = r#"
+acceleration_enabled = true
+print_acceleration = 2000.0
+travel_acceleration = 3000.0
+jerk_x = 10.0
+jerk_y = 10.0
+jerk_z = 0.5
+pressure_advance = 0.05
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert!(config.acceleration_enabled);
+        assert!((config.print_acceleration - 2000.0).abs() < 1e-9);
+        assert!((config.travel_acceleration - 3000.0).abs() < 1e-9);
+        assert!((config.jerk_x - 10.0).abs() < 1e-9);
+        assert!((config.jerk_y - 10.0).abs() < 1e-9);
+        assert!((config.jerk_z - 0.5).abs() < 1e-9);
+        assert!((config.pressure_advance - 0.05).abs() < 1e-9);
+    }
+
+    #[test]
+    fn all_dialects_parse_from_toml() {
+        let dialects = ["Marlin", "Klipper", "RepRapFirmware", "Bambu"];
+        for d in &dialects {
+            let toml = format!("gcode_dialect = \"{}\"", d);
+            let config = PrintConfig::from_toml(&toml).unwrap();
+            let expected = match *d {
+                "Marlin" => GcodeDialect::Marlin,
+                "Klipper" => GcodeDialect::Klipper,
+                "RepRapFirmware" => GcodeDialect::RepRapFirmware,
+                "Bambu" => GcodeDialect::Bambu,
+                _ => unreachable!(),
+            };
+            assert_eq!(config.gcode_dialect, expected, "Failed to parse dialect: {}", d);
         }
     }
 }

@@ -44,6 +44,10 @@ pub enum FeatureType {
     SupportInterface,
     /// Bridge extrusion (unsupported horizontal span).
     Bridge,
+    /// Ironing pass over top surfaces (very low flow, tight spacing).
+    Ironing,
+    /// Purge tower extrusion (multi-material waste management).
+    PurgeTower,
     /// Non-extrusion travel move.
     Travel,
 }

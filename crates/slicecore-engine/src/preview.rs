@@ -128,7 +128,9 @@ pub fn generate_preview(
                 | FeatureType::SparseInfill
                 | FeatureType::Support
                 | FeatureType::SupportInterface
-                | FeatureType::Bridge => {
+                | FeatureType::Bridge
+                | FeatureType::Ironing
+                | FeatureType::PurgeTower => {
                     // Flush any in-progress perimeter polyline.
                     if !current_perim_polyline.is_empty() {
                         perimeters.push(std::mem::take(&mut current_perim_polyline));
@@ -198,6 +200,8 @@ fn feature_type_label(feature: FeatureType) -> String {
         FeatureType::Support => "support".to_string(),
         FeatureType::SupportInterface => "support_interface".to_string(),
         FeatureType::Bridge => "bridge".to_string(),
+        FeatureType::Ironing => "ironing".to_string(),
+        FeatureType::PurgeTower => "purge_tower".to_string(),
         FeatureType::Travel => "travel".to_string(),
     }
 }

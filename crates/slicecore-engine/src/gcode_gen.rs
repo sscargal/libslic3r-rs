@@ -14,6 +14,7 @@
 use slicecore_gcode_io::GcodeCommand;
 
 use crate::config::PrintConfig;
+use crate::custom_gcode::substitute_placeholders;
 use crate::planner::{plan_bridge_fan, plan_fan, plan_retraction, plan_temperatures};
 use crate::toolpath::{FeatureType, LayerToolpath};
 
@@ -27,12 +28,31 @@ use crate::toolpath::{FeatureType, LayerToolpath};
 /// - Extrusion moves with E-values and feedrates
 ///
 /// The `retracted` state is tracked across layers via a mutable reference.
+/// The `total_layers` parameter is used for custom G-code placeholder substitution.
 pub fn generate_layer_gcode(
     toolpath: &LayerToolpath,
     config: &PrintConfig,
     retracted: &mut bool,
+    total_layers: usize,
 ) -> Vec<GcodeCommand> {
     let mut cmds = Vec::new();
+
+    // 0. Custom G-code: before layer change.
+    let before_layer = config.custom_gcode.effective_before_layer();
+    if !before_layer.is_empty() {
+        let substituted = substitute_placeholders(
+            before_layer,
+            toolpath.layer_index,
+            toolpath.z,
+            total_layers,
+        );
+        for line in substituted.lines() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                cmds.push(GcodeCommand::Raw(trimmed.to_string()));
+            }
+        }
+    }
 
     // 1. Layer comment.
     cmds.push(GcodeCommand::Comment(format!(
@@ -47,6 +67,41 @@ pub fn generate_layer_gcode(
         z: Some(toolpath.z),
         f: None,
     });
+
+    // 2b. Custom G-code: after layer change.
+    let after_layer = &config.custom_gcode.after_layer_change;
+    if !after_layer.is_empty() {
+        let substituted = substitute_placeholders(
+            after_layer,
+            toolpath.layer_index,
+            toolpath.z,
+            total_layers,
+        );
+        for line in substituted.lines() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                cmds.push(GcodeCommand::Raw(trimmed.to_string()));
+            }
+        }
+    }
+
+    // 2c. Custom G-code: per-Z injection (within 0.001mm tolerance).
+    for (z_height, gcode) in &config.custom_gcode.custom_gcode_per_z {
+        if (toolpath.z - z_height).abs() < 0.001 {
+            let substituted = substitute_placeholders(
+                gcode,
+                toolpath.layer_index,
+                toolpath.z,
+                total_layers,
+            );
+            for line in substituted.lines() {
+                let trimmed = line.trim();
+                if !trimmed.is_empty() {
+                    cmds.push(GcodeCommand::Raw(trimmed.to_string()));
+                }
+            }
+        }
+    }
 
     let retract_feedrate = config.retract_speed * 60.0; // mm/s -> mm/min
 
@@ -154,12 +209,16 @@ pub fn generate_layer_gcode(
                     None
                 };
 
+                // Apply per-feature flow multiplier.
+                let flow_mult = config.per_feature_flow.get_multiplier(seg.feature);
+                let adjusted_e = seg.e_value * flow_mult;
+
                 // Emit linear extrusion move.
                 cmds.push(GcodeCommand::LinearMove {
                     x: Some(seg.end.x),
                     y: Some(seg.end.y),
                     z: z_val,
-                    e: Some(seg.e_value),
+                    e: Some(adjusted_e),
                     f: Some(seg.feedrate),
                 });
             }
@@ -188,6 +247,7 @@ pub fn generate_full_gcode(
     cmds.push(GcodeCommand::ResetExtruder);
 
     let mut retracted = false;
+    let total_layers = layer_toolpaths.len();
 
     for toolpath in layer_toolpaths {
         // Temperature commands for this layer.
@@ -200,7 +260,7 @@ pub fn generate_full_gcode(
         cmds.extend(fan_cmds);
 
         // Generate layer G-code.
-        let layer_cmds = generate_layer_gcode(toolpath, config, &mut retracted);
+        let layer_cmds = generate_layer_gcode(toolpath, config, &mut retracted, total_layers);
         cmds.extend(layer_cmds);
     }
 
@@ -222,6 +282,8 @@ fn feature_label(feature: FeatureType) -> &'static str {
         FeatureType::Support => "Support",
         FeatureType::SupportInterface => "Support interface",
         FeatureType::Bridge => "Bridge",
+        FeatureType::Ironing => "Ironing",
+        FeatureType::PurgeTower => "Purge tower",
     }
 }
 
@@ -312,7 +374,7 @@ mod tests {
         let config = default_config();
         let mut retracted = false;
 
-        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
         // Should contain G1 moves with E values.
         let g1_moves: Vec<_> = cmds
@@ -334,7 +396,7 @@ mod tests {
         let config = default_config();
         let mut retracted = false;
 
-        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
         let g0_moves: Vec<_> = cmds
             .iter()
@@ -363,7 +425,7 @@ mod tests {
         let config = default_config();
         let mut retracted = false;
 
-        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
         let has_retract = cmds.iter().any(|c| matches!(c, GcodeCommand::Retract { .. }));
         let has_unretract = cmds
@@ -381,7 +443,7 @@ mod tests {
         let config = default_config();
         let mut retracted = false;
 
-        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
         let has_retract = cmds.iter().any(|c| matches!(c, GcodeCommand::Retract { .. }));
         assert!(
@@ -399,7 +461,7 @@ mod tests {
         };
         let mut retracted = false;
 
-        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
         // Should have a Z-hop up (Z > layer Z) and then Z-hop down (back to layer Z).
         let z_hops: Vec<_> = cmds
@@ -494,7 +556,7 @@ mod tests {
         let config = default_config();
         let mut retracted = false;
 
-        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
         let has_feature_comment = cmds.iter().any(|c| {
             if let GcodeCommand::Comment(text) = c {
@@ -516,7 +578,7 @@ mod tests {
         let config = default_config();
         let mut retracted = false;
 
-        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
         let has_layer_comment = cmds.iter().any(|c| {
             if let GcodeCommand::Comment(text) = c {
@@ -553,7 +615,7 @@ mod tests {
         let config = default_config();
         let mut retracted = true; // Simulate being in retracted state.
 
-        let cmds = generate_layer_gcode(&layer2, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer2, &config, &mut retracted, 10);
 
         // The extrusion move should trigger an unretract first.
         let has_unretract = cmds
@@ -578,7 +640,7 @@ mod tests {
         let config = default_config();
         let mut retracted = false;
 
-        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
         // Should have at least the layer comment and Z-move.
         assert!(
@@ -629,7 +691,7 @@ mod tests {
         let config = default_config();
         let mut retracted = false;
 
-        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
         // Count G1 moves that include a Z value.
         let g1_with_z: Vec<_> = cmds
@@ -654,7 +716,7 @@ mod tests {
         let config = default_config();
         let mut retracted = false;
 
-        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
         let g1_with_z = cmds
             .iter()
@@ -688,7 +750,7 @@ mod tests {
         let config = default_config();
         let mut retracted = false;
 
-        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
         let has_vw_comment = cmds.iter().any(|c| {
             if let GcodeCommand::Comment(text) = c {
@@ -701,6 +763,197 @@ mod tests {
         assert!(
             has_vw_comment,
             "Variable-width perimeter feature should produce TYPE comment"
+        );
+    }
+
+    #[test]
+    fn per_feature_flow_reduces_outer_perimeter_e_value() {
+        let layer = simple_extrusion_layer(); // OuterPerimeter with e_value=0.5
+        let mut config = default_config();
+        config.per_feature_flow.outer_perimeter = 0.95;
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
+
+        // Find the G1 moves and verify E-values are scaled by 0.95.
+        let g1_e_values: Vec<f64> = cmds
+            .iter()
+            .filter_map(|c| {
+                if let GcodeCommand::LinearMove { e: Some(e), .. } = c {
+                    Some(*e)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert!(!g1_e_values.is_empty(), "Should have G1 extrusion moves");
+        for e in &g1_e_values {
+            // Original e_value is 0.5, scaled by 0.95 = 0.475.
+            assert!(
+                (*e - 0.475).abs() < 1e-9,
+                "Outer perimeter E should be 0.5 * 0.95 = 0.475, got {}",
+                e
+            );
+        }
+    }
+
+    #[test]
+    fn default_per_feature_flow_does_not_change_e_values() {
+        let layer = simple_extrusion_layer();
+        let config = default_config(); // All flow multipliers are 1.0.
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
+
+        let g1_e_values: Vec<f64> = cmds
+            .iter()
+            .filter_map(|c| {
+                if let GcodeCommand::LinearMove { e: Some(e), .. } = c {
+                    Some(*e)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for e in &g1_e_values {
+            assert!(
+                (*e - 0.5).abs() < 1e-9,
+                "Default flow (1.0) should not change E-value 0.5, got {}",
+                e
+            );
+        }
+    }
+
+    #[test]
+    fn custom_gcode_placeholder_substitution_in_layer() {
+        let layer = simple_extrusion_layer(); // layer_index=1, z=0.4
+        let mut config = default_config();
+        config.custom_gcode.after_layer_change = "M117 L{layer_num} Z{layer_z}".to_string();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 100);
+
+        let has_raw = cmds.iter().any(|c| {
+            if let GcodeCommand::Raw(text) = c {
+                text.contains("M117 L1 Z0.400")
+            } else {
+                false
+            }
+        });
+
+        assert!(
+            has_raw,
+            "Custom G-code after layer change should be injected with substituted placeholders"
+        );
+    }
+
+    #[test]
+    fn custom_gcode_per_z_injection() {
+        let layer = LayerToolpath {
+            layer_index: 5,
+            z: 1.0,
+            layer_height: 0.2,
+            segments: vec![ToolpathSegment {
+                start: Point2::new(0.0, 0.0),
+                end: Point2::new(10.0, 0.0),
+                feature: FeatureType::OuterPerimeter,
+                e_value: 0.5,
+                feedrate: 2700.0,
+                z: 1.0,
+                extrusion_width: None,
+            }],
+        };
+        let mut config = default_config();
+        config.custom_gcode.custom_gcode_per_z = vec![
+            (1.0, "M600 ; filament change".to_string()),
+        ];
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 20);
+
+        let has_filament_change = cmds.iter().any(|c| {
+            if let GcodeCommand::Raw(text) = c {
+                text.contains("M600")
+            } else {
+                false
+            }
+        });
+
+        assert!(
+            has_filament_change,
+            "Custom G-code at matching Z height should be injected"
+        );
+    }
+
+    #[test]
+    fn ironing_feature_produces_correct_comment() {
+        let layer = LayerToolpath {
+            layer_index: 1,
+            z: 0.4,
+            layer_height: 0.2,
+            segments: vec![ToolpathSegment {
+                start: Point2::new(0.0, 0.0),
+                end: Point2::new(10.0, 0.0),
+                feature: FeatureType::Ironing,
+                e_value: 0.05,
+                feedrate: 900.0,
+                z: 0.4,
+                extrusion_width: None,
+            }],
+        };
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
+
+        let has_ironing_comment = cmds.iter().any(|c| {
+            if let GcodeCommand::Comment(text) = c {
+                text.contains("Ironing")
+            } else {
+                false
+            }
+        });
+
+        assert!(
+            has_ironing_comment,
+            "Ironing feature should produce TYPE:Ironing comment"
+        );
+    }
+
+    #[test]
+    fn purge_tower_feature_produces_correct_comment() {
+        let layer = LayerToolpath {
+            layer_index: 1,
+            z: 0.4,
+            layer_height: 0.2,
+            segments: vec![ToolpathSegment {
+                start: Point2::new(0.0, 0.0),
+                end: Point2::new(10.0, 0.0),
+                feature: FeatureType::PurgeTower,
+                e_value: 0.5,
+                feedrate: 2700.0,
+                z: 0.4,
+                extrusion_width: None,
+            }],
+        };
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
+
+        let has_purge_comment = cmds.iter().any(|c| {
+            if let GcodeCommand::Comment(text) = c {
+                text.contains("Purge tower")
+            } else {
+                false
+            }
+        });
+
+        assert!(
+            has_purge_comment,
+            "PurgeTower feature should produce TYPE:Purge tower comment"
         );
     }
 }
