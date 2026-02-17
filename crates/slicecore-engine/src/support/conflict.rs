@@ -180,8 +180,7 @@ pub fn smart_merge(
     let mut result = Vec::with_capacity(n);
     let mut warnings = Vec::new();
 
-    for layer_idx in 0..n {
-        let auto = &auto_support[layer_idx];
+    for (layer_idx, auto) in auto_support.iter().enumerate() {
         let enforcers = enforcer_regions.get(layer_idx).map_or(&[][..], |v| v);
         let blockers = blocker_regions.get(layer_idx).map_or(&[][..], |v| v);
         let overhangs = overhang_regions.get(layer_idx).map_or(&[][..], |v| v);

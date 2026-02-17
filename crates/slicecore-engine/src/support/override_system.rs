@@ -252,31 +252,28 @@ pub fn apply_overrides(
     layer_heights: &[(f64, f64)],
 ) -> Vec<ConflictWarning> {
     let mut warnings = Vec::new();
-    let n_layers = auto_support.len();
 
-    for layer_idx in 0..n_layers {
+    for (layer_idx, layer_support) in auto_support.iter_mut().enumerate() {
         let z = layer_heights
             .get(layer_idx)
             .map(|&(z, _)| z)
             .unwrap_or(0.0);
 
         // Snapshot auto-support area before overrides for conflict detection.
-        let auto_area = net_area_mm2(&auto_support[layer_idx]);
+        let auto_area = net_area_mm2(layer_support);
 
         // --- Step 1: Apply mesh-based enforcers (union) ---
         for enforcer in enforcers {
             if let Some(regions) = enforcer.sliced_regions.get(layer_idx) {
-                if !regions.is_empty() && !auto_support[layer_idx].is_empty() {
-                    if let Ok(merged) =
-                        polygon_union(&auto_support[layer_idx], regions)
-                    {
+                if !regions.is_empty() && !layer_support.is_empty() {
+                    if let Ok(merged) = polygon_union(layer_support, regions) {
                         if !merged.is_empty() {
-                            auto_support[layer_idx] = merged;
+                            *layer_support = merged;
                         }
                     }
                 } else if !regions.is_empty() {
                     // No auto-support at this layer; enforcer creates new support.
-                    auto_support[layer_idx] = regions.clone();
+                    *layer_support = regions.clone();
                 }
             }
         }
@@ -284,13 +281,11 @@ pub fn apply_overrides(
         // --- Step 2: Apply volume modifier enforcers (union) ---
         for vm in volume_modifiers.iter().filter(|v| v.role == OverrideRole::Enforcer) {
             if let Some(cross_section) = volume_modifier_at_z(vm, z) {
-                if auto_support[layer_idx].is_empty() {
-                    auto_support[layer_idx] = vec![cross_section];
-                } else if let Ok(merged) =
-                    polygon_union(&auto_support[layer_idx], &[cross_section])
-                {
+                if layer_support.is_empty() {
+                    *layer_support = vec![cross_section];
+                } else if let Ok(merged) = polygon_union(layer_support, &[cross_section]) {
                     if !merged.is_empty() {
-                        auto_support[layer_idx] = merged;
+                        *layer_support = merged;
                     }
                 }
             }
@@ -299,10 +294,9 @@ pub fn apply_overrides(
         // --- Step 3: Apply mesh-based blockers (difference) ---
         for blocker in blockers {
             if let Some(regions) = blocker.sliced_regions.get(layer_idx) {
-                if !regions.is_empty() && !auto_support[layer_idx].is_empty() {
-                    auto_support[layer_idx] =
-                        polygon_difference(&auto_support[layer_idx], regions)
-                            .unwrap_or_default();
+                if !regions.is_empty() && !layer_support.is_empty() {
+                    *layer_support =
+                        polygon_difference(layer_support, regions).unwrap_or_default();
                 }
             }
         }
@@ -310,16 +304,15 @@ pub fn apply_overrides(
         // --- Step 4: Apply volume modifier blockers (difference) ---
         for vm in volume_modifiers.iter().filter(|v| v.role == OverrideRole::Blocker) {
             if let Some(cross_section) = volume_modifier_at_z(vm, z) {
-                if !auto_support[layer_idx].is_empty() {
-                    auto_support[layer_idx] =
-                        polygon_difference(&auto_support[layer_idx], &[cross_section])
-                            .unwrap_or_default();
+                if !layer_support.is_empty() {
+                    *layer_support =
+                        polygon_difference(layer_support, &[cross_section]).unwrap_or_default();
                 }
             }
         }
 
         // --- Conflict detection: check if blocker removed significant auto-support ---
-        let post_area = net_area_mm2(&auto_support[layer_idx]);
+        let post_area = net_area_mm2(layer_support);
 
         let removed_area = auto_area - post_area;
         // Warn if more than 1 mm^2 of auto-support was removed.
