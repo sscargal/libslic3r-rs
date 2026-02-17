@@ -384,6 +384,7 @@ pub fn generate(
     let mut lines = Vec::new();
 
     // Add horizontal connection segments between columns.
+    // These form the sparse tree-branching support network.
     for &(start, end) in connections {
         // Verify both endpoints are inside the infill region.
         if point_inside_any(start, infill_region) && point_inside_any(end, infill_region) {
@@ -391,36 +392,32 @@ pub fn generate(
         }
     }
 
-    // Add small cross marks at each column position for structural support.
-    // These short horizontal and vertical segments help the column points
-    // to have actual extruded material.
-    let cross_size = mm_to_coord(line_width * 1.5);
+    // For isolated columns (not connected to any neighbor), add a small
+    // cross mark so they still produce extruded material.
+    let connected_points: std::collections::HashSet<(Coord, Coord)> = connections
+        .iter()
+        .flat_map(|&(s, e)| [(s.x, s.y), (e.x, e.y)])
+        .collect();
+
+    let cross_size = mm_to_coord(line_width * 0.5);
 
     for &col_pos in columns {
+        if connected_points.contains(&(col_pos.x, col_pos.y)) {
+            continue; // Already connected -- skip cross mark.
+        }
+
         if !point_inside_any(col_pos, infill_region) {
             continue;
         }
 
-        // Horizontal cross segment.
+        // Single horizontal cross mark for isolated columns.
         let h_start = IPoint2::new(col_pos.x - cross_size, col_pos.y);
         let h_end = IPoint2::new(col_pos.x + cross_size, col_pos.y);
 
-        // Clip cross to infill region.
         if point_inside_any(h_start, infill_region) && point_inside_any(h_end, infill_region) {
             lines.push(InfillLine {
                 start: h_start,
                 end: h_end,
-            });
-        }
-
-        // Vertical cross segment.
-        let v_start = IPoint2::new(col_pos.x, col_pos.y - cross_size);
-        let v_end = IPoint2::new(col_pos.x, col_pos.y + cross_size);
-
-        if point_inside_any(v_start, infill_region) && point_inside_any(v_end, infill_region) {
-            lines.push(InfillLine {
-                start: v_start,
-                end: v_end,
             });
         }
     }
