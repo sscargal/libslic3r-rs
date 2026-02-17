@@ -1,0 +1,15 @@
+[package]
+name = "slicecore-plugin-api"
+description = "FFI-safe plugin API types and traits for the slicecore slicing engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+abi_stable = { workspace = true }
+serde = { workspace = true }
+semver = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
