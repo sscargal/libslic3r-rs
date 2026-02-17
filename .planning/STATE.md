@@ -11,17 +11,17 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 Phase: 4 of 9 (Perimeter and Infill Completeness)
 Plan: 9 of 10 in current phase (8 complete)
-Status: Executing Phase 4 -- gap fill between perimeters implemented
-Last activity: 2026-02-17 -- Completed 04-08-PLAN.md (gap fill between perimeters)
+Status: Executing Phase 4 -- adaptive cubic and lightning infill implemented
+Last activity: 2026-02-17 -- Completed 04-07-PLAN.md (adaptive cubic and lightning infill)
 
 Progress: [########################] 64% (23/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
-- Average duration: 5.4 min
-- Total execution time: 2.10 hours
+- Total plans completed: 24
+- Average duration: 5.5 min
+- Total execution time: 2.30 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Progress: [########################] 64% (23/~36 overall)
 | 01    | 4     | 26min | 6.5min   |
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
-| 04    | 8     | 52min | 6.5min   |
+| 04    | 9     | 64min | 7.1min   |
 
 **Recent Trend:**
-- Last 5 plans: 04-04 (5min), 04-05 (5min), 04-06 (7min), 04-07 (?min), 04-08 (8min)
+- Last 5 plans: 04-05 (5min), 04-06 (7min), 04-07 (12min), 04-08 (8min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -147,6 +147,12 @@ Recent decisions affecting current work:
 - [04-08]: Gap fill defaults: enabled=true, min_width=0.1mm (matching common slicer behavior)
 - [04-08]: Gap fill uses perimeter speed; separate gap fill speed deferred to future phases
 - [04-08]: GapFill E-values computed with gap's actual width, not standard extrusion width
+- [04-07]: Quadtree subdivision (not 3D octree) for adaptive cubic -- per-layer 2D approach for Phase 4
+- [04-07]: Spacing scales as base_spacing * 2^(max_depth - cell_depth) for density gradient
+- [04-07]: Simplified column-based lightning (not full tree merging) -- functionally correct
+- [04-07]: Column merge distance = 2 * line_width to prevent redundant columns
+- [04-07]: Cross marks only for isolated columns to minimize material waste
+- [04-07]: LightningContext passed as Option to generate_infill (None for all other patterns)
 
 ### Pending Todos
 
@@ -159,5 +165,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 04-08-PLAN.md -- gap fill between perimeters implemented
-Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-08-SUMMARY.md
+Stopped at: Completed 04-07-PLAN.md -- adaptive cubic and lightning infill
+Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-07-SUMMARY.md
