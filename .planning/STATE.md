@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 3 COMPLETE - Vertical Slice STL-to-GCode
+**Current focus:** Phase 4 - Perimeter and Infill Completeness
 
 ## Current Position
 
-Phase: 3 of 9 (Vertical Slice STL-to-GCode) -- COMPLETE
-Plan: 6 of 6 in current phase (6 complete)
-Status: Phase 3 complete, all success criteria verified by automated tests
-Last activity: 2026-02-16 -- Completed 03-06-PLAN.md (integration tests, phase verification)
+Phase: 4 of 9 (Perimeter and Infill Completeness)
+Plan: 1 of 10 in current phase (1 complete)
+Status: Executing Phase 4 -- infill dispatch architecture and Grid/Monotonic patterns done
+Last activity: 2026-02-17 -- Completed 04-01-PLAN.md (infill refactor, Grid, Monotonic)
 
-Progress: [################] 42% (15/~36 overall)
+Progress: [#################] 44% (16/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
-- Average duration: 5.0 min
-- Total execution time: 1.30 hours
+- Total plans completed: 16
+- Average duration: 5.1 min
+- Total execution time: 1.40 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [################] 42% (15/~36 overall)
 | 01    | 4     | 26min | 6.5min   |
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
+| 04    | 1     | 6min  | 6.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (3min), 03-03 (5min), 03-04 (5min), 03-05 (4min), 03-06 (3min)
-- Trend: stable/fast
+- Last 5 plans: 03-03 (5min), 03-04 (5min), 03-05 (4min), 03-06 (3min), 04-01 (6min)
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -113,6 +114,12 @@ Recent decisions affecting current work:
 - [03-06]: Synthetic 20mm calibration cube mesh centered at (100,100) on 220x220 bed
 - [03-06]: Determinism verified with both default and custom configs
 - [03-06]: G-code structure verified via line position checks (first 20, last 10)
+- [04-01]: InfillPattern enum dispatch with fallback to rectilinear for unimplemented patterns
+- [04-01]: Grid infill uses full density per direction (user picks lower density for grid strength)
+- [04-01]: Monotonic uses same scanlines as rectilinear but enforces unidirectional ordering
+- [04-01]: Solid infill always uses Rectilinear regardless of config infill_pattern
+- [04-01]: generate_rectilinear_infill kept as backward-compatible wrapper
+- [04-01]: compute_bounding_box and compute_spacing extracted as pub(crate) shared helpers
 
 ### Pending Todos
 
@@ -124,6 +131,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-16
-Stopped at: Completed 03-06-PLAN.md -- Phase 3 complete, all SC verified
-Resume file: .planning/phases/03-vertical-slice-stl-to-gcode/03-06-SUMMARY.md
+Last session: 2026-02-17
+Stopped at: Completed 04-01-PLAN.md -- infill dispatch + Grid + Monotonic
+Resume file: .planning/phases/04-perimeter-and-infill-completeness/04-01-SUMMARY.md
