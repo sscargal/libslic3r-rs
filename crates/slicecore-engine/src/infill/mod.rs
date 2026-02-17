@@ -11,6 +11,8 @@
 //!
 //! Future patterns (Honeycomb, Gyroid, etc.) currently fall back to Rectilinear.
 
+pub mod grid;
+pub mod monotonic;
 pub mod rectilinear;
 
 use serde::{Deserialize, Serialize};
@@ -87,13 +89,9 @@ pub fn generate_infill(
         InfillPattern::Rectilinear => {
             rectilinear::generate(infill_region, density, angle, line_width)
         }
-        // TODO: implement in plan 04-01 task 2
-        InfillPattern::Grid => {
-            rectilinear::generate(infill_region, density, angle, line_width)
-        }
-        // TODO: implement in plan 04-01 task 2
+        InfillPattern::Grid => grid::generate(infill_region, density, layer_index, line_width),
         InfillPattern::Monotonic => {
-            rectilinear::generate(infill_region, density, angle, line_width)
+            monotonic::generate(infill_region, density, layer_index, line_width)
         }
         // TODO: implement in plan 04-02
         InfillPattern::Honeycomb => {
