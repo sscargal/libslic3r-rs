@@ -2022,4 +2022,58 @@ mod tests {
             "Arc-fitting G-code should contain extrusion moves"
         );
     }
+
+    #[test]
+    fn slice_result_has_populated_time_estimate() {
+        let config = PrintConfig::default();
+        let engine = Engine::new(config);
+        let mesh = unit_cube();
+
+        let result = engine.slice(&mesh).expect("slice should succeed");
+
+        assert!(
+            result.time_estimate.total_seconds > 0.0,
+            "time_estimate.total_seconds should be positive, got {}",
+            result.time_estimate.total_seconds
+        );
+        assert!(
+            result.time_estimate.move_time_seconds > 0.0,
+            "time_estimate.move_time_seconds should be positive"
+        );
+        // Backward compatibility: estimated_time_seconds matches time_estimate.
+        assert!(
+            (result.estimated_time_seconds - result.time_estimate.total_seconds).abs() < 1e-9,
+            "estimated_time_seconds should match time_estimate.total_seconds"
+        );
+    }
+
+    #[test]
+    fn slice_result_has_populated_filament_usage() {
+        let config = PrintConfig::default();
+        let engine = Engine::new(config);
+        let mesh = unit_cube();
+
+        let result = engine.slice(&mesh).expect("slice should succeed");
+
+        assert!(
+            result.filament_usage.length_mm > 0.0,
+            "filament_usage.length_mm should be positive, got {}",
+            result.filament_usage.length_mm
+        );
+        assert!(
+            result.filament_usage.weight_g > 0.0,
+            "filament_usage.weight_g should be positive, got {}",
+            result.filament_usage.weight_g
+        );
+        assert!(
+            result.filament_usage.cost > 0.0,
+            "filament_usage.cost should be positive, got {}",
+            result.filament_usage.cost
+        );
+        assert!(
+            (result.filament_usage.length_m - result.filament_usage.length_mm / 1000.0).abs()
+                < 1e-9,
+            "length_m should be length_mm / 1000"
+        );
+    }
 }

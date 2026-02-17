@@ -730,4 +730,34 @@ arc_fitting_min_points = 5
         assert!((config.arc_fitting_tolerance - 0.1).abs() < 1e-9);
         assert_eq!(config.arc_fitting_min_points, 5);
     }
+
+    #[test]
+    fn filament_density_and_cost_defaults() {
+        let config = PrintConfig::default();
+        assert!(
+            (config.filament_density - 1.24).abs() < 1e-9,
+            "filament_density should default to 1.24 (PLA)"
+        );
+        assert!(
+            (config.filament_cost_per_kg - 25.0).abs() < 1e-9,
+            "filament_cost_per_kg should default to 25.0"
+        );
+    }
+
+    #[test]
+    fn filament_density_and_cost_from_toml() {
+        let toml = r#"
+filament_density = 1.04
+filament_cost_per_kg = 30.0
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert!(
+            (config.filament_density - 1.04).abs() < 1e-9,
+            "filament_density should parse from TOML"
+        );
+        assert!(
+            (config.filament_cost_per_kg - 30.0).abs() < 1e-9,
+            "filament_cost_per_kg should parse from TOML"
+        );
+    }
 }
