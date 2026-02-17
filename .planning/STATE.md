@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 7 -- Plugin System (plan 6 of 7 complete)
+**Current focus:** Phase 7 -- Plugin System (plan 5 of 7 complete)
 
 ## Current Position
 
 Phase: 7 of 9 (Plugin System)
-Plan: 6 of 7 in current phase (6 complete)
-Status: Executing Phase 7 -- WASM plugin loading with wasmtime Component Model complete
-Last activity: 2026-02-17 -- Completed 07-03-PLAN.md (WASM plugin loading)
+Plan: 5 of 7 in current phase (5 complete)
+Status: Executing Phase 7 -- Engine plugin integration complete
+Last activity: 2026-02-17 -- Completed 07-04-PLAN.md (Engine plugin integration)
 
-Progress: [##############################################----] 91% (51/~56 overall)
+Progress: [##############################################----] 93% (52/~56 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 51
-- Average duration: 5.3 min
-- Total execution time: 4.9 hours
+- Total plans completed: 52
+- Average duration: 5.4 min
+- Total execution time: 5.1 hours
 
 **By Phase:**
 
@@ -33,11 +33,11 @@ Progress: [##############################################----] 91% (51/~56 overa
 | 04    | 10    | 95min | 9.5min   |
 | 05    | 8     | 69min | 8.6min   |
 | 06    | 9     | 45min | 5.0min   |
-| 07    | 6     | 28min | 4.7min   |
+| 07    | 5     | 38min | 7.6min   |
 
 **Recent Trend:**
-- Last 5 plans: 07-02 (5min), 07-03 (3min), 07-04 (3min), 07-05 (3min), 07-03-wasm (9min)
-- Trend: Phase 7 WASM plan took longer due to wasmtime API adaptation
+- Last 5 plans: 07-03 (3min), 07-04-engine (10min), 07-05 (3min), 07-03-wasm (9min), 07-02 (5min)
+- Trend: Engine integration plan took 10min due to many call-site updates across 3 pipeline methods
 
 *Updated after each plan completion*
 
@@ -252,6 +252,12 @@ Recent decisions affecting current work:
 - [07-03]: Fully qualified paths for FFI types to avoid name collision with bindgen-generated types
 - [07-03]: Fresh Store per generate() call prevents cross-call resource accumulation
 - [07-03]: discover_and_load handles failed plugins gracefully (log and continue, not abort)
+- [07-04]: InfillPattern changed from Copy+Clone to Clone-only (Plugin(String) not Copy)
+- [07-04]: generate_infill takes &InfillPattern by reference (avoids Copy removal cascade)
+- [07-04]: Plugin dispatch in Engine helper method, not in generate_infill (infill module stays plugin-free)
+- [07-04]: Solid infill bypasses plugin dispatch (always Rectilinear built-in)
+- [07-04]: Engine::generate_plugin_infill cfg-gated behind plugins feature with clear error fallback
+- [07-04]: Plugin(String) serde: infill_pattern = { plugin = "name" } in TOML
 
 ### Pending Todos
 
@@ -264,5 +270,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 07-03-PLAN.md (WASM plugin loading)
-Resume file: .planning/phases/07-plugin-system/07-03-SUMMARY.md
+Stopped at: Completed 07-04-PLAN.md (Engine plugin integration)
+Resume file: .planning/phases/07-plugin-system/07-04-SUMMARY.md
