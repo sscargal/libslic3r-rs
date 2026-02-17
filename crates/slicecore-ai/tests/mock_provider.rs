@@ -26,12 +26,27 @@ impl AiProvider for SmartMockProvider {
         // The user message contains serialized GeometryFeatures JSON.
         let user_msg = &request.messages[0].content;
 
-        // Detect overhang model by checking for non-zero overhang_ratio.
-        let has_overhangs = user_msg.contains("\"overhang_ratio\":")
-            && !user_msg.contains("\"overhang_ratio\": 0.0");
-        let has_small_features = user_msg.contains("\"has_small_features\": true");
+        // Parse geometry features from the prompt to make intelligent decisions.
+        // Extract the JSON portion after "Analyze this 3D model and suggest print settings:\n\n".
+        let features: serde_json::Value = {
+            let json_start = user_msg.find('{').unwrap_or(0);
+            serde_json::from_str(&user_msg[json_start..]).unwrap_or_default()
+        };
 
-        let response_json = if has_overhangs && !has_small_features {
+        let overhang_ratio = features["overhang_ratio"].as_f64().unwrap_or(0.0);
+        let has_small_features = features["has_small_features"].as_bool().unwrap_or(false);
+        // Use estimated_difficulty to distinguish high-overhang models.
+        // The T-shape has difficulty "hard" due to overhang_ratio > 0.15,
+        // while a simple 20mm cube on bed plate has ~0.167 (also hard due to
+        // bottom face). We use has_bridges AND difficulty together.
+        let difficulty = features["estimated_difficulty"]
+            .as_str()
+            .unwrap_or("easy");
+        // Significant overhangs: overhang_ratio > 0.25 (well above the ~0.167
+        // that any cube-on-bed has from its bottom face alone).
+        let has_significant_overhangs = overhang_ratio > 0.25 && difficulty == "hard";
+
+        let response_json = if has_significant_overhangs && !has_small_features {
             // Overhang model: enable supports, suggest brim.
             serde_json::json!({
                 "layer_height": 0.2,
@@ -152,45 +167,92 @@ pub fn simple_cube() -> TriangleMesh {
     TriangleMesh::new(vertices, indices).expect("simple_cube mesh should be valid")
 }
 
-/// Creates a model with significant overhangs.
+/// Creates a T-shaped model with significant overhangs.
 ///
-/// This is a wedge/ramp shape: a box with a tilted top face angled at
-/// approximately 60 degrees from horizontal, producing overhangs that
-/// should trigger `overhang_ratio > 0.05` and `has_bridges = true`.
+/// Geometry: a thin stem (4mm x 4mm x 10mm) topped by a wider cap
+/// (20mm x 20mm x 4mm). The underside of the cap extends beyond the
+/// stem on all four sides, creating downward-facing horizontal surfaces
+/// that are classified as overhangs by the geometry analyzer.
 ///
-/// The shape is a pentahedron (triangulated prism) with vertices:
-/// - Base: 20mm x 20mm rectangle at z = 0
-/// - Top: angled edge at z = 20mm on one side, z = 0mm on the other
+/// This triggers `overhang_ratio > 0.05` and `has_bridges = true`.
 pub fn overhang_model() -> TriangleMesh {
-    // A wedge: base rectangle at z=0, top edge at z=20 on the left side,
-    // sloping down to z=0 on the right side.
+    // Stem: centered at x=10, y=10, from z=0 to z=10, size 4x4
+    // Cap: from x=0 to x=20, y=0 to y=20, z=10 to z=14
+    //
+    // We model this as two separate boxes sharing the z=10 boundary:
+    //   Stem: [8,8,0] to [12,12,10]
+    //   Cap:  [0,0,10] to [20,20,14]
+
     let vertices = vec![
-        // Bottom face vertices
-        Point3::new(0.0, 0.0, 0.0),   // 0: bottom-left-front
-        Point3::new(20.0, 0.0, 0.0),  // 1: bottom-right-front
-        Point3::new(20.0, 20.0, 0.0), // 2: bottom-right-back
-        Point3::new(0.0, 20.0, 0.0),  // 3: bottom-left-back
-        // Top edge vertices (left side elevated)
-        Point3::new(0.0, 0.0, 20.0),  // 4: top-left-front
-        Point3::new(0.0, 20.0, 20.0), // 5: top-left-back
+        // Stem bottom (z = 0)
+        Point3::new(8.0, 8.0, 0.0),   // 0
+        Point3::new(12.0, 8.0, 0.0),  // 1
+        Point3::new(12.0, 12.0, 0.0), // 2
+        Point3::new(8.0, 12.0, 0.0),  // 3
+        // Stem top / Cap inner bottom (z = 10)
+        Point3::new(8.0, 8.0, 10.0),  // 4
+        Point3::new(12.0, 8.0, 10.0), // 5
+        Point3::new(12.0, 12.0, 10.0),// 6
+        Point3::new(8.0, 12.0, 10.0), // 7
+        // Cap bottom corners (z = 10)
+        Point3::new(0.0, 0.0, 10.0),  // 8
+        Point3::new(20.0, 0.0, 10.0), // 9
+        Point3::new(20.0, 20.0, 10.0),// 10
+        Point3::new(0.0, 20.0, 10.0), // 11
+        // Cap top (z = 14)
+        Point3::new(0.0, 0.0, 14.0),  // 12
+        Point3::new(20.0, 0.0, 14.0), // 13
+        Point3::new(20.0, 20.0, 14.0),// 14
+        Point3::new(0.0, 20.0, 14.0), // 15
     ];
 
     let indices = vec![
-        // Bottom face (z = 0): normal pointing down
+        // === STEM ===
+        // Stem bottom face (z = 0): normal (0, 0, -1)
         [0, 2, 1],
         [0, 3, 2],
-        // Left face (x = 0): vertical wall, normal pointing left
-        [0, 4, 5],
-        [0, 5, 3],
-        // Front face (y = 0): triangle
-        [0, 1, 4],
-        // Back face (y = 20): triangle
-        [3, 5, 2],
-        // Sloped top face: from top-left edge (z=20) down to bottom-right edge (z=0)
-        // This face has a large overhang angle.
-        // Vertices: 4 (0,0,20), 5 (0,20,20), 2 (20,20,0), 1 (20,0,0)
-        [4, 1, 2],
-        [4, 2, 5],
+        // Stem front face (y = 8): normal (0, -1, 0)
+        [0, 1, 5],
+        [0, 5, 4],
+        // Stem back face (y = 12): normal (0, +1, 0)
+        [2, 3, 7],
+        [2, 7, 6],
+        // Stem right face (x = 12): normal (+1, 0, 0)
+        [1, 2, 6],
+        [1, 6, 5],
+        // Stem left face (x = 8): normal (-1, 0, 0)
+        [3, 0, 4],
+        [3, 4, 7],
+        // (No stem top -- it merges with cap bottom inner area)
+
+        // === CAP BOTTOM FACE (z = 10): overhang! normal (0, 0, -1) ===
+        // This is the key overhang surface. We cover the full 20x20 area
+        // minus the 4x4 stem opening (simplified: full 20x20 quad, since
+        // the stem top at same Z doesn't create a visible gap in practice).
+        //
+        // For simplicity, model the cap bottom as the full 20x20 area.
+        // The stem-cap junction is at the same Z level so this is geometrically
+        // valid (the stem top and cap bottom share the z=10 plane).
+        [8, 10, 9],
+        [8, 11, 10],
+
+        // === CAP TOP FACE (z = 14): normal (0, 0, +1) ===
+        [12, 13, 14],
+        [12, 14, 15],
+
+        // === CAP SIDE FACES ===
+        // Front face (y = 0)
+        [8, 9, 13],
+        [8, 13, 12],
+        // Back face (y = 20)
+        [10, 11, 15],
+        [10, 15, 14],
+        // Right face (x = 20)
+        [9, 10, 14],
+        [9, 14, 13],
+        // Left face (x = 0)
+        [11, 8, 12],
+        [11, 12, 15],
     ];
 
     TriangleMesh::new(vertices, indices).expect("overhang_model mesh should be valid")
