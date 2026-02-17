@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 8 -- AI Integration (in progress)
+**Current focus:** Phase 8 -- AI Integration (complete)
 
 ## Current Position
 
-Phase: 8 of 9 (AI Integration)
-Plan: 4 of 5 in current phase (4 complete)
-Status: Completed 08-04 -- Suggest pipeline and engine integration
-Last activity: 2026-02-17 -- Completed 08-04-PLAN.md (Suggest Pipeline & Engine Integration)
+Phase: 8 of 9 (AI Integration) -- PHASE COMPLETE
+Plan: 5 of 5 in current phase (5 complete)
+Status: Completed 08-05 -- Integration tests and SC verification
+Last activity: 2026-02-17 -- Completed 08-05-PLAN.md (Integration Tests & SC Verification)
 
-Progress: [################################################--] 98% (58/~59 overall)
+Progress: [##################################################] 100% (59/~59 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 58
+- Total plans completed: 59
 - Average duration: 5.4 min
-- Total execution time: 5.54 hours
+- Total execution time: 5.62 hours
 
 **By Phase:**
 
@@ -34,11 +34,11 @@ Progress: [################################################--] 98% (58/~59 overa
 | 05    | 8     | 69min | 8.6min   |
 | 06    | 9     | 45min | 5.0min   |
 | 07    | 7     | 50min | 7.1min   |
-| 08    | 4     | 14min | 3.5min   |
+| 08    | 5     | 19min | 3.8min   |
 
 **Recent Trend:**
-- Last 5 plans: 08-01 (3min), 08-02 (3min), 08-03 (4min), 08-04 (4min)
-- Trend: Phase 8 continues fast (3.5min avg) -- AI integration pipeline
+- Last 5 plans: 08-01 (3min), 08-02 (3min), 08-03 (4min), 08-04 (4min), 08-05 (5min)
+- Trend: Phase 8 complete (3.8min avg) -- AI integration pipeline fully verified
 
 *Updated after each plan completion*
 
@@ -283,6 +283,9 @@ Recent decisions affecting current work:
 - [08-04]: AiConfig passed as separate parameter to suggest_profile, not added to PrintConfig
 - [08-04]: Sync wrapper uses tokio new_current_thread runtime for minimal overhead
 - [08-04]: AI feature flag named 'ai' matching plugins feature naming pattern
+- [08-05]: SmartMockProvider uses overhang_ratio > 0.25 threshold (above standard bottom-face ~0.167) for overhang detection
+- [08-05]: T-shape model (stem + cap) for overhang testing -- wedge sloped face has upward normal (not overhang)
+- [08-05]: 14 integration tests organized by SC1-SC4, all pass without network access in <1 second
 
 ### Pending Todos
 
@@ -295,5 +298,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 08-04-PLAN.md (Suggest Pipeline & Engine Integration)
-Resume file: .planning/phases/08-ai-integration/08-04-SUMMARY.md
+Stopped at: Completed 08-05-PLAN.md (Integration Tests & SC Verification) -- Phase 8 COMPLETE
+Resume file: .planning/phases/08-ai-integration/08-05-SUMMARY.md
