@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 5 of 9 (Support Structures)
-Plan: 2 of 8 in current phase (2 complete)
-Status: Executing Phase 5 -- Plan 02 complete (traditional support generation)
-Last activity: 2026-02-17 -- Completed 05-02-PLAN.md (Traditional grid/line support generation)
+Plan: 3 of 8 in current phase (3 complete)
+Status: Executing Phase 5 -- Plan 03 complete (bridge detection and G-code integration)
+Last activity: 2026-02-17 -- Completed 05-03-PLAN.md (Bridge detection and bridge-specific print settings)
 
-Progress: [#############################] 78% (28/~36 overall)
+Progress: [##############################] 81% (29/~36 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 28
-- Average duration: 5.3 min
-- Total execution time: 2.97 hours
+- Total plans completed: 29
+- Average duration: 5.2 min
+- Total execution time: 3.02 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Progress: [#############################] 78% (28/~36 overall)
 | 02    | 5     | 28min | 5.6min   |
 | 03    | 6     | 25min | 4.2min   |
 | 04    | 10    | 95min | 9.5min   |
-| 05    | 2     | 9min  | 4.5min   |
+| 05    | 3     | 12min | 4.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 04-09 (25min), 04-10 (6min), 05-01 (5min), 05-02 (4min)
+- Last 5 plans: 04-10 (6min), 05-01 (5min), 05-02 (4min), 05-03 (3min)
 - Trend: stable
 
 *Updated after each plan completion*
@@ -173,6 +173,10 @@ Recent decisions affecting current work:
 - [05-02]: XY gap uses dual offset: inward-offset support + outward-offset model then subtract
 - [05-02]: Line pattern uses fixed 0-degree angle for easy peel; Grid/Rectilinear dispatch to infill module
 - [05-02]: Multiple overlapping projections merged via polygon_union per layer
+- [05-03]: Span direction from bounding box: shorter dimension = span crossing direction
+- [05-03]: Endpoint support via probe-strip polygon intersection with 0.5mm expanded below_contours
+- [05-03]: Probe strip thickness 0.3mm for robust but precise intersection detection
+- [05-03]: SupportInterface variant added alongside Bridge for Plan 05 readiness
 
 ### Pending Todos
 
@@ -185,5 +189,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 05-02-PLAN.md (Traditional grid/line support generation)
-Resume file: .planning/phases/05-support-structures/05-02-SUMMARY.md
+Stopped at: Completed 05-03-PLAN.md (Bridge detection and bridge-specific print settings)
+Resume file: .planning/phases/05-support-structures/05-03-SUMMARY.md
