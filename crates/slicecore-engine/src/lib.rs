@@ -20,10 +20,12 @@
 //! It supports TOML deserialization with `#[serde(default)]`, so any
 //! unspecified fields use sensible FDM defaults.
 
+pub mod arachne;
 pub mod config;
 pub mod engine;
 pub mod error;
 pub mod extrusion;
+pub mod gap_fill;
 pub mod gcode_gen;
 pub mod infill;
 pub mod perimeter;
@@ -49,6 +51,8 @@ pub use planner::{
     generate_brim, generate_skirt, plan_fan, plan_retraction, plan_temperatures, RetractionMove,
 };
 pub use gcode_gen::{generate_full_gcode, generate_layer_gcode};
+pub use gap_fill::{detect_and_fill_gaps, GapFillPath};
+pub use arachne::{generate_arachne_perimeters, ArachnePerimeter, ArachneResult};
 pub use scarf::apply_scarf_joint;
 pub use toolpath::{
     assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment,

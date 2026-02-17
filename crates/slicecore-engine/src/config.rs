@@ -127,6 +127,12 @@ pub struct PrintConfig {
     /// Adaptive layer quality (0.0 = speed, 1.0 = quality).
     pub adaptive_layer_quality: f64,
 
+    // --- Gap Fill ---
+    /// Enable gap fill between perimeters.
+    pub gap_fill_enabled: bool,
+    /// Minimum gap width to fill (mm).
+    pub gap_fill_min_width: f64,
+
     // --- Scarf Joint Seam ---
     /// Scarf joint seam configuration.
     pub scarf_joint: ScarfJointConfig,
@@ -250,6 +256,9 @@ impl Default for PrintConfig {
             adaptive_min_layer_height: 0.05,
             adaptive_max_layer_height: 0.3,
             adaptive_layer_quality: 0.5,
+
+            gap_fill_enabled: true,
+            gap_fill_min_width: 0.1,
 
             scarf_joint: ScarfJointConfig::default(),
         }
