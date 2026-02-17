@@ -198,6 +198,15 @@ Plans:
   3. The library builds and passes tests on macOS (ARM + x86), Linux (ARM + x86), and Windows (ARM + x86), verified by CI matrix
   4. WASM compilation (wasm32-wasi and wasm32-unknown-unknown) succeeds and a browser-based slicing demo produces correct G-code
   5. Performance matches or beats C++ libslic3r on a benchmark suite of 5 models, and memory usage is at or below 80% of C++ libslic3r, measured by cargo-criterion and peak RSS comparison
+**Plans:** 6 plans
+
+Plans:
+- [ ] 09-01-PLAN.md -- Rustdoc polish (fix warnings, module docs) and Serialize/Deserialize derives for all public API types
+- [ ] 09-02-PLAN.md -- Event system (SliceEvent, EventBus, subscribers) and structured output (JSON + MessagePack) with CLI flags
+- [ ] 09-03-PLAN.md -- WASM getrandom fix for wasm32-unknown-unknown and multi-platform CI matrix (macOS/Linux/Windows/ARM)
+- [ ] 09-04-PLAN.md -- Criterion benchmark suite (5 synthetic models, geometry hot-path micro-benchmarks)
+- [ ] 09-05-PLAN.md -- Fuzz testing targets for mesh parsers and golden file tests for G-code regression detection
+- [ ] 09-06-PLAN.md -- Integration tests, coverage measurement, and Phase 9 success criteria verification
 
 ## Coverage Notes
 
@@ -223,4 +232,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. G-code Completeness and Advanced Features | 9/9 | ✓ Complete | 2026-02-17 |
 | 7. Plugin System | 0/7 | Not started | - |
 | 8. AI Integration | 0/5 | Not started | - |
-| 9. API Polish, Testing, and Platform Validation | 0/TBD | Not started | - |
+| 9. API Polish, Testing, and Platform Validation | 0/6 | Not started | - |
