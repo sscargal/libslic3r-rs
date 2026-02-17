@@ -397,7 +397,7 @@ pub fn fit_arcs(
                     points_fit_arc(window_points, tolerance)
                 {
                     // Check radius constraints.
-                    if radius >= 0.5 && radius <= 1000.0 {
+                    if (0.5..=1000.0).contains(&radius) {
                         best_arc_len = window_size;
                         best_center = center;
                         best_radius = radius;

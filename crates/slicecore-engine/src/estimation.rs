@@ -187,7 +187,7 @@ pub fn estimate_print_time(
                 let distance = (dx * dx + dy * dy + dz * dz).sqrt();
 
                 if distance > 1e-6 {
-                    let has_extrusion = e.map_or(false, |ev| ev > 0.0);
+                    let has_extrusion = e.is_some_and(|ev| ev > 0.0);
                     let accel = if has_extrusion {
                         print_acceleration
                     } else {
@@ -297,7 +297,7 @@ pub fn estimate_print_time(
 
                     let arc_length = radius * sweep.abs();
                     if arc_length > 1e-6 {
-                        let has_extrusion = e.map_or(false, |ev| ev > 0.0);
+                        let has_extrusion = e.is_some_and(|ev| ev > 0.0);
                         let accel = if has_extrusion {
                             print_acceleration
                         } else {
