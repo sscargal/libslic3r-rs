@@ -36,6 +36,8 @@ pub enum FeatureType {
     Brim,
     /// Gap fill between perimeters.
     GapFill,
+    /// Variable-width perimeter (Arachne).
+    VariableWidthPerimeter,
     /// Non-extrusion travel move.
     Travel,
 }
@@ -55,6 +57,9 @@ pub struct ToolpathSegment {
     pub feedrate: f64,
     /// Z height in mm.
     pub z: f64,
+    /// Extrusion width override in mm (None = use config default).
+    /// Used by Arachne variable-width perimeters.
+    pub extrusion_width: Option<f64>,
 }
 
 impl ToolpathSegment {
@@ -200,6 +205,7 @@ pub fn assemble_layer_toolpath(
                             e_value: 0.0,
                             feedrate: travel_speed,
                             z,
+                            extrusion_width: None,
                         });
                     }
                 }
@@ -230,6 +236,7 @@ pub fn assemble_layer_toolpath(
                             e_value: e,
                             feedrate: perimeter_speed,
                             z,
+                            extrusion_width: None,
                         });
                     }
 
@@ -287,6 +294,7 @@ pub fn assemble_layer_toolpath(
                         e_value: 0.0,
                         feedrate: travel_speed,
                         z,
+                        extrusion_width: None,
                     });
                 }
             }
@@ -315,6 +323,7 @@ pub fn assemble_layer_toolpath(
                         e_value: e,
                         feedrate: perimeter_speed,
                         z,
+                        extrusion_width: None,
                     });
                 }
 
@@ -353,6 +362,7 @@ pub fn assemble_layer_toolpath(
                         e_value: 0.0,
                         feedrate: travel_speed,
                         z,
+                        extrusion_width: None,
                     });
                 }
             }
@@ -375,6 +385,7 @@ pub fn assemble_layer_toolpath(
                     e_value: e,
                     feedrate: infill_speed,
                     z,
+                    extrusion_width: None,
                 });
 
                 current_pos = Some(end_pt);
@@ -764,6 +775,7 @@ mod tests {
             e_value: 0.0,
             feedrate: 9000.0,
             z: 0.2,
+        extrusion_width: None,
         };
         assert!(
             (seg.length() - 5.0).abs() < 1e-9,

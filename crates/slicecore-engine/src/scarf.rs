@@ -358,6 +358,7 @@ pub(crate) fn split_segment_at_distance(
         e_value: segment.e_value * ratio,
         feedrate: segment.feedrate,
         z: segment.z,
+    extrusion_width: None,
     };
 
     let second = ToolpathSegment {
@@ -367,6 +368,7 @@ pub(crate) fn split_segment_at_distance(
         e_value: segment.e_value * (1.0 - ratio),
         feedrate: segment.feedrate,
         z: segment.z,
+    extrusion_width: None,
     };
 
     (first, second)
@@ -392,6 +394,7 @@ mod tests {
                 e_value: 1.0,
                 feedrate: 2700.0,
                 z,
+                extrusion_width: None,
             },
             ToolpathSegment {
                 start: Point2::new(20.0, 0.0),
@@ -400,6 +403,7 @@ mod tests {
                 e_value: 1.0,
                 feedrate: 2700.0,
                 z,
+                extrusion_width: None,
             },
             ToolpathSegment {
                 start: Point2::new(20.0, 20.0),
@@ -408,6 +412,7 @@ mod tests {
                 e_value: 1.0,
                 feedrate: 2700.0,
                 z,
+                extrusion_width: None,
             },
             ToolpathSegment {
                 start: Point2::new(0.0, 20.0),
@@ -416,6 +421,7 @@ mod tests {
                 e_value: 1.0,
                 feedrate: 2700.0,
                 z,
+                extrusion_width: None,
             },
         ]
     }
@@ -637,6 +643,7 @@ mod tests {
             e_value: 1.0,
             feedrate: 2700.0,
             z: 0.4,
+        extrusion_width: None,
         };
 
         let (first, second) = split_segment_at_distance(&seg, 3.0);
@@ -668,6 +675,7 @@ mod tests {
             e_value: 1.0,
             feedrate: 2700.0,
             z: 0.4,
+        extrusion_width: None,
         };
 
         let (first, second) = split_segment_at_distance(&seg, 7.0);

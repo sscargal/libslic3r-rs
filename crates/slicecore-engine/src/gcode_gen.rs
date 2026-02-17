@@ -208,6 +208,7 @@ fn feature_label(feature: FeatureType) -> &'static str {
         FeatureType::Brim => "Brim",
         FeatureType::Travel => "Travel",
         FeatureType::GapFill => "Gap fill",
+        FeatureType::VariableWidthPerimeter => "Variable width perimeter",
     }
 }
 
@@ -239,6 +240,7 @@ mod tests {
                     e_value: 0.5,
                     feedrate: 2700.0,
                     z: 0.4,
+                extrusion_width: None,
                 },
                 ToolpathSegment {
                     start: Point2::new(10.0, 0.0),
@@ -247,6 +249,7 @@ mod tests {
                     e_value: 0.5,
                     feedrate: 2700.0,
                     z: 0.4,
+                extrusion_width: None,
                 },
             ],
         }
@@ -266,6 +269,7 @@ mod tests {
                     e_value: 0.25,
                     feedrate: 2700.0,
                     z: 0.4,
+                extrusion_width: None,
                 },
                 ToolpathSegment {
                     start: Point2::new(5.0, 0.0),
@@ -274,6 +278,7 @@ mod tests {
                     e_value: 0.0,
                     feedrate: 9000.0,
                     z: 0.4,
+                extrusion_width: None,
                 },
                 ToolpathSegment {
                     start: Point2::new(5.0 + travel_length, 0.0),
@@ -282,6 +287,7 @@ mod tests {
                     e_value: 0.25,
                     feedrate: 2700.0,
                     z: 0.4,
+                extrusion_width: None,
                 },
             ],
         }
@@ -431,6 +437,7 @@ mod tests {
                 e_value: 0.5,
                 feedrate: 1200.0,
                 z: 0.3,
+            extrusion_width: None,
             }],
         };
 
@@ -445,6 +452,7 @@ mod tests {
                 e_value: 0.5,
                 feedrate: 2700.0,
                 z: 0.5,
+            extrusion_width: None,
             }],
         };
 
@@ -525,6 +533,7 @@ mod tests {
                 e_value: 0.5,
                 feedrate: 2700.0,
                 z: 0.6,
+            extrusion_width: None,
             }],
         };
 
@@ -581,6 +590,7 @@ mod tests {
                     e_value: 0.25,
                     feedrate: 2700.0,
                     z: 0.30, // Below layer Z (scarf ramp).
+                    extrusion_width: None,
                 },
                 ToolpathSegment {
                     start: Point2::new(5.0, 0.0),
@@ -589,6 +599,7 @@ mod tests {
                     e_value: 0.25,
                     feedrate: 2700.0,
                     z: 0.35, // Rising Z.
+                    extrusion_width: None,
                 },
                 ToolpathSegment {
                     start: Point2::new(10.0, 0.0),
@@ -597,6 +608,7 @@ mod tests {
                     e_value: 0.25,
                     feedrate: 2700.0,
                     z: 0.40, // At layer Z.
+                    extrusion_width: None,
                 },
             ],
         };

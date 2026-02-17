@@ -310,6 +310,7 @@ impl Engine {
                                 e_value: 0.0,
                                 feedrate: travel_speed,
                                 z: first_z,
+                            extrusion_width: None,
                             });
                         }
                     }
@@ -338,6 +339,7 @@ impl Engine {
                                 e_value: e,
                                 feedrate: speed,
                                 z: first_z,
+                            extrusion_width: None,
                             });
                         }
                         prev = pt;
@@ -362,6 +364,7 @@ impl Engine {
                             e_value: e,
                             feedrate: speed,
                             z: first_z,
+                        extrusion_width: None,
                         });
                         current_pos = Some(first_pt);
                     } else {
