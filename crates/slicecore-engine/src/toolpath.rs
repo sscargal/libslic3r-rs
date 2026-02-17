@@ -9,12 +9,13 @@
 //! The assembly function converts perimeters and infill into ordered segments
 //! with travel moves inserted between disconnected paths.
 
-use slicecore_math::Point2;
+use slicecore_math::{IPoint2, Point2};
 
 use crate::config::PrintConfig;
 use crate::extrusion::compute_e_value;
 use crate::infill::LayerInfill;
 use crate::perimeter::ContourPerimeters;
+use crate::seam::select_seam_point;
 
 /// The type of feature being printed (affects speed and extrusion settings).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,6 +100,7 @@ impl LayerToolpath {
 /// The assembly order is:
 /// 1. Perimeters (in wall order per config): outer/inner shells converted to
 ///    sequential line segments with Travel moves between disconnected paths.
+///    Each perimeter polygon starts at the seam-selected vertex.
 /// 2. Infill lines: nearest-neighbor ordered with Travel moves between lines.
 ///
 /// # Parameters
@@ -108,9 +110,11 @@ impl LayerToolpath {
 /// - `perimeters`: Perimeter shells from [`generate_perimeters`](crate::perimeter::generate_perimeters).
 /// - `infill`: Infill lines from [`generate_rectilinear_infill`](crate::infill::generate_rectilinear_infill).
 /// - `config`: Print configuration for speeds and extrusion parameters.
+/// - `previous_seam`: Seam point from the previous layer for cross-layer alignment.
 ///
 /// # Returns
-/// A [`LayerToolpath`] with all segments in print order.
+/// A tuple of `(LayerToolpath, Option<IPoint2>)` where the second element is
+/// the last seam point used on this layer (for cross-layer seam tracking).
 pub fn assemble_layer_toolpath(
     layer_index: usize,
     z: f64,
@@ -118,7 +122,8 @@ pub fn assemble_layer_toolpath(
     perimeters: &[ContourPerimeters],
     infill: &LayerInfill,
     config: &PrintConfig,
-) -> LayerToolpath {
+    previous_seam: Option<IPoint2>,
+) -> (LayerToolpath, Option<IPoint2>) {
     let mut segments = Vec::new();
 
     let extrusion_width = config.extrusion_width();
@@ -140,6 +145,9 @@ pub fn assemble_layer_toolpath(
     // Track the current nozzle position for inserting travel moves.
     let mut current_pos: Option<Point2> = None;
 
+    // Track seam point for cross-layer alignment.
+    let mut last_seam: Option<IPoint2> = previous_seam;
+
     // --- Perimeters ---
     for contour_perims in perimeters {
         for shell in &contour_perims.shells {
@@ -154,19 +162,30 @@ pub fn assemble_layer_toolpath(
                 if pts.len() < 2 {
                     continue;
                 }
+                let n = pts.len();
 
-                // Convert first point to mm.
-                let (first_x, first_y) = pts[0].to_mm();
-                let first_pt = Point2::new(first_x, first_y);
+                // Select the seam point (starting vertex) for this polygon.
+                let seam_idx = select_seam_point(
+                    polygon,
+                    config.seam_position,
+                    last_seam,
+                    layer_index,
+                );
 
-                // Insert travel to the start of this polygon if needed.
+                // Update the seam tracking point.
+                last_seam = Some(pts[seam_idx]);
+
+                // Convert seam point to mm.
+                let (seam_x, seam_y) = pts[seam_idx].to_mm();
+                let seam_pt = Point2::new(seam_x, seam_y);
+
+                // Insert travel to the seam point of this polygon if needed.
                 if let Some(pos) = current_pos {
-                    let dist = distance(&pos, &first_pt);
+                    let dist = distance(&pos, &seam_pt);
                     if dist > 0.001 {
-                        // Non-trivial distance -- insert travel.
                         segments.push(ToolpathSegment {
                             start: pos,
-                            end: first_pt,
+                            end: seam_pt,
                             feature: FeatureType::Travel,
                             e_value: 0.0,
                             feedrate: travel_speed,
@@ -175,10 +194,12 @@ pub fn assemble_layer_toolpath(
                     }
                 }
 
-                // Emit extrusion segments for each edge of the polygon.
-                let mut prev = first_pt;
-                for ipt in pts.iter().skip(1) {
-                    let (px, py) = ipt.to_mm();
+                // Emit extrusion segments starting from the seam point,
+                // wrapping around the polygon.
+                let mut prev = seam_pt;
+                for offset in 1..=n {
+                    let idx = (seam_idx + offset) % n;
+                    let (px, py) = pts[idx].to_mm();
                     let pt = Point2::new(px, py);
                     let seg_len = distance(&prev, &pt);
 
@@ -204,29 +225,9 @@ pub fn assemble_layer_toolpath(
                     prev = pt;
                 }
 
-                // Close the polygon: last point back to first.
-                let close_len = distance(&prev, &first_pt);
-                if close_len > 0.0001 {
-                    let e = compute_e_value(
-                        close_len,
-                        extrusion_width,
-                        layer_height,
-                        config.filament_diameter,
-                        config.extrusion_multiplier,
-                    );
-
-                    segments.push(ToolpathSegment {
-                        start: prev,
-                        end: first_pt,
-                        feature,
-                        e_value: e,
-                        feedrate: perimeter_speed,
-                        z,
-                    });
-                    current_pos = Some(first_pt);
-                } else {
-                    current_pos = Some(prev);
-                }
+                // After wrapping around, prev should be back at seam_pt.
+                // No explicit close needed since we iterate n edges (seam_idx -> ... -> seam_idx).
+                current_pos = Some(seam_pt);
             }
         }
     }
@@ -288,12 +289,15 @@ pub fn assemble_layer_toolpath(
         }
     }
 
-    LayerToolpath {
-        layer_index,
-        z,
-        layer_height,
-        segments,
-    }
+    (
+        LayerToolpath {
+            layer_index,
+            z,
+            layer_height,
+            segments,
+        },
+        last_seam,
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -428,7 +432,7 @@ mod tests {
             is_solid: false,
         };
 
-        let toolpath = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
 
         // Should have segments.
         assert!(
@@ -475,7 +479,7 @@ mod tests {
             is_solid: false,
         };
 
-        let toolpath = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
 
         let travel_count = toolpath
             .segments
@@ -503,7 +507,7 @@ mod tests {
             is_solid: false,
         };
 
-        let toolpath = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
 
         for seg in &toolpath.segments {
             match seg.feature {
@@ -543,7 +547,7 @@ mod tests {
         };
 
         // Layer 0 (first layer).
-        let toolpath = assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &infill, &config);
+        let (toolpath, _) = assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &infill, &config, None);
         let first_layer_speed_mmmin = 20.0 * 60.0;
 
         for seg in &toolpath.segments {
@@ -578,7 +582,7 @@ mod tests {
         };
 
         // Layer 2 (not first layer).
-        let toolpath = assemble_layer_toolpath(2, 0.7, 0.2, &perimeters, &infill, &config);
+        let (toolpath, _) = assemble_layer_toolpath(2, 0.7, 0.2, &perimeters, &infill, &config, None);
 
         let perim_speed_mmmin = 45.0 * 60.0;
         let infill_speed_mmmin = 80.0 * 60.0;
@@ -629,7 +633,7 @@ mod tests {
             is_solid: false,
         };
 
-        let toolpath = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
 
         let time = toolpath.estimated_time_seconds();
         assert!(
@@ -647,7 +651,7 @@ mod tests {
             is_solid: false,
         };
 
-        let toolpath = assemble_layer_toolpath(0, 0.2, 0.2, &[], &infill, &config);
+        let (toolpath, _) = assemble_layer_toolpath(0, 0.2, 0.2, &[], &infill, &config, None);
         assert!(
             toolpath.segments.is_empty(),
             "Empty perimeters and infill should produce empty toolpath"
@@ -686,7 +690,7 @@ mod tests {
         };
 
         let config = default_config();
-        let toolpath = assemble_layer_toolpath(1, 0.4, 0.2, &[], &infill, &config);
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &[], &infill, &config, None);
 
         let has_solid = toolpath
             .segments
@@ -696,6 +700,126 @@ mod tests {
             has_solid,
             "Solid infill should use SolidInfill feature type"
         );
+    }
+
+    #[test]
+    fn toolpath_with_aligned_seam_consecutive_layers_nearby() {
+        let square = make_square(20.0);
+        let config = PrintConfig {
+            seam_position: crate::seam::SeamPosition::Aligned,
+            ..Default::default()
+        };
+
+        let perimeters = generate_perimeters(&[square.clone()], &config);
+        let infill = LayerInfill {
+            lines: Vec::new(),
+            is_solid: false,
+        };
+
+        // Layer 0 -- no previous seam.
+        let (tp0, seam0) = assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &infill, &config, None);
+        assert!(!tp0.segments.is_empty(), "Layer 0 should have segments");
+        assert!(seam0.is_some(), "Layer 0 should have a seam point");
+
+        // Layer 1 -- pass previous seam from layer 0.
+        let (tp1, seam1) = assemble_layer_toolpath(1, 0.5, 0.2, &perimeters, &infill, &config, seam0);
+        assert!(!tp1.segments.is_empty(), "Layer 1 should have segments");
+        assert!(seam1.is_some(), "Layer 1 should have a seam point");
+
+        // Seam points should be at the same vertex (or very close) across layers.
+        let s0 = seam0.unwrap();
+        let s1 = seam1.unwrap();
+        let dist_sq = crate::seam::distance_squared_i64(s0, s1);
+        // Same polygon, same vertex should be selected -- distance should be 0.
+        assert_eq!(
+            dist_sq, 0,
+            "Aligned seam should select the same vertex across layers with the same polygon"
+        );
+    }
+
+    #[test]
+    fn toolpath_with_rear_seam_starts_near_max_y() {
+        let square = make_square(20.0);
+        let config = PrintConfig {
+            seam_position: crate::seam::SeamPosition::Rear,
+            ..Default::default()
+        };
+
+        let perimeters = generate_perimeters(&[square.clone()], &config);
+        let infill = LayerInfill {
+            lines: Vec::new(),
+            is_solid: false,
+        };
+
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+
+        // Find the first perimeter extrusion segment.
+        let first_perim = toolpath.segments.iter().find(|s| {
+            s.feature == FeatureType::OuterPerimeter || s.feature == FeatureType::InnerPerimeter
+        });
+
+        assert!(first_perim.is_some(), "Should have perimeter segments");
+        let seg = first_perim.unwrap();
+
+        // The first perimeter segment should start near maximum Y (20mm).
+        assert!(
+            seg.start.y > 15.0,
+            "Rear seam: first perimeter should start near max Y (20mm), got y={}",
+            seg.start.y
+        );
+    }
+
+    #[test]
+    fn toolpath_seam_rotation_forms_complete_perimeter() {
+        let square = make_square(20.0);
+        let config = default_config();
+
+        let perimeters = generate_perimeters(&[square.clone()], &config);
+        let infill = LayerInfill {
+            lines: Vec::new(),
+            is_solid: false,
+        };
+
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+
+        // Count total perimeter extrusion length.
+        let total_perim_len: f64 = toolpath
+            .segments
+            .iter()
+            .filter(|s| {
+                s.feature == FeatureType::OuterPerimeter
+                    || s.feature == FeatureType::InnerPerimeter
+            })
+            .map(|s| s.length())
+            .sum();
+
+        // A 20mm square perimeter is ~80mm (4 sides of 20mm).
+        // With 2 shells, the outer is ~80mm and inner is smaller.
+        // Total should be significantly positive.
+        assert!(
+            total_perim_len > 50.0,
+            "Total perimeter length should be substantial (>50mm), got {}",
+            total_perim_len
+        );
+
+        // Verify E-values are still correct after seam rotation.
+        for seg in &toolpath.segments {
+            match seg.feature {
+                FeatureType::Travel => {
+                    assert!(
+                        seg.e_value.abs() < 1e-15,
+                        "Travel segments should have zero E after seam rotation"
+                    );
+                }
+                FeatureType::OuterPerimeter | FeatureType::InnerPerimeter => {
+                    assert!(
+                        seg.e_value > 0.0,
+                        "Perimeter segments should have positive E after seam rotation"
+                    );
+                }
+                _ => {}
+            }
+        }
     }
 
     #[test]

@@ -104,6 +104,8 @@ impl Engine {
 
         // 2. Process each layer: perimeters, surface classification, infill, toolpath.
         let mut layer_toolpaths: Vec<LayerToolpath> = Vec::with_capacity(layers.len());
+        // Track seam position across layers for Aligned strategy.
+        let mut previous_seam: Option<slicecore_math::IPoint2> = None;
 
         for (layer_idx, layer) in layers.iter().enumerate() {
             if layer.contours.is_empty() {
@@ -192,15 +194,21 @@ impl Engine {
                 is_solid: infill_is_solid,
             };
 
-            // 2d. Assemble toolpath.
-            let toolpath = assemble_layer_toolpath(
+            // 2d. Assemble toolpath with seam placement.
+            let (toolpath, layer_seam) = assemble_layer_toolpath(
                 layer_idx,
                 layer.z,
                 layer.layer_height,
                 &perimeters,
                 &infill,
                 &self.config,
+                previous_seam,
             );
+
+            // Update cross-layer seam tracking.
+            if layer_seam.is_some() {
+                previous_seam = layer_seam;
+            }
 
             layer_toolpaths.push(toolpath);
         }
