@@ -17,6 +17,7 @@
 pub mod bridge;
 pub mod config;
 pub mod detect;
+pub mod interface;
 pub mod traditional;
 pub mod tree;
 pub mod tree_node;
