@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 7 -- Plugin System (plan 2 of 7 complete)
+**Current focus:** Phase 7 -- Plugin System (plan 5 of 7 complete)
 
 ## Current Position
 
 Phase: 7 of 9 (Plugin System)
-Plan: 2 of 7 in current phase (2 complete)
-Status: Executing Phase 7 -- plugin registry and native loader complete
-Last activity: 2026-02-17 -- Completed 07-02-PLAN.md (Plugin registry, native loader, discovery, type conversion)
+Plan: 5 of 7 in current phase (5 complete)
+Status: Executing Phase 7 -- native zigzag infill example plugin complete
+Last activity: 2026-02-17 -- Completed 07-05-PLAN.md (Native zigzag infill example plugin)
 
-Progress: [##########################################--------] 84% (47/~56 overall)
+Progress: [############################################------] 88% (50/~56 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 47
-- Average duration: 5.3 min
-- Total execution time: 4.7 hours
+- Total plans completed: 50
+- Average duration: 5.2 min
+- Total execution time: 4.8 hours
 
 **By Phase:**
 
@@ -33,11 +33,11 @@ Progress: [##########################################--------] 84% (47/~56 overa
 | 04    | 10    | 95min | 9.5min   |
 | 05    | 8     | 69min | 8.6min   |
 | 06    | 9     | 45min | 5.0min   |
-| 07    | 2     | 10min | 5.0min   |
+| 07    | 5     | 19min | 3.8min   |
 
 **Recent Trend:**
-- Last 5 plans: 06-08 (3min), 06-09 (4min), 07-01 (5min), 07-02 (5min)
-- Trend: Phase 7 plugin system steady at 5min/plan
+- Last 5 plans: 07-01 (5min), 07-02 (5min), 07-03 (3min), 07-04 (3min), 07-05 (3min)
+- Trend: Phase 7 plugin system accelerating
 
 *Updated after each plan completion*
 
@@ -243,6 +243,9 @@ Recent decisions affecting current work:
 - [07-02]: PluginManifest.library_filename is just a filename; loader resolves full path at runtime
 - [07-02]: CI WASM build uses --exclude flags (not workspace exclude) to keep crate in workspace
 - [07-02]: PluginKind enum separate from PluginType (host-side includes Builtin variant)
+- [07-05]: Plugin crate excluded from workspace (not a member) for independent compilation
+- [07-05]: Zigzag algorithm uses vertical scan lines with i128 arithmetic for overflow safety
+- [07-05]: Boundary decoding from flattened RVec<i64> with boundary_lengths polygon reconstruction
 
 ### Pending Todos
 
@@ -255,5 +258,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed 07-02-PLAN.md (Plugin registry, native loader, discovery, type conversion)
-Resume file: .planning/phases/07-plugin-system/07-02-SUMMARY.md
+Stopped at: Completed 07-05-PLAN.md (Native zigzag infill example plugin)
+Resume file: .planning/phases/07-plugin-system/07-05-SUMMARY.md
