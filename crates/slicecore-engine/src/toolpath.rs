@@ -11,10 +11,11 @@
 
 use slicecore_math::{IPoint2, Point2};
 
-use crate::config::PrintConfig;
+use crate::config::{PrintConfig, ScarfJointType};
 use crate::extrusion::compute_e_value;
 use crate::infill::LayerInfill;
 use crate::perimeter::ContourPerimeters;
+use crate::scarf::apply_scarf_joint;
 use crate::seam::select_seam_point;
 
 /// The type of feature being printed (affects speed and extrusion settings).
@@ -101,6 +102,8 @@ impl LayerToolpath {
 /// 1. Perimeters (in wall order per config): outer/inner shells converted to
 ///    sequential line segments with Travel moves between disconnected paths.
 ///    Each perimeter polygon starts at the seam-selected vertex.
+///    If scarf joint is enabled, it is applied to each perimeter polygon
+///    after segment generation.
 /// 2. Infill lines: nearest-neighbor ordered with Travel moves between lines.
 ///
 /// # Parameters
@@ -196,6 +199,7 @@ pub fn assemble_layer_toolpath(
 
                 // Emit extrusion segments starting from the seam point,
                 // wrapping around the polygon.
+                let mut polygon_segments: Vec<ToolpathSegment> = Vec::new();
                 let mut prev = seam_pt;
                 for offset in 1..=n {
                     let idx = (seam_idx + offset) % n;
@@ -212,7 +216,7 @@ pub fn assemble_layer_toolpath(
                             config.extrusion_multiplier,
                         );
 
-                        segments.push(ToolpathSegment {
+                        polygon_segments.push(ToolpathSegment {
                             start: prev,
                             end: pt,
                             feature,
@@ -224,6 +228,28 @@ pub fn assemble_layer_toolpath(
 
                     prev = pt;
                 }
+
+                // Apply scarf joint if enabled and applicable to this polygon type.
+                if config.scarf_joint.enabled {
+                    let should_apply = if shell.is_outer {
+                        true
+                    } else {
+                        config.scarf_joint.scarf_inner_walls
+                    };
+                    // Skip holes unless ContourAndHole is set.
+                    let skip_hole = !shell.is_outer
+                        && config.scarf_joint.scarf_joint_type == ScarfJointType::Contour;
+                    if should_apply && !skip_hole {
+                        apply_scarf_joint(
+                            &mut polygon_segments,
+                            &config.scarf_joint,
+                            layer_height,
+                            z,
+                        );
+                    }
+                }
+
+                segments.extend(polygon_segments);
 
                 // After wrapping around, prev should be back at seam_pt.
                 // No explicit close needed since we iterate n edges (seam_idx -> ... -> seam_idx).
@@ -852,5 +878,70 @@ mod tests {
             "First line should be at y~1.0, got y={}",
             first_y
         );
+    }
+
+    #[test]
+    fn toolpath_scarf_enabled_creates_z_variation() {
+        let square = make_square(20.0);
+        let config = PrintConfig {
+            scarf_joint: crate::config::ScarfJointConfig {
+                enabled: true,
+                scarf_length: 10.0,
+                scarf_start_height: 0.5,
+                scarf_steps: 5,
+                scarf_flow_ratio: 1.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let perimeters = generate_perimeters(&[square], &config);
+        let infill = LayerInfill {
+            lines: Vec::new(),
+            is_solid: false,
+        };
+
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+
+        // With scarf enabled, some perimeter segments should have Z != 0.4.
+        let has_z_variation = toolpath
+            .segments
+            .iter()
+            .filter(|s| s.feature != FeatureType::Travel)
+            .any(|s| (s.z - 0.4).abs() > 0.001);
+
+        assert!(
+            has_z_variation,
+            "Scarf-enabled toolpath should have Z variation in perimeter segments"
+        );
+    }
+
+    #[test]
+    fn toolpath_scarf_disabled_no_z_variation() {
+        let square = make_square(20.0);
+        let config = PrintConfig {
+            scarf_joint: crate::config::ScarfJointConfig {
+                enabled: false,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let perimeters = generate_perimeters(&[square], &config);
+        let infill = LayerInfill {
+            lines: Vec::new(),
+            is_solid: false,
+        };
+
+        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &infill, &config, None);
+
+        // With scarf disabled, all perimeter segments should have Z == 0.4.
+        for seg in &toolpath.segments {
+            assert!(
+                (seg.z - 0.4).abs() < 1e-9,
+                "Scarf-disabled: all segments should have Z=0.4, got Z={}",
+                seg.z
+            );
+        }
     }
 }

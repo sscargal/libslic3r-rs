@@ -53,6 +53,9 @@ pub fn generate_layer_gcode(
     // Track the last feature type to insert comments on transitions.
     let mut last_feature: Option<FeatureType> = None;
 
+    // Track current Z to emit Z changes for scarf joint per-segment Z.
+    let mut current_z = toolpath.z;
+
     // 3. Process each segment.
     for seg in &toolpath.segments {
         // Insert feature type comment when feature changes.
@@ -131,11 +134,21 @@ pub fn generate_layer_gcode(
                     *retracted = false;
                 }
 
+                // Include Z in the move if the segment's Z differs from the
+                // current Z (used by scarf joint for per-segment Z ramps).
+                let z_changed = (seg.z - current_z).abs() > 1e-6;
+                let z_val = if z_changed {
+                    current_z = seg.z;
+                    Some(seg.z)
+                } else {
+                    None
+                };
+
                 // Emit linear extrusion move.
                 cmds.push(GcodeCommand::LinearMove {
                     x: Some(seg.end.x),
                     y: Some(seg.end.y),
-                    z: None,
+                    z: z_val,
                     e: Some(seg.e_value),
                     f: Some(seg.feedrate),
                 });
@@ -550,5 +563,81 @@ mod tests {
             "Empty layer should still have comment and Z-move"
         );
         assert!(matches!(&cmds[0], GcodeCommand::Comment(text) if text.starts_with("Layer")));
+    }
+
+    #[test]
+    fn scarf_z_changes_produce_z_in_g1_moves() {
+        // Create a layer with varying Z values (simulating scarf joint).
+        let layer = LayerToolpath {
+            layer_index: 1,
+            z: 0.4,
+            layer_height: 0.2,
+            segments: vec![
+                ToolpathSegment {
+                    start: Point2::new(0.0, 0.0),
+                    end: Point2::new(5.0, 0.0),
+                    feature: FeatureType::OuterPerimeter,
+                    e_value: 0.25,
+                    feedrate: 2700.0,
+                    z: 0.30, // Below layer Z (scarf ramp).
+                },
+                ToolpathSegment {
+                    start: Point2::new(5.0, 0.0),
+                    end: Point2::new(10.0, 0.0),
+                    feature: FeatureType::OuterPerimeter,
+                    e_value: 0.25,
+                    feedrate: 2700.0,
+                    z: 0.35, // Rising Z.
+                },
+                ToolpathSegment {
+                    start: Point2::new(10.0, 0.0),
+                    end: Point2::new(15.0, 0.0),
+                    feature: FeatureType::OuterPerimeter,
+                    e_value: 0.25,
+                    feedrate: 2700.0,
+                    z: 0.40, // At layer Z.
+                },
+            ],
+        };
+
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+
+        // Count G1 moves that include a Z value.
+        let g1_with_z: Vec<_> = cmds
+            .iter()
+            .filter(|c| matches!(c, GcodeCommand::LinearMove { z: Some(_), .. }))
+            .collect();
+
+        // The first segment has Z=0.30 which differs from layer Z=0.4,
+        // and the second has Z=0.35 which differs from 0.30.
+        // So we should see Z values in G1 commands.
+        assert!(
+            g1_with_z.len() >= 2,
+            "Scarf Z changes should produce G1 moves with Z values, got {}",
+            g1_with_z.len()
+        );
+    }
+
+    #[test]
+    fn uniform_z_segments_omit_z_in_g1() {
+        // All segments at the same Z as the layer -- no Z in G1 moves.
+        let layer = simple_extrusion_layer();
+        let config = default_config();
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted);
+
+        let g1_with_z = cmds
+            .iter()
+            .filter(|c| matches!(c, GcodeCommand::LinearMove { z: Some(_), .. }))
+            .count();
+
+        assert_eq!(
+            g1_with_z, 0,
+            "Uniform Z segments should not include Z in G1 moves"
+        );
     }
 }

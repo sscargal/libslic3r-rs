@@ -414,4 +414,62 @@ adaptive_layer_quality = 0.8
         assert!((config.adaptive_max_layer_height - 0.25).abs() < 1e-9);
         assert!((config.adaptive_layer_quality - 0.8).abs() < 1e-9);
     }
+
+    #[test]
+    fn scarf_joint_defaults() {
+        let config = PrintConfig::default();
+        assert!(!config.scarf_joint.enabled);
+        assert_eq!(config.scarf_joint.scarf_joint_type, ScarfJointType::Contour);
+        assert!(!config.scarf_joint.conditional_scarf);
+        assert!((config.scarf_joint.scarf_speed - 0.0).abs() < 1e-9);
+        assert!((config.scarf_joint.scarf_start_height - 0.5).abs() < 1e-9);
+        assert!(!config.scarf_joint.scarf_around_entire_wall);
+        assert!((config.scarf_joint.scarf_length - 10.0).abs() < 1e-9);
+        assert_eq!(config.scarf_joint.scarf_steps, 10);
+        assert!((config.scarf_joint.scarf_flow_ratio - 1.0).abs() < 1e-9);
+        assert!(!config.scarf_joint.scarf_inner_walls);
+        assert!(!config.scarf_joint.role_based_wipe_speed);
+        assert!((config.scarf_joint.wipe_speed - 0.0).abs() < 1e-9);
+        assert!(!config.scarf_joint.wipe_on_loop);
+    }
+
+    #[test]
+    fn scarf_joint_from_toml() {
+        let toml = r#"
+[scarf_joint]
+enabled = true
+scarf_length = 15.0
+scarf_steps = 20
+scarf_flow_ratio = 0.9
+scarf_inner_walls = true
+scarf_joint_type = "contour_and_hole"
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert!(config.scarf_joint.enabled);
+        assert!((config.scarf_joint.scarf_length - 15.0).abs() < 1e-9);
+        assert_eq!(config.scarf_joint.scarf_steps, 20);
+        assert!((config.scarf_joint.scarf_flow_ratio - 0.9).abs() < 1e-9);
+        assert!(config.scarf_joint.scarf_inner_walls);
+        assert_eq!(
+            config.scarf_joint.scarf_joint_type,
+            ScarfJointType::ContourAndHole
+        );
+    }
+
+    #[test]
+    fn scarf_joint_empty_toml_uses_defaults() {
+        let config = PrintConfig::from_toml("").unwrap();
+        assert!(!config.scarf_joint.enabled);
+        assert!((config.scarf_joint.scarf_length - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn scarf_joint_type_serde_round_trip() {
+        let types = [ScarfJointType::Contour, ScarfJointType::ContourAndHole];
+        for t in &types {
+            let json = serde_json::to_string(t).unwrap();
+            let deserialized: ScarfJointType = serde_json::from_str(&json).unwrap();
+            assert_eq!(*t, deserialized, "Serde round-trip failed for {:?}", t);
+        }
+    }
 }
