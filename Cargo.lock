@@ -2696,10 +2696,12 @@ dependencies = [
  "clap",
  "rmp-serde",
  "serde_json",
+ "slicecore-ai",
  "slicecore-engine",
  "slicecore-fileio",
  "slicecore-gcode-io",
  "slicecore-mesh",
+ "slicecore-plugin",
  "tempfile",
 ]
 
