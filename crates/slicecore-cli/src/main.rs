@@ -230,10 +230,35 @@ fn cmd_slice(
         process::exit(1);
     }
 
-    // Create engine and optionally load plugins.
+    // Create engine (auto-loads plugins from config.plugin_dir when plugins feature enabled).
     let mut engine = Engine::new(print_config.clone());
+    let cli_plugin_dir_provided = plugin_dir.is_some();
 
-    if let Some(ref dir) = effective_plugin_dir {
+    if cli_plugin_dir_provided {
+        // CLI --plugin-dir flag overrides config -- always load from specified dir.
+        if let Some(ref dir) = effective_plugin_dir {
+            let mut registry = PluginRegistry::new();
+            match registry.discover_and_load(std::path::Path::new(dir)) {
+                Ok(loaded) => {
+                    if !loaded.is_empty() {
+                        eprintln!("Loaded {} plugin(s):", loaded.len());
+                        for info in &loaded {
+                            eprintln!("  - {}: {}", info.name, info.description);
+                        }
+                    }
+                    engine = engine.with_plugin_registry(registry);
+                }
+                Err(e) => {
+                    eprintln!("Warning: Failed to load plugins from '{}': {}", dir, e);
+                }
+            }
+        }
+    } else if engine.has_plugin_registry() {
+        // Engine auto-loaded from config.plugin_dir -- report status.
+        // Startup warnings will be emitted during slicing via EventBus.
+        eprintln!("Plugins auto-loaded from config plugin_dir");
+    } else if let Some(ref dir) = effective_plugin_dir {
+        // Fallback: config had plugin_dir but engine didn't load (shouldn't normally happen).
         let mut registry = PluginRegistry::new();
         match registry.discover_and_load(std::path::Path::new(dir)) {
             Ok(loaded) => {
