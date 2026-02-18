@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 15 of 15 (Printer and Filament Profile Library)
-Plan: 1 of 3 in current phase (1 complete)
+Plan: 2 of 3 in current phase (2 complete)
 Status: In Progress
-Last activity: 2026-02-18 -- Completed 15-01-PLAN.md (Batch Conversion Infrastructure)
+Last activity: 2026-02-18 -- Completed 15-02-PLAN.md (Profile Discovery CLI)
 
-Progress: [########################################################--] 97% (85/87 overall)
+Progress: [#########################################################-] 98% (86/87 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 80
+- Total plans completed: 81
 - Average duration: 5.0 min
-- Total execution time: 6.93 hours
+- Total execution time: 7.0 hours
 
 **By Phase:**
 
@@ -41,10 +41,10 @@ Progress: [########################################################--] 97% (85/8
 | 12    | 3     | 12min | 4.0min   |
 | 13    | 2     | 8min  | 4.0min   |
 | 14    | 2     | 7min  | 3.5min   |
-| 15    | 1     | 6min  | 6.0min   |
+| 15    | 2     | 10min | 5.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 13-02 (4min), 14-01 (4min), 14-02 (3min), 15-01 (6min)
+- Last 5 plans: 14-01 (4min), 14-02 (3min), 15-01 (6min), 15-02 (4min)
 - Trend: Steady 3-6min/plan
 
 *Updated after each plan completion*
@@ -370,6 +370,11 @@ Recent decisions affecting current work:
 - [15-01]: MAX_INHERITANCE_DEPTH = 10 guards against circular reference chains
 - [15-01]: Only profiles with "instantiation": "true" are converted; base/parent profiles are skipped
 
+- [15-02]: Profile directory auto-discovery uses 4 strategies: CLI flag > env var > binary-relative > CWD
+- [15-02]: Search uses AND-logic: all whitespace-separated terms must match at least one metadata field
+- [15-02]: profiles/ directory in .gitignore since it is generated data regeneratable from upstream
+- [15-02]: All 61 OrcaSlicer vendors imported (6015 profiles total) rather than limiting to top 10
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
@@ -387,5 +392,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 15-01-PLAN.md (Batch Conversion Infrastructure)
-Resume file: .planning/phases/15-printer-and-filament-profile-library/15-01-SUMMARY.md
+Stopped at: Completed 15-02-PLAN.md (Profile Discovery CLI)
+Resume file: .planning/phases/15-printer-and-filament-profile-library/15-02-SUMMARY.md
