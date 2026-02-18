@@ -6,6 +6,9 @@
 //! - `analyze`: Analyze a mesh file (print stats)
 //! - `ai-suggest`: Suggest print settings using AI mesh analysis
 //! - `import-profiles`: Import upstream slicer profiles to native TOML format
+//! - `list-profiles`: List profiles from the profile library
+//! - `search-profiles`: Search profiles by keyword
+//! - `show-profile`: Show details of a specific profile
 
 use std::path::PathBuf;
 use std::process;
@@ -13,7 +16,9 @@ use std::process;
 use clap::{Parser, Subcommand};
 
 use slicecore_ai::AiConfig;
-use slicecore_engine::{batch_convert_profiles, write_index, Engine, PrintConfig};
+use slicecore_engine::{
+    batch_convert_profiles, load_index, write_index, Engine, PrintConfig, ProfileIndexEntry,
+};
 use slicecore_fileio::load_mesh;
 use slicecore_gcode_io::validate_gcode;
 use slicecore_mesh::{compute_stats, repair};
@@ -65,7 +70,19 @@ PROFILE LIBRARY:
   Import upstream slicer profiles:
     slicecore import-profiles --source-dir /path/to/OrcaSlicer/resources/profiles
   This converts JSON profiles to native TOML and generates a searchable index.
-  Profiles are stored in profiles/ organized by source/vendor/type/."
+  Profiles are stored in profiles/ organized by source/vendor/type/.
+
+PROFILE DISCOVERY:
+  List available vendors:
+    slicecore list-profiles --vendors
+  List PLA filament profiles from BBL:
+    slicecore list-profiles --vendor BBL --profile-type filament --material PLA
+  Search for a specific printer or material:
+    slicecore search-profiles \"Bambu Lab A1 PLA\"
+  View a profile's details:
+    slicecore show-profile orcaslicer/BBL/filament/Bambu_PLA_Basic_BBL_A1
+  View raw TOML content:
+    slicecore show-profile orcaslicer/BBL/filament/Bambu_PLA_Basic_BBL_A1 --raw"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -152,6 +169,74 @@ enum Commands {
         source_name: String,
     },
 
+    /// List profiles from the profile library.
+    ///
+    /// Loads the profile index and displays matching profiles in a tabular
+    /// or JSON format. Supports filtering by vendor, type, and material.
+    ListProfiles {
+        /// Filter by vendor name (e.g., BBL, Creality, Prusa).
+        #[arg(long)]
+        vendor: Option<String>,
+
+        /// Filter by profile type (filament, process, machine).
+        #[arg(long, value_name = "TYPE")]
+        profile_type: Option<String>,
+
+        /// Filter by material type (PLA, ABS, PETG, TPU, etc.).
+        #[arg(long)]
+        material: Option<String>,
+
+        /// List available vendors only (no individual profiles).
+        #[arg(long)]
+        vendors: bool,
+
+        /// Path to profiles directory (overrides auto-detection).
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+
+        /// Output as JSON instead of human-readable table.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Search profiles by keyword (matches name, vendor, material, printer model).
+    ///
+    /// All search terms must match at least one field in the profile entry
+    /// (AND logic). Matching is case-insensitive.
+    SearchProfiles {
+        /// Search query (case-insensitive substring match across all fields).
+        query: String,
+
+        /// Maximum results to show (default: 20).
+        #[arg(short, long, default_value = "20")]
+        limit: usize,
+
+        /// Path to profiles directory (overrides auto-detection).
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+
+        /// Output as JSON.
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Show details of a specific profile from the library.
+    ///
+    /// Displays metadata summary or raw TOML content for a profile
+    /// identified by its ID (e.g., orcaslicer/BBL/filament/Bambu_PLA_Basic_BBL_A1).
+    ShowProfile {
+        /// Profile ID (e.g., orcaslicer/BBL/filament/Bambu_PLA_Basic_BBL_A1).
+        id: String,
+
+        /// Show the full TOML content instead of metadata summary.
+        #[arg(long)]
+        raw: bool,
+
+        /// Path to profiles directory (overrides auto-detection).
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+
     /// Suggest optimal print settings using AI analysis of mesh geometry.
     ///
     /// Analyzes the input mesh and sends geometry features to an LLM provider
@@ -202,6 +287,32 @@ fn main() {
             output_dir,
             source_name,
         } => cmd_import_profiles(&source_dir, &output_dir, &source_name),
+        Commands::ListProfiles {
+            vendor,
+            profile_type,
+            material,
+            vendors,
+            profiles_dir,
+            json,
+        } => cmd_list_profiles(
+            vendor.as_deref(),
+            profile_type.as_deref(),
+            material.as_deref(),
+            vendors,
+            profiles_dir.as_deref(),
+            json,
+        ),
+        Commands::SearchProfiles {
+            query,
+            limit,
+            profiles_dir,
+            json,
+        } => cmd_search_profiles(&query, limit, profiles_dir.as_deref(), json),
+        Commands::ShowProfile {
+            id,
+            raw,
+            profiles_dir,
+        } => cmd_show_profile(&id, raw, profiles_dir.as_deref()),
         Commands::AiSuggest {
             input,
             ai_config,
@@ -646,6 +757,360 @@ fn cmd_import_profiles(
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Profile discovery helpers
+// ---------------------------------------------------------------------------
+
+/// Auto-detect the profiles directory using multiple strategies.
+///
+/// Priority:
+/// 1. CLI flag override (`--profiles-dir`)
+/// 2. `SLICECORE_PROFILES_DIR` environment variable
+/// 3. Relative to binary (installed location, or cargo target dir)
+/// 4. Current working directory `./profiles`
+fn find_profiles_dir(cli_override: Option<&std::path::Path>) -> Option<PathBuf> {
+    // 1. CLI flag override.
+    if let Some(dir) = cli_override {
+        return Some(dir.to_path_buf());
+    }
+    // 2. Environment variable.
+    if let Ok(dir) = std::env::var("SLICECORE_PROFILES_DIR") {
+        let p = PathBuf::from(dir);
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    // 3. Relative to binary (for installed location).
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            let profiles = parent.join("profiles");
+            if profiles.exists() {
+                return Some(profiles);
+            }
+            // For cargo run: target/debug/slicecore -> ../../profiles
+            if let Some(gp) = parent
+                .parent()
+                .and_then(|p| p.parent())
+                .and_then(|p| p.parent())
+            {
+                let profiles = gp.join("profiles");
+                if profiles.exists() {
+                    return Some(profiles);
+                }
+            }
+        }
+    }
+    // 4. Current directory.
+    let cwd_profiles = PathBuf::from("profiles");
+    if cwd_profiles.exists() {
+        return Some(cwd_profiles);
+    }
+    None
+}
+
+/// List profiles from the profile library.
+fn cmd_list_profiles(
+    vendor: Option<&str>,
+    profile_type: Option<&str>,
+    material: Option<&str>,
+    vendors_only: bool,
+    profiles_dir_override: Option<&std::path::Path>,
+    json_output: bool,
+) {
+    let profiles_dir = match find_profiles_dir(profiles_dir_override) {
+        Some(d) => d,
+        None => {
+            eprintln!("Error: Could not find profiles directory.");
+            eprintln!("Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root.");
+            process::exit(1);
+        }
+    };
+
+    let index = match load_index(&profiles_dir) {
+        Ok(idx) => idx,
+        Err(e) => {
+            eprintln!("Error: Failed to load profile index: {}", e);
+            process::exit(1);
+        }
+    };
+
+    if vendors_only {
+        // Collect unique vendor names, sorted.
+        let mut vendors: Vec<String> = index
+            .profiles
+            .iter()
+            .map(|p| p.vendor.clone())
+            .collect();
+        vendors.sort();
+        vendors.dedup();
+
+        if json_output {
+            let json = serde_json::to_string_pretty(&vendors).unwrap_or_else(|e| {
+                eprintln!("Error: Failed to serialize JSON: {}", e);
+                process::exit(1);
+            });
+            println!("{}", json);
+        } else {
+            for v in &vendors {
+                println!("{}", v);
+            }
+            eprintln!("{} vendor(s) found", vendors.len());
+        }
+        return;
+    }
+
+    // Filter profiles.
+    let filtered: Vec<&ProfileIndexEntry> = index
+        .profiles
+        .iter()
+        .filter(|p| {
+            if let Some(v) = vendor {
+                if !p.vendor.to_lowercase().contains(&v.to_lowercase()) {
+                    return false;
+                }
+            }
+            if let Some(t) = profile_type {
+                if p.profile_type != t {
+                    return false;
+                }
+            }
+            if let Some(m) = material {
+                match &p.material {
+                    Some(mat) => {
+                        if !mat.to_lowercase().contains(&m.to_lowercase()) {
+                            return false;
+                        }
+                    }
+                    None => return false,
+                }
+            }
+            true
+        })
+        .collect();
+
+    if json_output {
+        let json = serde_json::to_string_pretty(&filtered).unwrap_or_else(|e| {
+            eprintln!("Error: Failed to serialize JSON: {}", e);
+            process::exit(1);
+        });
+        println!("{}", json);
+    } else {
+        // Print header.
+        println!(
+            "{:<10} {:<12} {:<50} {:<10}",
+            "TYPE", "VENDOR", "NAME", "MATERIAL"
+        );
+        println!("{}", "-".repeat(86));
+
+        for p in &filtered {
+            println!(
+                "{:<10} {:<12} {:<50} {:<10}",
+                p.profile_type,
+                p.vendor,
+                truncate_str(&p.name, 48),
+                p.material.as_deref().unwrap_or("-"),
+            );
+        }
+        eprintln!("{} profile(s) found", filtered.len());
+    }
+}
+
+/// Search profiles by keyword.
+fn cmd_search_profiles(
+    query: &str,
+    limit: usize,
+    profiles_dir_override: Option<&std::path::Path>,
+    json_output: bool,
+) {
+    let profiles_dir = match find_profiles_dir(profiles_dir_override) {
+        Some(d) => d,
+        None => {
+            eprintln!("Error: Could not find profiles directory.");
+            eprintln!("Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root.");
+            process::exit(1);
+        }
+    };
+
+    let index = match load_index(&profiles_dir) {
+        Ok(idx) => idx,
+        Err(e) => {
+            eprintln!("Error: Failed to load profile index: {}", e);
+            process::exit(1);
+        }
+    };
+
+    // Split query into whitespace-separated terms (lowercase).
+    let terms: Vec<String> = query
+        .split_whitespace()
+        .map(|s| s.to_lowercase())
+        .collect();
+
+    // Filter profiles where ALL terms match at least one field.
+    let matching: Vec<&ProfileIndexEntry> = index
+        .profiles
+        .iter()
+        .filter(|p| {
+            let fields = [
+                p.name.to_lowercase(),
+                p.vendor.to_lowercase(),
+                p.material
+                    .as_deref()
+                    .unwrap_or("")
+                    .to_lowercase(),
+                p.printer_model
+                    .as_deref()
+                    .unwrap_or("")
+                    .to_lowercase(),
+                p.profile_type.to_lowercase(),
+                p.quality
+                    .as_deref()
+                    .unwrap_or("")
+                    .to_lowercase(),
+            ];
+
+            terms.iter().all(|term| {
+                fields.iter().any(|f| f.contains(term.as_str()))
+            })
+        })
+        .take(limit)
+        .collect();
+
+    if json_output {
+        let json = serde_json::to_string_pretty(&matching).unwrap_or_else(|e| {
+            eprintln!("Error: Failed to serialize JSON: {}", e);
+            process::exit(1);
+        });
+        println!("{}", json);
+    } else {
+        println!(
+            "{:<10} {:<12} {:<50} {:<10}",
+            "TYPE", "VENDOR", "NAME", "MATERIAL"
+        );
+        println!("{}", "-".repeat(86));
+
+        for p in &matching {
+            println!(
+                "{:<10} {:<12} {:<50} {:<10}",
+                p.profile_type,
+                p.vendor,
+                truncate_str(&p.name, 48),
+                p.material.as_deref().unwrap_or("-"),
+            );
+        }
+        eprintln!(
+            "{} result(s) (showing up to {})",
+            matching.len(),
+            limit
+        );
+    }
+}
+
+/// Show details of a specific profile.
+fn cmd_show_profile(
+    id: &str,
+    raw: bool,
+    profiles_dir_override: Option<&std::path::Path>,
+) {
+    let profiles_dir = match find_profiles_dir(profiles_dir_override) {
+        Some(d) => d,
+        None => {
+            eprintln!("Error: Could not find profiles directory.");
+            eprintln!("Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root.");
+            process::exit(1);
+        }
+    };
+
+    let index = match load_index(&profiles_dir) {
+        Ok(idx) => idx,
+        Err(e) => {
+            eprintln!("Error: Failed to load profile index: {}", e);
+            process::exit(1);
+        }
+    };
+
+    // Find entry: exact match on id, or path without .toml extension.
+    let entry = index
+        .profiles
+        .iter()
+        .find(|e| e.id == id || e.path.trim_end_matches(".toml") == id);
+
+    let entry = match entry {
+        Some(e) => e,
+        None => {
+            // Try case-insensitive match for suggestion.
+            let id_lower = id.to_lowercase();
+            let suggestion = index.profiles.iter().find(|e| {
+                e.id.to_lowercase() == id_lower
+                    || e.path.trim_end_matches(".toml").to_lowercase() == id_lower
+            });
+
+            if let Some(s) = suggestion {
+                eprintln!(
+                    "Error: Profile '{}' not found. Did you mean '{}'?",
+                    id, s.id
+                );
+            } else {
+                eprintln!("Error: Profile '{}' not found.", id);
+                eprintln!("Use 'list-profiles' or 'search-profiles' to find available profiles.");
+            }
+            process::exit(1);
+        }
+    };
+
+    if raw {
+        // Read and print the TOML file.
+        let toml_path = profiles_dir.join(&entry.path);
+        let contents = match std::fs::read_to_string(&toml_path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!(
+                    "Error: Failed to read profile file '{}': {}",
+                    toml_path.display(),
+                    e
+                );
+                process::exit(1);
+            }
+        };
+        print!("{}", contents);
+    } else {
+        // Print structured metadata summary.
+        println!("Profile: {}", entry.name);
+        println!("Source:  {}", entry.source);
+        println!("Vendor:  {}", entry.vendor);
+        println!("Type:    {}", entry.profile_type);
+        if let Some(ref mat) = entry.material {
+            println!("Material: {}", mat);
+        }
+        if let Some(ref model) = entry.printer_model {
+            println!("Printer: {}", model);
+        }
+        if let Some(height) = entry.layer_height {
+            println!("Layer height: {:.2}mm", height);
+        }
+        if let Some(nozzle) = entry.nozzle_size {
+            println!("Nozzle: {:.1}mm", nozzle);
+        }
+        if let Some(ref quality) = entry.quality {
+            println!("Quality: {}", quality);
+        }
+        println!("ID:      {}", entry.id);
+        println!("Path:    {}", entry.path);
+    }
+}
+
+/// Truncate a string to `max_len` characters, appending ".." if truncated.
+fn truncate_str(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        format!("{}..", &s[..max_len - 2])
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AI suggestion
+// ---------------------------------------------------------------------------
 
 /// Suggest print settings for a mesh using AI.
 fn cmd_ai_suggest(
