@@ -338,3 +338,17 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 Plans:
 - [x] 14-01-PLAN.md -- Profile conversion module (selective TOML output, multi-file merge) and CLI convert-profile subcommand
 - [x] 14-02-PLAN.md -- Integration tests (round-trip, merge, real profiles) and phase verification
+
+### Phase 15: Printer and Filament Profile Library
+
+**Goal:** Build an extensive library of printer and filament profiles from upstream slicers (OrcaSlicer, BambuStudio, PrusaSlicer) stored in profiles/ directory with logical organization by vendor/material/properties, and provide CLI commands for searching and listing profiles
+**Depends on:** Phase 14
+**Requirements:**
+  - Import existing printer and filament profiles from /home/steve/slicer-analysis/
+  - Store profiles in profiles/ with logical directory structure (by vendor, material, nozzle size, etc.)
+  - Add CLI subcommands for profile discovery: list, search, show
+  - Integration tests comparing original JSON profiles vs converted TOML profiles
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 15 to break down)

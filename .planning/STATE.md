@@ -367,6 +367,7 @@ Recent decisions affecting current work:
 
 - Phase 13 added: JSON Profile Support
 - Phase 14 added: Profile Conversion Tool (JSON to TOML)
+- Phase 15 added: Printer and Filament Profile Library
 
 ### Pending Todos
 
