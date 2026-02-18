@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 12 -- Mesh Repair Completion (COMPLETE)
+**Current focus:** Phase 13 -- JSON Profile Support
 
 ## Current Position
 
-Phase: 12 of 12 (Mesh Repair Completion)
-Plan: 3 of 3 in current phase (3 complete)
-Status: Phase 12 Complete -- All 12 phases finished
-Last activity: 2026-02-18 -- Completed 12-03-PLAN.md (Integration Tests and Phase Verification)
+Phase: 13 of 13 (JSON Profile Support)
+Plan: 1 of 2 in current phase (1 complete)
+Status: Phase 13 in progress
+Last activity: 2026-02-18 -- Completed 13-01-PLAN.md (Profile Import Module)
 
-Progress: [######################################################] 100% (78/78 overall)
+Progress: [#################################################-----] 91% (79/80 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 75
+- Total plans completed: 76
 - Average duration: 5.0 min
-- Total execution time: 6.57 hours
+- Total execution time: 6.64 hours
 
 **By Phase:**
 
@@ -39,10 +39,11 @@ Progress: [######################################################] 100% (78/78 o
 | 10    | 3     | 6min  | 2.0min   |
 | 11    | 4     | 12min | 3.0min   |
 | 12    | 3     | 12min | 4.0min   |
+| 13    | 1     | 4min  | 4.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 11-03 (2min), 11-04 (3min), 12-01 (3min), 12-02 (5min), 12-03 (4min)
-- Trend: All 12 phases complete
+- Last 5 plans: 11-04 (3min), 12-01 (3min), 12-02 (5min), 12-03 (4min), 13-01 (4min)
+- Trend: Phase 13 in progress
 
 *Updated after each plan completion*
 
@@ -342,6 +343,17 @@ Recent decisions affecting current work:
 - [12-03]: SC5 performance test measures repair+detect+slice+resolve pipeline (not full G-code generation) for isolation
 - [12-03]: 400 cube pairs (9600 triangles) as performance benchmark target
 
+- [13-01]: Reuse EngineError::ConfigError(String) for JSON parse errors (no new error variant)
+- [13-01]: Content-based format detection: first non-whitespace byte after BOM skip
+- [13-01]: "type" field presence distinguishes upstream slicer profiles from native JSON
+- [13-01]: extract_string_value handles scalar, array[0], nil, and number types uniformly
+- [13-01]: apply_field_mapping receives plain &str after extraction for uniform handling
+- [13-01]: Percentage fields: strip % suffix, divide by 100 (15% -> 0.15)
+
+### Roadmap Evolution
+
+- Phase 13 added: JSON Profile Support
+
 ### Pending Todos
 
 None yet.
@@ -353,5 +365,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 12-03-PLAN.md (Integration Tests and Phase Verification) -- All 12 phases complete
-Resume file: .planning/phases/12-mesh-repair-completion/12-03-SUMMARY.md
+Stopped at: Completed 13-01-PLAN.md (Profile Import Module)
+Resume file: .planning/phases/13-json-profile-support/13-01-SUMMARY.md
