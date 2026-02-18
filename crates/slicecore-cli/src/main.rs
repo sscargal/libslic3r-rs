@@ -52,7 +52,13 @@ AI PROFILE SUGGESTIONS:
     model = \"claude-sonnet-4-20250514\"
     api_key = \"sk-ant-...\"
 
-  Then pass it with: slicecore ai-suggest model.stl --ai-config provider.toml"
+  Then pass it with: slicecore ai-suggest model.stl --ai-config provider.toml
+
+PROFILE CONVERSION:
+  Convert OrcaSlicer/BambuStudio JSON profiles to native TOML:
+    slicecore convert-profile profile.json > my_config.toml
+    slicecore convert-profile process.json filament.json machine.json -o config.toml
+  Multiple files are merged in order (later files override earlier ones for shared fields)."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -100,6 +106,25 @@ enum Commands {
         input: PathBuf,
     },
 
+    /// Convert OrcaSlicer/BambuStudio JSON profiles to native TOML format.
+    ///
+    /// Reads one or more JSON profile files, maps fields to PrintConfig,
+    /// and outputs clean TOML with only the converted fields.
+    ConvertProfile {
+        /// Input JSON profile file(s) to convert.
+        /// Multiple files are merged in order (e.g., process + filament + machine).
+        #[arg(required = true)]
+        input: Vec<PathBuf>,
+
+        /// Output TOML file path (default: stdout).
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Show detailed conversion report on stderr.
+        #[arg(short, long)]
+        verbose: bool,
+    },
+
     /// Suggest optimal print settings using AI analysis of mesh geometry.
     ///
     /// Analyzes the input mesh and sends geometry features to an LLM provider
@@ -140,6 +165,11 @@ fn main() {
         ),
         Commands::Validate { input } => cmd_validate(&input),
         Commands::Analyze { input } => cmd_analyze(&input),
+        Commands::ConvertProfile {
+            input,
+            output,
+            verbose,
+        } => cmd_convert_profile(&input, output.as_deref(), verbose),
         Commands::AiSuggest {
             input,
             ai_config,
@@ -412,6 +442,128 @@ fn cmd_analyze(input: &PathBuf) {
     );
     if stats.degenerate_count > 0 {
         println!("  Degenerate triangles: {}", stats.degenerate_count);
+    }
+}
+
+/// Convert OrcaSlicer/BambuStudio JSON profiles to native TOML format.
+fn cmd_convert_profile(
+    input: &[PathBuf],
+    output_path: Option<&std::path::Path>,
+    verbose: bool,
+) {
+    let mut results: Vec<slicecore_engine::ImportResult> = Vec::new();
+
+    for path in input {
+        // Read file contents.
+        let contents = match std::fs::read_to_string(path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!(
+                    "Error: Failed to read '{}': {}",
+                    path.display(),
+                    e
+                );
+                process::exit(1);
+            }
+        };
+
+        // Parse JSON.
+        let value: serde_json::Value = match serde_json::from_str(&contents) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!(
+                    "Error: Failed to parse JSON from '{}': {}",
+                    path.display(),
+                    e
+                );
+                process::exit(1);
+            }
+        };
+
+        // Import the upstream profile.
+        let result =
+            match slicecore_engine::profile_import::import_upstream_profile(&value) {
+                Ok(r) => r,
+                Err(e) => {
+                    eprintln!(
+                        "Error: Failed to import profile from '{}': {}",
+                        path.display(),
+                        e
+                    );
+                    process::exit(1);
+                }
+            };
+
+        if verbose {
+            eprintln!(
+                "  File: {} -- {} mapped, {} unmapped",
+                path.display(),
+                result.mapped_fields.len(),
+                result.unmapped_fields.len()
+            );
+        }
+
+        results.push(result);
+    }
+
+    // Merge if multiple, or use single result directly.
+    let final_result = if results.len() > 1 {
+        slicecore_engine::merge_import_results(&results)
+    } else {
+        results.into_iter().next().unwrap()
+    };
+
+    // Convert to TOML.
+    let converted = slicecore_engine::convert_to_toml(&final_result);
+
+    // Output the TOML.
+    if let Some(out_path) = output_path {
+        if let Err(e) = std::fs::write(out_path, &converted.toml_output) {
+            eprintln!(
+                "Error: Failed to write output '{}': {}",
+                out_path.display(),
+                e
+            );
+            process::exit(1);
+        }
+    } else {
+        print!("{}", converted.toml_output);
+    }
+
+    // Print conversion summary to stderr.
+    let output_desc = if let Some(p) = output_path {
+        p.display().to_string()
+    } else {
+        "stdout".to_string()
+    };
+
+    if let Some(ref name) = converted.source_name {
+        if let Some(ref stype) = converted.source_type {
+            eprintln!("Converted \"{}\" ({})", name, stype);
+        } else {
+            eprintln!("Converted \"{}\"", name);
+        }
+    } else {
+        eprintln!("Converted profile");
+    }
+    eprintln!("  Mapped: {} fields", converted.mapped_count);
+    eprintln!("  Unmapped: {} fields", converted.unmapped_fields.len());
+    eprintln!("  Output: {}", output_desc);
+
+    // Verbose: list field names.
+    if verbose {
+        eprintln!();
+        eprintln!("Mapped fields:");
+        for field in &final_result.mapped_fields {
+            eprintln!("  - {}", field);
+        }
+        if !converted.unmapped_fields.is_empty() {
+            eprintln!();
+            eprintln!("Unmapped fields:");
+            for field in &converted.unmapped_fields {
+                eprintln!("  - {}", field);
+            }
+        }
     }
 }
 
