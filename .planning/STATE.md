@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 10 -- CLI Feature Integration
+**Current focus:** Phase 11 -- Config Integration
 
 ## Current Position
 
-Phase: 10 of 12 (CLI Feature Integration) -- PHASE COMPLETE
-Plan: 3 of 3 in current phase (3 complete)
-Status: PHASE COMPLETE -- All 3 plans in Phase 10 executed, all 5 success criteria verified
-Last activity: 2026-02-18 -- Completed 10-03-PLAN.md (Help Text & Integration Tests)
+Phase: 11 of 12 (Config Integration)
+Plan: 1 of 4 in current phase (1 complete)
+Status: IN PROGRESS -- Plan 11-01 complete (Plugin Auto-Loading)
+Last activity: 2026-02-18 -- Completed 11-01-PLAN.md (Plugin Auto-Loading)
 
-Progress: [####################################################] 98% (71/~72 overall)
+Progress: [####################################################] 98% (72/~76 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 69
+- Total plans completed: 70
 - Average duration: 5.0 min
-- Total execution time: 6.25 hours
+- Total execution time: 6.32 hours
 
 **By Phase:**
 
@@ -37,10 +37,11 @@ Progress: [####################################################] 98% (71/~72 ove
 | 08    | 5     | 19min | 3.8min   |
 | 09    | 8     | 41min | 5.1min   |
 | 10    | 3     | 6min  | 2.0min   |
+| 11    | 1     | 4min  | 4.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 09-08 (11min), 10-01 (1min), 10-02 (2min), 10-03 (3min)
-- Trend: Phase 10 complete -- CLI help text and integration tests finalized
+- Last 5 plans: 10-01 (1min), 10-02 (2min), 10-03 (3min), 11-01 (4min)
+- Trend: Phase 11 started -- config integration with plugin auto-loading
 
 *Updated after each plan completion*
 
@@ -315,6 +316,9 @@ Recent decisions affecting current work:
 - [10-02]: serde_json promoted to runtime dependency in CLI for ai-suggest --json output
 - [10-02]: Plugin dir resolution: CLI --plugin-dir overrides config plugin_dir (standard override pattern)
 - [10-02]: Connection error detection via string matching for broad AI provider compatibility
+- [11-01]: auto_load_plugins cfg-gated behind plugins feature, non-fatal on all error paths
+- [11-01]: startup_warnings emitted as SliceEvent::Warning at pipeline start (after mesh validation)
+- [11-01]: CLI three-way logic: CLI flag override / Engine auto-load skip / defensive fallback
 
 ### Pending Todos
 
@@ -327,5 +331,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 10-03-PLAN.md (Help Text & Integration Tests) -- Phase 10 COMPLETE
-Resume file: .planning/phases/10-cli-feature-integration/10-03-SUMMARY.md
+Stopped at: Completed 11-01-PLAN.md (Plugin Auto-Loading)
+Resume file: .planning/phases/11-config-integration/11-01-SUMMARY.md
