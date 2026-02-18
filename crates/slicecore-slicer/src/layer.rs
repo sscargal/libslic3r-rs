@@ -10,7 +10,7 @@ use slicecore_geo::ValidPolygon;
 use slicecore_math::BBox3;
 use slicecore_mesh::TriangleMesh;
 
-use crate::contour::slice_at_height;
+use crate::contour::{slice_at_height, slice_at_height_resolved};
 
 /// A single horizontal slice layer of a 3D mesh.
 ///
@@ -112,6 +112,61 @@ pub fn slice_mesh_adaptive(
         .iter()
         .map(|&(z, lh)| {
             let contours = slice_at_height(mesh, z);
+            SliceLayer {
+                z,
+                layer_height: lh,
+                contours,
+            }
+        })
+        .collect()
+}
+
+/// Slices a triangle mesh into horizontal layers with contour resolution.
+///
+/// Identical to [`slice_mesh`] but uses [`slice_at_height_resolved`](crate::contour::slice_at_height_resolved)
+/// to apply polygon self-union on each layer's contours, merging overlapping
+/// regions caused by self-intersecting mesh geometry.
+///
+/// Use this variant when the mesh is known to have self-intersecting
+/// triangles. For clean meshes, prefer [`slice_mesh`] to avoid the
+/// overhead of the resolution step.
+pub fn slice_mesh_resolved(
+    mesh: &TriangleMesh,
+    layer_height: f64,
+    first_layer_height: f64,
+) -> Vec<SliceLayer> {
+    let heights = compute_layer_heights(mesh.aabb(), layer_height, first_layer_height);
+
+    heights
+        .into_iter()
+        .map(|(z, lh)| {
+            let contours = slice_at_height_resolved(mesh, z);
+            SliceLayer {
+                z,
+                layer_height: lh,
+                contours,
+            }
+        })
+        .collect()
+}
+
+/// Slices a triangle mesh into horizontal layers using pre-computed adaptive
+/// layer heights with contour resolution.
+///
+/// Identical to [`slice_mesh_adaptive`] but uses
+/// [`slice_at_height_resolved`](crate::contour::slice_at_height_resolved)
+/// to apply polygon self-union on each layer's contours.
+///
+/// Use this variant when the mesh is known to have self-intersecting
+/// triangles. For clean meshes, prefer [`slice_mesh_adaptive`].
+pub fn slice_mesh_adaptive_resolved(
+    mesh: &TriangleMesh,
+    heights: &[(f64, f64)],
+) -> Vec<SliceLayer> {
+    heights
+        .iter()
+        .map(|&(z, lh)| {
+            let contours = slice_at_height_resolved(mesh, z);
             SliceLayer {
                 z,
                 layer_height: lh,

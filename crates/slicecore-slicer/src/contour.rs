@@ -11,6 +11,8 @@ use slicecore_geo::{Polygon, ValidPolygon};
 use slicecore_math::{IPoint2, Point2, Point3};
 use slicecore_mesh::{query_triangles_at_z, TriangleMesh};
 
+use crate::resolve::resolve_contour_intersections;
+
 /// Epsilon for vertex-on-plane classification.
 const PLANE_EPSILON: f64 = 1e-12;
 
@@ -215,6 +217,21 @@ pub fn slice_at_height(mesh: &TriangleMesh, z: f64) -> Vec<ValidPolygon> {
     }
 
     contours
+}
+
+/// Slices a mesh at a specific Z height with contour resolution.
+///
+/// Identical to [`slice_at_height`] but applies
+/// [`resolve_contour_intersections`] on the contours before returning.
+/// This merges overlapping contours caused by self-intersecting mesh
+/// geometry via Clipper2 polygon self-union.
+///
+/// Use this variant when the mesh is known to have self-intersecting
+/// triangles. For clean meshes, prefer [`slice_at_height`] to avoid
+/// the overhead of the resolution step.
+pub fn slice_at_height_resolved(mesh: &TriangleMesh, z: f64) -> Vec<ValidPolygon> {
+    let contours = slice_at_height(mesh, z);
+    resolve_contour_intersections(&contours)
 }
 
 /// Classifies a signed distance as above (+1), on (0), or below (-1) the plane.
@@ -428,6 +445,30 @@ mod tests {
             (area - 1.0).abs() < 0.01,
             "Expected area ~1.0 mm^2, got {} mm^2",
             area
+        );
+    }
+
+    #[test]
+    fn slice_at_height_resolved_clean_mesh_matches_regular() {
+        // For a clean mesh (no self-intersections), resolved should produce
+        // the same contours as the regular version.
+        let mesh = unit_cube();
+        let regular = slice_at_height(&mesh, 0.5);
+        let resolved = slice_at_height_resolved(&mesh, 0.5);
+
+        assert_eq!(
+            regular.len(),
+            resolved.len(),
+            "Clean mesh: resolved contour count should match regular"
+        );
+
+        let regular_area: f64 = regular.iter().map(|c| c.area_mm2()).sum();
+        let resolved_area: f64 = resolved.iter().map(|c| c.area_mm2()).sum();
+        assert!(
+            (regular_area - resolved_area).abs() < 0.01,
+            "Clean mesh: resolved area ({}) should match regular area ({})",
+            resolved_area,
+            regular_area
         );
     }
 }

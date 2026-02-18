@@ -17,7 +17,10 @@ use std::io::Write;
 use serde::{Deserialize, Serialize};
 use slicecore_gcode_io::{EndConfig, GcodeWriter, StartConfig};
 use slicecore_mesh::TriangleMesh;
-use slicecore_slicer::{compute_adaptive_layer_heights, slice_mesh, slice_mesh_adaptive};
+use slicecore_slicer::{
+    compute_adaptive_layer_heights, slice_mesh, slice_mesh_adaptive,
+    slice_mesh_adaptive_resolved, slice_mesh_resolved, SliceLayer,
+};
 
 use crate::arachne::generate_arachne_perimeters;
 use crate::config::PrintConfig;
@@ -532,6 +535,52 @@ impl Engine {
         })
     }
 
+    /// Slices a mesh into layers, automatically detecting self-intersections
+    /// and applying contour resolution when needed.
+    ///
+    /// This is the shared slicing helper used by all engine entry points.
+    /// It checks for self-intersecting triangles and, if found, uses the
+    /// resolved slicing path that applies polygon self-union on each layer's
+    /// contours to merge overlapping regions.
+    ///
+    /// Returns `(layers, has_self_intersections)`.
+    fn slice_mesh_layers(&self, mesh: &TriangleMesh) -> (Vec<SliceLayer>, bool) {
+        let has_self_intersections =
+            slicecore_mesh::repair::intersect::detect_self_intersections(
+                mesh.vertices(),
+                mesh.indices(),
+            ) > 0;
+
+        let layers = if self.config.adaptive_layer_height {
+            let heights = compute_adaptive_layer_heights(
+                mesh,
+                self.config.adaptive_min_layer_height,
+                self.config.adaptive_max_layer_height,
+                self.config.adaptive_layer_quality,
+                self.config.first_layer_height,
+            );
+            if has_self_intersections {
+                slice_mesh_adaptive_resolved(mesh, &heights)
+            } else {
+                slice_mesh_adaptive(mesh, &heights)
+            }
+        } else if has_self_intersections {
+            slice_mesh_resolved(
+                mesh,
+                self.config.layer_height,
+                self.config.first_layer_height,
+            )
+        } else {
+            slice_mesh(
+                mesh,
+                self.config.layer_height,
+                self.config.first_layer_height,
+            )
+        };
+
+        (layers, has_self_intersections)
+    }
+
     /// Slices a mesh and writes G-code to the given writer.
     ///
     /// Same pipeline as [`Engine::slice`] but writes directly to any
@@ -686,23 +735,17 @@ impl Engine {
             }
         }
 
-        // 1. Slice mesh into layers (uniform or adaptive).
-        let layers = if self.config.adaptive_layer_height {
-            let heights = compute_adaptive_layer_heights(
-                mesh,
-                self.config.adaptive_min_layer_height,
-                self.config.adaptive_max_layer_height,
-                self.config.adaptive_layer_quality,
-                self.config.first_layer_height,
-            );
-            slice_mesh_adaptive(mesh, &heights)
-        } else {
-            slice_mesh(
-                mesh,
-                self.config.layer_height,
-                self.config.first_layer_height,
-            )
-        };
+        // 0c. Self-intersection detection and mesh slicing.
+        let (layers, has_self_intersections) = self.slice_mesh_layers(mesh);
+
+        if has_self_intersections {
+            if let Some(bus) = event_bus {
+                bus.emit(&crate::event::SliceEvent::Warning {
+                    message: "Applying per-slice contour union to resolve self-intersecting geometry".to_string(),
+                    layer: None,
+                });
+            }
+        }
 
         if layers.is_empty() {
             return Err(EngineError::NoLayers);
@@ -1284,23 +1327,8 @@ impl Engine {
             return Err(EngineError::EmptyMesh);
         }
 
-        // 1. Slice mesh into layers.
-        let layers = if self.config.adaptive_layer_height {
-            let heights = compute_adaptive_layer_heights(
-                mesh,
-                self.config.adaptive_min_layer_height,
-                self.config.adaptive_max_layer_height,
-                self.config.adaptive_layer_quality,
-                self.config.first_layer_height,
-            );
-            slice_mesh_adaptive(mesh, &heights)
-        } else {
-            slice_mesh(
-                mesh,
-                self.config.layer_height,
-                self.config.first_layer_height,
-            )
-        };
+        // 1. Slice mesh into layers (with automatic self-intersection detection).
+        let (layers, _has_self_intersections) = self.slice_mesh_layers(mesh);
 
         if layers.is_empty() {
             return Err(EngineError::NoLayers);
@@ -1586,23 +1614,8 @@ impl Engine {
             return Err(EngineError::EmptyMesh);
         }
 
-        // 1. Slice mesh into layers.
-        let layers = if self.config.adaptive_layer_height {
-            let heights = compute_adaptive_layer_heights(
-                mesh,
-                self.config.adaptive_min_layer_height,
-                self.config.adaptive_max_layer_height,
-                self.config.adaptive_layer_quality,
-                self.config.first_layer_height,
-            );
-            slice_mesh_adaptive(mesh, &heights)
-        } else {
-            slice_mesh(
-                mesh,
-                self.config.layer_height,
-                self.config.first_layer_height,
-            )
-        };
+        // 1. Slice mesh into layers (with automatic self-intersection detection).
+        let (layers, _has_self_intersections) = self.slice_mesh_layers(mesh);
 
         if layers.is_empty() {
             return Err(EngineError::NoLayers);
