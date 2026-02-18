@@ -2493,8 +2493,10 @@ name = "slicecore-engine"
 version = "0.1.0"
 dependencies = [
  "boostvoronoi",
+ "getrandom 0.3.4",
  "serde",
  "serde_json",
+ "slicecore-ai",
  "slicecore-fileio",
  "slicecore-gcode-io",
  "slicecore-geo",

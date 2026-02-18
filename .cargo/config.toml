@@ -4,4 +4,5 @@ incremental = true
 
 [target.wasm32-unknown-unknown]
 # WASM-specific settings
-rustflags = ["-C", "opt-level=s"]
+# getrandom_backend="wasm_js" required for getrandom 0.3+ on wasm32-unknown-unknown
+rustflags = ["-C", "opt-level=s", "--cfg", "getrandom_backend=\"wasm_js\""]
