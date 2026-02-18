@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 11 of 12 (Config Integration)
-Plan: 2 of 4 in current phase (2 complete)
-Status: IN PROGRESS -- Plan 11-02 complete (Sequential Printing Pipeline)
-Last activity: 2026-02-18 -- Completed 11-02-PLAN.md (Sequential Printing Pipeline)
+Plan: 3 of 4 in current phase (3 complete)
+Status: IN PROGRESS -- Plan 11-03 complete (Multi-Material Pipeline)
+Last activity: 2026-02-18 -- Completed 11-03-PLAN.md (Multi-Material Pipeline)
 
-Progress: [####################################################] 99% (73/~76 overall)
+Progress: [####################################################] 99% (74/~76 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 70
+- Total plans completed: 71
 - Average duration: 5.0 min
 - Total execution time: 6.32 hours
 
@@ -37,11 +37,11 @@ Progress: [####################################################] 99% (73/~76 ove
 | 08    | 5     | 19min | 3.8min   |
 | 09    | 8     | 41min | 5.1min   |
 | 10    | 3     | 6min  | 2.0min   |
-| 11    | 2     | 7min  | 3.5min   |
+| 11    | 3     | 9min  | 3.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 10-02 (2min), 10-03 (3min), 11-01 (4min), 11-02 (3min)
-- Trend: Phase 11 progressing -- sequential printing pipeline wired
+- Last 5 plans: 10-03 (3min), 11-01 (4min), 11-02 (3min), 11-03 (2min)
+- Trend: Phase 11 progressing -- multi-material pipeline wired
 
 *Updated after each plan completion*
 
@@ -322,6 +322,9 @@ Recent decisions affecting current work:
 - [11-02]: Union-find with path compression and union by rank for connected component detection
 - [11-02]: Sequential check as step 0 in pipeline (after startup warnings, before mesh slicing)
 - [11-02]: Single-component sequential emits warning; multi-component runs collision validation
+- [11-03]: Purge tower G-code appended after all model G-code (V1 simplification, per-layer interleaving deferred)
+- [11-03]: All V1 purge tower layers are sparse (no actual tool changes without modifier mesh API)
+- [11-03]: tool_count vs tools.len() mismatch returns hard ConfigError (not a warning)
 
 ### Pending Todos
 
@@ -334,5 +337,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 11-02-PLAN.md (Sequential Printing Pipeline)
-Resume file: .planning/phases/11-config-integration/11-02-SUMMARY.md
+Stopped at: Completed 11-03-PLAN.md (Multi-Material Pipeline)
+Resume file: .planning/phases/11-config-integration/11-03-SUMMARY.md
