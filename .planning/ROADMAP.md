@@ -348,7 +348,9 @@ Plans:
   - Store profiles in profiles/ with logical directory structure (by vendor, material, nozzle size, etc.)
   - Add CLI subcommands for profile discovery: list, search, show
   - Integration tests comparing original JSON profiles vs converted TOML profiles
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 15 to break down)
+- [ ] 15-01-PLAN.md -- Batch conversion module with inheritance resolution, profile index, CLI import-profiles subcommand
+- [ ] 15-02-PLAN.md -- CLI profile discovery subcommands (list-profiles, search-profiles, show-profile) and profile library generation
+- [ ] 15-03-PLAN.md -- Integration tests for conversion fidelity, round-trip verification, and phase success criteria
