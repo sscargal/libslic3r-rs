@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 12 of 12 (Mesh Repair Completion)
-Plan: 1 of 3 in current phase (1 complete)
+Plan: 2 of 3 in current phase (2 complete)
 Status: Executing Phase 12
-Last activity: 2026-02-18 -- Completed 12-01-PLAN.md (Self-Intersection Detection & Contour Resolution)
+Last activity: 2026-02-18 -- Completed 12-02-PLAN.md (Contour Resolution Pipeline Integration)
 
-Progress: [######################################################] 100% (76/~78 overall)
+Progress: [######################################################] 100% (77/~78 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 73
+- Total plans completed: 74
 - Average duration: 5.0 min
-- Total execution time: 6.42 hours
+- Total execution time: 6.50 hours
 
 **By Phase:**
 
@@ -38,11 +38,11 @@ Progress: [######################################################] 100% (76/~78 
 | 09    | 8     | 41min | 5.1min   |
 | 10    | 3     | 6min  | 2.0min   |
 | 11    | 4     | 12min | 3.0min   |
-| 12    | 1     | 3min  | 3.0min   |
+| 12    | 2     | 8min  | 4.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 11-02 (3min), 11-03 (2min), 11-04 (3min), 12-01 (3min)
-- Trend: Phase 12 in progress -- plan 1 of 3 complete
+- Last 5 plans: 11-02 (3min), 11-03 (2min), 11-04 (3min), 12-01 (3min), 12-02 (5min)
+- Trend: Phase 12 in progress -- plan 2 of 3 complete
 
 *Updated after each plan completion*
 
@@ -334,6 +334,10 @@ Recent decisions affecting current work:
 - [12-01]: intersection_z_range spans all vertices of involved triangles (not just intersection points)
 - [12-01]: resolve_contour_intersections uses polygon_union self-union with empty clip set
 - [12-01]: Clippy field_reassign_with_default suppressed on repair() due to sequential pipeline steps
+- [12-02]: Engine::slice_mesh_layers() shared helper deduplicates detect+branch logic across 3 entry points
+- [12-02]: detect_self_intersections() called once per slice operation, result drives branch to resolved or regular path
+- [12-02]: Warning event emitted when contour resolution is active for user visibility
+- [12-02]: Clean meshes skip resolution entirely (no performance penalty)
 
 ### Pending Todos
 
@@ -346,5 +350,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 12-01-PLAN.md (Self-Intersection Detection & Contour Resolution)
-Resume file: .planning/phases/12-mesh-repair-completion/12-01-SUMMARY.md
+Stopped at: Completed 12-02-PLAN.md (Contour Resolution Pipeline Integration)
+Resume file: .planning/phases/12-mesh-repair-completion/12-02-SUMMARY.md
