@@ -566,6 +566,88 @@ impl Engine {
             }
         }
 
+        // 0. Sequential printing check (before slicing).
+        if self.config.sequential.enabled {
+            let components = mesh.connected_components();
+            if components.len() <= 1 {
+                // Single object -- sequential mode has no effect.
+                if let Some(bus) = event_bus {
+                    bus.emit(&crate::event::SliceEvent::Warning {
+                        message: "Sequential printing enabled but mesh has only one object. \
+                                  Sequential mode has no effect for single objects."
+                            .to_string(),
+                        layer: None,
+                    });
+                }
+            } else {
+                // Multiple objects -- compute bounds and validate.
+                let object_bounds: Vec<crate::sequential::ObjectBounds> = components
+                    .iter()
+                    .enumerate()
+                    .map(|(comp_idx, (vert_indices, _tri_indices))| {
+                        let mut min_x = f64::MAX;
+                        let mut max_x = f64::MIN;
+                        let mut min_y = f64::MAX;
+                        let mut max_y = f64::MIN;
+                        let mut max_z = f64::MIN;
+                        let vertices = mesh.vertices();
+                        for &vi in vert_indices {
+                            let v = vertices[vi as usize];
+                            if v.x < min_x {
+                                min_x = v.x;
+                            }
+                            if v.x > max_x {
+                                max_x = v.x;
+                            }
+                            if v.y < min_y {
+                                min_y = v.y;
+                            }
+                            if v.y > max_y {
+                                max_y = v.y;
+                            }
+                            if v.z > max_z {
+                                max_z = v.z;
+                            }
+                        }
+                        crate::sequential::ObjectBounds {
+                            min_x,
+                            max_x,
+                            min_y,
+                            max_y,
+                            max_z,
+                            object_index: comp_idx,
+                        }
+                    })
+                    .collect();
+
+                // Run collision detection and ordering.
+                let _plan = crate::sequential::plan_sequential_print(
+                    &object_bounds,
+                    &self.config,
+                )?;
+
+                // Emit info about sequential order.
+                if let Some(bus) = event_bus {
+                    bus.emit(&crate::event::SliceEvent::StageChanged {
+                        stage: "sequential_validation".to_string(),
+                        progress: 0.0,
+                    });
+                    bus.emit(&crate::event::SliceEvent::Warning {
+                        message: format!(
+                            "Sequential printing validated: {} objects, no collisions detected",
+                            components.len()
+                        ),
+                        layer: None,
+                    });
+                }
+
+                // Note: Full object-by-object slicing (slicing each component separately
+                // and inserting safe-Z travels between them) requires API changes beyond
+                // V1 scope. The current implementation validates that sequential printing
+                // is feasible. The mesh is still sliced as one piece.
+            }
+        }
+
         // 1. Slice mesh into layers (uniform or adaptive).
         let layers = if self.config.adaptive_layer_height {
             let heights = compute_adaptive_layer_heights(
