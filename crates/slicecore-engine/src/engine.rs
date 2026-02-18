@@ -419,6 +419,59 @@ impl Engine {
         })
     }
 
+    /// Slices a mesh with event emission for progress monitoring.
+    ///
+    /// Same pipeline as [`Engine::slice`] but emits [`SliceEvent`]s to the
+    /// provided [`EventBus`] at key stages: mesh slicing start, each layer
+    /// completion, G-code generation, and final completion.
+    ///
+    /// # Events emitted
+    ///
+    /// - `StageChanged("mesh_slicing", 0.0)` -- before mesh slicing
+    /// - `StageChanged("layer_processing", 0.1)` -- before per-layer processing
+    /// - `LayerComplete { layer, total, z }` -- after each layer
+    /// - `StageChanged("gcode_generation", 0.9)` -- before G-code generation
+    /// - `Complete { layers, time_seconds }` -- after everything finishes
+    ///
+    /// # Errors
+    ///
+    /// Same errors as [`Engine::slice`].
+    ///
+    /// [`SliceEvent`]: crate::event::SliceEvent
+    /// [`EventBus`]: crate::event::EventBus
+    pub fn slice_with_events(
+        &self,
+        mesh: &TriangleMesh,
+        event_bus: &crate::event::EventBus,
+    ) -> Result<SliceResult, EngineError> {
+        let start = std::time::Instant::now();
+
+        // Emit stage: mesh slicing.
+        event_bus.emit(&crate::event::SliceEvent::StageChanged {
+            stage: "mesh_slicing".to_string(),
+            progress: 0.0,
+        });
+
+        let mut buf = Vec::new();
+        let result = self.slice_to_writer_with_events(mesh, &mut buf, Some(event_bus))?;
+
+        // Emit completion.
+        let elapsed = start.elapsed().as_secs_f64();
+        event_bus.emit(&crate::event::SliceEvent::Complete {
+            layers: result.layer_count,
+            time_seconds: elapsed,
+        });
+
+        Ok(SliceResult {
+            gcode: buf,
+            layer_count: result.layer_count,
+            estimated_time_seconds: result.estimated_time_seconds,
+            time_estimate: result.time_estimate,
+            filament_usage: result.filament_usage,
+            preview: None,
+        })
+    }
+
     /// Slices a mesh and writes G-code to the given writer.
     ///
     /// Same pipeline as [`Engine::slice`] but writes directly to any
@@ -427,6 +480,16 @@ impl Engine {
         &self,
         mesh: &TriangleMesh,
         writer: W,
+    ) -> Result<SliceResult, EngineError> {
+        self.slice_to_writer_with_events(mesh, writer, None)
+    }
+
+    /// Internal slicing pipeline with optional event emission.
+    fn slice_to_writer_with_events<W: Write>(
+        &self,
+        mesh: &TriangleMesh,
+        writer: W,
+        event_bus: Option<&crate::event::EventBus>,
     ) -> Result<SliceResult, EngineError> {
         // Validate mesh.
         if mesh.triangle_count() == 0 {
@@ -481,8 +544,17 @@ impl Engine {
             support::SupportResult::empty()
         };
 
+        // Emit stage: per-layer processing.
+        if let Some(bus) = event_bus {
+            bus.emit(&crate::event::SliceEvent::StageChanged {
+                stage: "layer_processing".to_string(),
+                progress: 0.1,
+            });
+        }
+
         // 2. Process each layer: perimeters, surface classification, infill, toolpath.
         let mut layer_toolpaths: Vec<LayerToolpath> = Vec::with_capacity(layers.len());
+        let total_layers = layers.len();
         // Track seam position across layers for Aligned strategy.
         let mut previous_seam: Option<slicecore_math::IPoint2> = None;
 
@@ -775,6 +847,15 @@ impl Engine {
             }
 
             layer_toolpaths.push(toolpath);
+
+            // Emit layer completion event.
+            if let Some(bus) = event_bus {
+                bus.emit(&crate::event::SliceEvent::LayerComplete {
+                    layer: layer_idx,
+                    total: total_layers,
+                    z: layer.z,
+                });
+            }
         }
 
         // 3. First-layer extras: skirt/brim.
@@ -896,6 +977,14 @@ impl Engine {
                     layer0.segments = new_segments;
                 }
             }
+        }
+
+        // Emit stage: G-code generation.
+        if let Some(bus) = event_bus {
+            bus.emit(&crate::event::SliceEvent::StageChanged {
+                stage: "gcode_generation".to_string(),
+                progress: 0.9,
+            });
         }
 
         // 4. G-code generation.

@@ -27,6 +27,7 @@ pub mod custom_gcode;
 pub mod engine;
 pub mod error;
 pub mod estimation;
+pub mod event;
 pub mod extrusion;
 pub mod filament;
 pub mod flow_control;
@@ -36,6 +37,7 @@ pub mod infill;
 pub mod ironing;
 pub mod modifier;
 pub mod multimaterial;
+pub mod output;
 pub mod perimeter;
 pub mod planner;
 pub mod polyhole;
@@ -90,6 +92,8 @@ pub use support::{SupportRegion, SupportResult};
 pub use toolpath::{
     assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment,
 };
+pub use event::{CallbackSubscriber, EventBus, EventSubscriber, SliceEvent};
+pub use output::{to_json, to_msgpack, SliceMetadata};
 
 // Re-export plugin types when the plugins feature is enabled.
 #[cfg(feature = "plugins")]
