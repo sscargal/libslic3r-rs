@@ -241,11 +241,13 @@ Plans:
   4. Integration tests verify all three config-driven features work without requiring manual API calls to specialized methods
   5. RepairReport or warnings notify users if plugin_dir is set but contains no valid plugins
 
+**Plans:** 4 plans
+
 Plans:
-- [ ] 11-01-PLAN.md -- Wire plugin_dir auto-loading into Engine constructor with PluginRegistry integration
-- [ ] 11-02-PLAN.md -- Wire sequential printing into slice_to_writer_with_events pipeline
-- [ ] 11-03-PLAN.md -- Wire multi-material into slice_to_writer_with_events pipeline
-- [ ] 11-04-PLAN.md -- Integration tests and Phase 11 success criteria verification
+- [ ] 11-01-PLAN.md -- Wire plugin_dir auto-loading into Engine constructor and update CLI to prevent double-loading
+- [ ] 11-02-PLAN.md -- Add connected_components() to TriangleMesh and wire sequential printing into Engine pipeline
+- [ ] 11-03-PLAN.md -- Wire multi-material validation and purge tower generation into Engine pipeline
+- [ ] 11-04-PLAN.md -- Integration tests for all config-driven features and Phase 11 success criteria verification
 
 ### Phase 12: Mesh Repair Completion
 **Goal**: Self-intersecting meshes are automatically repaired, not just detected -- users get clean geometry without external preprocessing tools
