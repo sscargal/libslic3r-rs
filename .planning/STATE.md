@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 14 of 14 (Profile Conversion Tool)
-Plan: 1 of 2 in current phase (1 complete)
-Status: Executing Phase 14
-Last activity: 2026-02-18 -- Completed 14-01-PLAN.md (Conversion Module and CLI Subcommand)
+Plan: 2 of 2 in current phase (2 complete)
+Status: Phase 14 Complete
+Last activity: 2026-02-18 -- Completed 14-02-PLAN.md (Integration Tests for Profile Conversion)
 
-Progress: [#####################################################---] 96% (81/84 overall)
+Progress: [##########################################################] 100% (84/84 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 78
+- Total plans completed: 79
 - Average duration: 5.0 min
-- Total execution time: 6.78 hours
+- Total execution time: 6.83 hours
 
 **By Phase:**
 
@@ -40,11 +40,11 @@ Progress: [#####################################################---] 96% (81/84 
 | 11    | 4     | 12min | 3.0min   |
 | 12    | 3     | 12min | 4.0min   |
 | 13    | 2     | 8min  | 4.0min   |
-| 14    | 1     | 4min  | 4.0min   |
+| 14    | 2     | 7min  | 3.5min   |
 
 **Recent Trend:**
-- Last 5 plans: 12-03 (4min), 13-01 (4min), 13-02 (4min), 14-01 (4min)
-- Trend: Steady 4min/plan
+- Last 5 plans: 13-01 (4min), 13-02 (4min), 14-01 (4min), 14-02 (3min)
+- Trend: Steady 3-4min/plan
 
 *Updated after each plan completion*
 
@@ -360,6 +360,9 @@ Recent decisions affecting current work:
 - [14-01]: Merged metadata joins names with " + ", uses last result for type/inherits
 - [14-01]: toml::map::Map lacks values_mut; used keys().collect + get_mut pattern for float rounding
 
+- [14-02]: Integration tests use import_upstream_profile directly (not PrintConfig::from_json) to test the full conversion pipeline
+- [14-02]: Real profile tests use find_json helper with fallback for robustness across different OrcaSlicer versions
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
@@ -376,5 +379,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 14-01-PLAN.md (Conversion Module and CLI Subcommand)
-Resume file: .planning/phases/14-profile-conversion-tool-json-to-toml/14-01-SUMMARY.md
+Stopped at: Completed 14-02-PLAN.md (Integration Tests for Profile Conversion) -- Phase 14 complete, all 14 phases done
+Resume file: .planning/phases/14-profile-conversion-tool-json-to-toml/14-02-SUMMARY.md
