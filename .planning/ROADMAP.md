@@ -324,9 +324,16 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 
 ### Phase 14: Profile Conversion Tool (JSON to TOML)
 
-**Goal:** [To be planned]
+**Goal:** Users can convert OrcaSlicer/BambuStudio JSON profiles to slicecore's native TOML format via a CLI subcommand, with selective output (only mapped fields), multi-file merge, and round-trip fidelity
 **Depends on:** Phase 13
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. `slicecore convert-profile input.json` produces valid TOML containing only fields that were mapped from the source (not all 86 PrintConfig defaults)
+  2. JSON -> PrintConfig -> TOML -> PrintConfig round-trip preserves all mapped field values within floating-point tolerance
+  3. Multiple input files (process + filament + machine) merge correctly into a single unified TOML profile
+  4. Conversion report on stderr shows source metadata, mapped field count, and unmapped field names
+  5. Float values in TOML output are clean (no IEEE 754 artifacts like 0.15000000000000002)
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 14 to break down)
+- [ ] 14-01-PLAN.md -- Profile conversion module (selective TOML output, multi-file merge) and CLI convert-profile subcommand
+- [ ] 14-02-PLAN.md -- Integration tests (round-trip, merge, real profiles) and phase verification
