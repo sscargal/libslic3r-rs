@@ -66,7 +66,7 @@ enum Commands {
         /// Input STL file path
         input: PathBuf,
 
-        /// Print config TOML file (optional -- uses defaults if not provided)
+        /// Print config file (TOML or JSON, auto-detected; optional -- uses defaults if not provided)
         #[arg(short, long)]
         config: Option<PathBuf>,
 
@@ -198,7 +198,7 @@ fn cmd_slice(
 
     // 4. Load config.
     let print_config = if let Some(cfg_path) = config_path {
-        match PrintConfig::from_toml_file(cfg_path) {
+        match PrintConfig::from_file(cfg_path) {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("Error: Failed to load config '{}': {}", cfg_path.display(), e);
