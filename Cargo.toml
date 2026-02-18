@@ -21,3 +21,4 @@ abi_stable = "0.11"
 semver = "1"
 toml = "0.8"
 rmp-serde = "1"
+criterion = { version = "0.5", features = ["html_reports"] }

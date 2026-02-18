@@ -31,3 +31,12 @@ rmp-serde = { workspace = true }
 getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "slice_benchmark"
+harness = false
+
+[[bench]]
+name = "geometry_benchmark"
+harness = false
