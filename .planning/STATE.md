@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 13 of 13 (JSON Profile Support)
-Plan: 1 of 2 in current phase (1 complete)
-Status: Phase 13 in progress
-Last activity: 2026-02-18 -- Completed 13-01-PLAN.md (Profile Import Module)
+Plan: 2 of 2 in current phase (2 complete)
+Status: Phase 13 complete -- all plans executed
+Last activity: 2026-02-18 -- Completed 13-02-PLAN.md (CLI Integration and Profile Import Tests)
 
-Progress: [#################################################-----] 91% (79/80 overall)
+Progress: [########################################################] 100% (80/80 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 76
+- Total plans completed: 77
 - Average duration: 5.0 min
-- Total execution time: 6.64 hours
+- Total execution time: 6.71 hours
 
 **By Phase:**
 
@@ -39,11 +39,11 @@ Progress: [#################################################-----] 91% (79/80 ov
 | 10    | 3     | 6min  | 2.0min   |
 | 11    | 4     | 12min | 3.0min   |
 | 12    | 3     | 12min | 4.0min   |
-| 13    | 1     | 4min  | 4.0min   |
+| 13    | 2     | 8min  | 4.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 11-04 (3min), 12-01 (3min), 12-02 (5min), 12-03 (4min), 13-01 (4min)
-- Trend: Phase 13 in progress
+- Last 5 plans: 12-01 (3min), 12-02 (5min), 12-03 (4min), 13-01 (4min), 13-02 (4min)
+- Trend: All phases complete
 
 *Updated after each plan completion*
 
@@ -350,6 +350,10 @@ Recent decisions affecting current work:
 - [13-01]: apply_field_mapping receives plain &str after extraction for uniform handling
 - [13-01]: Percentage fields: strip % suffix, divide by 100 (15% -> 0.15)
 
+- [13-02]: Integration tests placed in crates/slicecore-engine/tests/ alongside existing tests
+- [13-02]: Real profile tests gated with #[ignore] for CI compatibility
+- [13-02]: CLI from_toml_file replaced with from_file for auto-detecting TOML/JSON format
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
@@ -365,5 +369,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 13-01-PLAN.md (Profile Import Module)
-Resume file: .planning/phases/13-json-profile-support/13-01-SUMMARY.md
+Stopped at: Completed 13-02-PLAN.md (CLI Integration and Profile Import Tests) -- Phase 13 complete
+Resume file: .planning/phases/13-json-profile-support/13-02-SUMMARY.md
