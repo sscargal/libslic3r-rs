@@ -37,6 +37,14 @@ enum Commands {
         /// Output G-code file path (default: input with .gcode extension)
         #[arg(short, long)]
         output: Option<PathBuf>,
+
+        /// Output slicing metadata as JSON to stdout
+        #[arg(long)]
+        json: bool,
+
+        /// Output slicing metadata as MessagePack to stdout
+        #[arg(long)]
+        msgpack: bool,
     },
 
     /// Validate a G-code file
@@ -60,14 +68,22 @@ fn main() {
             input,
             config,
             output,
-        } => cmd_slice(&input, config.as_deref(), output.as_deref()),
+            json,
+            msgpack,
+        } => cmd_slice(&input, config.as_deref(), output.as_deref(), json, msgpack),
         Commands::Validate { input } => cmd_validate(&input),
         Commands::Analyze { input } => cmd_analyze(&input),
     }
 }
 
 /// Slice an STL/mesh file to G-code.
-fn cmd_slice(input: &PathBuf, config_path: Option<&std::path::Path>, output_path: Option<&std::path::Path>) {
+fn cmd_slice(
+    input: &PathBuf,
+    config_path: Option<&std::path::Path>,
+    output_path: Option<&std::path::Path>,
+    json_output: bool,
+    msgpack_output: bool,
+) {
     // 1. Read input file.
     let data = match std::fs::read(input) {
         Ok(d) => d,
@@ -121,7 +137,7 @@ fn cmd_slice(input: &PathBuf, config_path: Option<&std::path::Path>, output_path
     };
 
     // 5. Slice.
-    let engine = Engine::new(print_config);
+    let engine = Engine::new(print_config.clone());
     let result = match engine.slice(&repaired_mesh) {
         Ok(r) => r,
         Err(e) => {
@@ -137,18 +153,50 @@ fn cmd_slice(input: &PathBuf, config_path: Option<&std::path::Path>, output_path
         input.with_extension("gcode")
     };
 
-    // 7. Write output.
+    // 7. Write G-code output.
     if let Err(e) = std::fs::write(&out_path, &result.gcode) {
         eprintln!("Error: Failed to write output '{}': {}", out_path.display(), e);
         process::exit(1);
     }
 
-    // 8. Print summary.
+    // 8. Structured output (JSON or MessagePack to stdout).
+    if json_output {
+        match slicecore_engine::output::to_json(&result, &print_config) {
+            Ok(json_str) => println!("{}", json_str),
+            Err(e) => {
+                eprintln!("Error: Failed to serialize JSON: {}", e);
+                process::exit(1);
+            }
+        }
+    } else if msgpack_output {
+        match slicecore_engine::output::to_msgpack(&result, &print_config) {
+            Ok(bytes) => {
+                use std::io::Write;
+                if let Err(e) = std::io::stdout().write_all(&bytes) {
+                    eprintln!("Error: Failed to write MessagePack: {}", e);
+                    process::exit(1);
+                }
+            }
+            Err(e) => {
+                eprintln!("Error: Failed to serialize MessagePack: {}", e);
+                process::exit(1);
+            }
+        }
+    }
+
+    // 9. Print summary (to stderr if structured output was requested, to stdout otherwise).
     let time_minutes = result.estimated_time_seconds / 60.0;
-    println!("Slicing complete:");
-    println!("  Layers: {}", result.layer_count);
-    println!("  Estimated time: {:.1} min ({:.0} sec)", time_minutes, result.estimated_time_seconds);
-    println!("  Output: {}", out_path.display());
+    if json_output || msgpack_output {
+        eprintln!("Slicing complete:");
+        eprintln!("  Layers: {}", result.layer_count);
+        eprintln!("  Estimated time: {:.1} min ({:.0} sec)", time_minutes, result.estimated_time_seconds);
+        eprintln!("  Output: {}", out_path.display());
+    } else {
+        println!("Slicing complete:");
+        println!("  Layers: {}", result.layer_count);
+        println!("  Estimated time: {:.1} min ({:.0} sec)", time_minutes, result.estimated_time_seconds);
+        println!("  Output: {}", out_path.display());
+    }
 }
 
 /// Validate a G-code file.

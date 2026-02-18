@@ -16,3 +16,8 @@ slicecore-engine = { path = "../slicecore-engine" }
 slicecore-fileio = { path = "../slicecore-fileio" }
 slicecore-mesh = { path = "../slicecore-mesh" }
 slicecore-gcode-io = { path = "../slicecore-gcode-io" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+serde_json = { workspace = true }
+rmp-serde = { workspace = true }
