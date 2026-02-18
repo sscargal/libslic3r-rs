@@ -321,3 +321,12 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 11. Config Integration | 4/4 | ✓ Complete | 2026-02-18 |
 | 12. Mesh Repair Completion | 3/3 | ✓ Complete | 2026-02-18 |
 | 13. JSON Profile Support | 2/2 | ✓ Complete | 2026-02-18 |
+
+### Phase 14: Profile Conversion Tool (JSON to TOML)
+
+**Goal:** [To be planned]
+**Depends on:** Phase 13
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 14 to break down)

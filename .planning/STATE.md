@@ -357,6 +357,7 @@ Recent decisions affecting current work:
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
+- Phase 14 added: Profile Conversion Tool (JSON to TOML)
 
 ### Pending Todos
 
