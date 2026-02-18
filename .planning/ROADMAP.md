@@ -226,9 +226,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 10-01-PLAN.md -- Enable plugins and ai features in CLI Cargo.toml, verify compilation
-- [ ] 10-02-PLAN.md -- Add ai-suggest CLI subcommand with provider configuration
-- [ ] 10-03-PLAN.md -- Update CLI help, add integration tests, verify Phase 10 success criteria
+- [x] 10-01-PLAN.md -- Enable plugins and ai features in CLI Cargo.toml, verify compilation
+- [x] 10-02-PLAN.md -- Add ai-suggest CLI subcommand with provider configuration
+- [x] 10-03-PLAN.md -- Update CLI help, add integration tests, verify Phase 10 success criteria
 
 ### Phase 11: Config Integration
 **Goal**: All PrintConfig fields are wired into the Engine pipeline -- users' TOML settings actually affect slicing behavior without requiring direct API calls
@@ -297,6 +297,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 7. Plugin System | 7/7 | ✓ Complete | 2026-02-17 |
 | 8. AI Integration | 5/5 | ✓ Complete | 2026-02-17 |
 | 9. API Polish, Testing, and Platform Validation | 8/8 | ✓ Complete | 2026-02-18 |
-| 10. CLI Feature Integration | 0/3 | Pending | - |
+| 10. CLI Feature Integration | 3/3 | ✓ Complete | 2026-02-18 |
 | 11. Config Integration | 0/4 | Pending | - |
 | 12. Mesh Repair Completion | 0/3 | Pending | - |
