@@ -648,6 +648,44 @@ impl Engine {
             }
         }
 
+        // 0b. Multi-material validation.
+        if self.config.multi_material.enabled {
+            let mm = &self.config.multi_material;
+
+            // Validate tool_count vs tools.len() consistency.
+            if !mm.tools.is_empty() && mm.tools.len() != mm.tool_count as usize {
+                return Err(EngineError::ConfigError(format!(
+                    "multi_material.tool_count ({}) does not match tools array length ({})",
+                    mm.tool_count,
+                    mm.tools.len()
+                )));
+            }
+
+            // Warn if multi-material is enabled but only 1 tool configured.
+            if mm.tool_count <= 1 {
+                if let Some(bus) = event_bus {
+                    bus.emit(&crate::event::SliceEvent::Warning {
+                        message: "multi_material.enabled is true but tool_count <= 1. \
+                                  Multi-material features require at least 2 tools.".to_string(),
+                        layer: None,
+                    });
+                }
+            }
+
+            // Warn about no tool assignments (V1 limitation: single-mesh API has no modifier meshes).
+            if mm.tool_count > 1 {
+                if let Some(bus) = event_bus {
+                    bus.emit(&crate::event::SliceEvent::Warning {
+                        message: "Multi-material enabled with multiple tools, but no modifier meshes \
+                                  provided for tool assignment. All regions will use tool 0. \
+                                  Use modifier meshes with assign_tools_per_region() for multi-tool \
+                                  routing.".to_string(),
+                        layer: None,
+                    });
+                }
+            }
+        }
+
         // 1. Slice mesh into layers (uniform or adaptive).
         let layers = if self.config.adaptive_layer_height {
             let heights = compute_adaptive_layer_heights(
@@ -1149,6 +1187,35 @@ impl Engine {
                 self.config.arc_fitting_tolerance,
                 self.config.arc_fitting_min_points,
             )
+        } else {
+            gcode_commands
+        };
+
+        // 4c. Multi-material purge tower G-code (if enabled).
+        let gcode_commands = if self.config.multi_material.enabled
+            && self.config.multi_material.tool_count > 1
+        {
+            let mut all_commands = gcode_commands;
+            // Insert purge tower commands for each layer.
+            // V1: no actual tool changes (no modifier meshes), so all layers are sparse
+            // (maintenance) layers to maintain tower structural integrity.
+            //
+            // Track which layer Z heights we've seen in the G-code to insert tower
+            // commands at the right positions.
+            for toolpath in &layer_toolpaths {
+                let tower = crate::multimaterial::generate_purge_tower_layer(
+                    toolpath.z,
+                    toolpath.layer_height,
+                    &self.config.multi_material,
+                    false, // has_tool_change: false in V1 (no modifier mesh tool assignments)
+                    self.config.nozzle_diameter,
+                );
+                // Append tower commands to the end of the G-code stream.
+                // In a full multi-material implementation, these would be interleaved
+                // per-layer. For V1 we append after all model G-code.
+                all_commands.extend(tower.commands);
+            }
+            all_commands
         } else {
             gcode_commands
         };
