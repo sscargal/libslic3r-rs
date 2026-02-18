@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 14 in progress -- Profile Conversion Tool
+**Current focus:** Phase 15 in progress -- Printer and Filament Profile Library
 
 ## Current Position
 
-Phase: 14 of 14 (Profile Conversion Tool)
-Plan: 2 of 2 in current phase (2 complete)
-Status: Phase 14 Complete
-Last activity: 2026-02-18 -- Completed 14-02-PLAN.md (Integration Tests for Profile Conversion)
+Phase: 15 of 15 (Printer and Filament Profile Library)
+Plan: 1 of 3 in current phase (1 complete)
+Status: In Progress
+Last activity: 2026-02-18 -- Completed 15-01-PLAN.md (Batch Conversion Infrastructure)
 
-Progress: [##########################################################] 100% (84/84 overall)
+Progress: [########################################################--] 97% (85/87 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 79
+- Total plans completed: 80
 - Average duration: 5.0 min
-- Total execution time: 6.83 hours
+- Total execution time: 6.93 hours
 
 **By Phase:**
 
@@ -41,10 +41,11 @@ Progress: [##########################################################] 100% (84/
 | 12    | 3     | 12min | 4.0min   |
 | 13    | 2     | 8min  | 4.0min   |
 | 14    | 2     | 7min  | 3.5min   |
+| 15    | 1     | 6min  | 6.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 13-01 (4min), 13-02 (4min), 14-01 (4min), 14-02 (3min)
-- Trend: Steady 3-4min/plan
+- Last 5 plans: 13-02 (4min), 14-01 (4min), 14-02 (3min), 15-01 (6min)
+- Trend: Steady 3-6min/plan
 
 *Updated after each plan completion*
 
@@ -363,6 +364,12 @@ Recent decisions affecting current work:
 - [14-02]: Integration tests use import_upstream_profile directly (not PrintConfig::from_json) to test the full conversion pipeline
 - [14-02]: Real profile tests use find_json helper with fallback for robustness across different OrcaSlicer versions
 
+- [15-01]: Inheritance merge uses child-vs-parent comparison (not child-vs-default) to correctly handle child fields that reset to default values
+- [15-01]: Timestamp generation uses custom epoch-to-YMD algorithm (no chrono dependency)
+- [15-01]: Batch conversion continues on individual profile errors, collecting error strings for reporting
+- [15-01]: MAX_INHERITANCE_DEPTH = 10 guards against circular reference chains
+- [15-01]: Only profiles with "instantiation": "true" are converted; base/parent profiles are skipped
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
@@ -380,5 +387,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 14-02-PLAN.md (Integration Tests for Profile Conversion) -- Phase 14 complete, all 14 phases done
-Resume file: .planning/phases/14-profile-conversion-tool-json-to-toml/14-02-SUMMARY.md
+Stopped at: Completed 15-01-PLAN.md (Batch Conversion Infrastructure)
+Resume file: .planning/phases/15-printer-and-filament-profile-library/15-01-SUMMARY.md
