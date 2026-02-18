@@ -276,16 +276,76 @@ pub struct Engine {
     config: PrintConfig,
     #[cfg(feature = "plugins")]
     plugin_registry: Option<slicecore_plugin::PluginRegistry>,
+    startup_warnings: Vec<String>,
 }
 
 impl Engine {
     /// Creates a new engine with the given print configuration.
+    ///
+    /// When the `plugins` feature is enabled and `config.plugin_dir` is set,
+    /// automatically discovers and loads plugins from the configured directory.
+    /// Any loading errors or empty directories produce warnings accessible via
+    /// [`Engine::startup_warnings`], which are emitted as [`SliceEvent::Warning`]s
+    /// at the start of [`Engine::slice_with_events`].
+    #[allow(unused_mut)] // mut needed when `plugins` feature calls auto_load_plugins
     pub fn new(config: PrintConfig) -> Self {
-        Self {
+        let mut engine = Self {
             config,
             #[cfg(feature = "plugins")]
             plugin_registry: None,
+            startup_warnings: Vec::new(),
+        };
+        #[cfg(feature = "plugins")]
+        engine.auto_load_plugins();
+        engine
+    }
+
+    /// Automatically loads plugins from `config.plugin_dir` if set.
+    ///
+    /// - If `plugin_dir` is `None`, does nothing.
+    /// - If the directory contains no valid plugins, pushes a warning.
+    /// - If loading fails entirely, pushes a warning (non-fatal).
+    /// - On success, sets `self.plugin_registry` to the loaded registry.
+    #[cfg(feature = "plugins")]
+    fn auto_load_plugins(&mut self) {
+        if let Some(ref dir) = self.config.plugin_dir {
+            let mut registry = slicecore_plugin::PluginRegistry::new();
+            match registry.discover_and_load(std::path::Path::new(dir)) {
+                Ok(loaded) if loaded.is_empty() => {
+                    self.startup_warnings.push(format!(
+                        "plugin_dir '{}' is set but contains no valid plugins",
+                        dir
+                    ));
+                }
+                Ok(_loaded) => {
+                    self.plugin_registry = Some(registry);
+                }
+                Err(e) => {
+                    self.startup_warnings.push(format!(
+                        "Failed to load plugins from '{}': {}",
+                        dir, e
+                    ));
+                }
+            }
         }
+    }
+
+    /// Returns whether the engine has a plugin registry attached.
+    ///
+    /// This is `true` when plugins were auto-loaded from `config.plugin_dir`
+    /// or manually attached via [`Engine::with_plugin_registry`].
+    #[cfg(feature = "plugins")]
+    pub fn has_plugin_registry(&self) -> bool {
+        self.plugin_registry.is_some()
+    }
+
+    /// Returns startup warnings accumulated during engine construction.
+    ///
+    /// These typically relate to plugin auto-loading issues (empty directories,
+    /// loading failures). They are emitted as [`SliceEvent::Warning`]s at the
+    /// start of [`Engine::slice_with_events`].
+    pub fn startup_warnings(&self) -> &[String] {
+        &self.startup_warnings
     }
 
     /// Attaches a plugin registry to the engine for plugin-based infill patterns.
@@ -494,6 +554,16 @@ impl Engine {
         // Validate mesh.
         if mesh.triangle_count() == 0 {
             return Err(EngineError::EmptyMesh);
+        }
+
+        // Emit startup warnings (e.g., plugin auto-loading issues).
+        if let Some(bus) = event_bus {
+            for warning in &self.startup_warnings {
+                bus.emit(&crate::event::SliceEvent::Warning {
+                    message: warning.clone(),
+                    layer: None,
+                });
+            }
         }
 
         // 1. Slice mesh into layers (uniform or adaptive).
