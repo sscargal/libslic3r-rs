@@ -1,0 +1,30 @@
+[package]
+name = "slicecore-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+slicecore-fileio = { path = "../crates/slicecore-fileio" }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "fuzz_stl_binary"
+path = "fuzz_targets/fuzz_stl_binary.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_stl_ascii"
+path = "fuzz_targets/fuzz_stl_ascii.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_obj"
+path = "fuzz_targets/fuzz_obj.rs"
+doc = false
