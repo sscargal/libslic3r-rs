@@ -20,7 +20,40 @@ use slicecore_plugin::PluginRegistry;
 
 /// SliceCore -- a 3D model slicer.
 #[derive(Parser)]
-#[command(name = "slicecore", about = "3D model slicer", version)]
+#[command(
+    name = "slicecore",
+    about = "3D model slicer with plugin and AI integration",
+    version,
+    after_help = "\
+PLUGIN SUPPORT:
+  Plugins extend slicecore with custom infill patterns. Configure a plugin directory
+  in your config TOML (plugin_dir = \"/path/to/plugins\") or use --plugin-dir on the
+  slice command. Each plugin directory should contain subdirectories with plugin.toml
+  manifests. Select a plugin infill pattern in config with:
+    infill_pattern = { plugin = \"zigzag\" }
+
+AI PROFILE SUGGESTIONS:
+  The ai-suggest command analyzes mesh geometry and queries an LLM for optimal print
+  settings. By default it connects to Ollama at localhost:11434 using llama3.2.
+
+  To configure a different provider, create an AI config TOML file:
+    # Ollama (default, no API key needed):
+    provider = \"ollama\"
+    model = \"llama3.2\"
+    base_url = \"http://localhost:11434\"
+
+    # OpenAI:
+    provider = \"open_ai\"
+    model = \"gpt-4o\"
+    api_key = \"sk-...\"
+
+    # Anthropic:
+    provider = \"anthropic\"
+    model = \"claude-sonnet-4-20250514\"
+    api_key = \"sk-ant-...\"
+
+  Then pass it with: slicecore ai-suggest model.stl --ai-config provider.toml"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -50,6 +83,7 @@ enum Commands {
         msgpack: bool,
 
         /// Directory to load plugins from (overrides config plugin_dir).
+        /// Each subdirectory should contain a plugin.toml manifest.
         #[arg(long)]
         plugin_dir: Option<PathBuf>,
     },
