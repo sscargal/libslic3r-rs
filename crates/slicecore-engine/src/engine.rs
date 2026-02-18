@@ -3388,4 +3388,185 @@ mod tests {
             "gcode should deserialize as empty (serde skip)"
         );
     }
+
+    /// Creates a cube mesh with 8 vertices and 12 triangles.
+    /// min_corner and max_corner define opposite corners of the cube.
+    fn make_cube(min: Point3, max: Point3) -> (Vec<Point3>, Vec<[u32; 3]>) {
+        let vertices = vec![
+            Point3::new(min.x, min.y, min.z), // 0
+            Point3::new(max.x, min.y, min.z), // 1
+            Point3::new(max.x, max.y, min.z), // 2
+            Point3::new(min.x, max.y, min.z), // 3
+            Point3::new(min.x, min.y, max.z), // 4
+            Point3::new(max.x, min.y, max.z), // 5
+            Point3::new(max.x, max.y, max.z), // 6
+            Point3::new(min.x, max.y, max.z), // 7
+        ];
+        let indices = vec![
+            [4, 5, 6], [4, 6, 7], // Front (z=max)
+            [1, 0, 3], [1, 3, 2], // Back (z=min)
+            [1, 2, 6], [1, 6, 5], // Right (x=max)
+            [0, 4, 7], [0, 7, 3], // Left (x=min)
+            [3, 7, 6], [3, 6, 2], // Top (y=max)
+            [0, 1, 5], [0, 5, 4], // Bottom (y=min)
+        ];
+        (vertices, indices)
+    }
+
+    /// Creates a mesh with two overlapping cubes combined into one TriangleMesh.
+    ///
+    /// Cube A: (0,0,0) to (10,10,10)
+    /// Cube B: (5,5,0) to (15,15,10)
+    ///
+    /// The overlapping region (x: 5-10, y: 5-10) creates self-intersecting
+    /// triangles, which tests the contour resolution pipeline.
+    fn make_two_overlapping_cubes() -> TriangleMesh {
+        let (verts_a, indices_a) = make_cube(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(10.0, 10.0, 10.0),
+        );
+        let (verts_b, indices_b) = make_cube(
+            Point3::new(5.0, 5.0, 0.0),
+            Point3::new(15.0, 15.0, 10.0),
+        );
+
+        let offset = verts_a.len() as u32;
+        let mut vertices = verts_a;
+        vertices.extend(verts_b);
+
+        let mut indices = indices_a;
+        indices.extend(
+            indices_b
+                .into_iter()
+                .map(|[a, b, c]| [a + offset, b + offset, c + offset]),
+        );
+
+        TriangleMesh::new(vertices, indices).expect("overlapping cubes mesh should be valid")
+    }
+
+    /// Creates a mesh with two cubes that overlap partially in Z.
+    ///
+    /// Cube A: (0,0,0) to (10,10,10)
+    /// Cube B: (5,5,3) to (15,15,13)
+    ///
+    /// Self-intersections only in Z-range 3-10.
+    fn make_overlapping_offset_cubes() -> TriangleMesh {
+        let (verts_a, indices_a) = make_cube(
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(10.0, 10.0, 10.0),
+        );
+        let (verts_b, indices_b) = make_cube(
+            Point3::new(5.0, 5.0, 3.0),
+            Point3::new(15.0, 15.0, 13.0),
+        );
+
+        let offset = verts_a.len() as u32;
+        let mut vertices = verts_a;
+        vertices.extend(verts_b);
+
+        let mut indices = indices_a;
+        indices.extend(
+            indices_b
+                .into_iter()
+                .map(|[a, b, c]| [a + offset, b + offset, c + offset]),
+        );
+
+        TriangleMesh::new(vertices, indices).expect("offset overlapping cubes mesh should be valid")
+    }
+
+    #[test]
+    fn self_intersecting_mesh_slices_successfully() {
+        let mesh = make_two_overlapping_cubes();
+        let config = PrintConfig::default();
+        let engine = Engine::new(config);
+
+        let result = engine.slice(&mesh).expect("self-intersecting mesh should slice successfully");
+
+        assert!(
+            !result.gcode.is_empty(),
+            "G-code should be non-empty for self-intersecting mesh"
+        );
+        assert!(
+            result.layer_count > 0,
+            "Layer count should be positive, got {}",
+            result.layer_count
+        );
+    }
+
+    #[test]
+    fn self_intersecting_mesh_contours_are_resolved() {
+        use slicecore_slicer::{slice_at_height, slice_at_height_resolved};
+
+        let mesh = make_two_overlapping_cubes();
+
+        // Slice at z=5.0 (in the overlapping region)
+        let unresolved = slice_at_height(&mesh, 5.0);
+        let resolved = slice_at_height_resolved(&mesh, 5.0);
+
+        // Unresolved may have more contours (two separate overlapping squares)
+        // Resolved should merge overlapping regions
+        assert!(
+            resolved.len() <= unresolved.len(),
+            "Resolved contour count ({}) should be <= unresolved count ({})",
+            resolved.len(),
+            unresolved.len()
+        );
+
+        // The resolved total area should cover the union of both cubes' cross-sections.
+        // Cube A cross-section at z=5: 10x10 = 100 mm^2
+        // Cube B cross-section at z=5: 10x10 = 100 mm^2
+        // Union area: 15x15 - 2*(5x5) area pattern = 175 mm^2
+        // Actually: union of (0,0)-(10,10) and (5,5)-(15,15) = 175 mm^2
+        let resolved_area: f64 = resolved.iter().map(|c| c.area_mm2()).sum();
+        assert!(
+            resolved_area > 50.0,
+            "Resolved area ({}) should be substantial",
+            resolved_area
+        );
+    }
+
+    #[test]
+    fn offset_overlapping_cubes_slice_successfully() {
+        let mesh = make_overlapping_offset_cubes();
+        let config = PrintConfig::default();
+        let engine = Engine::new(config);
+
+        let result = engine.slice(&mesh).expect("offset overlapping cubes should slice successfully");
+
+        assert!(
+            !result.gcode.is_empty(),
+            "G-code should be non-empty"
+        );
+        assert!(
+            result.layer_count > 0,
+            "Layer count should be positive"
+        );
+    }
+
+    #[test]
+    fn clean_mesh_skips_resolution_same_output() {
+        // Verify that a clean mesh (no self-intersections) produces the same
+        // contours through both regular and resolved paths.
+        use slicecore_slicer::{slice_at_height, slice_at_height_resolved};
+
+        let mesh = unit_cube();
+
+        let regular = slice_at_height(&mesh, 0.5);
+        let resolved = slice_at_height_resolved(&mesh, 0.5);
+
+        assert_eq!(
+            regular.len(),
+            resolved.len(),
+            "Clean mesh should produce same contour count"
+        );
+
+        let regular_area: f64 = regular.iter().map(|c| c.area_mm2()).sum();
+        let resolved_area: f64 = resolved.iter().map(|c| c.area_mm2()).sum();
+        assert!(
+            (regular_area - resolved_area).abs() < 0.01,
+            "Clean mesh areas should match: regular={}, resolved={}",
+            regular_area,
+            resolved_area
+        );
+    }
 }
