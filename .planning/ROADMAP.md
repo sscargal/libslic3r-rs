@@ -244,10 +244,10 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 11-01-PLAN.md -- Wire plugin_dir auto-loading into Engine constructor and update CLI to prevent double-loading
-- [ ] 11-02-PLAN.md -- Add connected_components() to TriangleMesh and wire sequential printing into Engine pipeline
-- [ ] 11-03-PLAN.md -- Wire multi-material validation and purge tower generation into Engine pipeline
-- [ ] 11-04-PLAN.md -- Integration tests for all config-driven features and Phase 11 success criteria verification
+- [x] 11-01-PLAN.md -- Wire plugin_dir auto-loading into Engine constructor and update CLI to prevent double-loading
+- [x] 11-02-PLAN.md -- Add connected_components() to TriangleMesh and wire sequential printing into Engine pipeline
+- [x] 11-03-PLAN.md -- Wire multi-material validation and purge tower generation into Engine pipeline
+- [x] 11-04-PLAN.md -- Integration tests for all config-driven features and Phase 11 success criteria verification
 
 ### Phase 12: Mesh Repair Completion
 **Goal**: Self-intersecting meshes are automatically repaired, not just detected -- users get clean geometry without external preprocessing tools
@@ -300,5 +300,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 8. AI Integration | 5/5 | ✓ Complete | 2026-02-17 |
 | 9. API Polish, Testing, and Platform Validation | 8/8 | ✓ Complete | 2026-02-18 |
 | 10. CLI Feature Integration | 3/3 | ✓ Complete | 2026-02-18 |
-| 11. Config Integration | 0/4 | Pending | - |
+| 11. Config Integration | 4/4 | ✓ Complete | 2026-02-18 |
 | 12. Mesh Repair Completion | 0/3 | Pending | - |
