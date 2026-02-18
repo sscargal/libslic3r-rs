@@ -42,6 +42,7 @@ pub mod perimeter;
 pub mod planner;
 pub mod polyhole;
 pub mod preview;
+pub mod profile_convert;
 pub mod profile_import;
 pub mod scarf;
 pub mod seam;
@@ -95,6 +96,7 @@ pub use toolpath::{
 };
 pub use event::{CallbackSubscriber, EventBus, EventSubscriber, SliceEvent};
 pub use output::{to_json, to_msgpack, SliceMetadata};
+pub use profile_convert::{convert_to_toml, merge_import_results, ConvertResult};
 pub use profile_import::{detect_config_format, ConfigFormat, ImportResult, ProfileMetadata};
 
 // Re-export plugin types when the plugins feature is enabled.
