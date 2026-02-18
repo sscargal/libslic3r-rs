@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 9 of 9 (API Polish, Testing & Platform Validation)
-Plan: 3 of 8 in current phase (3 complete)
-Status: Completed 09-03 -- Serde serialization for API types
-Last activity: 2026-02-18 -- Completed 09-03-PLAN.md (Serde Serialization)
+Plan: 5 of 8 in current phase (5 complete)
+Status: Completed 09-05 -- WASM compilation fix and multi-platform CI matrix
+Last activity: 2026-02-18 -- Completed 09-05-PLAN.md (WASM Fix & CI Matrix)
 
-Progress: [##################################################] 100% (62/~67 overall)
+Progress: [##################################################] 100% (64/~67 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 60
+- Total plans completed: 62
 - Average duration: 5.3 min
-- Total execution time: 5.65 hours
+- Total execution time: 5.68 hours
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [##################################################] 100% (62/~67 over
 | 06    | 9     | 45min | 5.0min   |
 | 07    | 7     | 50min | 7.1min   |
 | 08    | 5     | 19min | 3.8min   |
-| 09    | 3     | 10min | 3.3min   |
+| 09    | 5     | 12min | 2.4min   |
 
 **Recent Trend:**
-- Last 5 plans: 08-05 (5min), 09-01 (2min), 09-02 (2min), 09-03 (6min)
-- Trend: Phase 9 serde serialization -- adding derives and roundtrip test
+- Last 5 plans: 09-01 (2min), 09-02 (2min), 09-03 (6min), 09-05 (2min)
+- Trend: Phase 9 WASM fix and CI expansion -- fast infrastructure tasks
 
 *Updated after each plan completion*
 
@@ -296,6 +296,11 @@ Recent decisions affecting current work:
 - [09-03]: SliceResult.gcode uses #[serde(skip)] (users get gcode from file, metadata from JSON)
 - [09-03]: ModifierMesh not serializable (input type with TriangleMesh/OnceLock, not an output)
 - [09-03]: serde_json moved from dev-dependencies to runtime dependency in slicecore-engine
+- [09-05]: getrandom_backend wasm_js configured via rustflags cfg in .cargo/config.toml for wasm32-unknown-unknown
+- [09-05]: getrandom conditional dependency in slicecore-engine for wasm32+unknown target
+- [09-05]: CI expanded to 7 jobs: fmt, clippy, test (4 OS matrix), test-linux-arm (cross), wasm (2 targets), doc
+- [09-05]: macOS x86 via macos-13 runner; Linux ARM64 via actions-rust-cross
+- [09-05]: Removed redundant check job (clippy subsumes cargo check)
 
 ### Pending Todos
 
@@ -308,5 +313,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 09-03-PLAN.md (Serde Serialization for API Types)
-Resume file: .planning/phases/09-api-polish-testing-and-platform-validation/09-03-SUMMARY.md
+Stopped at: Completed 09-05-PLAN.md (WASM Compilation Fix & Multi-Platform CI Matrix)
+Resume file: .planning/phases/09-api-polish-testing-and-platform-validation/09-05-SUMMARY.md
