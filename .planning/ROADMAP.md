@@ -321,6 +321,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 11. Config Integration | 4/4 | ✓ Complete | 2026-02-18 |
 | 12. Mesh Repair Completion | 3/3 | ✓ Complete | 2026-02-18 |
 | 13. JSON Profile Support | 2/2 | ✓ Complete | 2026-02-18 |
+| 14. Profile Conversion Tool (JSON to TOML) | 2/2 | ✓ Complete | 2026-02-18 |
 
 ### Phase 14: Profile Conversion Tool (JSON to TOML)
 
@@ -335,5 +336,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 **Plans:** 2 plans
 
 Plans:
-- [ ] 14-01-PLAN.md -- Profile conversion module (selective TOML output, multi-file merge) and CLI convert-profile subcommand
-- [ ] 14-02-PLAN.md -- Integration tests (round-trip, merge, real profiles) and phase verification
+- [x] 14-01-PLAN.md -- Profile conversion module (selective TOML output, multi-file merge) and CLI convert-profile subcommand
+- [x] 14-02-PLAN.md -- Integration tests (round-trip, merge, real profiles) and phase verification
