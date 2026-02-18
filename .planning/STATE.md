@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 8 -- AI Integration (complete)
+**Current focus:** Phase 9 -- API Polish, Testing & Platform Validation
 
 ## Current Position
 
-Phase: 8 of 9 (AI Integration) -- PHASE COMPLETE
-Plan: 5 of 5 in current phase (5 complete)
-Status: Completed 08-05 -- Integration tests and SC verification
-Last activity: 2026-02-17 -- Completed 08-05-PLAN.md (Integration Tests & SC Verification)
+Phase: 9 of 9 (API Polish, Testing & Platform Validation)
+Plan: 1 of 8 in current phase (1 complete)
+Status: Completed 09-01 -- Fix rustdoc warnings
+Last activity: 2026-02-18 -- Completed 09-01-PLAN.md (Fix Rustdoc Warnings)
 
-Progress: [##################################################] 100% (59/~59 overall)
+Progress: [##################################################] 100% (60/~67 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 59
-- Average duration: 5.4 min
-- Total execution time: 5.62 hours
+- Total plans completed: 60
+- Average duration: 5.3 min
+- Total execution time: 5.65 hours
 
 **By Phase:**
 
@@ -35,10 +35,11 @@ Progress: [##################################################] 100% (59/~59 over
 | 06    | 9     | 45min | 5.0min   |
 | 07    | 7     | 50min | 7.1min   |
 | 08    | 5     | 19min | 3.8min   |
+| 09    | 1     | 2min  | 2.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 08-01 (3min), 08-02 (3min), 08-03 (4min), 08-04 (4min), 08-05 (5min)
-- Trend: Phase 8 complete (3.8min avg) -- AI integration pipeline fully verified
+- Last 5 plans: 08-03 (4min), 08-04 (4min), 08-05 (5min), 09-01 (2min)
+- Trend: Phase 9 started -- doc cleanup fast turnaround
 
 *Updated after each plan completion*
 
@@ -286,6 +287,10 @@ Recent decisions affecting current work:
 - [08-05]: SmartMockProvider uses overhang_ratio > 0.25 threshold (above standard bottom-face ~0.167) for overhang detection
 - [08-05]: T-shape model (stem + cap) for overhang testing -- wedge sloped face has upward normal (not overhang)
 - [08-05]: 14 integration tests organized by SC1-SC4, all pass without network access in <1 second
+- [09-01]: Plain backticks (not doc links) for cfg-gated types that may not exist at doc build time
+- [09-01]: Plain backticks for cross-crate type references in module-level docs
+- [09-01]: crate:: prefix for doc links to types re-exported at crate root
+- [09-01]: Backtick-wrapping for array index notation to prevent bracket parsing as doc links
 
 ### Pending Todos
 
@@ -297,6 +302,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-17
-Stopped at: Completed 08-05-PLAN.md (Integration Tests & SC Verification) -- Phase 8 COMPLETE
-Resume file: .planning/phases/08-ai-integration/08-05-SUMMARY.md
+Last session: 2026-02-18
+Stopped at: Completed 09-01-PLAN.md (Fix Rustdoc Warnings)
+Resume file: .planning/phases/09-api-polish-testing-and-platform-validation/09-01-SUMMARY.md
