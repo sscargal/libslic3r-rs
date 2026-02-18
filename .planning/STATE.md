@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 15 in progress -- Printer and Filament Profile Library
+**Current focus:** Phase 15 COMPLETE -- Printer and Filament Profile Library
 
 ## Current Position
 
 Phase: 15 of 15 (Printer and Filament Profile Library)
-Plan: 2 of 3 in current phase (2 complete)
-Status: In Progress
-Last activity: 2026-02-18 -- Completed 15-02-PLAN.md (Profile Discovery CLI)
+Plan: 3 of 3 in current phase (3 complete)
+Status: Complete
+Last activity: 2026-02-18 -- Completed 15-03-PLAN.md (Integration Tests & Success Criteria)
 
-Progress: [#########################################################-] 98% (86/87 overall)
+Progress: [############################################################] 100% (87/87 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 81
+- Total plans completed: 87
 - Average duration: 5.0 min
-- Total execution time: 7.0 hours
+- Total execution time: 7.3 hours
 
 **By Phase:**
 
@@ -41,10 +41,10 @@ Progress: [#########################################################-] 98% (86/8
 | 12    | 3     | 12min | 4.0min   |
 | 13    | 2     | 8min  | 4.0min   |
 | 14    | 2     | 7min  | 3.5min   |
-| 15    | 2     | 10min | 5.0min   |
+| 15    | 3     | 16min | 5.3min   |
 
 **Recent Trend:**
-- Last 5 plans: 14-01 (4min), 14-02 (3min), 15-01 (6min), 15-02 (4min)
+- Last 5 plans: 14-02 (3min), 15-01 (6min), 15-02 (4min), 15-03 (6min)
 - Trend: Steady 3-6min/plan
 
 *Updated after each plan completion*
@@ -375,6 +375,9 @@ Recent decisions affecting current work:
 - [15-02]: profiles/ directory in .gitignore since it is generated data regeneratable from upstream
 - [15-02]: All 61 OrcaSlicer vendors imported (6015 profiles total) rather than limiting to top 10
 
+- [15-03]: Fixed merge_inheritance second-loop bug: restricted overlay to child-mapped fields only via upstream_key_to_config_field reverse mapping
+- [15-03]: Added upstream_key_to_config_field pub(crate) function mapping OrcaSlicer JSON keys to PrintConfig field names
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
@@ -392,5 +395,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 15-02-PLAN.md (Profile Discovery CLI)
-Resume file: .planning/phases/15-printer-and-filament-profile-library/15-02-SUMMARY.md
+Stopped at: Completed 15-03-PLAN.md (Integration Tests & Success Criteria) -- ALL PHASES COMPLETE
+Resume file: .planning/phases/15-printer-and-filament-profile-library/15-03-SUMMARY.md
