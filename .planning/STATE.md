@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 11 -- Config Integration (COMPLETE)
+**Current focus:** Phase 12 -- Mesh Repair Completion
 
 ## Current Position
 
-Phase: 11 of 12 (Config Integration) -- COMPLETE
-Plan: 4 of 4 in current phase (4 complete)
-Status: PHASE COMPLETE -- All 5 success criteria verified by integration tests
-Last activity: 2026-02-18 -- Completed 11-04-PLAN.md (Integration Tests)
+Phase: 12 of 12 (Mesh Repair Completion)
+Plan: 1 of 3 in current phase (1 complete)
+Status: Executing Phase 12
+Last activity: 2026-02-18 -- Completed 12-01-PLAN.md (Self-Intersection Detection & Contour Resolution)
 
-Progress: [######################################################] 100% (75/~76 overall)
+Progress: [######################################################] 100% (76/~78 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 72
+- Total plans completed: 73
 - Average duration: 5.0 min
-- Total execution time: 6.37 hours
+- Total execution time: 6.42 hours
 
 **By Phase:**
 
@@ -38,10 +38,11 @@ Progress: [######################################################] 100% (75/~76 
 | 09    | 8     | 41min | 5.1min   |
 | 10    | 3     | 6min  | 2.0min   |
 | 11    | 4     | 12min | 3.0min   |
+| 12    | 1     | 3min  | 3.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 11-01 (4min), 11-02 (3min), 11-03 (2min), 11-04 (3min)
-- Trend: Phase 11 COMPLETE -- all success criteria verified
+- Last 5 plans: 11-02 (3min), 11-03 (2min), 11-04 (3min), 12-01 (3min)
+- Trend: Phase 12 in progress -- plan 1 of 3 complete
 
 *Updated after each plan completion*
 
@@ -328,6 +329,11 @@ Recent decisions affecting current work:
 - [11-04]: 8 tests for 5 success criteria: SC2 has 3 tests (single-object, multi-object, collision), SC3 has 2 tests
 - [11-04]: Tests use cfg(feature = 'plugins') conditional compilation for plugin_dir tests
 - [11-04]: SC4 test proves Engine::new() + slice_with_events() is the only API needed for config-driven features
+- [12-01]: BVH query_aabb_overlaps replaces O(n^2) brute-force in detect_self_intersections
+- [12-01]: find_intersecting_pairs returns Vec<(usize, usize)> with i < j ordering
+- [12-01]: intersection_z_range spans all vertices of involved triangles (not just intersection points)
+- [12-01]: resolve_contour_intersections uses polygon_union self-union with empty clip set
+- [12-01]: Clippy field_reassign_with_default suppressed on repair() due to sequential pipeline steps
 
 ### Pending Todos
 
@@ -340,5 +346,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 11-04-PLAN.md (Integration Tests) -- Phase 11 COMPLETE
-Resume file: .planning/phases/11-config-integration/11-04-SUMMARY.md
+Stopped at: Completed 12-01-PLAN.md (Self-Intersection Detection & Contour Resolution)
+Resume file: .planning/phases/12-mesh-repair-completion/12-01-SUMMARY.md
