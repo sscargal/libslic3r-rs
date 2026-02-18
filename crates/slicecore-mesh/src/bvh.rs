@@ -483,10 +483,65 @@ impl BVH {
         }
     }
 
+    /// Returns all triangle indices whose AABBs overlap with the given query AABB.
+    ///
+    /// This is the broad-phase query for self-intersection detection: given a
+    /// triangle's AABB, find all other triangles that could potentially intersect
+    /// it based on spatial proximity.
+    pub fn query_aabb_overlaps(&self, query: &BBox3) -> Vec<usize> {
+        if self.nodes.is_empty() {
+            return Vec::new();
+        }
+        let mut result = Vec::new();
+        self.query_aabb_overlaps_recursive(0, query, &mut result);
+        result
+    }
+
+    fn query_aabb_overlaps_recursive(
+        &self,
+        node_idx: u32,
+        query: &BBox3,
+        result: &mut Vec<usize>,
+    ) {
+        match &self.nodes[node_idx as usize] {
+            BVHNode::Leaf {
+                aabb,
+                first_tri,
+                tri_count,
+            } => {
+                if aabbs_overlap(aabb, query) {
+                    for i in 0..*tri_count {
+                        let tri_idx = self.tri_indices[(*first_tri + i) as usize] as usize;
+                        result.push(tri_idx);
+                    }
+                }
+            }
+            BVHNode::Interior {
+                aabb, left, right, ..
+            } => {
+                if aabbs_overlap(aabb, query) {
+                    self.query_aabb_overlaps_recursive(*left, query, result);
+                    self.query_aabb_overlaps_recursive(*right, query, result);
+                }
+            }
+        }
+    }
+
     /// Returns the total number of triangles stored in the BVH.
     pub fn triangle_count(&self) -> usize {
         self.tri_indices.len()
     }
+}
+
+/// Tests whether two 3D AABBs overlap.
+#[inline]
+fn aabbs_overlap(a: &BBox3, b: &BBox3) -> bool {
+    a.min.x <= b.max.x
+        && a.max.x >= b.min.x
+        && a.min.y <= b.max.y
+        && a.max.y >= b.min.y
+        && a.min.z <= b.max.z
+        && a.max.z >= b.min.z
 }
 
 /// Computes the surface area of a 3D AABB (used by SAH).
@@ -674,6 +729,33 @@ mod tests {
         let direction = Vec3::new(0.0, 0.0, -1.0);
         let hit = bvh.intersect_ray(&origin, &direction, mesh.vertices(), mesh.indices());
         assert!(hit.is_none(), "Expected ray to miss cube");
+    }
+
+    #[test]
+    fn query_aabb_overlaps_finds_candidates() {
+        let mesh = unit_cube();
+        let bvh = mesh.bvh();
+        // Query with an AABB that overlaps the cube (0,0,0)-(1,1,1)
+        let query = BBox3::new(
+            Point3::new(0.4, 0.4, 0.4),
+            Point3::new(0.6, 0.6, 0.6),
+        );
+        let result = bvh.query_aabb_overlaps(&query);
+        // Should find some triangles
+        assert!(!result.is_empty(), "AABB query inside cube should return triangles");
+    }
+
+    #[test]
+    fn query_aabb_overlaps_empty_for_distant_box() {
+        let mesh = unit_cube();
+        let bvh = mesh.bvh();
+        // Query with an AABB far from the cube
+        let query = BBox3::new(
+            Point3::new(10.0, 10.0, 10.0),
+            Point3::new(20.0, 20.0, 20.0),
+        );
+        let result = bvh.query_aabb_overlaps(&query);
+        assert!(result.is_empty(), "AABB query far from cube should return empty");
     }
 
     #[test]

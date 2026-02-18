@@ -6,7 +6,7 @@
 //!
 //! This module performs detection only -- it does not resolve intersections.
 
-use slicecore_math::{Point3, Vec3};
+use slicecore_math::{BBox3, Point3, Vec3};
 
 use crate::bvh::BVH;
 
@@ -20,29 +20,62 @@ use crate::bvh::BVH;
 ///
 /// Returns the number of intersecting triangle pairs.
 pub fn detect_self_intersections(vertices: &[Point3], indices: &[[u32; 3]]) -> usize {
+    find_intersecting_pairs(vertices, indices).len()
+}
+
+/// Finds all self-intersecting triangle pairs in the mesh.
+///
+/// Uses BVH for broad-phase AABB overlap culling, then applies the Moller
+/// triangle-triangle intersection test for narrow-phase verification.
+///
+/// Only returns pairs where `i < j` and the triangles do not share any
+/// vertices (adjacent triangles are expected to share edges).
+///
+/// Returns `Vec<(usize, usize)>` of intersecting pair indices.
+pub fn find_intersecting_pairs(vertices: &[Point3], indices: &[[u32; 3]]) -> Vec<(usize, usize)> {
     if indices.len() < 2 {
-        return 0;
+        return Vec::new();
     }
 
     // Build BVH for broad-phase.
     let bvh = BVH::build(vertices, indices);
-    let mut count = 0usize;
 
-    // For each triangle, query BVH for overlapping AABBs, then test intersection.
+    // Precompute per-triangle AABBs.
+    let tri_aabbs: Vec<Option<BBox3>> = indices
+        .iter()
+        .map(|tri| {
+            let v0 = vertices[tri[0] as usize];
+            let v1 = vertices[tri[1] as usize];
+            let v2 = vertices[tri[2] as usize];
+            BBox3::from_points(&[v0, v1, v2])
+        })
+        .collect();
+
+    let mut pairs = Vec::new();
+
+    // For each triangle, query BVH for overlapping AABBs, then narrow-phase test.
     for i in 0..indices.len() {
         let tri_i = &indices[i];
         let v0 = vertices[tri_i[0] as usize];
         let v1 = vertices[tri_i[1] as usize];
         let v2 = vertices[tri_i[2] as usize];
 
-        // Get triangles whose AABBs overlap with triangle i's AABB z-range.
-        // Since BVH only supports plane queries and ray queries, we use a
-        // simpler O(n^2) approach with early shared-vertex rejection.
-        // For practical mesh sizes in 3D printing, this is acceptable.
-        // TODO: Add BVH AABB-overlap query for better performance on large meshes.
-        let _ = &bvh; // Reference BVH to avoid unused warning.
+        let aabb_i = match &tri_aabbs[i] {
+            Some(bb) => bb,
+            None => continue, // Degenerate triangle
+        };
 
-        for tri_j in &indices[(i + 1)..] {
+        // Use BVH broad-phase to find candidate triangles.
+        let candidates = bvh.query_aabb_overlaps(aabb_i);
+
+        for j in candidates {
+            // Only count pairs where i < j to avoid duplicates.
+            if j <= i {
+                continue;
+            }
+
+            let tri_j = &indices[j];
+
             // Skip if triangles share any vertex (adjacent triangles).
             if shares_vertex(tri_i, tri_j) {
                 continue;
@@ -53,12 +86,46 @@ pub fn detect_self_intersections(vertices: &[Point3], indices: &[[u32; 3]]) -> u
             let u2 = vertices[tri_j[2] as usize];
 
             if triangles_intersect(&v0, &v1, &v2, &u0, &u1, &u2) {
-                count += 1;
+                pairs.push((i, j));
             }
         }
     }
 
-    count
+    pairs
+}
+
+/// Computes the Z-range spanned by vertices of intersecting triangle pairs.
+///
+/// Returns `Some((z_min, z_max))` if pairs is non-empty, representing the
+/// Z-band in which self-intersections occur. Returns `None` if pairs is empty.
+pub fn intersection_z_range(
+    vertices: &[Point3],
+    indices: &[[u32; 3]],
+    pairs: &[(usize, usize)],
+) -> Option<(f64, f64)> {
+    if pairs.is_empty() {
+        return None;
+    }
+
+    let mut z_min = f64::INFINITY;
+    let mut z_max = f64::NEG_INFINITY;
+
+    for &(i, j) in pairs {
+        for &tri_idx in &[i, j] {
+            let tri = &indices[tri_idx];
+            for &vi in tri {
+                let z = vertices[vi as usize].z;
+                if z < z_min {
+                    z_min = z;
+                }
+                if z > z_max {
+                    z_max = z;
+                }
+            }
+        }
+    }
+
+    Some((z_min, z_max))
 }
 
 /// Checks if two triangles share any vertex index.
@@ -310,5 +377,63 @@ mod tests {
         let indices = vec![[0, 1, 2]];
         let count = detect_self_intersections(&vertices, &indices);
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn find_intersecting_pairs_separated_returns_empty() {
+        let vertices = vec![
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(1.0, 0.0, 0.0),
+            Point3::new(0.5, 1.0, 0.0),
+            Point3::new(0.0, 0.0, 2.0),
+            Point3::new(1.0, 0.0, 2.0),
+            Point3::new(0.5, 1.0, 2.0),
+        ];
+        let indices = vec![[0, 1, 2], [3, 4, 5]];
+        let pairs = find_intersecting_pairs(&vertices, &indices);
+        assert!(pairs.is_empty(), "Separated triangles should have no intersecting pairs");
+    }
+
+    #[test]
+    fn find_intersecting_pairs_crossing_returns_one() {
+        let vertices = vec![
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(2.0, 0.0, 0.0),
+            Point3::new(1.0, 2.0, 0.0),
+            Point3::new(0.5, 0.5, -1.0),
+            Point3::new(0.5, 0.5, 1.0),
+            Point3::new(1.5, 0.5, 0.0),
+        ];
+        let indices = vec![[0, 1, 2], [3, 4, 5]];
+        let pairs = find_intersecting_pairs(&vertices, &indices);
+        assert_eq!(pairs.len(), 1, "Crossing triangles should have one pair");
+        assert_eq!(pairs[0], (0, 1));
+    }
+
+    #[test]
+    fn intersection_z_range_empty_pairs() {
+        let vertices = vec![Point3::new(0.0, 0.0, 0.0)];
+        let indices: Vec<[u32; 3]> = vec![];
+        let result = intersection_z_range(&vertices, &indices, &[]);
+        assert!(result.is_none(), "Empty pairs should return None");
+    }
+
+    #[test]
+    fn intersection_z_range_known_values() {
+        let vertices = vec![
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(2.0, 0.0, 0.0),
+            Point3::new(1.0, 2.0, 0.0),
+            Point3::new(0.5, 0.5, -1.0),
+            Point3::new(0.5, 0.5, 1.0),
+            Point3::new(1.5, 0.5, 0.0),
+        ];
+        let indices = vec![[0, 1, 2], [3, 4, 5]];
+        let pairs = vec![(0usize, 1usize)];
+        let result = intersection_z_range(&vertices, &indices, &pairs);
+        assert!(result.is_some());
+        let (z_min, z_max) = result.unwrap();
+        assert!((z_min - (-1.0)).abs() < 1e-9, "z_min should be -1.0, got {}", z_min);
+        assert!((z_max - 1.0).abs() < 1e-9, "z_max should be 1.0, got {}", z_max);
     }
 }

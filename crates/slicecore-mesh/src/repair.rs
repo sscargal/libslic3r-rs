@@ -37,6 +37,12 @@ pub struct RepairReport {
     pub normals_fixed: usize,
     /// Number of self-intersecting triangle pairs detected.
     pub self_intersections_detected: usize,
+    /// Triangle pair indices for each self-intersection detected.
+    pub intersecting_pairs: Vec<(usize, usize)>,
+    /// Whether self-intersections are resolvable at slice time via contour union.
+    pub self_intersections_resolvable: bool,
+    /// Z-band affected by self-intersections (min_z, max_z of involved vertices).
+    pub intersection_z_range: Option<(f64, f64)>,
     /// Whether the mesh required no repairs at all.
     pub was_already_clean: bool,
 }
@@ -58,6 +64,7 @@ pub struct RepairReport {
 ///
 /// Returns `MeshError` if the repaired mesh cannot be constructed (e.g., all
 /// triangles were degenerate, leaving an empty mesh).
+#[allow(clippy::field_reassign_with_default)]
 pub fn repair(
     vertices: Vec<Point3>,
     mut indices: Vec<[u32; 3]>,
@@ -80,9 +87,12 @@ pub fn repair(
 
     // Step 5: Recompute normals (handled by TriangleMesh::new).
 
-    // Step 6: Detect self-intersections.
-    report.self_intersections_detected =
-        intersect::detect_self_intersections(&vertices, &indices);
+    // Step 6: Detect self-intersections with pair reporting.
+    let pairs = intersect::find_intersecting_pairs(&vertices, &indices);
+    report.self_intersections_detected = pairs.len();
+    report.self_intersections_resolvable = !pairs.is_empty();
+    report.intersection_z_range = intersect::intersection_z_range(&vertices, &indices, &pairs);
+    report.intersecting_pairs = pairs;
 
     // Determine if mesh was already clean.
     report.was_already_clean = report.degenerate_removed == 0
