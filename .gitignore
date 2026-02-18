@@ -10,6 +10,9 @@
 *.swo
 *~
 
+# Generated profile library (can be regenerated from upstream sources)
+/profiles/
+
 # OS
 .DS_Store
 Thumbs.db
