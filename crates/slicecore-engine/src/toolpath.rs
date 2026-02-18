@@ -9,6 +9,7 @@
 //! The assembly function converts perimeters and infill into ordered segments
 //! with travel moves inserted between disconnected paths.
 
+use serde::{Deserialize, Serialize};
 use slicecore_math::{IPoint2, Point2};
 
 use crate::config::{PrintConfig, ScarfJointType};
@@ -20,7 +21,7 @@ use crate::scarf::apply_scarf_joint;
 use crate::seam::select_seam_point;
 
 /// The type of feature being printed (affects speed and extrusion settings).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FeatureType {
     /// Outermost visible perimeter wall.
     OuterPerimeter,
@@ -53,7 +54,7 @@ pub enum FeatureType {
 }
 
 /// A single extrusion or travel segment in the toolpath.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolpathSegment {
     /// Start position in mm.
     pub start: Point2,
@@ -82,7 +83,7 @@ impl ToolpathSegment {
 }
 
 /// All toolpath segments for a single layer, in print order.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayerToolpath {
     /// Index of this layer in the layer stack.
     pub layer_index: usize,

@@ -14,6 +14,7 @@
 //! All three criteria must be met to classify a region as a bridge. This avoids
 //! false positives from tiny overhangs, single-sided overhangs, and steep angles.
 
+use serde::{Deserialize, Serialize};
 use slicecore_geo::polygon::ValidPolygon;
 use slicecore_geo::{offset_polygons, polygon_intersection, JoinType};
 use slicecore_math::{coord_to_mm, mm_to_coord, IBBox2, IPoint2};
@@ -22,7 +23,7 @@ use slicecore_math::{coord_to_mm, mm_to_coord, IBBox2, IPoint2};
 ///
 /// Bridge regions receive special treatment during printing: slower speed,
 /// higher fan, reduced flow, and infill lines perpendicular to the span.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BridgeRegion {
     /// The bridge region polygon.
     pub contour: ValidPolygon,

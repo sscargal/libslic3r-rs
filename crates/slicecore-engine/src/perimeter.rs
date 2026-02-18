@@ -8,6 +8,7 @@
 //! [`JoinType::Miter`] for crisp corners, offsetting all contours together
 //! at each level so that adjacent boundaries interact correctly.
 
+use serde::{Deserialize, Serialize};
 use slicecore_geo::offset::{offset_polygons, JoinType};
 use slicecore_geo::polygon::ValidPolygon;
 use slicecore_math::mm_to_coord;
@@ -15,7 +16,7 @@ use slicecore_math::mm_to_coord;
 use crate::config::{PrintConfig, WallOrder};
 
 /// A single perimeter shell (one closed polygon path or set of paths).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PerimeterShell {
     /// The offset contour(s) for this shell.
     pub polygons: Vec<ValidPolygon>,
@@ -24,7 +25,7 @@ pub struct PerimeterShell {
 }
 
 /// Perimeters for a set of contours (processed together for proper interaction).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ContourPerimeters {
     /// Ordered per print order (respects `wall_order` in config).
     pub shells: Vec<PerimeterShell>,

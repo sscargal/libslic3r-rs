@@ -33,7 +33,7 @@ use slicecore_geo::polygon::ValidPolygon;
 use slicecore_math::{mm_to_coord, Coord, IPoint2};
 
 /// A line segment in integer coordinate space representing one infill extrusion.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InfillLine {
     /// Start point of the infill line.
     pub start: IPoint2,
@@ -42,7 +42,7 @@ pub struct InfillLine {
 }
 
 /// Result of infill generation for a single layer.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LayerInfill {
     /// Infill extrusion segments.
     pub lines: Vec<InfillLine>,

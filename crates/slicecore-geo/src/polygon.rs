@@ -161,7 +161,7 @@ impl Polygon {
 /// The `points` field is private to prevent modification that could
 /// violate invariants. Use [`into_polygon`](ValidPolygon::into_polygon) to
 /// convert back to an unvalidated [`Polygon`] for modification.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ValidPolygon {
     /// Vertices in order (closed polygon, last connects to first).
     points: Vec<IPoint2>,

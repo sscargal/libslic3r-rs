@@ -25,6 +25,7 @@ pub mod traditional;
 pub mod tree;
 pub mod tree_node;
 
+use serde::{Deserialize, Serialize};
 use slicecore_geo::ValidPolygon;
 use slicecore_mesh::TriangleMesh;
 use slicecore_slicer::SliceLayer;
@@ -44,7 +45,7 @@ use self::tree::generate_tree_supports;
 /// Contains the contours defining the support boundary, along with metadata
 /// about the layer position and whether this region was detected as a bridge.
 /// The `infill` field contains generated infill lines for the support body.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SupportRegion {
     /// Polygonal contours defining the support region boundary.
     pub contours: Vec<ValidPolygon>,
@@ -61,7 +62,7 @@ pub struct SupportRegion {
 /// Result of support detection across all layers.
 ///
 /// Contains per-layer support regions, indexed by layer number.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SupportResult {
     /// Per-layer support regions. `regions[i]` contains all support regions
     /// for layer `i`. Empty vectors indicate no support needed for that layer.

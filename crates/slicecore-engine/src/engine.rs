@@ -14,6 +14,7 @@
 
 use std::io::Write;
 
+use serde::{Deserialize, Serialize};
 use slicecore_gcode_io::{EndConfig, GcodeWriter, StartConfig};
 use slicecore_mesh::TriangleMesh;
 use slicecore_slicer::{compute_adaptive_layer_heights, slice_mesh, slice_mesh_adaptive};
@@ -41,9 +42,10 @@ use crate::extrusion::compute_e_value;
 use slicecore_math::Point2;
 
 /// Result of a slicing operation.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SliceResult {
     /// Complete G-code output as bytes.
+    #[serde(skip)]
     pub gcode: Vec<u8>,
     /// Number of layers sliced.
     pub layer_count: usize,
