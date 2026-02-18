@@ -5,6 +5,7 @@
 //! - `validate`: Validate a G-code file
 //! - `analyze`: Analyze a mesh file (print stats)
 //! - `ai-suggest`: Suggest print settings using AI mesh analysis
+//! - `import-profiles`: Import upstream slicer profiles to native TOML format
 
 use std::path::PathBuf;
 use std::process;
@@ -12,7 +13,7 @@ use std::process;
 use clap::{Parser, Subcommand};
 
 use slicecore_ai::AiConfig;
-use slicecore_engine::{Engine, PrintConfig};
+use slicecore_engine::{batch_convert_profiles, write_index, Engine, PrintConfig};
 use slicecore_fileio::load_mesh;
 use slicecore_gcode_io::validate_gcode;
 use slicecore_mesh::{compute_stats, repair};
@@ -58,7 +59,13 @@ PROFILE CONVERSION:
   Convert OrcaSlicer/BambuStudio JSON profiles to native TOML:
     slicecore convert-profile profile.json > my_config.toml
     slicecore convert-profile process.json filament.json machine.json -o config.toml
-  Multiple files are merged in order (later files override earlier ones for shared fields)."
+  Multiple files are merged in order (later files override earlier ones for shared fields).
+
+PROFILE LIBRARY:
+  Import upstream slicer profiles:
+    slicecore import-profiles --source-dir /path/to/OrcaSlicer/resources/profiles
+  This converts JSON profiles to native TOML and generates a searchable index.
+  Profiles are stored in profiles/ organized by source/vendor/type/."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -125,6 +132,26 @@ enum Commands {
         verbose: bool,
     },
 
+    /// Import upstream slicer profiles and convert to native TOML format.
+    ///
+    /// Walks a slicer resource directory (e.g., OrcaSlicer/resources/profiles/),
+    /// resolves inheritance chains, and writes converted TOML profiles with
+    /// a searchable index.json manifest.
+    ImportProfiles {
+        /// Source directory containing vendor profile directories
+        /// (e.g., path to OrcaSlicer/resources/profiles/)
+        #[arg(long)]
+        source_dir: PathBuf,
+
+        /// Output directory for converted TOML profiles (default: profiles/)
+        #[arg(short, long, default_value = "profiles")]
+        output_dir: PathBuf,
+
+        /// Source slicer name (orcaslicer or bambustudio)
+        #[arg(long, default_value = "orcaslicer")]
+        source_name: String,
+    },
+
     /// Suggest optimal print settings using AI analysis of mesh geometry.
     ///
     /// Analyzes the input mesh and sends geometry features to an LLM provider
@@ -170,6 +197,11 @@ fn main() {
             output,
             verbose,
         } => cmd_convert_profile(&input, output.as_deref(), verbose),
+        Commands::ImportProfiles {
+            source_dir,
+            output_dir,
+            source_name,
+        } => cmd_import_profiles(&source_dir, &output_dir, &source_name),
         Commands::AiSuggest {
             input,
             ai_config,
@@ -563,6 +595,54 @@ fn cmd_convert_profile(
             for field in &converted.unmapped_fields {
                 eprintln!("  - {}", field);
             }
+        }
+    }
+}
+
+/// Import upstream slicer profiles and convert to native TOML format.
+fn cmd_import_profiles(
+    source_dir: &std::path::Path,
+    output_dir: &std::path::Path,
+    source_name: &str,
+) {
+    let target_dir = output_dir.join(source_name);
+
+    eprintln!(
+        "Importing {} profiles from '{}'...",
+        source_name,
+        source_dir.display()
+    );
+
+    let result = match batch_convert_profiles(source_dir, &target_dir, source_name) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error: Batch conversion failed: {}", e);
+            process::exit(1);
+        }
+    };
+
+    // Write the combined index.
+    if let Err(e) = write_index(&result.index, output_dir) {
+        eprintln!("Error: Failed to write index: {}", e);
+        process::exit(1);
+    }
+
+    // Print summary to stderr.
+    eprintln!("Import complete:");
+    eprintln!("  Converted: {} profiles", result.converted);
+    eprintln!("  Skipped:   {} (non-instantiated base profiles)", result.skipped);
+    eprintln!("  Errors:    {}", result.errors.len());
+    eprintln!("  Output:    {}", output_dir.display());
+
+    if !result.errors.is_empty() {
+        let show_count = result.errors.len().min(10);
+        eprintln!();
+        eprintln!("First {} error(s):", show_count);
+        for err in result.errors.iter().take(10) {
+            eprintln!("  - {}", err);
+        }
+        if result.errors.len() > 10 {
+            eprintln!("  ... and {} more", result.errors.len() - 10);
         }
     }
 }
