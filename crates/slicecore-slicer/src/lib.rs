@@ -28,8 +28,10 @@
 pub mod adaptive;
 pub mod contour;
 pub mod layer;
+pub mod resolve;
 
 // Re-export primary types and functions at crate root.
 pub use adaptive::compute_adaptive_layer_heights;
 pub use contour::slice_at_height;
 pub use layer::{compute_layer_heights, slice_mesh, slice_mesh_adaptive, SliceLayer};
+pub use resolve::resolve_contour_intersections;
