@@ -160,6 +160,95 @@ impl TriangleMesh {
         self.bvh
             .get_or_init(|| BVH::build(&self.vertices, &self.indices))
     }
+
+    /// Finds connected components (disjoint sub-meshes) by vertex connectivity.
+    ///
+    /// Two triangles are connected if they share at least one vertex.
+    /// Uses union-find with path compression and union by rank for efficiency.
+    ///
+    /// # Returns
+    ///
+    /// Vec of `(vertices, indices)` pairs where each pair represents a disjoint
+    /// component. `vertices` are the vertex indices (into the original mesh) and
+    /// `indices` are the triangle indices belonging to that component.
+    pub fn connected_components(&self) -> Vec<(Vec<u32>, Vec<usize>)> {
+        let n = self.vertices.len();
+        if n == 0 {
+            return Vec::new();
+        }
+
+        // Union-find with path compression and union by rank.
+        let mut parent: Vec<usize> = (0..n).collect();
+        let mut rank: Vec<u8> = vec![0; n];
+
+        fn find(parent: &mut [usize], x: usize) -> usize {
+            let mut root = x;
+            while parent[root] != root {
+                root = parent[root];
+            }
+            // Path compression.
+            let mut cur = x;
+            while parent[cur] != root {
+                let next = parent[cur];
+                parent[cur] = root;
+                cur = next;
+            }
+            root
+        }
+
+        fn union(parent: &mut [usize], rank: &mut [u8], a: usize, b: usize) {
+            let ra = find(parent, a);
+            let rb = find(parent, b);
+            if ra == rb {
+                return;
+            }
+            if rank[ra] < rank[rb] {
+                parent[ra] = rb;
+            } else if rank[ra] > rank[rb] {
+                parent[rb] = ra;
+            } else {
+                parent[rb] = ra;
+                rank[ra] += 1;
+            }
+        }
+
+        // Union all vertices within each triangle.
+        for tri in &self.indices {
+            let a = tri[0] as usize;
+            let b = tri[1] as usize;
+            let c = tri[2] as usize;
+            union(&mut parent, &mut rank, a, b);
+            union(&mut parent, &mut rank, a, c);
+        }
+
+        // Collect components by root.
+        use std::collections::HashMap;
+        let mut root_to_component: HashMap<usize, usize> = HashMap::new();
+        let mut components: Vec<(Vec<u32>, Vec<usize>)> = Vec::new();
+
+        // First pass: assign vertices to components.
+        for vi in 0..n {
+            let root = find(&mut parent, vi);
+            let comp_idx = if let Some(&idx) = root_to_component.get(&root) {
+                idx
+            } else {
+                let idx = components.len();
+                root_to_component.insert(root, idx);
+                components.push((Vec::new(), Vec::new()));
+                idx
+            };
+            components[comp_idx].0.push(vi as u32);
+        }
+
+        // Second pass: assign triangles to components (all three vertices share root).
+        for (tri_idx, tri) in self.indices.iter().enumerate() {
+            let root = find(&mut parent, tri[0] as usize);
+            let comp_idx = root_to_component[&root];
+            components[comp_idx].1.push(tri_idx);
+        }
+
+        components
+    }
 }
 
 #[cfg(test)]
@@ -274,5 +363,110 @@ pub(crate) mod tests {
         let vertices = vec![Point3::new(0.0, 0.0, 0.0)];
         let result = TriangleMesh::new(vertices, vec![]);
         assert!(matches!(result, Err(MeshError::NoTriangles)));
+    }
+
+    #[test]
+    fn connected_components_single_cube() {
+        let mesh = unit_cube();
+        let components = mesh.connected_components();
+        assert_eq!(
+            components.len(),
+            1,
+            "A single cube should be one connected component"
+        );
+        // The single component should contain all 8 vertices and 12 triangles.
+        assert_eq!(components[0].0.len(), 8);
+        assert_eq!(components[0].1.len(), 12);
+    }
+
+    #[test]
+    fn connected_components_two_separated_cubes() {
+        // Construct two cubes that share no vertices.
+        // Cube A: vertices 0-7 at origin (0,0,0) to (1,1,1).
+        // Cube B: vertices 8-15 at (10,10,10) to (11,11,11).
+        let mut vertices = vec![
+            // Cube A
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(1.0, 0.0, 0.0),
+            Point3::new(1.0, 1.0, 0.0),
+            Point3::new(0.0, 1.0, 0.0),
+            Point3::new(0.0, 0.0, 1.0),
+            Point3::new(1.0, 0.0, 1.0),
+            Point3::new(1.0, 1.0, 1.0),
+            Point3::new(0.0, 1.0, 1.0),
+            // Cube B (offset by 10 in all axes)
+            Point3::new(10.0, 10.0, 10.0),
+            Point3::new(11.0, 10.0, 10.0),
+            Point3::new(11.0, 11.0, 10.0),
+            Point3::new(10.0, 11.0, 10.0),
+            Point3::new(10.0, 10.0, 11.0),
+            Point3::new(11.0, 10.0, 11.0),
+            Point3::new(11.0, 11.0, 11.0),
+            Point3::new(10.0, 11.0, 11.0),
+        ];
+        let _ = &mut vertices; // suppress unused warning
+
+        let indices = vec![
+            // Cube A faces (vertices 0-7)
+            [4, 5, 6],
+            [4, 6, 7],
+            [1, 0, 3],
+            [1, 3, 2],
+            [1, 2, 6],
+            [1, 6, 5],
+            [0, 4, 7],
+            [0, 7, 3],
+            [3, 7, 6],
+            [3, 6, 2],
+            [0, 1, 5],
+            [0, 5, 4],
+            // Cube B faces (vertices 8-15)
+            [12, 13, 14],
+            [12, 14, 15],
+            [9, 8, 11],
+            [9, 11, 10],
+            [9, 10, 14],
+            [9, 14, 13],
+            [8, 12, 15],
+            [8, 15, 11],
+            [11, 15, 14],
+            [11, 14, 10],
+            [8, 9, 13],
+            [8, 13, 12],
+        ];
+
+        let mesh = TriangleMesh::new(vertices, indices).unwrap();
+        let components = mesh.connected_components();
+        assert_eq!(
+            components.len(),
+            2,
+            "Two separated cubes should be two connected components"
+        );
+
+        // Each component should have 8 vertices and 12 triangles.
+        let mut sizes: Vec<(usize, usize)> = components
+            .iter()
+            .map(|(v, t)| (v.len(), t.len()))
+            .collect();
+        sizes.sort();
+        assert_eq!(sizes, vec![(8, 12), (8, 12)]);
+    }
+
+    #[test]
+    fn connected_components_single_triangle() {
+        let vertices = vec![
+            Point3::new(0.0, 0.0, 0.0),
+            Point3::new(1.0, 0.0, 0.0),
+            Point3::new(0.0, 1.0, 0.0),
+        ];
+        let mesh = TriangleMesh::new(vertices, vec![[0, 1, 2]]).unwrap();
+        let components = mesh.connected_components();
+        assert_eq!(
+            components.len(),
+            1,
+            "A single triangle should be one connected component"
+        );
+        assert_eq!(components[0].0.len(), 3);
+        assert_eq!(components[0].1.len(), 1);
     }
 }
