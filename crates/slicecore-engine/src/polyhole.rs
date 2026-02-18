@@ -10,7 +10,7 @@
 //!
 //! # Pipeline Integration
 //!
-//! When `polyhole_enabled` is true in [`PrintConfig`], the engine calls
+//! When `polyhole_enabled` is true in [`crate::PrintConfig`], the engine calls
 //! [`convert_polyholes`] on each layer's contours after slicing and before
 //! perimeter generation. Only hole contours (CW winding) are modified;
 //! outer boundaries (CCW) are left unchanged.

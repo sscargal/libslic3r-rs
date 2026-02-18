@@ -25,8 +25,8 @@ fn has_same_edge_direction(tri: [u32; 3], a: u32, b: u32) -> bool {
 /// For each pair of adjacent triangles sharing an edge, the shared edge should
 /// appear in opposite directions if their winding is consistent (one traverses
 /// a->b while the other traverses b->a). If both triangles traverse the edge
-/// in the same direction, the neighbor is flipped by swapping indices[1] and
-/// indices[2].
+/// in the same direction, the neighbor is flipped by swapping `indices[1]` and
+/// `indices[2]`.
 ///
 /// Returns the number of flipped triangles.
 pub fn fix_normal_directions(vertices: &[Point3], indices: &mut [[u32; 3]]) -> usize {

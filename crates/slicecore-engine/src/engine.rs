@@ -268,9 +268,8 @@ fn assemble_bridge_toolpath(
 /// produce G-code from a [`TriangleMesh`].
 ///
 /// When the `plugins` feature is enabled, the engine can hold an optional
-/// [`PluginRegistry`](slicecore_plugin::PluginRegistry) that provides
-/// plugin-based infill patterns. Use [`Engine::with_plugin_registry`] to
-/// attach a registry.
+/// `PluginRegistry` that provides plugin-based infill patterns. Use
+/// `Engine::with_plugin_registry` to attach a registry.
 pub struct Engine {
     config: PrintConfig,
     #[cfg(feature = "plugins")]

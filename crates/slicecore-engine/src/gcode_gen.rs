@@ -1,14 +1,14 @@
 //! G-code generation from toolpaths.
 //!
 //! Converts the internal toolpath representation ([`LayerToolpath`]) into
-//! [`GcodeCommand`] sequences ready for output via [`GcodeWriter`].
+//! [`GcodeCommand`] sequences ready for output via `GcodeWriter`.
 //!
 //! The main entry points are:
 //! - [`generate_layer_gcode`]: Converts a single layer's toolpath to G-code commands
 //! - [`generate_full_gcode`]: Converts all layers into a complete print body
 //!
 //! Start/end G-code is NOT generated here -- that is handled by
-//! [`GcodeWriter`](slicecore_gcode_io::GcodeWriter) from slicecore-gcode-io.
+//! `GcodeWriter` from slicecore-gcode-io.
 //! This module produces only the print body commands.
 
 use slicecore_gcode_io::{format_acceleration, format_pressure_advance, GcodeCommand};
