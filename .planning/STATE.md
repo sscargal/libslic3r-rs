@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 9 of 9 (API Polish, Testing & Platform Validation)
-Plan: 2 of 8 in current phase (2 complete)
-Status: Completed 09-02 -- Module-level doc comments
-Last activity: 2026-02-18 -- Completed 09-02-PLAN.md (Module-Level Doc Comments)
+Plan: 3 of 8 in current phase (3 complete)
+Status: Completed 09-03 -- Serde serialization for API types
+Last activity: 2026-02-18 -- Completed 09-03-PLAN.md (Serde Serialization)
 
-Progress: [##################################################] 100% (61/~67 overall)
+Progress: [##################################################] 100% (62/~67 overall)
 
 ## Performance Metrics
 
@@ -35,11 +35,11 @@ Progress: [##################################################] 100% (61/~67 over
 | 06    | 9     | 45min | 5.0min   |
 | 07    | 7     | 50min | 7.1min   |
 | 08    | 5     | 19min | 3.8min   |
-| 09    | 2     | 4min  | 2.0min   |
+| 09    | 3     | 10min | 3.3min   |
 
 **Recent Trend:**
-- Last 5 plans: 08-04 (4min), 08-05 (5min), 09-01 (2min), 09-02 (2min)
-- Trend: Phase 9 doc cleanup continues -- fast turnaround (audit-only, no changes needed)
+- Last 5 plans: 08-05 (5min), 09-01 (2min), 09-02 (2min), 09-03 (6min)
+- Trend: Phase 9 serde serialization -- adding derives and roundtrip test
 
 *Updated after each plan completion*
 
@@ -291,6 +291,11 @@ Recent decisions affecting current work:
 - [09-01]: Plain backticks for cross-crate type references in module-level docs
 - [09-01]: crate:: prefix for doc links to types re-exported at crate root
 - [09-01]: Backtick-wrapping for array index notation to prevent bracket parsing as doc links
+- [09-03]: ValidPolygon gets Serialize/Deserialize (private fields work with serde derive)
+- [09-03]: GcodeCommand-containing fields use #[serde(skip)] since GcodeCommand lacks serde
+- [09-03]: SliceResult.gcode uses #[serde(skip)] (users get gcode from file, metadata from JSON)
+- [09-03]: ModifierMesh not serializable (input type with TriangleMesh/OnceLock, not an output)
+- [09-03]: serde_json moved from dev-dependencies to runtime dependency in slicecore-engine
 
 ### Pending Todos
 
@@ -303,5 +308,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 09-02-PLAN.md (Module-Level Doc Comments)
-Resume file: .planning/phases/09-api-polish-testing-and-platform-validation/09-02-SUMMARY.md
+Stopped at: Completed 09-03-PLAN.md (Serde Serialization for API Types)
+Resume file: .planning/phases/09-api-polish-testing-and-platform-validation/09-03-SUMMARY.md
