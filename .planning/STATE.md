@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** All 13 phases complete -- v1.0 milestone ready for completion
+**Current focus:** Phase 14 in progress -- Profile Conversion Tool
 
 ## Current Position
 
-Phase: 13 of 13 (JSON Profile Support)
-Plan: 2 of 2 in current phase (2 complete)
-Status: Phase 13 complete -- all plans executed
-Last activity: 2026-02-18 -- Completed 13-02-PLAN.md (CLI Integration and Profile Import Tests)
+Phase: 14 of 14 (Profile Conversion Tool)
+Plan: 1 of 2 in current phase (1 complete)
+Status: Executing Phase 14
+Last activity: 2026-02-18 -- Completed 14-01-PLAN.md (Conversion Module and CLI Subcommand)
 
-Progress: [########################################################] 100% (80/80 overall)
+Progress: [#####################################################---] 96% (81/84 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 77
+- Total plans completed: 78
 - Average duration: 5.0 min
-- Total execution time: 6.71 hours
+- Total execution time: 6.78 hours
 
 **By Phase:**
 
@@ -40,10 +40,11 @@ Progress: [########################################################] 100% (80/80
 | 11    | 4     | 12min | 3.0min   |
 | 12    | 3     | 12min | 4.0min   |
 | 13    | 2     | 8min  | 4.0min   |
+| 14    | 1     | 4min  | 4.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 12-01 (3min), 12-02 (5min), 12-03 (4min), 13-01 (4min), 13-02 (4min)
-- Trend: All phases complete
+- Last 5 plans: 12-03 (4min), 13-01 (4min), 13-02 (4min), 14-01 (4min)
+- Trend: Steady 4min/plan
 
 *Updated after each plan completion*
 
@@ -354,6 +355,11 @@ Recent decisions affecting current work:
 - [13-02]: Real profile tests gated with #[ignore] for CI compatibility
 - [13-02]: CLI from_toml_file replaced with from_file for auto-detecting TOML/JSON format
 
+- [14-01]: Selective output via toml::Value table diff: serialize both configs, compare keys, keep only non-default
+- [14-01]: Float rounding at 6 decimal places prevents IEEE 754 noise in TOML output
+- [14-01]: Merged metadata joins names with " + ", uses last result for type/inherits
+- [14-01]: toml::map::Map lacks values_mut; used keys().collect + get_mut pattern for float rounding
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
@@ -370,5 +376,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 13-02-PLAN.md (CLI Integration and Profile Import Tests) -- Phase 13 complete
-Resume file: .planning/phases/13-json-profile-support/13-02-SUMMARY.md
+Stopped at: Completed 14-01-PLAN.md (Conversion Module and CLI Subcommand)
+Resume file: .planning/phases/14-profile-conversion-tool-json-to-toml/14-01-SUMMARY.md
