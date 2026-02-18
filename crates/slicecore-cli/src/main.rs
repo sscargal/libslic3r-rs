@@ -4,16 +4,19 @@
 //! - `slice`: Slice an STL file to G-code
 //! - `validate`: Validate a G-code file
 //! - `analyze`: Analyze a mesh file (print stats)
+//! - `ai-suggest`: Suggest print settings using AI mesh analysis
 
 use std::path::PathBuf;
 use std::process;
 
 use clap::{Parser, Subcommand};
 
+use slicecore_ai::AiConfig;
 use slicecore_engine::{Engine, PrintConfig};
 use slicecore_fileio::load_mesh;
 use slicecore_gcode_io::validate_gcode;
 use slicecore_mesh::{compute_stats, repair};
+use slicecore_plugin::PluginRegistry;
 
 /// SliceCore -- a 3D model slicer.
 #[derive(Parser)]
@@ -45,6 +48,10 @@ enum Commands {
         /// Output slicing metadata as MessagePack to stdout
         #[arg(long)]
         msgpack: bool,
+
+        /// Directory to load plugins from (overrides config plugin_dir).
+        #[arg(long)]
+        plugin_dir: Option<PathBuf>,
     },
 
     /// Validate a G-code file
@@ -58,6 +65,24 @@ enum Commands {
         /// Mesh file to analyze
         input: PathBuf,
     },
+
+    /// Suggest optimal print settings using AI analysis of mesh geometry.
+    ///
+    /// Analyzes the input mesh and sends geometry features to an LLM provider
+    /// (default: Ollama with llama3.2). Configure providers via --ai-config.
+    AiSuggest {
+        /// Input mesh file (STL, 3MF, or OBJ)
+        input: PathBuf,
+
+        /// AI provider configuration file (TOML).
+        /// Uses Ollama defaults (localhost:11434, llama3.2) if not specified.
+        #[arg(short = 'a', long = "ai-config")]
+        ai_config: Option<PathBuf>,
+
+        /// Output format: "text" (default) or "json"
+        #[arg(long, default_value = "text")]
+        format: String,
+    },
 }
 
 fn main() {
@@ -70,9 +95,22 @@ fn main() {
             output,
             json,
             msgpack,
-        } => cmd_slice(&input, config.as_deref(), output.as_deref(), json, msgpack),
+            plugin_dir,
+        } => cmd_slice(
+            &input,
+            config.as_deref(),
+            output.as_deref(),
+            json,
+            msgpack,
+            plugin_dir.as_deref(),
+        ),
         Commands::Validate { input } => cmd_validate(&input),
         Commands::Analyze { input } => cmd_analyze(&input),
+        Commands::AiSuggest {
+            input,
+            ai_config,
+            format,
+        } => cmd_ai_suggest(&input, ai_config.as_deref(), &format),
     }
 }
 
@@ -83,6 +121,7 @@ fn cmd_slice(
     output_path: Option<&std::path::Path>,
     json_output: bool,
     msgpack_output: bool,
+    plugin_dir: Option<&std::path::Path>,
 ) {
     // 1. Read input file.
     let data = match std::fs::read(input) {
@@ -136,8 +175,49 @@ fn cmd_slice(
         PrintConfig::default()
     };
 
-    // 5. Slice.
-    let engine = Engine::new(print_config.clone());
+    // 5. Load plugins (if applicable).
+    // Determine effective plugin directory (CLI flag overrides config).
+    let effective_plugin_dir = plugin_dir
+        .map(|p| p.to_string_lossy().to_string())
+        .or_else(|| print_config.plugin_dir.clone());
+
+    // Check if plugin infill is requested but no plugin_dir is set.
+    if matches!(
+        print_config.infill_pattern,
+        slicecore_engine::InfillPattern::Plugin(_)
+    ) && effective_plugin_dir.is_none()
+    {
+        eprintln!(
+            "Error: infill_pattern is set to a plugin pattern, but no plugin directory is configured."
+        );
+        eprintln!(
+            "Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line."
+        );
+        process::exit(1);
+    }
+
+    // Create engine and optionally load plugins.
+    let mut engine = Engine::new(print_config.clone());
+
+    if let Some(ref dir) = effective_plugin_dir {
+        let mut registry = PluginRegistry::new();
+        match registry.discover_and_load(std::path::Path::new(dir)) {
+            Ok(loaded) => {
+                if !loaded.is_empty() {
+                    eprintln!("Loaded {} plugin(s):", loaded.len());
+                    for info in &loaded {
+                        eprintln!("  - {}: {}", info.name, info.description);
+                    }
+                }
+                engine = engine.with_plugin_registry(registry);
+            }
+            Err(e) => {
+                eprintln!("Warning: Failed to load plugins from '{}': {}", dir, e);
+            }
+        }
+    }
+
+    // 6. Slice.
     let result = match engine.slice(&repaired_mesh) {
         Ok(r) => r,
         Err(e) => {
@@ -146,20 +226,20 @@ fn cmd_slice(
         }
     };
 
-    // 6. Determine output path.
+    // 7. Determine output path.
     let out_path = if let Some(p) = output_path {
         p.to_path_buf()
     } else {
         input.with_extension("gcode")
     };
 
-    // 7. Write G-code output.
+    // 8. Write G-code output.
     if let Err(e) = std::fs::write(&out_path, &result.gcode) {
         eprintln!("Error: Failed to write output '{}': {}", out_path.display(), e);
         process::exit(1);
     }
 
-    // 8. Structured output (JSON or MessagePack to stdout).
+    // 9. Structured output (JSON or MessagePack to stdout).
     if json_output {
         match slicecore_engine::output::to_json(&result, &print_config) {
             Ok(json_str) => println!("{}", json_str),
@@ -184,7 +264,7 @@ fn cmd_slice(
         }
     }
 
-    // 9. Print summary (to stderr if structured output was requested, to stdout otherwise).
+    // 10. Print summary (to stderr if structured output was requested, to stdout otherwise).
     let time_minutes = result.estimated_time_seconds / 60.0;
     if json_output || msgpack_output {
         eprintln!("Slicing complete:");
@@ -273,5 +353,145 @@ fn cmd_analyze(input: &PathBuf) {
     );
     if stats.degenerate_count > 0 {
         println!("  Degenerate triangles: {}", stats.degenerate_count);
+    }
+}
+
+/// Suggest print settings for a mesh using AI.
+fn cmd_ai_suggest(
+    input: &PathBuf,
+    ai_config_path: Option<&std::path::Path>,
+    format: &str,
+) {
+    // 1. Read input file.
+    let data = match std::fs::read(input) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!(
+                "Error: Failed to read input file '{}': {}",
+                input.display(),
+                e
+            );
+            process::exit(1);
+        }
+    };
+
+    // 2. Load mesh.
+    let mesh = match load_mesh(&data) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!(
+                "Error: Failed to parse mesh from '{}': {}",
+                input.display(),
+                e
+            );
+            process::exit(1);
+        }
+    };
+
+    // 3. Load AI config.
+    let ai_config = if let Some(path) = ai_config_path {
+        let toml_str = match std::fs::read_to_string(path) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!(
+                    "Error: Failed to read AI config '{}': {}",
+                    path.display(),
+                    e
+                );
+                process::exit(1);
+            }
+        };
+        match AiConfig::from_toml(&toml_str) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!(
+                    "Error: Failed to parse AI config '{}': {}",
+                    path.display(),
+                    e
+                );
+                process::exit(1);
+            }
+        }
+    } else {
+        AiConfig::default()
+    };
+
+    // 4. Create engine and suggest profile.
+    let engine = Engine::new(PrintConfig::default());
+    match engine.suggest_profile(&mesh, &ai_config) {
+        Ok(suggestion) => {
+            if format == "json" {
+                match serde_json::to_string_pretty(&suggestion) {
+                    Ok(json) => println!("{}", json),
+                    Err(e) => {
+                        eprintln!("Error: Failed to serialize suggestion: {}", e);
+                        process::exit(1);
+                    }
+                }
+            } else {
+                // Human-readable text output.
+                println!("AI Print Profile Suggestion");
+                println!("==========================");
+                println!();
+                println!("  Layer height:     {:.2} mm", suggestion.layer_height);
+                println!("  Wall count:       {}", suggestion.wall_count);
+                println!(
+                    "  Infill density:   {:.0}%",
+                    suggestion.infill_density * 100.0
+                );
+                println!("  Infill pattern:   {}", suggestion.infill_pattern);
+                println!(
+                    "  Supports:         {}",
+                    if suggestion.support_enabled {
+                        "yes"
+                    } else {
+                        "no"
+                    }
+                );
+                if suggestion.support_enabled {
+                    println!(
+                        "  Support angle:    {:.0} deg",
+                        suggestion.support_overhang_angle
+                    );
+                }
+                println!(
+                    "  Perimeter speed:  {:.0} mm/s",
+                    suggestion.perimeter_speed
+                );
+                println!("  Infill speed:     {:.0} mm/s", suggestion.infill_speed);
+                println!("  Nozzle temp:      {:.0} C", suggestion.nozzle_temp);
+                println!("  Bed temp:         {:.0} C", suggestion.bed_temp);
+                if suggestion.brim_width > 0.0 {
+                    println!("  Brim width:       {:.1} mm", suggestion.brim_width);
+                }
+                if !suggestion.reasoning.is_empty() {
+                    println!();
+                    println!("Reasoning: {}", suggestion.reasoning);
+                }
+            }
+        }
+        Err(e) => {
+            let err_str = format!("{}", e);
+            if err_str.contains("Connection refused")
+                || err_str.contains("connection refused")
+                || err_str.contains("ConnectError")
+                || err_str.contains("error sending request")
+            {
+                eprintln!("Error: Failed to connect to AI provider.");
+                if ai_config_path.is_none() {
+                    eprintln!("The default provider is Ollama at localhost:11434.");
+                    eprintln!(
+                        "Start Ollama with 'ollama serve', or use --ai-config to configure a different provider."
+                    );
+                } else {
+                    eprintln!(
+                        "Check that the provider specified in your AI config is running and reachable."
+                    );
+                }
+            } else {
+                eprintln!("Error: AI suggestion failed: {}", e);
+            }
+            process::exit(1);
+        }
     }
 }
