@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 9 of 9 (API Polish, Testing & Platform Validation)
-Plan: 5 of 8 in current phase (5 complete)
-Status: Completed 09-05 -- WASM compilation fix and multi-platform CI matrix
-Last activity: 2026-02-18 -- Completed 09-05-PLAN.md (WASM Fix & CI Matrix)
+Plan: 6 of 8 in current phase (6 complete)
+Status: Completed 09-04 -- Event system and structured output
+Last activity: 2026-02-18 -- Completed 09-04-PLAN.md (Event System & Structured Output)
 
-Progress: [##################################################] 100% (64/~67 overall)
+Progress: [##################################################] 100% (65/~67 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 62
+- Total plans completed: 63
 - Average duration: 5.3 min
-- Total execution time: 5.68 hours
+- Total execution time: 5.81 hours
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [##################################################] 100% (64/~67 over
 | 06    | 9     | 45min | 5.0min   |
 | 07    | 7     | 50min | 7.1min   |
 | 08    | 5     | 19min | 3.8min   |
-| 09    | 5     | 12min | 2.4min   |
+| 09    | 6     | 20min | 3.3min   |
 
 **Recent Trend:**
-- Last 5 plans: 09-01 (2min), 09-02 (2min), 09-03 (6min), 09-05 (2min)
-- Trend: Phase 9 WASM fix and CI expansion -- fast infrastructure tasks
+- Last 5 plans: 09-01 (2min), 09-02 (2min), 09-03 (6min), 09-05 (2min), 09-04 (8min)
+- Trend: Phase 9 event system and structured output -- moderate implementation task
 
 *Updated after each plan completion*
 
@@ -301,6 +301,11 @@ Recent decisions affecting current work:
 - [09-05]: CI expanded to 7 jobs: fmt, clippy, test (4 OS matrix), test-linux-arm (cross), wasm (2 targets), doc
 - [09-05]: macOS x86 via macos-13 runner; Linux ARM64 via actions-rust-cross
 - [09-05]: Removed redundant check job (clippy subsumes cargo check)
+- [09-04]: rmp-serde 1.x for MessagePack (workspace dependency)
+- [09-04]: EventBus uses Vec<Box<dyn EventSubscriber>> with Send+Sync bounds
+- [09-04]: slice_to_writer delegates to internal slice_to_writer_with_events(Option<&EventBus>)
+- [09-04]: CLI structured output moves human summary to stderr when --json/--msgpack active
+- [09-04]: SliceEvent uses serde tag="type" for clean JSON output
 
 ### Pending Todos
 
@@ -313,5 +318,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Completed 09-05-PLAN.md (WASM Compilation Fix & Multi-Platform CI Matrix)
-Resume file: .planning/phases/09-api-polish-testing-and-platform-validation/09-05-SUMMARY.md
+Stopped at: Completed 09-04-PLAN.md (Event System & Structured Output)
+Resume file: .planning/phases/09-api-polish-testing-and-platform-validation/09-04-SUMMARY.md
