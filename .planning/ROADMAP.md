@@ -24,6 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 10: CLI Feature Integration** - Enable plugins and AI in CLI binary, add ai-suggest subcommand
 - [ ] **Phase 11: Config Integration** - Wire plugin_dir, sequential, and multi-material into Engine pipeline
 - [ ] **Phase 12: Mesh Repair Completion** - Implement self-intersection resolution
+- [ ] **Phase 13: JSON Profile Support** - Import OrcaSlicer/BambuStudio JSON profiles with auto-format detection
 
 ## Phase Details
 
@@ -267,6 +268,21 @@ Plans:
 - [x] 12-02-PLAN.md -- Wire contour resolution into engine pipeline, programmatic self-intersecting test meshes, end-to-end tests
 - [x] 12-03-PLAN.md -- Integration tests for all 5 success criteria, performance verification, phase completion
 
+### Phase 13: JSON Profile Support
+**Goal**: Users can import printer and filament profiles from OrcaSlicer and BambuStudio JSON format files, with auto-detection of file format (JSON vs TOML) and field mapping from upstream schema to PrintConfig
+**Depends on**: Phase 12
+**Success Criteria** (what must be TRUE):
+  1. Config file format (JSON vs TOML) is auto-detected by content sniffing, not file extension
+  2. OrcaSlicer/BambuStudio JSON profiles (process, filament, machine types) are mapped to PrintConfig fields with correct value conversion (string-to-number, percentage stripping, array unwrapping, nil sentinel handling)
+  3. ImportResult reports both mapped and unmapped fields so users know what was and wasn't imported
+  4. CLI --config flag accepts both TOML and JSON files without user intervention
+  5. Real upstream profiles from OrcaSlicer and BambuStudio load without errors and produce reasonable config values
+**Plans:** 2 plans
+
+Plans:
+- [ ] 13-01-PLAN.md -- Profile import module with format detection, JSON field mapping, and ImportResult
+- [ ] 13-02-PLAN.md -- CLI integration, integration tests with real upstream profiles, phase verification
+
 ## Coverage Notes
 
 **Requirements with scope conflicts (flagged for user decision):**
@@ -287,7 +303,7 @@ After Phases 10-12, all v1.0 requirements will be fully satisfied with no partia
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12 -> 13
 (Phases 4 and 5 can run in parallel after Phase 3. Phase 7 can start after Phase 4. Phase 8 can start after Phase 3. Phase 12 can run in parallel with Phases 10-11.)
 
 | Phase | Plans Complete | Status | Completed |
@@ -304,3 +320,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 10. CLI Feature Integration | 3/3 | ✓ Complete | 2026-02-18 |
 | 11. Config Integration | 4/4 | ✓ Complete | 2026-02-18 |
 | 12. Mesh Repair Completion | 3/3 | ✓ Complete | 2026-02-18 |
+| 13. JSON Profile Support | 0/2 | In Progress | |
