@@ -20,6 +20,7 @@
 //! 7. Standard regions: fall back to classic fixed-width perimeters.
 
 use boostvoronoi::{Builder, Line as BvLine, Point as BvPoint};
+use serde::{Deserialize, Serialize};
 
 use slicecore_geo::polygon::ValidPolygon;
 use slicecore_math::IPoint2;
@@ -37,7 +38,7 @@ const VORONOI_SCALE: i64 = 1000;
 const MIN_EXTRUSION_WIDTH: f64 = 0.1;
 
 /// A variable-width perimeter path.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ArachnePerimeter {
     /// Path points in integer coordinates.
     pub points: Vec<IPoint2>,
@@ -48,7 +49,7 @@ pub struct ArachnePerimeter {
 }
 
 /// Result of Arachne perimeter generation for a contour.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ArachneResult {
     /// Variable-width perimeter paths.
     pub perimeters: Vec<ArachnePerimeter>,

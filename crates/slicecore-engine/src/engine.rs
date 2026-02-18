@@ -3013,4 +3013,58 @@ mod tests {
             InfillPattern::Plugin("custom-zigzag".to_string())
         );
     }
+
+    #[test]
+    fn slice_result_serialization_roundtrip() {
+        use crate::estimation::PrintTimeEstimate;
+        use crate::filament::FilamentUsage;
+
+        let result = SliceResult {
+            gcode: vec![71, 50, 56], // "G28" -- will be skipped by serde
+            layer_count: 42,
+            estimated_time_seconds: 1234.5,
+            time_estimate: PrintTimeEstimate {
+                total_seconds: 1234.5,
+                move_time_seconds: 1034.5,
+                travel_time_seconds: 200.0,
+                retraction_count: 10,
+            },
+            filament_usage: FilamentUsage {
+                length_mm: 5000.0,
+                length_m: 5.0,
+                weight_g: 15.0,
+                cost: 0.75,
+            },
+            preview: None,
+        };
+
+        // Serialize to JSON.
+        let json = serde_json::to_string_pretty(&result).unwrap();
+
+        // Deserialize back.
+        let deserialized: SliceResult = serde_json::from_str(&json).unwrap();
+
+        // Verify scalar fields roundtrip correctly.
+        assert_eq!(result.layer_count, deserialized.layer_count);
+        assert!(
+            (result.estimated_time_seconds - deserialized.estimated_time_seconds).abs() < 1e-9,
+            "estimated_time_seconds should roundtrip"
+        );
+        assert!(
+            (result.time_estimate.total_seconds - deserialized.time_estimate.total_seconds).abs()
+                < 1e-9,
+            "time_estimate.total_seconds should roundtrip"
+        );
+        assert!(
+            (result.filament_usage.length_mm - deserialized.filament_usage.length_mm).abs()
+                < 1e-9,
+            "filament_usage.length_mm should roundtrip"
+        );
+
+        // gcode is skipped -- deserializes as default (empty vec).
+        assert!(
+            deserialized.gcode.is_empty(),
+            "gcode should deserialize as empty (serde skip)"
+        );
+    }
 }

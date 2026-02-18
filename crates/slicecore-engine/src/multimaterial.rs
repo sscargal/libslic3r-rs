@@ -8,6 +8,7 @@
 //!   layers (structural integrity).
 //! - **Tool assignment**: simple region-to-tool mapping using modifier meshes.
 
+use serde::{Deserialize, Serialize};
 use slicecore_gcode_io::GcodeCommand;
 use slicecore_geo::ValidPolygon;
 
@@ -20,9 +21,10 @@ use crate::toolpath::FeatureType;
 /// Contains the ordered list of G-code commands needed to switch from
 /// one tool to another: retract, travel to purge tower, tool change
 /// command (T-code), prime, and wipe.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolChangeSequence {
     /// The full ordered sequence of G-code commands for this tool change.
+    #[serde(skip)]
     pub commands: Vec<GcodeCommand>,
 }
 
@@ -31,9 +33,10 @@ pub struct ToolChangeSequence {
 /// On tool-change layers the tower is dense (full purge infill).
 /// On non-change layers the tower is sparse (perimeters only for
 /// structural integrity).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PurgeTowerLayer {
     /// G-code commands for this purge tower layer.
+    #[serde(skip)]
     pub commands: Vec<GcodeCommand>,
     /// Whether this is a dense (tool-change) or sparse (maintenance) layer.
     pub is_dense: bool,

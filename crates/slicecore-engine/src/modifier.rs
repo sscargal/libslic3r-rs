@@ -14,6 +14,7 @@
 //!    [`PrintConfig`].
 //! 3. The engine generates perimeters and infill separately for each region.
 
+use serde::{Deserialize, Serialize};
 use slicecore_geo::{polygon_difference, polygon_intersection, ValidPolygon};
 use slicecore_mesh::TriangleMesh;
 use slicecore_slicer::slice_at_height;
@@ -35,7 +36,7 @@ pub struct ModifierMesh {
 /// A modifier's 2D footprint at a specific Z height.
 ///
 /// Produced by slicing a [`ModifierMesh`] at a layer Z.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModifierRegion {
     /// The modifier's 2D contours at this Z height.
     pub contours: Vec<ValidPolygon>,

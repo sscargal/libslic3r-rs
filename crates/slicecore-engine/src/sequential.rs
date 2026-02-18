@@ -9,6 +9,8 @@
 //!   collision risk.
 //! - **Safe Z transitions**: Raises to a safe height between objects.
 
+use serde::{Deserialize, Serialize};
+
 use crate::config::PrintConfig;
 use crate::error::EngineError;
 
@@ -16,7 +18,7 @@ use crate::error::EngineError;
 ///
 /// Stores the XY extents and maximum Z height, used for collision
 /// detection and ordering in sequential printing mode.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ObjectBounds {
     /// Minimum X coordinate in mm.
     pub min_x: f64,
