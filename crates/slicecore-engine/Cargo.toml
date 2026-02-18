@@ -33,6 +33,7 @@ getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [dev-dependencies]
 criterion = { workspace = true }
+tempfile = { workspace = true }
 
 [[bench]]
 name = "slice_benchmark"

@@ -2723,6 +2723,7 @@ dependencies = [
  "slicecore-mesh",
  "slicecore-plugin",
  "slicecore-slicer",
+ "tempfile",
  "thiserror 2.0.18",
  "toml 0.8.23",
  "walkdir",

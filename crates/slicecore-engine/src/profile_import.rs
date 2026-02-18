@@ -247,6 +247,56 @@ fn extract_percentage(value: &serde_json::Value) -> Option<f64> {
 // Field mapping
 // ---------------------------------------------------------------------------
 
+/// Map an upstream JSON key name to the corresponding PrintConfig field name.
+///
+/// Returns `None` for keys that don't map to a simple top-level field (e.g.,
+/// ironing sub-fields, enum mappings with complex logic).
+pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
+    match key {
+        "layer_height" => Some("layer_height"),
+        "initial_layer_print_height" => Some("first_layer_height"),
+        "wall_loops" => Some("wall_count"),
+        "sparse_infill_density" => Some("infill_density"),
+        "sparse_infill_pattern" => Some("infill_pattern"),
+        "top_shell_layers" => Some("top_solid_layers"),
+        "bottom_shell_layers" => Some("bottom_solid_layers"),
+        "outer_wall_speed" => Some("perimeter_speed"),
+        "sparse_infill_speed" => Some("infill_speed"),
+        "travel_speed" => Some("travel_speed"),
+        "initial_layer_speed" => Some("first_layer_speed"),
+        "skirt_loops" => Some("skirt_loops"),
+        "skirt_distance" => Some("skirt_distance"),
+        "brim_width" => Some("brim_width"),
+        "default_acceleration" => Some("print_acceleration"),
+        "travel_acceleration" => Some("travel_acceleration"),
+        "enable_arc_fitting" => Some("arc_fitting_enabled"),
+        "adaptive_layer_height" => Some("adaptive_layer_height"),
+        "wall_generator" => Some("arachne_enabled"),
+        "seam_position" => Some("seam_position"),
+        "nozzle_temperature" => Some("nozzle_temp"),
+        "nozzle_temperature_initial_layer" => Some("first_layer_nozzle_temp"),
+        "hot_plate_temp" => Some("bed_temp"),
+        "hot_plate_temp_initial_layer" => Some("first_layer_bed_temp"),
+        "filament_density" => Some("filament_density"),
+        "filament_diameter" => Some("filament_diameter"),
+        "filament_cost" => Some("filament_cost_per_kg"),
+        "filament_flow_ratio" => Some("extrusion_multiplier"),
+        "close_fan_the_first_x_layers" => Some("disable_fan_first_layers"),
+        "fan_cooling_layer_time" => Some("fan_below_layer_time"),
+        "nozzle_diameter" => Some("nozzle_diameter"),
+        "retraction_length" => Some("retract_length"),
+        "retraction_speed" => Some("retract_speed"),
+        "z_hop" => Some("retract_z_hop"),
+        "retraction_minimum_travel" => Some("min_travel_for_retract"),
+        "gcode_flavor" => Some("gcode_dialect"),
+        "machine_max_jerk_x" => Some("jerk_x"),
+        "machine_max_jerk_y" => Some("jerk_y"),
+        "machine_max_jerk_z" => Some("jerk_z"),
+        // Ironing sub-fields don't map to simple top-level fields.
+        _ => None,
+    }
+}
+
 /// Apply a single field mapping from an upstream JSON key/value to PrintConfig.
 ///
 /// The `value` parameter is the already-extracted plain string (scalar or

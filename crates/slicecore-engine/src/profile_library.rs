@@ -238,23 +238,29 @@ fn merge_inheritance(parent: ImportResult, child: ImportResult) -> ImportResult 
     }
 
     // Now handle the tricky case: child explicitly maps a field to a value that
-    // equals the global default but differs from the parent. For this we need to
-    // check the raw JSON: if the child JSON object has the upstream key, that
-    // means the child explicitly set it.
+    // equals the global default but differs from the parent. We only overlay
+    // fields that the child's JSON explicitly contained (tracked in mapped_fields).
     //
-    // Since we have child.mapped_fields (upstream key names), we know which fields
-    // the child's JSON explicitly contained. We need to map these back to
-    // PrintConfig field names and force-overlay them.
-    //
-    // Build the child's config fresh by re-applying just the child's mapped fields.
-    // The simplest approach: for any PrintConfig field where child differs from parent,
-    // overlay it (this catches everything, including default-matching values).
+    // Build a set of PrintConfig field names that the child actually touched,
+    // using the upstream-key-to-config-field mapping.
+    let child_touched_fields: std::collections::HashSet<&str> = child
+        .mapped_fields
+        .iter()
+        .filter_map(|upstream_key| {
+            crate::profile_import::upstream_key_to_config_field(upstream_key)
+        })
+        .collect();
+
     let parent_table_for_cmp = match toml::Value::try_from(&parent.config) {
         Ok(toml::Value::Table(t)) => t,
         _ => unreachable!(),
     };
 
     for (key, val) in &child_table {
+        // Only overlay fields the child explicitly mapped.
+        if !child_touched_fields.contains(key.as_str()) {
+            continue;
+        }
         if let Some(parent_val) = parent_table_for_cmp.get(key) {
             let mut val_rounded = val.clone();
             let mut par_rounded = parent_val.clone();
