@@ -223,6 +223,7 @@ Plans:
   3. Plugin-based infill patterns work via CLI: config file with `infill_pattern = { plugin = "zigzag" }` loads and executes the plugin
   4. CLI help text documents plugin and AI features, including how to configure providers and plugin directories
   5. Integration tests verify both features work end-to-end via the CLI binary (not just library API)
+**Plans:** 3 plans
 
 Plans:
 - [ ] 10-01-PLAN.md -- Enable plugins and ai features in CLI Cargo.toml, verify compilation
