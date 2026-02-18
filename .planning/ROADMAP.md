@@ -18,9 +18,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Perimeter and Infill Completeness** - All perimeter modes, all standard infill patterns, adaptive layers
 - [x] **Phase 5: Support Structures** - Automatic, manual, tree, organic supports with bridge/overhang handling
 - [x] **Phase 6: G-code Completeness and Advanced Features** - All firmware dialects, multi-material, modifier meshes, advanced print features
-- [ ] **Phase 7: Plugin System** - Plugin trait API, registry, native and WASM loading, example plugin
-- [ ] **Phase 8: AI Integration** - LLM abstraction, geometry analysis, profile suggestions
-- [ ] **Phase 9: API Polish, Testing, and Platform Validation** - Public API, structured output, cross-platform, performance/memory targets, test coverage
+- [x] **Phase 7: Plugin System** - Plugin trait API, registry, native and WASM loading, example plugin
+- [x] **Phase 8: AI Integration** - LLM abstraction, geometry analysis, profile suggestions
+- [x] **Phase 9: API Polish, Testing, and Platform Validation** - Public API, structured output, cross-platform, performance/memory targets, test coverage
+- [ ] **Phase 10: CLI Feature Integration** - Enable plugins and AI in CLI binary, add ai-suggest subcommand
+- [ ] **Phase 11: Config Integration** - Wire plugin_dir, sequential, and multi-material into Engine pipeline
+- [ ] **Phase 12: Mesh Repair Completion** - Implement self-intersection resolution
 
 ## Phase Details
 
@@ -210,6 +213,55 @@ Plans:
 - [ ] 09-07-PLAN.md -- Fuzz testing targets for mesh parsers and golden file tests for G-code regression detection
 - [ ] 09-08-PLAN.md -- Integration tests, coverage measurement (>= 80%), and Phase 9 success criteria verification
 
+### Phase 10: CLI Feature Integration
+**Goal**: CLI users can access plugin loading and AI profile suggestions -- the core v1.0 differentiating features are exposed through the binary, not just the library API
+**Depends on**: Phase 7, Phase 8, Phase 9
+**Gap Closure**: Addresses PLUGIN-05 partial, AI-03 partial, integration gaps (CLI feature gates), Flow F (ai-suggest command)
+**Success Criteria** (what must be TRUE):
+  1. `slicecore` binary is compiled with `features = ["plugins", "ai"]` enabled in Cargo.toml
+  2. `slicecore ai-suggest input.stl` subcommand exists and successfully calls `Engine::suggest_profile()` with default Ollama provider
+  3. Plugin-based infill patterns work via CLI: config file with `infill_pattern = { plugin = "zigzag" }` loads and executes the plugin
+  4. CLI help text documents plugin and AI features, including how to configure providers and plugin directories
+  5. Integration tests verify both features work end-to-end via the CLI binary (not just library API)
+
+Plans:
+- [ ] 10-01-PLAN.md -- Enable plugins and ai features in CLI Cargo.toml, verify compilation
+- [ ] 10-02-PLAN.md -- Add ai-suggest CLI subcommand with provider configuration
+- [ ] 10-03-PLAN.md -- Update CLI help, add integration tests, verify Phase 10 success criteria
+
+### Phase 11: Config Integration
+**Goal**: All PrintConfig fields are wired into the Engine pipeline -- users' TOML settings actually affect slicing behavior without requiring direct API calls
+**Depends on**: Phase 10
+**Gap Closure**: Addresses integration gaps (plugin_dir orphaned, sequential/multi-material not wired), Flow E (plugin_dir), Flow G (sequential)
+**Success Criteria** (what must be TRUE):
+  1. Setting `plugin_dir = "/path/to/plugins"` in config TOML triggers automatic plugin discovery and loading via `PluginRegistry::discover_and_load()` in Engine constructor
+  2. Setting `sequential.enabled = true` in config TOML triggers collision detection and object ordering in `Engine::slice()` pipeline
+  3. Setting `multi_material.enabled = true` with multiple tool configs triggers tool changes and purge tower generation in `Engine::slice()` pipeline
+  4. Integration tests verify all three config-driven features work without requiring manual API calls to specialized methods
+  5. RepairReport or warnings notify users if plugin_dir is set but contains no valid plugins
+
+Plans:
+- [ ] 11-01-PLAN.md -- Wire plugin_dir auto-loading into Engine constructor with PluginRegistry integration
+- [ ] 11-02-PLAN.md -- Wire sequential printing into slice_to_writer_with_events pipeline
+- [ ] 11-03-PLAN.md -- Wire multi-material into slice_to_writer_with_events pipeline
+- [ ] 11-04-PLAN.md -- Integration tests and Phase 11 success criteria verification
+
+### Phase 12: Mesh Repair Completion
+**Goal**: Self-intersecting meshes are automatically repaired, not just detected -- users get clean geometry without external preprocessing tools
+**Depends on**: Phase 2
+**Gap Closure**: Addresses MESH-06 (self-intersection resolution missing)
+**Success Criteria** (what must be TRUE):
+  1. Self-intersection resolution uses Clipper2 boolean union to fix intersecting triangles
+  2. RepairReport shows before/after metrics: triangles removed, new triangles added, intersection count reduced to zero
+  3. Test suite includes real-world self-intersecting models (from Thingiverse/Printables known-problematic set) that successfully repair
+  4. Repaired mesh passes mesh validation (manifold, no degenerate triangles, consistent normals)
+  5. Performance is acceptable: resolution completes in <5 seconds for models with <10k triangles
+
+Plans:
+- [ ] 12-01-PLAN.md -- Implement self-intersection resolution using Clipper2 polygon boolean operations
+- [ ] 12-02-PLAN.md -- Update RepairReport with resolution metrics, add real-world test cases
+- [ ] 12-03-PLAN.md -- Performance testing and Phase 12 success criteria verification
+
 ## Coverage Notes
 
 **Requirements with scope conflicts (flagged for user decision):**
@@ -218,11 +270,20 @@ API-06 (C FFI layer) and API-07 (Python bindings via PyO3) are listed as v1 requ
 
 **Adjusted coverage:** 84 of 86 v1 requirements mapped. 2 excluded due to scope conflict (API-06, API-07).
 
+**Gap closure phases (10-12):**
+
+Phases 10-12 address gaps identified by milestone audit (2026-02-18):
+- Phase 10 completes PLUGIN-05 and AI-03 (CLI accessibility)
+- Phase 11 fixes config integration (plugin_dir, sequential, multi-material)
+- Phase 12 completes MESH-06 (self-intersection resolution)
+
+After Phases 10-12, all v1.0 requirements will be fully satisfied with no partial implementations.
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
-(Phases 4 and 5 can run in parallel after Phase 3. Phase 7 can start after Phase 4. Phase 8 can start after Phase 3.)
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10 -> 11 -> 12
+(Phases 4 and 5 can run in parallel after Phase 3. Phase 7 can start after Phase 4. Phase 8 can start after Phase 3. Phase 12 can run in parallel with Phases 10-11.)
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -235,3 +296,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 7. Plugin System | 7/7 | ✓ Complete | 2026-02-17 |
 | 8. AI Integration | 5/5 | ✓ Complete | 2026-02-17 |
 | 9. API Polish, Testing, and Platform Validation | 8/8 | ✓ Complete | 2026-02-18 |
+| 10. CLI Feature Integration | 0/3 | Pending | - |
+| 11. Config Integration | 0/4 | Pending | - |
+| 12. Mesh Repair Completion | 0/3 | Pending | - |
