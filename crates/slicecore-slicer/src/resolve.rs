@@ -19,8 +19,11 @@ use slicecore_geo::{polygon_union, ValidPolygon};
 ///
 /// # Behavior
 ///
-/// - **0 or 1 contours**: Returns the input unchanged (no resolution needed).
-/// - **2+ contours**: Performs self-union to merge overlapping regions.
+/// - **0 contours**: Returns empty.
+/// - **1+ contours**: Performs self-union to merge overlapping regions and
+///   resolve self-intersecting edges. Even a single contour may have
+///   self-intersecting edges (e.g., figure-8 shapes from overlapping mesh
+///   bodies), which the NonZero fill rule resolves.
 /// - **Error fallback**: If polygon_union fails (rare), returns the original
 ///   contours unchanged.
 ///
@@ -33,11 +36,14 @@ use slicecore_geo::{polygon_union, ValidPolygon};
 /// assert!(merged.len() <= overlapping_contours.len());
 /// ```
 pub fn resolve_contour_intersections(contours: &[ValidPolygon]) -> Vec<ValidPolygon> {
-    if contours.len() <= 1 {
-        return contours.to_vec();
+    if contours.is_empty() {
+        return Vec::new();
     }
 
     // Self-union: union all contours with empty clip set to merge overlaps.
+    // Even a single contour may have self-intersecting edges (e.g., from
+    // overlapping mesh bodies producing a figure-8 polygon). The NonZero fill
+    // rule resolves such self-intersections into proper non-overlapping polygons.
     match polygon_union(contours, &[]) {
         Ok(resolved) => resolved,
         Err(_) => {
@@ -76,9 +82,10 @@ mod tests {
     }
 
     #[test]
-    fn single_contour_returned_unchanged() {
+    fn single_clean_contour_preserved() {
         let square = make_square(0.0, 0.0, 10.0);
         let result = resolve_contour_intersections(&[square.clone()]);
+        // A clean (non-self-intersecting) single contour passes through union unchanged.
         assert_eq!(result.len(), 1);
         let area = total_area_mm2(&result);
         assert!(
