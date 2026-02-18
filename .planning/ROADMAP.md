@@ -260,10 +260,12 @@ Plans:
   4. Repaired mesh passes mesh validation (manifold, no degenerate triangles, consistent normals)
   5. Performance is acceptable: resolution completes in <5 seconds for models with <10k triangles
 
+**Plans:** 3 plans
+
 Plans:
-- [ ] 12-01-PLAN.md -- Implement self-intersection resolution using Clipper2 polygon boolean operations
-- [ ] 12-02-PLAN.md -- Update RepairReport with resolution metrics, add real-world test cases
-- [ ] 12-03-PLAN.md -- Performance testing and Phase 12 success criteria verification
+- [ ] 12-01-PLAN.md -- BVH-accelerated self-intersection detection with pair reporting and per-slice contour resolution via Clipper2 union
+- [ ] 12-02-PLAN.md -- Wire contour resolution into engine pipeline, programmatic self-intersecting test meshes, end-to-end tests
+- [ ] 12-03-PLAN.md -- Integration tests for all 5 success criteria, performance verification, phase completion
 
 ## Coverage Notes
 
