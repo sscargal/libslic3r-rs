@@ -33,8 +33,10 @@ pub enum WallOrder {
 /// Print configuration controlling the entire slicing pipeline.
 ///
 /// All fields have sensible FDM defaults. Use [`PrintConfig::from_toml`] to
-/// parse from a TOML string, or [`PrintConfig::from_toml_file`] to load from
-/// a file. Fields not specified in the TOML input use defaults.
+/// parse from a TOML string, [`PrintConfig::from_json`] to parse from a JSON
+/// string (native or OrcaSlicer/BambuStudio format), or [`PrintConfig::from_file`]
+/// to auto-detect the format and load from a file. Fields not specified in the
+/// input use defaults.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PrintConfig {
@@ -393,6 +395,72 @@ impl PrintConfig {
         let contents = std::fs::read_to_string(path)
             .map_err(|e| EngineError::ConfigIo(path.to_path_buf(), e))?;
         Self::from_toml(&contents).map_err(EngineError::ConfigParse)
+    }
+
+    /// Parses a `PrintConfig` from a JSON string.
+    ///
+    /// Supports two JSON variants:
+    /// 1. **Native format** -- field names match `PrintConfig` with numeric values.
+    ///    Deserialized directly via serde.
+    /// 2. **OrcaSlicer/BambuStudio format** -- detected by the presence of a `"type"`
+    ///    field. Uses [`import_upstream_profile`](crate::profile_import::import_upstream_profile)
+    ///    for field mapping.
+    pub fn from_json(json_str: &str) -> Result<Self, EngineError> {
+        let value: serde_json::Value = serde_json::from_str(json_str)
+            .map_err(|e| EngineError::ConfigError(format!("JSON parse error: {}", e)))?;
+
+        if value.get("type").is_some() {
+            // Upstream slicer profile -- use mapping import.
+            let result = crate::profile_import::import_upstream_profile(&value)?;
+            Ok(result.config)
+        } else {
+            // Native JSON format -- direct deserialization.
+            serde_json::from_str(json_str)
+                .map_err(|e| EngineError::ConfigError(format!("JSON config error: {}", e)))
+        }
+    }
+
+    /// Parses a `PrintConfig` from a JSON string, returning the full
+    /// [`ImportResult`](crate::profile_import::ImportResult) with mapped/unmapped
+    /// field reporting.
+    ///
+    /// For native JSON format (no `"type"` field), all fields are treated as mapped.
+    pub fn from_json_with_details(
+        json_str: &str,
+    ) -> Result<crate::profile_import::ImportResult, EngineError> {
+        let value: serde_json::Value = serde_json::from_str(json_str)
+            .map_err(|e| EngineError::ConfigError(format!("JSON parse error: {}", e)))?;
+
+        if value.get("type").is_some() {
+            crate::profile_import::import_upstream_profile(&value)
+        } else {
+            let config: PrintConfig = serde_json::from_str(json_str)
+                .map_err(|e| EngineError::ConfigError(format!("JSON config error: {}", e)))?;
+            Ok(crate::profile_import::ImportResult {
+                config,
+                mapped_fields: Vec::new(),
+                unmapped_fields: Vec::new(),
+                metadata: crate::profile_import::ProfileMetadata::default(),
+            })
+        }
+    }
+
+    /// Loads a `PrintConfig` from a file, auto-detecting format (TOML or JSON).
+    ///
+    /// Format detection uses content sniffing via
+    /// [`detect_config_format`](crate::profile_import::detect_config_format):
+    /// - JSON files start with `{` (after optional whitespace/BOM)
+    /// - Everything else is treated as TOML
+    pub fn from_file(path: &std::path::Path) -> Result<Self, EngineError> {
+        let contents = std::fs::read_to_string(path)
+            .map_err(|e| EngineError::ConfigIo(path.to_path_buf(), e))?;
+
+        match crate::profile_import::detect_config_format(contents.as_bytes()) {
+            crate::profile_import::ConfigFormat::Toml => {
+                Self::from_toml(&contents).map_err(EngineError::ConfigParse)
+            }
+            crate::profile_import::ConfigFormat::Json => Self::from_json(&contents),
+        }
     }
 
     /// Returns the extrusion width in mm.
