@@ -25,6 +25,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 11: Config Integration** - Wire plugin_dir, sequential, and multi-material into Engine pipeline
 - [ ] **Phase 12: Mesh Repair Completion** - Implement self-intersection resolution
 - [x] **Phase 13: JSON Profile Support** - Import OrcaSlicer/BambuStudio JSON profiles with auto-format detection
+- [x] **Phase 14: Profile Conversion Tool (JSON to TOML)** - Convert JSON profiles to native TOML format with selective output and round-trip fidelity
+- [x] **Phase 15: Printer and Filament Profile Library** - Build extensive profile library from OrcaSlicer/BambuStudio with CLI discovery commands
+- [x] **Phase 16: PrusaSlicer Profile Migration** - Convert PrusaSlicer INI profiles to TOML, extending library with ~9,500 profiles across 33 FFF vendors
 
 ## Phase Details
 
@@ -322,6 +325,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 12. Mesh Repair Completion | 3/3 | ✓ Complete | 2026-02-18 |
 | 13. JSON Profile Support | 2/2 | ✓ Complete | 2026-02-18 |
 | 14. Profile Conversion Tool (JSON to TOML) | 2/2 | ✓ Complete | 2026-02-18 |
+| 15. Printer and Filament Profile Library | 3/3 | ✓ Complete | 2026-02-18 |
+| 16. PrusaSlicer Profile Migration | 2/2 | ✓ Complete | 2026-02-19 |
 
 ### Phase 14: Profile Conversion Tool (JSON to TOML)
 
@@ -351,9 +356,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 15-01-PLAN.md -- Batch conversion module with inheritance resolution, profile index, CLI import-profiles subcommand
-- [ ] 15-02-PLAN.md -- CLI profile discovery subcommands (list-profiles, search-profiles, show-profile) and profile library generation
-- [ ] 15-03-PLAN.md -- Integration tests for conversion fidelity, round-trip verification, and phase success criteria
+- [x] 15-01-PLAN.md -- Batch conversion module with inheritance resolution, profile index, CLI import-profiles subcommand
+- [x] 15-02-PLAN.md -- CLI profile discovery subcommands (list-profiles, search-profiles, show-profile) and profile library generation
+- [x] 15-03-PLAN.md -- Integration tests for conversion fidelity, round-trip verification, and phase success criteria
 
 ### Phase 16: PrusaSlicer Profile Migration
 
@@ -369,5 +374,5 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 16-01-PLAN.md -- INI parser module, PrusaSlicer field mapping, batch conversion, index merge, CLI integration
-- [ ] 16-02-PLAN.md -- Generate PrusaSlicer profile library, integration tests, phase success criteria verification
+- [x] 16-01-PLAN.md -- INI parser module, PrusaSlicer field mapping, batch conversion, index merge, CLI integration
+- [x] 16-02-PLAN.md -- Generate PrusaSlicer profile library, integration tests, phase success criteria verification
