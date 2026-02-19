@@ -44,6 +44,7 @@ pub mod polyhole;
 pub mod preview;
 pub mod profile_convert;
 pub mod profile_import;
+pub mod profile_import_ini;
 pub mod profile_library;
 pub mod scarf;
 pub mod seam;
