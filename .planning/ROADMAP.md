@@ -327,6 +327,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 14. Profile Conversion Tool (JSON to TOML) | 2/2 | ✓ Complete | 2026-02-18 |
 | 15. Printer and Filament Profile Library | 3/3 | ✓ Complete | 2026-02-18 |
 | 16. PrusaSlicer Profile Migration | 2/2 | ✓ Complete | 2026-02-19 |
+| 17. BambuStudio Profile Migration | 1/1 | ✓ Complete | 2026-02-19 |
 
 ### Phase 14: Profile Conversion Tool (JSON to TOML)
 
@@ -391,7 +392,7 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 17-01-PLAN.md -- Generate BambuStudio profile library via CLI, integration tests for batch conversion and index merge
+- [x] 17-01-PLAN.md -- Generate BambuStudio profile library via CLI, integration tests for batch conversion and index merge
 
 ### Phase 18: CrealityPrint Profile Migration. Find and convert the printer/machine and filament/material profiles in /home/steve/slicer-analysis/CrealityPrint to profiles/ in this project like we did in the previous phase.
 
