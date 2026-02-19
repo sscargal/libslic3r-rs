@@ -376,3 +376,28 @@ Plans:
 Plans:
 - [x] 16-01-PLAN.md -- INI parser module, PrusaSlicer field mapping, batch conversion, index merge, CLI integration
 - [x] 16-02-PLAN.md -- Generate PrusaSlicer profile library, integration tests, phase success criteria verification
+
+### Phase 17: BambuStudio Profile Migration
+
+**Goal:** Import ~2,348 BambuStudio profiles into the profile library using the existing batch conversion pipeline (zero code changes), extending the library to 3 sources and ~17,600 total profiles
+**Depends on:** Phase 16
+**Success Criteria** (what must be TRUE):
+  1. BambuStudio JSON profiles convert via existing `batch_convert_profiles()` with zero code changes
+  2. ~2,348 instantiated profiles convert without fatal errors
+  3. Merged index.json contains entries from all three sources (orcaslicer + prusaslicer + bambustudio)
+  4. CLI list-profiles, search-profiles, show-profile work with the combined 3-source library
+  5. BambuStudio-unique profiles (H2C, H2S, P2S) are present in the library
+  6. Integration tests verify batch conversion, index merge, and TOML round-trip fidelity
+**Plans:** 1 plan
+
+Plans:
+- [ ] 17-01-PLAN.md -- Generate BambuStudio profile library via CLI, integration tests for batch conversion and index merge
+
+### Phase 18: CrealityPrint Profile Migration. Find and convert the printer/machine and filament/material profiles in /home/steve/slicer-analysis/CrealityPrint to profiles/ in this project like we did in the previous phase.
+
+**Goal:** [To be planned]
+**Depends on:** Phase 17
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 18 to break down)
