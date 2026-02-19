@@ -396,9 +396,16 @@ Plans:
 
 ### Phase 18: CrealityPrint Profile Migration. Find and convert the printer/machine and filament/material profiles in /home/steve/slicer-analysis/CrealityPrint to profiles/ in this project like we did in the previous phase.
 
-**Goal:** [To be planned]
+**Goal:** Import ~3,940 CrealityPrint profiles into the profile library using the existing batch conversion pipeline (zero code changes), extending the library to 4 sources and ~21,544 total profiles
 **Depends on:** Phase 17
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. CrealityPrint JSON profiles convert via existing `batch_convert_profiles()` with zero code changes
+  2. ~3,940 instantiated profiles convert without fatal errors
+  3. Merged index.json contains entries from all four sources (orcaslicer + prusaslicer + bambustudio + crealityprint)
+  4. CLI list-profiles, search-profiles, show-profile work with the combined 4-source library
+  5. CrealityPrint-unique profiles (K2, GS-01, SPARKX i7) are present in the library
+  6. Integration tests verify batch conversion, index merge, and TOML round-trip fidelity
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 18 to break down)
+- [ ] 18-01-PLAN.md -- Generate CrealityPrint profile library via CLI, integration tests for batch conversion and index merge
