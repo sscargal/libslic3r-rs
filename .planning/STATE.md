@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 15 COMPLETE -- Printer and Filament Profile Library
+**Current focus:** Phase 16 in progress -- PrusaSlicer Profile Migration
 
 ## Current Position
 
-Phase: 15 of 15 (Printer and Filament Profile Library)
-Plan: 3 of 3 in current phase (3 complete)
-Status: Complete
-Last activity: 2026-02-18 -- Completed 15-03-PLAN.md (Integration Tests & Success Criteria)
+Phase: 16 of 16 (PrusaSlicer Profile Migration)
+Plan: 1 of 2 in current phase (1 complete)
+Status: In Progress
+Last activity: 2026-02-19 -- Completed 16-01-PLAN.md (INI Parsing and Conversion Pipeline)
 
-Progress: [############################################################] 100% (87/87 overall)
+Progress: [############################################################] 100% (88/89 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 87
+- Total plans completed: 88
 - Average duration: 5.0 min
-- Total execution time: 7.3 hours
+- Total execution time: 7.4 hours
 
 **By Phase:**
 
@@ -43,9 +43,11 @@ Progress: [############################################################] 100% (8
 | 14    | 2     | 7min  | 3.5min   |
 | 15    | 3     | 16min | 5.3min   |
 
+| 16    | 1     | 7min  | 7.0min   |
+
 **Recent Trend:**
-- Last 5 plans: 14-02 (3min), 15-01 (6min), 15-02 (4min), 15-03 (6min)
-- Trend: Steady 3-6min/plan
+- Last 5 plans: 15-01 (6min), 15-02 (4min), 15-03 (6min), 16-01 (7min)
+- Trend: Steady 4-7min/plan
 
 *Updated after each plan completion*
 
@@ -378,11 +380,19 @@ Recent decisions affecting current work:
 - [15-03]: Fixed merge_inheritance second-loop bug: restricted overlay to child-mapped fields only via upstream_key_to_config_field reverse mapping
 - [15-03]: Added upstream_key_to_config_field pub(crate) function mapping OrcaSlicer JSON keys to PrintConfig field names
 
+- [16-01]: Hand-rolled INI parser for PrusaSlicer's non-standard [type:name] section format (no INI crate handles it)
+- [16-01]: Multi-parent inheritance splits on semicolons with left-to-right merge and MAX_DEPTH=10 guard
+- [16-01]: Comma-separated multi-extruder values (nozzle_diameter, jerk, temperature) take first value
+- [16-01]: Percentage speed values (first_layer_speed = 50%) are skipped -- PrintConfig uses absolute speeds
+- [16-01]: write_merged_index replaces write_index for all imports to preserve cross-source index entries
+- [16-01]: sanitize_filename handles && via replacement to _and_ for PrusaSlicer printer names (MK3S && MK3S+)
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
 - Phase 14 added: Profile Conversion Tool (JSON to TOML)
 - Phase 15 added: Printer and Filament Profile Library
+- Phase 16 added: PrusaSlicer Profile Migration
 
 ### Pending Todos
 
@@ -394,6 +404,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-18
-Stopped at: Completed 15-03-PLAN.md (Integration Tests & Success Criteria) -- ALL PHASES COMPLETE
-Resume file: .planning/phases/15-printer-and-filament-profile-library/15-03-SUMMARY.md
+Last session: 2026-02-19
+Stopped at: Completed 16-01-PLAN.md (INI Parsing and Conversion Pipeline)
+Resume file: .planning/phases/16-prusaslicer-profile-migration/16-01-SUMMARY.md
