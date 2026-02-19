@@ -29,6 +29,10 @@ use std::path::Path;
 use crate::error::EngineError;
 use crate::profile_convert::convert_to_toml;
 use crate::profile_import::{import_upstream_profile, ImportResult};
+use crate::profile_import_ini::{
+    build_section_lookup, import_prusaslicer_ini_profile, parse_prusaslicer_ini,
+    resolve_ini_inheritance,
+};
 
 /// An entry in the profile index, containing searchable metadata.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -519,6 +523,208 @@ pub fn batch_convert_profiles(
 }
 
 // ---------------------------------------------------------------------------
+// PrusaSlicer batch conversion
+// ---------------------------------------------------------------------------
+
+/// Convert all PrusaSlicer profiles from INI vendor files to native TOML format.
+///
+/// Walks `source_dir` looking for `*.ini` files (not subdirectories). Skips files
+/// containing "SLA" in the filename. For each INI file, parses sections, resolves
+/// inheritance, and converts concrete profiles to TOML.
+///
+/// Output structure: `output_dir/vendor_name/profile_type/sanitized_name.toml`.
+/// Individual profile errors are collected but do not abort the batch.
+pub fn batch_convert_prusaslicer_profiles(
+    source_dir: &Path,
+    output_dir: &Path,
+    source_name: &str,
+) -> Result<BatchConvertResult, EngineError> {
+    let mut converted: usize = 0;
+    let mut skipped: usize = 0;
+    let mut errors: Vec<String> = Vec::new();
+    let mut entries: Vec<ProfileIndexEntry> = Vec::new();
+
+    // Verify source directory exists.
+    if !source_dir.is_dir() {
+        return Err(EngineError::ConfigError(format!(
+            "Source directory '{}' does not exist or is not a directory",
+            source_dir.display()
+        )));
+    }
+
+    // Walk *.ini files directly in source_dir (not subdirectories).
+    let dir_entries = match std::fs::read_dir(source_dir) {
+        Ok(rd) => rd,
+        Err(e) => {
+            return Err(EngineError::ConfigError(format!(
+                "Failed to read source directory '{}': {}",
+                source_dir.display(),
+                e
+            )));
+        }
+    };
+
+    for dir_entry in dir_entries {
+        let dir_entry = match dir_entry {
+            Ok(e) => e,
+            Err(e) => {
+                errors.push(format!("Failed to read directory entry: {}", e));
+                continue;
+            }
+        };
+
+        let path = dir_entry.path();
+
+        // Only process .ini files.
+        if path.extension().and_then(|e| e.to_str()) != Some("ini") {
+            continue;
+        }
+
+        // Skip SLA vendor files.
+        let filename = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("");
+        if filename.contains("SLA") {
+            skipped += 1;
+            continue;
+        }
+
+        // Derive vendor name from filename stem.
+        let vendor_name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        // Read and parse the INI file.
+        let contents = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(e) => {
+                errors.push(format!("Failed to read '{}': {}", path.display(), e));
+                continue;
+            }
+        };
+
+        let sections = parse_prusaslicer_ini(&contents);
+        let lookup = build_section_lookup(&sections);
+
+        // Profile types to convert.
+        const CONVERTIBLE_TYPES: &[&str] = &["print", "filament", "printer"];
+
+        // Process each concrete section.
+        for (idx, section) in sections.iter().enumerate() {
+            // Skip abstract profiles.
+            if section.is_abstract {
+                skipped += 1;
+                continue;
+            }
+
+            // Skip non-profile section types (vendor, printer_model).
+            if !CONVERTIBLE_TYPES.contains(&section.section_type.as_str()) {
+                continue;
+            }
+
+            // Skip sections with empty names.
+            if section.name.is_empty() {
+                continue;
+            }
+
+            // Resolve inheritance chain.
+            let resolved = resolve_ini_inheritance(
+                &sections[idx],
+                &sections,
+                &lookup,
+                0,
+            );
+
+            // Convert to ImportResult.
+            let import_result = import_prusaslicer_ini_profile(
+                &resolved,
+                &section.name,
+                &section.section_type,
+            );
+
+            // Convert to TOML.
+            let convert_result = convert_to_toml(&import_result);
+
+            // Map section type to profile type directory name.
+            let profile_type = match section.section_type.as_str() {
+                "print" => "process",
+                "filament" => "filament",
+                "printer" => "machine",
+                _ => &section.section_type,
+            };
+
+            let sanitized = sanitize_filename(&section.name);
+            let out_dir = output_dir.join(&vendor_name).join(profile_type);
+
+            // Create output directory.
+            if let Err(e) = std::fs::create_dir_all(&out_dir) {
+                errors.push(format!(
+                    "Failed to create directory '{}': {}",
+                    out_dir.display(),
+                    e
+                ));
+                continue;
+            }
+
+            let out_file = out_dir.join(format!("{}.toml", sanitized));
+
+            // Write TOML file.
+            if let Err(e) = std::fs::write(&out_file, &convert_result.toml_output) {
+                errors.push(format!(
+                    "Failed to write '{}': {}",
+                    out_file.display(),
+                    e
+                ));
+                continue;
+            }
+
+            // Build index entry.
+            let relative_path = format!(
+                "{}/{}/{}/{}.toml",
+                source_name, vendor_name, profile_type, sanitized
+            );
+            let id = format!(
+                "{}/{}/{}/{}",
+                source_name, vendor_name, profile_type, sanitized
+            );
+
+            let entry = ProfileIndexEntry {
+                id,
+                name: section.name.clone(),
+                source: source_name.to_string(),
+                vendor: vendor_name.clone(),
+                profile_type: profile_type.to_string(),
+                material: extract_material_from_name(&section.name),
+                nozzle_size: extract_nozzle_size_from_name(&section.name),
+                printer_model: extract_printer_model(&section.name),
+                path: relative_path,
+                layer_height: extract_layer_height_from_name(&section.name),
+                quality: extract_quality_from_name(&section.name),
+            };
+
+            entries.push(entry);
+            converted += 1;
+        }
+    }
+
+    let index = ProfileIndex {
+        version: 1,
+        generated: chrono_timestamp(),
+        profiles: entries,
+    };
+
+    Ok(BatchConvertResult {
+        converted,
+        skipped,
+        errors,
+        index,
+    })
+}
+
+// ---------------------------------------------------------------------------
 // Index I/O
 // ---------------------------------------------------------------------------
 
@@ -570,6 +776,52 @@ pub fn load_index(profiles_dir: &Path) -> Result<ProfileIndex, EngineError> {
     Ok(index)
 }
 
+/// Write a profile index, merging with any existing index at `output_dir/index.json`.
+///
+/// If an existing `index.json` exists, loads it and merges the new entries:
+/// - New entries with the same `id` replace existing ones.
+/// - Entries from the existing index with different IDs are preserved.
+///
+/// If no existing index exists, writes the new index as-is.
+pub fn write_merged_index(
+    new_index: &ProfileIndex,
+    output_dir: &Path,
+) -> Result<(), EngineError> {
+    let index_path = output_dir.join("index.json");
+
+    let merged = if index_path.exists() {
+        // Load existing index.
+        let existing = load_index(output_dir)?;
+
+        // Build a set of IDs in the new index for fast lookup.
+        let new_ids: std::collections::HashSet<&str> = new_index
+            .profiles
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect();
+
+        // Keep existing entries whose IDs are not in the new index.
+        let mut merged_profiles: Vec<ProfileIndexEntry> = existing
+            .profiles
+            .into_iter()
+            .filter(|p| !new_ids.contains(p.id.as_str()))
+            .collect();
+
+        // Append all new entries.
+        merged_profiles.extend(new_index.profiles.clone());
+
+        ProfileIndex {
+            version: 1,
+            generated: chrono_timestamp(),
+            profiles: merged_profiles,
+        }
+    } else {
+        new_index.clone()
+    };
+
+    write_index(&merged, output_dir)
+}
+
 // ---------------------------------------------------------------------------
 // Metadata extraction helpers
 // ---------------------------------------------------------------------------
@@ -577,8 +829,10 @@ pub fn load_index(profiles_dir: &Path) -> Result<ProfileIndex, EngineError> {
 /// Sanitize a profile name for use as a filename.
 ///
 /// Replaces spaces with `_`, removes `@`, removes parentheses,
-/// replaces `/` with `_`.
+/// replaces `/` with `_`, replaces `&&` with `_and_`.
 pub(crate) fn sanitize_filename(name: &str) -> String {
+    // First, replace multi-character sequences.
+    let name = name.replace("&&", "_and_");
     name.chars()
         .filter_map(|c| match c {
             ' ' => Some('_'),
@@ -667,8 +921,14 @@ pub(crate) fn extract_printer_model(name: &str) -> Option<String> {
 
 /// Extract quality level from a profile name.
 ///
-/// Matches (case-insensitive): "Extra Fine", "Fine", "High Quality",
-/// "Standard", "Draft", "Super Draft".
+/// Matches (case-insensitive) OrcaSlicer terms: "Extra Fine", "Fine",
+/// "High Quality", "Standard", "Draft", "Super Draft".
+///
+/// Also matches PrusaSlicer terms: "Ultra Detail", "Detail", "Optimal",
+/// "Normal", "Speed", "Fast".
+///
+/// Longest matches are checked first to avoid prefix collisions
+/// (e.g., "ultradetail" before "detail", "super draft" before "draft").
 pub(crate) fn extract_quality_from_name(name: &str) -> Option<String> {
     let lower = name.to_lowercase();
     // Check longest matches first.
@@ -678,12 +938,24 @@ pub(crate) fn extract_quality_from_name(name: &str) -> Option<String> {
         Some("Extra Fine".to_string())
     } else if lower.contains("high quality") {
         Some("High Quality".to_string())
+    } else if lower.contains("ultradetail") {
+        Some("Ultra Detail".to_string())
     } else if lower.contains("standard") {
         Some("Standard".to_string())
     } else if lower.contains("draft") {
         Some("Draft".to_string())
     } else if lower.contains("fine") {
         Some("Fine".to_string())
+    } else if lower.contains("detail") {
+        Some("Detail".to_string())
+    } else if lower.contains("optimal") {
+        Some("Optimal".to_string())
+    } else if lower.contains("normal") {
+        Some("Normal".to_string())
+    } else if lower.contains("speed") {
+        Some("Speed".to_string())
+    } else if lower.contains("fast") {
+        Some("Fast".to_string())
     } else {
         None
     }
@@ -1030,6 +1302,144 @@ mod tests {
         assert_eq!(loaded.profiles.len(), 1);
         assert_eq!(loaded.profiles[0].name, "Test PLA");
         assert_eq!(loaded.profiles[0].material, Some("PLA".to_string()));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_sanitize_filename_with_ampersands() {
+        assert_eq!(
+            sanitize_filename("Original Prusa i3 MK3S && MK3S+"),
+            "Original_Prusa_i3_MK3S__and__MK3S+"
+        );
+        assert_eq!(
+            sanitize_filename("MK3.9 && MK3.9+"),
+            "MK3.9__and__MK3.9+"
+        );
+        // Single & should be preserved.
+        assert_eq!(
+            sanitize_filename("A & B"),
+            "A_&_B"
+        );
+    }
+
+    #[test]
+    fn test_extract_quality_prusaslicer_terms() {
+        assert_eq!(
+            extract_quality_from_name("0.05mm ULTRADETAIL @0.25 nozzle"),
+            Some("Ultra Detail".to_string())
+        );
+        assert_eq!(
+            extract_quality_from_name("0.10mm DETAIL @MK4S"),
+            Some("Detail".to_string())
+        );
+        assert_eq!(
+            extract_quality_from_name("0.15mm OPTIMAL @MK4S"),
+            Some("Optimal".to_string())
+        );
+        assert_eq!(
+            extract_quality_from_name("0.20mm NORMAL"),
+            Some("Normal".to_string())
+        );
+        assert_eq!(
+            extract_quality_from_name("0.30mm SPEED @MK4S"),
+            Some("Speed".to_string())
+        );
+        assert_eq!(
+            extract_quality_from_name("0.35mm FAST"),
+            Some("Fast".to_string())
+        );
+        // Ensure "ultradetail" matches before "detail".
+        assert_eq!(
+            extract_quality_from_name("ULTRADETAIL profile"),
+            Some("Ultra Detail".to_string())
+        );
+    }
+
+    #[test]
+    fn test_write_merged_index_new() {
+        let dir = std::env::temp_dir().join("slicecore_test_merged_new");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        // No existing index -- should write as-is.
+        let index = ProfileIndex {
+            version: 1,
+            generated: "2026-01-01T00:00:00Z".to_string(),
+            profiles: vec![ProfileIndexEntry {
+                id: "prusaslicer/Prusa/process/test".to_string(),
+                name: "Test Profile".to_string(),
+                source: "prusaslicer".to_string(),
+                vendor: "Prusa".to_string(),
+                profile_type: "process".to_string(),
+                material: None,
+                nozzle_size: None,
+                printer_model: None,
+                path: "prusaslicer/Prusa/process/test.toml".to_string(),
+                layer_height: None,
+                quality: None,
+            }],
+        };
+
+        write_merged_index(&index, &dir).unwrap();
+        let loaded = load_index(&dir).unwrap();
+        assert_eq!(loaded.profiles.len(), 1);
+        assert_eq!(loaded.profiles[0].source, "prusaslicer");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_write_merged_index_preserves_existing() {
+        let dir = std::env::temp_dir().join("slicecore_test_merged_existing");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        // Write an initial "orcaslicer" index.
+        let orca_index = ProfileIndex {
+            version: 1,
+            generated: "2026-01-01T00:00:00Z".to_string(),
+            profiles: vec![ProfileIndexEntry {
+                id: "orcaslicer/BBL/filament/PLA".to_string(),
+                name: "PLA".to_string(),
+                source: "orcaslicer".to_string(),
+                vendor: "BBL".to_string(),
+                profile_type: "filament".to_string(),
+                material: Some("PLA".to_string()),
+                nozzle_size: None,
+                printer_model: None,
+                path: "orcaslicer/BBL/filament/PLA.toml".to_string(),
+                layer_height: None,
+                quality: None,
+            }],
+        };
+        write_index(&orca_index, &dir).unwrap();
+
+        // Now merge a "prusaslicer" index.
+        let prusa_index = ProfileIndex {
+            version: 1,
+            generated: "2026-01-02T00:00:00Z".to_string(),
+            profiles: vec![ProfileIndexEntry {
+                id: "prusaslicer/Prusa/filament/PrusaPLA".to_string(),
+                name: "Prusament PLA".to_string(),
+                source: "prusaslicer".to_string(),
+                vendor: "Prusa".to_string(),
+                profile_type: "filament".to_string(),
+                material: Some("PLA".to_string()),
+                nozzle_size: None,
+                printer_model: None,
+                path: "prusaslicer/Prusa/filament/PrusaPLA.toml".to_string(),
+                layer_height: None,
+                quality: None,
+            }],
+        };
+        write_merged_index(&prusa_index, &dir).unwrap();
+
+        let loaded = load_index(&dir).unwrap();
+        // Should have both OrcaSlicer and PrusaSlicer entries.
+        assert_eq!(loaded.profiles.len(), 2);
+
+        let sources: Vec<&str> = loaded.profiles.iter().map(|p| p.source.as_str()).collect();
+        assert!(sources.contains(&"orcaslicer"));
+        assert!(sources.contains(&"prusaslicer"));
 
         let _ = std::fs::remove_dir_all(&dir);
     }

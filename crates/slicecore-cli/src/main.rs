@@ -17,7 +17,8 @@ use clap::{Parser, Subcommand};
 
 use slicecore_ai::AiConfig;
 use slicecore_engine::{
-    batch_convert_profiles, load_index, write_index, Engine, PrintConfig, ProfileIndexEntry,
+    batch_convert_profiles, batch_convert_prusaslicer_profiles, load_index, write_merged_index,
+    Engine, PrintConfig, ProfileIndexEntry,
 };
 use slicecore_fileio::load_mesh;
 use slicecore_gcode_io::validate_gcode;
@@ -724,24 +725,40 @@ fn cmd_import_profiles(
         source_dir.display()
     );
 
-    let result = match batch_convert_profiles(source_dir, &target_dir, source_name) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("Error: Batch conversion failed: {}", e);
-            process::exit(1);
+    // Dispatch to the appropriate batch conversion pipeline based on source name.
+    let result = if source_name == "prusaslicer" {
+        match batch_convert_prusaslicer_profiles(source_dir, &target_dir, source_name) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("Error: Batch conversion failed: {}", e);
+                process::exit(1);
+            }
+        }
+    } else {
+        match batch_convert_profiles(source_dir, &target_dir, source_name) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("Error: Batch conversion failed: {}", e);
+                process::exit(1);
+            }
         }
     };
 
-    // Write the combined index.
-    if let Err(e) = write_index(&result.index, output_dir) {
+    // Write the index, merging with any existing index to preserve other sources.
+    if let Err(e) = write_merged_index(&result.index, output_dir) {
         eprintln!("Error: Failed to write index: {}", e);
         process::exit(1);
     }
 
     // Print summary to stderr.
+    let skip_label = if source_name == "prusaslicer" {
+        "abstract/SLA profiles"
+    } else {
+        "non-instantiated base profiles"
+    };
     eprintln!("Import complete:");
     eprintln!("  Converted: {} profiles", result.converted);
-    eprintln!("  Skipped:   {} (non-instantiated base profiles)", result.skipped);
+    eprintln!("  Skipped:   {} ({})", result.skipped, skip_label);
     eprintln!("  Errors:    {}", result.errors.len());
     eprintln!("  Output:    {}", output_dir.display());
 

@@ -100,7 +100,7 @@ pub use event::{CallbackSubscriber, EventBus, EventSubscriber, SliceEvent};
 pub use output::{to_json, to_msgpack, SliceMetadata};
 pub use profile_convert::{convert_to_toml, merge_import_results, ConvertResult};
 pub use profile_import::{detect_config_format, ConfigFormat, ImportResult, ProfileMetadata};
-pub use profile_library::{batch_convert_profiles, write_index, load_index, ProfileIndex, ProfileIndexEntry, BatchConvertResult};
+pub use profile_library::{batch_convert_profiles, batch_convert_prusaslicer_profiles, write_index, write_merged_index, load_index, ProfileIndex, ProfileIndexEntry, BatchConvertResult};
 
 // Re-export plugin types when the plugins feature is enabled.
 #[cfg(feature = "plugins")]
