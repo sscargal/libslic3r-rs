@@ -354,3 +354,20 @@ Plans:
 - [ ] 15-01-PLAN.md -- Batch conversion module with inheritance resolution, profile index, CLI import-profiles subcommand
 - [ ] 15-02-PLAN.md -- CLI profile discovery subcommands (list-profiles, search-profiles, show-profile) and profile library generation
 - [ ] 15-03-PLAN.md -- Integration tests for conversion fidelity, round-trip verification, and phase success criteria
+
+### Phase 16: PrusaSlicer Profile Migration
+
+**Goal:** Convert PrusaSlicer printer and filament profiles from INI format to native TOML, extending the profile library with ~9,500 profiles across 33 FFF vendors, using the same output structure and CLI commands established in Phase 15
+**Depends on:** Phase 15
+**Success Criteria** (what must be TRUE):
+  1. PrusaSlicer INI files parse correctly with typed section headers, key-value pairs, and abstract/concrete profile discrimination
+  2. Multi-parent inheritance (semicolon-separated) resolves left-to-right with recursive depth, producing correct merged field values
+  3. PrusaSlicer field names map to PrintConfig with correct value conversion (percentage stripping, comma-separated multi-extruder values)
+  4. Batch conversion produces TOML files in profiles/prusaslicer/vendor/type/ directory structure
+  5. Merged index.json contains entries from both OrcaSlicer and PrusaSlicer sources without clobbering
+  6. CLI list-profiles, search-profiles, and show-profile work with the combined multi-source profile library
+**Plans:** 2 plans
+
+Plans:
+- [ ] 16-01-PLAN.md -- INI parser module, PrusaSlicer field mapping, batch conversion, index merge, CLI integration
+- [ ] 16-02-PLAN.md -- Generate PrusaSlicer profile library, integration tests, phase success criteria verification
