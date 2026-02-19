@@ -874,9 +874,12 @@ pub(crate) fn extract_layer_height_from_name(name: &str) -> Option<f64> {
         // Find the start of the number (walk backwards from mm_pos).
         let before = &trimmed[..mm_pos];
         // Try to find a float-like sequence ending at mm_pos.
+        // Use char_indices to get the correct byte offset after a multi-byte character.
         let start = before
-            .rfind(|c: char| !c.is_ascii_digit() && c != '.')
-            .map(|p| p + 1)
+            .char_indices()
+            .rev()
+            .find(|&(_, c)| !c.is_ascii_digit() && c != '.')
+            .map(|(p, c)| p + c.len_utf8())
             .unwrap_or(0);
         let num_str = &before[start..];
         if !num_str.is_empty() {
@@ -894,9 +897,12 @@ pub(crate) fn extract_nozzle_size_from_name(name: &str) -> Option<f64> {
     if let Some(nozzle_pos) = lower.find("nozzle") {
         let before = lower[..nozzle_pos].trim_end();
         // Find the last number before "nozzle".
+        // Use char_indices to get the correct byte offset after a multi-byte character.
         let start = before
-            .rfind(|c: char| !c.is_ascii_digit() && c != '.')
-            .map(|p| p + 1)
+            .char_indices()
+            .rev()
+            .find(|&(_, c)| !c.is_ascii_digit() && c != '.')
+            .map(|(p, c)| p + c.len_utf8())
             .unwrap_or(0);
         let num_str = &before[start..];
         if !num_str.is_empty() {
