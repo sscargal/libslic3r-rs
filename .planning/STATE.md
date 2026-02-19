@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 16 complete -- PrusaSlicer Profile Migration
+**Current focus:** Phase 17 complete -- BambuStudio Profile Migration
 
 ## Current Position
 
-Phase: 16 of 16 (PrusaSlicer Profile Migration)
-Plan: 2 of 2 in current phase (2 complete)
+Phase: 17 of 18 (BambuStudio Profile Migration)
+Plan: 1 of 1 in current phase (1 complete)
 Status: Complete
-Last activity: 2026-02-19 -- Completed 16-02-PLAN.md (Integration Tests and Library Generation)
+Last activity: 2026-02-19 -- Completed 17-01-PLAN.md (BambuStudio Profile Import and Integration Tests)
 
-Progress: [############################################################] 100% (89/89 overall)
+Progress: [############################################################] 100% (90/90 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 89
+- Total plans completed: 90
 - Average duration: 5.0 min
-- Total execution time: 7.5 hours
+- Total execution time: 7.6 hours
 
 **By Phase:**
 
@@ -44,9 +44,10 @@ Progress: [############################################################] 100% (8
 | 15    | 3     | 16min | 5.3min   |
 
 | 16    | 2     | 12min | 6.0min   |
+| 17    | 1     | 4min  | 4.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 15-02 (4min), 15-03 (6min), 16-01 (7min), 16-02 (5min)
+- Last 5 plans: 15-03 (6min), 16-01 (7min), 16-02 (5min), 17-01 (4min)
 - Trend: Steady 4-7min/plan
 
 *Updated after each plan completion*
@@ -387,12 +388,18 @@ Recent decisions affecting current work:
 - [16-01]: write_merged_index replaces write_index for all imports to preserve cross-source index entries
 - [16-01]: sanitize_filename handles && via replacement to _and_ for PrusaSlicer printer names (MK3S && MK3S+)
 
+- [17-01]: Zero code changes: BambuStudio JSON format identical to OrcaSlicer, existing batch_convert_profiles handles it as-is
+- [17-01]: Separate bambustudio/ namespace preserves attribution and avoids filename collisions with OrcaSlicer profiles
+- [17-01]: include field (1,053 profiles) deliberately ignored -- targets contain dual-extruder fields not in PrintConfig
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
 - Phase 14 added: Profile Conversion Tool (JSON to TOML)
 - Phase 15 added: Printer and Filament Profile Library
 - Phase 16 added: PrusaSlicer Profile Migration
+- Phase 17 added: BambuStudio Profile Migration. Find and convert the printer/machine and filament/material profiles in /home/steve/slicer-analysis/BambuStudio to profiles/ in this project like we did in the previous phase.
+- Phase 18 added: CrealityPrint Profile Migration. Find and convert the printer/machine and filament/material profiles in /home/steve/slicer-analysis/CrealityPrint to profiles/ in this project like we did in the previous phase.
 
 ### Pending Todos
 
@@ -405,5 +412,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-19
-Stopped at: Completed 16-02-PLAN.md (Integration Tests and Library Generation) -- Phase 16 and all 16 phases complete
-Resume file: .planning/phases/16-prusaslicer-profile-migration/16-02-SUMMARY.md
+Stopped at: Completed 17-01-PLAN.md (BambuStudio Profile Import and Integration Tests) -- Phase 17 complete
+Resume file: .planning/phases/17-bambustudio-profile-migration-find-and-convert-the-printer-machine-and-filament-material-profiles-in-home-steve-slicer-analysis-bambustudio-to-profiles-in-this-project-like-we-did-in-the-previous-phase/17-01-SUMMARY.md
