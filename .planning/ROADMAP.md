@@ -409,3 +409,21 @@ Plans:
 
 Plans:
 - [ ] 18-01-PLAN.md -- Generate CrealityPrint profile library via CLI, integration tests for batch conversion and index merge
+
+### Phase 19: Slicing Summary and Print Statistics
+
+**Goal:** Generate detailed per-feature slicing statistics after G-code generation, presenting print time, filament usage, and per-feature breakdowns in user-selectable formats (ASCII table, CSV, JSON) with configurable precision, sorting, and support subtotals
+**Depends on:** Phase 18
+**Requirements:** GCODE-12, GCODE-13
+**Success Criteria** (what must be TRUE):
+  1. Per-feature statistics (time, filament, distance, segment count) are computed from LayerToolpath segments and available in SliceResult after every slice
+  2. G-code metrics (retraction count/distance, z-hop count/distance, wipe count/distance) are extracted from the GcodeCommand stream
+  3. ASCII table, CSV, and JSON output formats display per-feature breakdown with both percentage-of-total and percentage-of-print columns
+  4. CLI flags control statistics format (--stats-format), quiet mode (--quiet), file output (--stats-file), time precision (--time-precision), sort order (--sort-stats)
+  5. When --json is used for slice output, statistics are included by default (--json-no-stats to exclude)
+  6. All features appear in output even when unused (zero values), and support features have separate subtotals
+**Plans:** 2 plans
+
+Plans:
+- [ ] 19-01-PLAN.md -- Engine statistics module (PrintStatistics types, per-feature computation, G-code metrics extraction, pipeline integration)
+- [ ] 19-02-PLAN.md -- CLI formatting (ASCII table via comfy-table, CSV, JSON), CLI flags, integration tests
