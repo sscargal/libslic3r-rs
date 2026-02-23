@@ -165,6 +165,7 @@ mod tests {
                 cost: 0.38,
             },
             preview: None,
+            statistics: None,
         }
     }
 

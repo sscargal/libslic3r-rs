@@ -27,6 +27,7 @@ use crate::config::PrintConfig;
 use crate::error::EngineError;
 use crate::estimation::{estimate_print_time, PrintTimeEstimate};
 use crate::filament::{estimate_filament_usage, FilamentUsage};
+use crate::statistics::compute_statistics;
 use crate::gap_fill::detect_and_fill_gaps;
 use crate::gcode_gen::generate_full_gcode;
 use crate::infill::{generate_infill, lightning, InfillPattern, LayerInfill};
@@ -60,6 +61,8 @@ pub struct SliceResult {
     pub filament_usage: FilamentUsage,
     /// Optional preview data for visualization.
     pub preview: Option<SlicePreview>,
+    /// Detailed per-feature print statistics.
+    pub statistics: Option<crate::statistics::PrintStatistics>,
 }
 
 /// Assembles support toolpath segments from support regions.
@@ -479,6 +482,7 @@ impl Engine {
             time_estimate: result.time_estimate,
             filament_usage: result.filament_usage,
             preview: None,
+            statistics: result.statistics,
         })
     }
 
@@ -532,6 +536,7 @@ impl Engine {
             time_estimate: result.time_estimate,
             filament_usage: result.filament_usage,
             preview: None,
+            statistics: result.statistics,
         })
     }
 
@@ -1279,6 +1284,21 @@ impl Engine {
             self.config.filament_cost_per_kg,
         );
 
+        // 5c. Compute per-feature statistics.
+        if let Some(bus) = event_bus {
+            bus.emit(&crate::event::SliceEvent::StageChanged {
+                stage: "statistics".to_string(),
+                progress: 0.92,
+            });
+        }
+        let statistics = compute_statistics(
+            &layer_toolpaths,
+            &gcode_commands,
+            &time_estimate,
+            &filament_usage,
+            &self.config,
+        );
+
         let layer_count = layer_toolpaths.len();
 
         // 6. Write G-code (using configured dialect instead of hardcoded Marlin).
@@ -1309,6 +1329,7 @@ impl Engine {
             time_estimate,
             filament_usage,
             preview: None,
+            statistics: Some(statistics),
         })
     }
 
@@ -1989,6 +2010,15 @@ impl Engine {
             self.config.filament_cost_per_kg,
         );
 
+        // 5c. Compute per-feature statistics.
+        let statistics = compute_statistics(
+            &layer_toolpaths,
+            &gcode_commands,
+            &time_estimate,
+            &filament_usage,
+            &self.config,
+        );
+
         let layer_count = layer_toolpaths.len();
 
         // 6. Write G-code.
@@ -2016,6 +2046,7 @@ impl Engine {
             time_estimate,
             filament_usage,
             preview: None,
+            statistics: Some(statistics),
         })
     }
 }
@@ -3357,6 +3388,7 @@ mod tests {
                 cost: 0.75,
             },
             preview: None,
+            statistics: None,
         };
 
         // Serialize to JSON.
@@ -3567,6 +3599,54 @@ mod tests {
             "Clean mesh areas should match: regular={}, resolved={}",
             regular_area,
             resolved_area
+        );
+    }
+
+    #[test]
+    fn slice_result_has_populated_statistics() {
+        let config = PrintConfig::default();
+        let engine = Engine::new(config);
+        let mesh = unit_cube();
+
+        let result = engine.slice(&mesh).expect("slice should succeed");
+
+        assert!(
+            result.statistics.is_some(),
+            "statistics should be populated after slicing"
+        );
+
+        let stats = result.statistics.unwrap();
+        assert!(
+            !stats.features.is_empty(),
+            "statistics.features should not be empty"
+        );
+
+        // Should have 14 real features + 3 virtual (retract, unretract, wipe) = 17.
+        assert_eq!(
+            stats.features.len(),
+            17,
+            "Should have 17 features (14 real + 3 virtual), got {}",
+            stats.features.len()
+        );
+
+        // Summary should have correct layer count.
+        assert_eq!(
+            stats.summary.layer_count,
+            result.layer_count,
+            "Statistics layer count should match SliceResult layer count"
+        );
+
+        // Total time should match.
+        assert!(
+            (stats.summary.total_time_seconds - result.time_estimate.total_seconds).abs() < 1e-6,
+            "Statistics total time should match time estimate"
+        );
+
+        // At least some features should have non-zero data.
+        let nonzero_features = stats.features.iter().filter(|f| f.segment_count > 0).count();
+        assert!(
+            nonzero_features > 0,
+            "At least some features should have segments"
         );
     }
 }
