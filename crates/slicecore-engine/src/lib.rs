@@ -49,6 +49,7 @@ pub mod profile_library;
 pub mod scarf;
 pub mod seam;
 pub mod sequential;
+pub mod statistics;
 pub mod support;
 pub mod surface;
 pub mod toolpath;
@@ -101,6 +102,10 @@ pub use output::{to_json, to_msgpack, SliceMetadata};
 pub use profile_convert::{convert_to_toml, merge_import_results, ConvertResult};
 pub use profile_import::{detect_config_format, ConfigFormat, ImportResult, ProfileMetadata};
 pub use profile_library::{batch_convert_profiles, batch_convert_prusaslicer_profiles, write_index, write_merged_index, load_index, ProfileIndex, ProfileIndexEntry, BatchConvertResult};
+pub use statistics::{
+    PrintStatistics, FeatureStatistics, GcodeMetrics, StatisticsSummary,
+    TimePrecision, StatsSortOrder, compute_statistics,
+};
 
 // Re-export plugin types when the plugins feature is enabled.
 #[cfg(feature = "plugins")]
