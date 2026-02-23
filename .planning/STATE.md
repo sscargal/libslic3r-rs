@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 19 in progress -- Slicing Summary and Print Statistics
+**Current focus:** Phase 19 complete -- Slicing Summary and Print Statistics
 
 ## Current Position
 
 Phase: 19 of 19 (Slicing Summary and Print Statistics)
-Plan: 1 of 2 in current phase (1 complete)
-Status: In Progress
-Last activity: 2026-02-23 -- Completed 19-01-PLAN.md (PrintStatistics types and Engine pipeline integration)
+Plan: 2 of 2 in current phase (2 complete)
+Status: Complete
+Last activity: 2026-02-23 -- Completed 19-02-PLAN.md (CLI statistics display with ASCII table, CSV, JSON)
 
-Progress: [############################################################] 99% (92/93 overall)
+Progress: [############################################################] 100% (93/93 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 92
-- Average duration: 5.0 min
-- Total execution time: 7.8 hours
+- Total plans completed: 93
+- Average duration: 5.1 min
+- Total execution time: 7.9 hours
 
 **By Phase:**
 
@@ -46,11 +46,11 @@ Progress: [############################################################] 99% (92
 | 16    | 2     | 12min | 6.0min   |
 | 17    | 1     | 4min  | 4.0min   |
 | 18    | 1     | 4min  | 4.0min   |
-| 19    | 1     | 7min  | 7.0min   |
+| 19    | 2     | 16min | 8.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 16-02 (5min), 17-01 (4min), 18-01 (4min), 19-01 (7min)
-- Trend: Steady 4-7min/plan
+- Last 5 plans: 17-01 (4min), 18-01 (4min), 19-01 (7min), 19-02 (9min)
+- Trend: Steady 4-9min/plan
 
 *Updated after each plan completion*
 
@@ -402,6 +402,11 @@ Recent decisions affecting current work:
 - [19-01]: Per-feature times scaled by naive-to-trapezoid ratio so percentages match trapezoid total
 - [19-01]: Virtual features (Retract, Unretract, Wipe) from G-code metrics with 0.5s per retraction overhead
 - [19-01]: All 14 FeatureType variants appear in output even when unused (zero values)
+- [19-02]: comfy-table 7 for ASCII table rendering with ContentArrangement::Dynamic auto-sizing
+- [19-02]: Statistics display replaces old "Slicing complete:" summary format
+- [19-02]: clippy::too_many_arguments allow on cmd_slice (12 args from 6 new CLI flags)
+- [19-02]: Support subtotal row shown only when any support feature has non-zero time
+- [19-02]: --json includes statistics by default; --json-no-stats excludes them
 
 ### Roadmap Evolution
 
@@ -424,5 +429,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 19-01-PLAN.md (PrintStatistics types and Engine pipeline integration)
-Resume file: .planning/phases/19-slicing-summary-and-print-statistics/19-01-SUMMARY.md
+Stopped at: Completed 19-02-PLAN.md (CLI statistics display with ASCII table, CSV, JSON)
+Resume file: .planning/phases/19-slicing-summary-and-print-statistics/19-02-SUMMARY.md
