@@ -7,7 +7,7 @@
 use comfy_table::{ContentArrangement, Table};
 
 use slicecore_engine::{
-    FeatureStatistics, GcodeMetrics, PrintStatistics, StatsSortOrder, TimePrecision,
+    FeatureStatistics, PrintStatistics, StatsSortOrder, TimePrecision,
 };
 
 /// Formats a duration in seconds to a human-readable string.
@@ -321,7 +321,7 @@ pub fn parse_sort_order(s: &str) -> StatsSortOrder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use slicecore_engine::{GcodeMetrics, PrintStatistics, StatisticsSummary};
+    use slicecore_engine::{GcodeMetrics, StatisticsSummary};
 
     fn make_test_stats() -> PrintStatistics {
         PrintStatistics {

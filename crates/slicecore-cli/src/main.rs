@@ -119,6 +119,30 @@ enum Commands {
         /// Each subdirectory should contain a plugin.toml manifest.
         #[arg(long)]
         plugin_dir: Option<PathBuf>,
+
+        /// Statistics output format (table, csv, json). Default: table.
+        #[arg(long, default_value = "table", value_parser = ["table", "csv", "json"])]
+        stats_format: String,
+
+        /// Suppress statistics display after slicing.
+        #[arg(long)]
+        quiet: bool,
+
+        /// Save statistics to a file (in addition to stdout display).
+        #[arg(long, value_name = "FILE")]
+        stats_file: Option<PathBuf>,
+
+        /// Exclude statistics from JSON output (only with --json).
+        #[arg(long)]
+        json_no_stats: bool,
+
+        /// Time precision for statistics display.
+        #[arg(long, default_value = "seconds", value_parser = ["seconds", "deciseconds", "milliseconds"])]
+        time_precision: String,
+
+        /// Sort order for feature statistics.
+        #[arg(long, default_value = "default", value_parser = ["default", "time", "filament", "alpha"])]
+        sort_stats: String,
     },
 
     /// Validate a G-code file
@@ -270,6 +294,12 @@ fn main() {
             json,
             msgpack,
             plugin_dir,
+            stats_format,
+            quiet,
+            stats_file,
+            json_no_stats,
+            time_precision,
+            sort_stats,
         } => cmd_slice(
             &input,
             config.as_deref(),
@@ -277,6 +307,12 @@ fn main() {
             json,
             msgpack,
             plugin_dir.as_deref(),
+            &stats_format,
+            quiet,
+            stats_file.as_deref(),
+            json_no_stats,
+            &time_precision,
+            &sort_stats,
         ),
         Commands::Validate { input } => cmd_validate(&input),
         Commands::Analyze { input } => cmd_analyze(&input),
@@ -325,6 +361,7 @@ fn main() {
 }
 
 /// Slice an STL/mesh file to G-code.
+#[allow(clippy::too_many_arguments)]
 fn cmd_slice(
     input: &PathBuf,
     config_path: Option<&std::path::Path>,
@@ -332,6 +369,12 @@ fn cmd_slice(
     json_output: bool,
     msgpack_output: bool,
     plugin_dir: Option<&std::path::Path>,
+    stats_format: &str,
+    quiet: bool,
+    stats_file: Option<&std::path::Path>,
+    json_no_stats: bool,
+    time_precision: &str,
+    sort_stats: &str,
 ) {
     // 1. Read input file.
     let data = match std::fs::read(input) {
@@ -477,7 +520,31 @@ fn cmd_slice(
     // 9. Structured output (JSON or MessagePack to stdout).
     if json_output {
         match slicecore_engine::output::to_json(&result, &print_config) {
-            Ok(json_str) => println!("{}", json_str),
+            Ok(json_str) => {
+                if !json_no_stats {
+                    if let Some(ref statistics) = result.statistics {
+                        // Parse base JSON, inject statistics, re-serialize.
+                        if let Ok(mut value) =
+                            serde_json::from_str::<serde_json::Value>(&json_str)
+                        {
+                            if let Ok(stats_val) = serde_json::to_value(statistics) {
+                                value["statistics"] = stats_val;
+                            }
+                            if let Ok(combined) = serde_json::to_string_pretty(&value) {
+                                println!("{}", combined);
+                            } else {
+                                println!("{}", json_str);
+                            }
+                        } else {
+                            println!("{}", json_str);
+                        }
+                    } else {
+                        println!("{}", json_str);
+                    }
+                } else {
+                    println!("{}", json_str);
+                }
+            }
             Err(e) => {
                 eprintln!("Error: Failed to serialize JSON: {}", e);
                 process::exit(1);
@@ -499,18 +566,60 @@ fn cmd_slice(
         }
     }
 
-    // 10. Print summary (to stderr if structured output was requested, to stdout otherwise).
-    let time_minutes = result.estimated_time_seconds / 60.0;
+    // 10. Display statistics.
+    let time_precision_enum = stats_display::parse_time_precision(time_precision);
+    let sort_order = stats_display::parse_sort_order(sort_stats);
+
+    if let Some(ref statistics) = result.statistics {
+        if !quiet {
+            let stats_output = match stats_format {
+                "csv" => stats_display::format_csv(statistics, &sort_order),
+                "json" => stats_display::format_json(statistics),
+                _ => stats_display::format_ascii_table(statistics, &time_precision_enum, &sort_order),
+            };
+
+            // When structured output (--json/--msgpack) is active, stats go to stderr.
+            if json_output || msgpack_output {
+                eprintln!("{}", stats_output);
+            } else {
+                println!("{}", stats_output);
+            }
+        }
+
+        // Save to file if requested (regardless of quiet).
+        if let Some(file_path) = stats_file {
+            let stats_output = match stats_format {
+                "csv" => stats_display::format_csv(statistics, &sort_order),
+                "json" => stats_display::format_json(statistics),
+                _ => stats_display::format_ascii_table(statistics, &time_precision_enum, &sort_order),
+            };
+            if let Err(e) = std::fs::write(file_path, &stats_output) {
+                eprintln!(
+                    "Warning: Failed to write statistics to '{}': {}",
+                    file_path.display(),
+                    e
+                );
+            }
+        }
+    } else if !quiet {
+        // Fallback: basic summary when statistics is None.
+        let time_minutes = result.estimated_time_seconds / 60.0;
+        if json_output || msgpack_output {
+            eprintln!("Slicing complete:");
+            eprintln!("  Layers: {}", result.layer_count);
+            eprintln!("  Estimated time: {:.1} min", time_minutes);
+        } else {
+            println!("Slicing complete:");
+            println!("  Layers: {}", result.layer_count);
+            println!("  Estimated time: {:.1} min", time_minutes);
+        }
+    }
+
+    // Always print output path (separate from statistics).
     if json_output || msgpack_output {
-        eprintln!("Slicing complete:");
-        eprintln!("  Layers: {}", result.layer_count);
-        eprintln!("  Estimated time: {:.1} min ({:.0} sec)", time_minutes, result.estimated_time_seconds);
-        eprintln!("  Output: {}", out_path.display());
-    } else {
-        println!("Slicing complete:");
-        println!("  Layers: {}", result.layer_count);
-        println!("  Estimated time: {:.1} min ({:.0} sec)", time_minutes, result.estimated_time_seconds);
-        println!("  Output: {}", out_path.display());
+        eprintln!("Output: {}", out_path.display());
+    } else if !quiet {
+        println!("\nOutput: {}", out_path.display());
     }
 }
 

@@ -171,6 +171,12 @@ fn no_flag_produces_human_summary_on_stdout() {
     );
 
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.contains("Slicing complete:"), "stdout should contain human-readable summary");
+    // Statistics display replaces the old "Slicing complete:" summary.
+    assert!(
+        stdout.contains("=== Slicing Statistics ==="),
+        "stdout should contain statistics header, got:\n{}",
+        &stdout[..stdout.len().min(500)]
+    );
     assert!(stdout.contains("Layers:"), "stdout should mention layers");
+    assert!(stdout.contains("Output:"), "stdout should mention output path");
 }
