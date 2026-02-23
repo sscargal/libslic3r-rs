@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 18 complete -- CrealityPrint Profile Migration
+**Current focus:** Phase 19 in progress -- Slicing Summary and Print Statistics
 
 ## Current Position
 
-Phase: 18 of 18 (CrealityPrint Profile Migration)
-Plan: 1 of 1 in current phase (1 complete)
-Status: Complete
-Last activity: 2026-02-20 -- Completed 18-01-PLAN.md (CrealityPrint Profile Import and Integration Tests)
+Phase: 19 of 19 (Slicing Summary and Print Statistics)
+Plan: 1 of 2 in current phase (1 complete)
+Status: In Progress
+Last activity: 2026-02-23 -- Completed 19-01-PLAN.md (PrintStatistics types and Engine pipeline integration)
 
-Progress: [############################################################] 100% (91/91 overall)
+Progress: [############################################################] 99% (92/93 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 91
+- Total plans completed: 92
 - Average duration: 5.0 min
-- Total execution time: 7.7 hours
+- Total execution time: 7.8 hours
 
 **By Phase:**
 
@@ -46,9 +46,10 @@ Progress: [############################################################] 100% (9
 | 16    | 2     | 12min | 6.0min   |
 | 17    | 1     | 4min  | 4.0min   |
 | 18    | 1     | 4min  | 4.0min   |
+| 19    | 1     | 7min  | 7.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 16-01 (7min), 16-02 (5min), 17-01 (4min), 18-01 (4min)
+- Last 5 plans: 16-02 (5min), 17-01 (4min), 18-01 (4min), 19-01 (7min)
 - Trend: Steady 4-7min/plan
 
 *Updated after each plan completion*
@@ -397,6 +398,11 @@ Recent decisions affecting current work:
 - [18-01]: Separate crealityprint/ namespace preserves attribution and avoids filename collisions
 - [18-01]: 3,864 profiles converted, 895 skipped (non-instantiated base profiles), 0 errors
 
+- [19-01]: Statistics field is Option<PrintStatistics> on SliceResult for backward compatibility
+- [19-01]: Per-feature times scaled by naive-to-trapezoid ratio so percentages match trapezoid total
+- [19-01]: Virtual features (Retract, Unretract, Wipe) from G-code metrics with 0.5s per retraction overhead
+- [19-01]: All 14 FeatureType variants appear in output even when unused (zero values)
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
@@ -405,6 +411,7 @@ Recent decisions affecting current work:
 - Phase 16 added: PrusaSlicer Profile Migration
 - Phase 17 added: BambuStudio Profile Migration. Find and convert the printer/machine and filament/material profiles in /home/steve/slicer-analysis/BambuStudio to profiles/ in this project like we did in the previous phase.
 - Phase 18 added: CrealityPrint Profile Migration. Find and convert the printer/machine and filament/material profiles in /home/steve/slicer-analysis/CrealityPrint to profiles/ in this project like we did in the previous phase.
+- Phase 19 added: Slicing Summary and Print Statistics
 
 ### Pending Todos
 
@@ -416,6 +423,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-20
-Stopped at: Completed 18-01-PLAN.md (CrealityPrint Profile Import and Integration Tests) -- Phase 18 complete
-Resume file: .planning/phases/18-crealityprint-profile-migration-find-and-convert-the-printer-machine-and-filament-material-profiles-in-home-steve-slicer-analysis-crealityprint-to-profiles-in-this-project-like-we-did-in-the-previous-phase/18-01-SUMMARY.md
+Last session: 2026-02-23
+Stopped at: Completed 19-01-PLAN.md (PrintStatistics types and Engine pipeline integration)
+Resume file: .planning/phases/19-slicing-summary-and-print-statistics/19-01-SUMMARY.md

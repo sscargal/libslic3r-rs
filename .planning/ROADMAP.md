@@ -422,7 +422,7 @@ Plans:
   4. CLI flags control statistics format (--stats-format), quiet mode (--quiet), file output (--stats-file), time precision (--time-precision), sort order (--sort-stats)
   5. When --json is used for slice output, statistics are included by default (--json-no-stats to exclude)
   6. All features appear in output even when unused (zero values), and support features have separate subtotals
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 19-01-PLAN.md -- Engine statistics module (PrintStatistics types, per-feature computation, G-code metrics extraction, pipeline integration)
