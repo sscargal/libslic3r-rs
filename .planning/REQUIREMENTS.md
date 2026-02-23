@@ -86,8 +86,8 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 - [ ] **GCODE-09**: Cooling/fan control (layer time-based, bridge-specific)
 - [ ] **GCODE-10**: Skirt/brim/raft generation for bed adhesion
 - [ ] **GCODE-11**: Arc fitting (convert line segments to G2/G3 arcs)
-- [ ] **GCODE-12**: Print time estimation
-- [ ] **GCODE-13**: Filament usage estimation (weight, length, cost)
+- [x] **GCODE-12**: Print time estimation
+- [x] **GCODE-13**: Filament usage estimation (weight, length, cost)
 
 ### Plugin System (PLUGIN)
 
@@ -239,8 +239,8 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | GCODE-04 | Phase 6 | Pending |
 | GCODE-06 | Phase 6 | Pending |
 | GCODE-11 | Phase 6 | Pending |
-| GCODE-12 | Phase 6 | Pending |
-| GCODE-13 | Phase 6 | Pending |
+| GCODE-12 | Phase 6 | Complete |
+| GCODE-13 | Phase 6 | Complete |
 | ADV-01 | Phase 6 | Pending |
 | ADV-02 | Phase 6 | Pending |
 | ADV-03 | Phase 6 | Pending |
