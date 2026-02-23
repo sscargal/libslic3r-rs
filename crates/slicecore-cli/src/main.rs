@@ -10,6 +10,8 @@
 //! - `search-profiles`: Search profiles by keyword
 //! - `show-profile`: Show details of a specific profile
 
+mod stats_display;
+
 use std::path::PathBuf;
 use std::process;
 
