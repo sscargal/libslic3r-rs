@@ -417,6 +417,8 @@ Recent decisions affecting current work:
 - Phase 17 added: BambuStudio Profile Migration. Find and convert the printer/machine and filament/material profiles in /home/steve/slicer-analysis/BambuStudio to profiles/ in this project like we did in the previous phase.
 - Phase 18 added: CrealityPrint Profile Migration. Find and convert the printer/machine and filament/material profiles in /home/steve/slicer-analysis/CrealityPrint to profiles/ in this project like we did in the previous phase.
 - Phase 19 added: Slicing Summary and Print Statistics
+- Phase 20 added: Expand PrintConfig Field Coverage and Profile Mapping
+- Phase 21 added: G-code Analysis and Comparison Tool
 
 ### Pending Todos
 
