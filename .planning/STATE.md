@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 20 of 21 (Expand PrintConfig Field Coverage and Profile Mapping)
-Plan: 1 of 5 in current phase (1 complete)
+Plan: 2 of 5 in current phase (2 complete)
 Status: In Progress
-Last activity: 2026-02-24 -- Completed 20-01-PLAN.md (sub-config structs and passthrough)
+Last activity: 2026-02-24 -- Completed 20-02-PLAN.md (expand JSON field mapping)
 
-Progress: [############################################################] 100% (94/98 overall)
+Progress: [############################################################] 100% (95/98 overall)
 
 ## Performance Metrics
 
@@ -48,10 +48,10 @@ Progress: [############################################################] 100% (9
 | 18    | 1     | 4min  | 4.0min   |
 | 19    | 2     | 16min | 8.0min   |
 
-| 20    | 1     | 3min  | 3.0min   |
+| 20    | 2     | 12min | 6.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 18-01 (4min), 19-01 (7min), 19-02 (9min), 20-01 (3min)
+- Last 5 plans: 19-01 (7min), 19-02 (9min), 20-01 (3min), 20-02 (9min)
 - Trend: Steady 3-9min/plan
 
 *Updated after each plan completion*
@@ -414,6 +414,10 @@ Recent decisions affecting current work:
 - [20-01]: Vec<f64> for multi-extruder arrays with first-element accessor methods returning sensible defaults for empty vecs
 - [20-01]: New sub-config fields added alongside existing flat fields (no migration yet) for zero breaking changes
 - [20-01]: Industry-standard defaults from BambuStudio reference profiles
+- [20-02]: Array fields (nozzle_diameter, jerk, temperature) handled by separate apply_array_field_mapping before scalar extraction for Vec<f64> fidelity
+- [20-02]: Default match arm stores unmapped fields in passthrough AND tracks in unmapped_fields for backward compat with convert pipeline
+- [20-02]: Scalar flat fields still set alongside Vec/sub-config fields for zero breaking changes to engine code
+- [20-02]: passthrough_fields added to ImportResult alongside unmapped_fields (not replacing) for backward compatibility
 
 ### Roadmap Evolution
 
