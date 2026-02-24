@@ -427,3 +427,41 @@ Plans:
 Plans:
 - [ ] 19-01-PLAN.md -- Engine statistics module (PrintStatistics types, per-feature computation, G-code metrics extraction, pipeline integration)
 - [ ] 19-02-PLAN.md -- CLI formatting (ASCII table via comfy-table, CSV, JSON), CLI flags, integration tests
+
+### Phase 20: Expand PrintConfig Field Coverage and Profile Mapping
+
+**Goal:** Expand PrintConfig to include the ~50 most impactful upstream slicer fields (layer_height, nozzle_diameter, retract_length, line widths, per-feature speeds, bed size, start/end G-code, cooling settings, max volumetric speed) and update the JSON/INI-to-TOML profile mapping so converted profiles capture enough settings for meaningful apples-to-apples slicer output comparison
+**Depends on:** Phase 19
+**Success Criteria** (what must be TRUE):
+  1. PrintConfig includes all critical process fields: layer_height, bottom_solid_layers, bridge_speed, inner_wall_speed, gap_fill_speed, top_surface_speed, and all line width fields (outer_wall, inner_wall, infill, top_surface, initial_layer)
+  2. PrintConfig includes all critical machine fields: nozzle_diameter, retract_length, bed_size, printable_area, start_gcode, end_gcode, max_acceleration_(x/y/z/e), max_speed_(x/y/z/e)
+  3. PrintConfig includes all critical filament fields: retract_length (filament override), max_volumetric_speed, fan_max_speed, fan_min_speed, slow_down_layer_time, slow_down_min_speed, filament_type
+  4. JSON profile mapper (OrcaSlicer/BambuStudio) maps at least 50 upstream fields to PrintConfig (up from ~24 for process, ~9 for machine, ~10 for filament)
+  5. INI profile mapper (PrusaSlicer) maps the same expanded field set
+  6. Re-converted BambuStudio X1C profiles (0.20mm Standard + Generic PLA + X1C 0.4mm) contain all settings needed for a representative slice comparison
+  7. All existing tests pass with no regressions
+**Plans:** 5 plans
+
+Plans:
+- [ ] 20-01-PLAN.md -- Add nested sub-config structs (LineWidthConfig, SpeedConfig, CoolingConfig, RetractionConfig, MachineConfig, AccelerationConfig, FilamentPropsConfig) and passthrough BTreeMap to PrintConfig
+- [ ] 20-02-PLAN.md -- Expand JSON profile mapper from ~43 to 100+ mapped fields with passthrough storage
+- [ ] 20-03-PLAN.md -- Expand PrusaSlicer INI profile mapper to match JSON mapper coverage
+- [ ] 20-04-PLAN.md -- Migrate existing flat fields into sub-configs and update all engine call sites
+- [ ] 20-05-PLAN.md -- Re-convert all ~21k profiles with expanded mappers and integration tests
+
+### Phase 21: G-code Analysis and Comparison Tool
+
+**Goal:** Build a G-code parser and analysis module that can ingest any G-code file (from BambuStudio, OrcaSlicer, PrusaSlicer, or our own output) and extract structured metrics for comparison: layer count, Z heights, feature annotations (;TYPE: comments), per-feature move counts/distances/extrusion amounts, speed distributions, retraction counts, and time/filament totals from headers. Expose via CLI `analyze-gcode` subcommand for standalone use and slicer output comparison.
+**Depends on:** Phase 20
+**Success Criteria** (what must be TRUE):
+  1. G-code parser extracts layer boundaries (Z changes), move counts, travel/extrusion distances, and total filament per layer
+  2. Feature type annotations (`;TYPE:` comments from BambuStudio/OrcaSlicer/PrusaSlicer) are parsed and per-feature metrics accumulated
+  3. Retraction count/distance, z-hop count/distance, and speed distribution (min/max/mean per feature) extracted
+  4. Header metadata (slicer name/version, estimated time, filament usage, layer count) parsed from comment blocks
+  5. `slicecore analyze-gcode <file>` CLI subcommand outputs analysis as ASCII table, CSV, or JSON (reusing stats_display patterns)
+  6. `slicecore compare-gcode <file1> <file2>` CLI subcommand shows side-by-side metrics comparison with delta columns
+  7. Analysis of BambuStudio, OrcaSlicer, and PrusaSlicer G-code files produces correct metrics validated against header-reported values
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 21 to break down)
