@@ -79,9 +79,20 @@ impl Default for LineWidthConfig {
 /// A value of 0.0 means "inherit from the parent speed" (e.g., inner_wall
 /// inherits from perimeter_speed). This matches upstream slicer behavior
 /// where 0 indicates automatic/inherited speed.
+///
+/// The four primary speed fields (`perimeter`, `infill`, `travel`,
+/// `first_layer`) were migrated from `PrintConfig` flat fields in Plan 04.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct SpeedConfig {
+    /// Perimeter print speed (mm/s).
+    pub perimeter: f64,
+    /// Infill print speed (mm/s).
+    pub infill: f64,
+    /// Travel (non-extrusion) speed (mm/s).
+    pub travel: f64,
+    /// First layer print speed (mm/s).
+    pub first_layer: f64,
     /// Bridge print speed (mm/s).
     pub bridge: f64,
     /// Inner wall speed (mm/s, 0 = inherit from perimeter_speed).
@@ -117,6 +128,10 @@ pub struct SpeedConfig {
 impl Default for SpeedConfig {
     fn default() -> Self {
         Self {
+            perimeter: 45.0,
+            infill: 80.0,
+            travel: 150.0,
+            first_layer: 20.0,
             bridge: 25.0,
             inner_wall: 0.0,
             gap_fill: 0.0,
@@ -139,10 +154,18 @@ impl Default for SpeedConfig {
 /// Cooling and fan configuration.
 ///
 /// Controls fan speeds, layer-time-based slowdown, and overhang cooling.
+/// The flat `fan_speed`, `fan_below_layer_time`, and `disable_fan_first_layers`
+/// fields were migrated from `PrintConfig` in Plan 04.
 /// Percentage values are 0-100 (not 0-1 fraction).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CoolingConfig {
+    /// Fan speed (0-255).
+    pub fan_speed: u8,
+    /// Enable fan when layer time falls below this value (seconds).
+    pub fan_below_layer_time: f64,
+    /// Number of initial layers with fan disabled.
+    pub disable_fan_first_layers: u32,
     /// Maximum fan speed (percentage, 0-100).
     pub fan_max_speed: f64,
     /// Minimum fan speed (percentage, 0-100).
@@ -164,6 +187,9 @@ pub struct CoolingConfig {
 impl Default for CoolingConfig {
     fn default() -> Self {
         Self {
+            fan_speed: 255,
+            fan_below_layer_time: 60.0,
+            disable_fan_first_layers: 1,
             fan_max_speed: 100.0,
             fan_min_speed: 35.0,
             slow_down_layer_time: 5.0,
@@ -176,15 +202,22 @@ impl Default for CoolingConfig {
     }
 }
 
-/// Additional retraction configuration.
+/// Retraction configuration.
 ///
-/// Note: The existing flat `retract_length`, `retract_speed`, `retract_z_hop`,
-/// and `min_travel_for_retract` fields on `PrintConfig` are NOT moved here yet
-/// (migration happens in Plan 04). These are ADDITIONAL retraction fields not
-/// previously in `PrintConfig`.
+/// The flat `retract_length`, `retract_speed`, `retract_z_hop`, and
+/// `min_travel_for_retract` fields were migrated from `PrintConfig` in
+/// Plan 04 (renamed to `length`, `speed`, `z_hop`, `min_travel`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RetractionConfig {
+    /// Retraction distance in mm.
+    pub length: f64,
+    /// Retraction speed in mm/s.
+    pub speed: f64,
+    /// Z-hop height during retraction in mm.
+    pub z_hop: f64,
+    /// Minimum travel distance to trigger retraction in mm.
+    pub min_travel: f64,
     /// Deretraction (unretract) speed in mm/s (0 = same as retraction speed).
     pub deretraction_speed: f64,
     /// Percentage of retraction to perform before wipe (0-100).
@@ -200,6 +233,10 @@ pub struct RetractionConfig {
 impl Default for RetractionConfig {
     fn default() -> Self {
         Self {
+            length: 0.8,
+            speed: 45.0,
+            z_hop: 0.0,
+            min_travel: 1.5,
             deretraction_speed: 0.0,
             retract_before_wipe: 0.0,
             retract_when_changing_layer: false,
@@ -212,11 +249,16 @@ impl Default for RetractionConfig {
 /// Machine/printer hardware configuration.
 ///
 /// Contains printer capabilities, motion limits, G-code templates, and
-/// multi-extruder array fields. Vec fields use single-element defaults
-/// for single-extruder printers.
+/// multi-extruder array fields. The flat `bed_x` and `bed_y` fields were
+/// migrated from `PrintConfig` in Plan 04. Vec fields use single-element
+/// defaults for single-extruder printers.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct MachineConfig {
+    /// Bed X dimension in mm.
+    pub bed_x: f64,
+    /// Bed Y dimension in mm.
+    pub bed_y: f64,
     /// Maximum printable height in mm.
     pub printable_height: f64,
     /// Maximum X acceleration (mm/s^2).
@@ -272,6 +314,8 @@ pub struct MachineConfig {
 impl Default for MachineConfig {
     fn default() -> Self {
         Self {
+            bed_x: 220.0,
+            bed_y: 220.0,
             printable_height: 250.0,
             max_acceleration_x: 5000.0,
             max_acceleration_y: 5000.0,
@@ -330,13 +374,16 @@ impl MachineConfig {
 
 /// Per-feature acceleration configuration (mm/s^2).
 ///
-/// A value of 0.0 means "use the base print_acceleration". These are
-/// ADDITIONAL per-feature acceleration fields; the existing flat
-/// `print_acceleration` and `travel_acceleration` on `PrintConfig` are
-/// NOT moved here yet (migration happens in Plan 04).
+/// A value of 0.0 means "use the base `print` acceleration". The flat
+/// `print_acceleration` and `travel_acceleration` fields were migrated
+/// from `PrintConfig` in Plan 04 (renamed to `print` and `travel`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AccelerationConfig {
+    /// Print acceleration in mm/s^2.
+    pub print: f64,
+    /// Travel acceleration in mm/s^2.
+    pub travel: f64,
     /// Outer wall acceleration (mm/s^2, 0 = use print_acceleration).
     pub outer_wall: f64,
     /// Inner wall acceleration (mm/s^2, 0 = use print_acceleration).
@@ -356,6 +403,8 @@ pub struct AccelerationConfig {
 impl Default for AccelerationConfig {
     fn default() -> Self {
         Self {
+            print: 1000.0,
+            travel: 1500.0,
             outer_wall: 0.0,
             inner_wall: 0.0,
             initial_layer: 0.0,
@@ -370,12 +419,19 @@ impl Default for AccelerationConfig {
 /// Filament properties configuration.
 ///
 /// Contains filament metadata, temperature ranges, per-extruder temperature
-/// arrays, and filament-specific retraction overrides. The existing flat
-/// `filament_density`, `filament_cost_per_kg`, and `filament_diameter` fields
-/// on `PrintConfig` are NOT moved here yet (migration happens in Plan 04).
+/// arrays, and filament-specific retraction overrides. The flat
+/// `filament_diameter`, `filament_density`, and `filament_cost_per_kg` fields
+/// were migrated from `PrintConfig` in Plan 04 (renamed to `diameter`,
+/// `density`, `cost_per_kg`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FilamentPropsConfig {
+    /// Filament diameter in mm.
+    pub diameter: f64,
+    /// Filament density in g/cm^3 (PLA ~1.24, ABS ~1.04, PETG ~1.27).
+    pub density: f64,
+    /// Filament cost per kilogram in currency units (e.g., USD/kg).
+    pub cost_per_kg: f64,
     /// Filament material type (e.g., "PLA", "ABS", "PETG").
     pub filament_type: String,
     /// Filament vendor/manufacturer name.
@@ -407,6 +463,9 @@ pub struct FilamentPropsConfig {
 impl Default for FilamentPropsConfig {
     fn default() -> Self {
         Self {
+            diameter: 1.75,
+            density: 1.24,
+            cost_per_kg: 25.0,
             filament_type: String::new(),
             filament_vendor: String::new(),
             max_volumetric_speed: 0.0,
@@ -467,8 +526,6 @@ pub struct PrintConfig {
     pub layer_height: f64,
     /// First layer height in mm (typically thicker for bed adhesion).
     pub first_layer_height: f64,
-    /// Nozzle diameter in mm.
-    pub nozzle_diameter: f64,
 
     // --- Walls ---
     /// Number of perimeter walls.
@@ -488,44 +545,6 @@ pub struct PrintConfig {
     /// Number of solid bottom layers.
     pub bottom_solid_layers: u32,
 
-    // --- Speeds (mm/s) ---
-    /// Perimeter print speed.
-    pub perimeter_speed: f64,
-    /// Infill print speed.
-    pub infill_speed: f64,
-    /// Travel (non-extrusion) speed.
-    pub travel_speed: f64,
-    /// First layer print speed.
-    pub first_layer_speed: f64,
-
-    // --- Retraction ---
-    /// Retraction distance in mm.
-    pub retract_length: f64,
-    /// Retraction speed in mm/s.
-    pub retract_speed: f64,
-    /// Z-hop height during retraction in mm.
-    pub retract_z_hop: f64,
-    /// Minimum travel distance to trigger retraction in mm.
-    pub min_travel_for_retract: f64,
-
-    // --- Temperature ---
-    /// Nozzle temperature in degrees Celsius.
-    pub nozzle_temp: f64,
-    /// Bed temperature in degrees Celsius.
-    pub bed_temp: f64,
-    /// Nozzle temperature for the first layer.
-    pub first_layer_nozzle_temp: f64,
-    /// Bed temperature for the first layer.
-    pub first_layer_bed_temp: f64,
-
-    // --- Fan ---
-    /// Fan speed (0-255).
-    pub fan_speed: u8,
-    /// Enable fan when layer time falls below this value (seconds).
-    pub fan_below_layer_time: f64,
-    /// Number of initial layers with fan disabled.
-    pub disable_fan_first_layers: u32,
-
     // --- Skirt/Brim ---
     /// Number of skirt loops.
     pub skirt_loops: u32,
@@ -534,21 +553,9 @@ pub struct PrintConfig {
     /// Brim width in mm (0.0 = disabled).
     pub brim_width: f64,
 
-    // --- Bed ---
-    /// Bed X dimension in mm.
-    pub bed_x: f64,
-    /// Bed Y dimension in mm.
-    pub bed_y: f64,
-
     // --- Extrusion ---
     /// Extrusion multiplier (flow rate factor).
     pub extrusion_multiplier: f64,
-    /// Filament diameter in mm.
-    pub filament_diameter: f64,
-    /// Filament density in g/cm^3 (PLA ~1.24, ABS ~1.04, PETG ~1.27).
-    pub filament_density: f64,
-    /// Filament cost per kilogram in currency units (e.g., USD/kg).
-    pub filament_cost_per_kg: f64,
 
     // --- Adaptive Layer Heights ---
     /// Enable adaptive layer heights based on surface curvature.
@@ -608,17 +615,7 @@ pub struct PrintConfig {
     /// Minimum number of consecutive G1 moves to consider for arc fitting.
     pub arc_fitting_min_points: usize,
 
-    // --- Acceleration / Jerk / Pressure Advance ---
-    /// Print acceleration in mm/s^2.
-    pub print_acceleration: f64,
-    /// Travel acceleration in mm/s^2.
-    pub travel_acceleration: f64,
-    /// Jerk X in mm/s.
-    pub jerk_x: f64,
-    /// Jerk Y in mm/s.
-    pub jerk_y: f64,
-    /// Jerk Z in mm/s.
-    pub jerk_z: f64,
+    // --- Cross-cutting flags (stay flat) ---
     /// Pressure advance value (0.0 = disabled).
     pub pressure_advance: f64,
     /// Enable acceleration command emission at feature transitions.
@@ -644,17 +641,17 @@ pub struct PrintConfig {
     // --- Sub-config structs (Phase 20) ---
     /// Per-feature line width configuration.
     pub line_widths: LineWidthConfig,
-    /// Per-feature speed configuration.
+    /// Per-feature speed configuration (includes perimeter, infill, travel, first_layer).
     pub speeds: SpeedConfig,
-    /// Cooling and fan configuration.
+    /// Cooling and fan configuration (includes fan_speed, fan_below_layer_time, disable_fan_first_layers).
     pub cooling: CoolingConfig,
-    /// Additional retraction configuration.
+    /// Retraction configuration (includes length, speed, z_hop, min_travel).
     pub retraction: RetractionConfig,
-    /// Machine/printer hardware configuration.
+    /// Machine/printer hardware configuration (includes bed_x, bed_y, nozzle_diameters, jerk).
     pub machine: MachineConfig,
-    /// Per-feature acceleration configuration.
+    /// Per-feature acceleration configuration (includes print and travel acceleration).
     pub accel: AccelerationConfig,
-    /// Filament properties configuration.
+    /// Filament properties configuration (includes diameter, density, cost_per_kg, temperatures).
     pub filament: FilamentPropsConfig,
 
     /// Passthrough fields from upstream profiles that have no engine equivalent.
@@ -758,7 +755,6 @@ impl Default for PrintConfig {
         Self {
             layer_height: 0.2,
             first_layer_height: 0.3,
-            nozzle_diameter: 0.4,
 
             wall_count: 2,
             wall_order: WallOrder::default(),
@@ -769,36 +765,11 @@ impl Default for PrintConfig {
             top_solid_layers: 3,
             bottom_solid_layers: 3,
 
-            perimeter_speed: 45.0,
-            infill_speed: 80.0,
-            travel_speed: 150.0,
-            first_layer_speed: 20.0,
-
-            retract_length: 0.8,
-            retract_speed: 45.0,
-            retract_z_hop: 0.0,
-            min_travel_for_retract: 1.5,
-
-            nozzle_temp: 200.0,
-            bed_temp: 60.0,
-            first_layer_nozzle_temp: 210.0,
-            first_layer_bed_temp: 65.0,
-
-            fan_speed: 255,
-            fan_below_layer_time: 60.0,
-            disable_fan_first_layers: 1,
-
             skirt_loops: 1,
             skirt_distance: 6.0,
             brim_width: 0.0,
 
-            bed_x: 220.0,
-            bed_y: 220.0,
-
             extrusion_multiplier: 1.0,
-            filament_diameter: 1.75,
-            filament_density: 1.24,
-            filament_cost_per_kg: 25.0,
 
             adaptive_layer_height: false,
             adaptive_min_layer_height: 0.05,
@@ -829,11 +800,6 @@ impl Default for PrintConfig {
             arc_fitting_tolerance: 0.05,
             arc_fitting_min_points: 3,
 
-            print_acceleration: 1000.0,
-            travel_acceleration: 1500.0,
-            jerk_x: 8.0,
-            jerk_y: 8.0,
-            jerk_z: 0.4,
             pressure_advance: 0.0,
             acceleration_enabled: false,
 
@@ -950,8 +916,9 @@ impl PrintConfig {
     /// Returns the extrusion width in mm.
     ///
     /// Currently uses a simple heuristic of `nozzle_diameter * 1.1`.
+    /// Uses `self.machine.nozzle_diameter()` (primary extruder diameter).
     pub fn extrusion_width(&self) -> f64 {
-        self.nozzle_diameter * 1.1
+        self.machine.nozzle_diameter() * 1.1
     }
 }
 
@@ -1146,10 +1113,10 @@ impl SettingOverrides {
             config.wall_count = v;
         }
         if let Some(v) = self.perimeter_speed {
-            config.perimeter_speed = v;
+            config.speeds.perimeter = v;
         }
         if let Some(v) = self.infill_speed {
-            config.infill_speed = v;
+            config.speeds.infill = v;
         }
         if let Some(v) = self.top_solid_layers {
             config.top_solid_layers = v;
@@ -1170,41 +1137,41 @@ mod tests {
         let config = PrintConfig::default();
         assert!((config.layer_height - 0.2).abs() < 1e-9);
         assert!((config.first_layer_height - 0.3).abs() < 1e-9);
-        assert!((config.nozzle_diameter - 0.4).abs() < 1e-9);
+        assert!((config.machine.nozzle_diameter() - 0.4).abs() < 1e-9);
         assert_eq!(config.wall_count, 2);
         assert_eq!(config.wall_order, WallOrder::OuterFirst);
         assert!((config.infill_density - 0.2).abs() < 1e-9);
         assert_eq!(config.top_solid_layers, 3);
         assert_eq!(config.bottom_solid_layers, 3);
-        assert!((config.perimeter_speed - 45.0).abs() < 1e-9);
-        assert!((config.infill_speed - 80.0).abs() < 1e-9);
-        assert!((config.travel_speed - 150.0).abs() < 1e-9);
-        assert!((config.first_layer_speed - 20.0).abs() < 1e-9);
-        assert!((config.retract_length - 0.8).abs() < 1e-9);
-        assert!((config.retract_speed - 45.0).abs() < 1e-9);
-        assert!((config.retract_z_hop - 0.0).abs() < 1e-9);
-        assert!((config.min_travel_for_retract - 1.5).abs() < 1e-9);
-        assert!((config.nozzle_temp - 200.0).abs() < 1e-9);
-        assert!((config.bed_temp - 60.0).abs() < 1e-9);
-        assert!((config.first_layer_nozzle_temp - 210.0).abs() < 1e-9);
-        assert!((config.first_layer_bed_temp - 65.0).abs() < 1e-9);
-        assert_eq!(config.fan_speed, 255);
-        assert!((config.fan_below_layer_time - 60.0).abs() < 1e-9);
-        assert_eq!(config.disable_fan_first_layers, 1);
+        assert!((config.speeds.perimeter - 45.0).abs() < 1e-9);
+        assert!((config.speeds.infill - 80.0).abs() < 1e-9);
+        assert!((config.speeds.travel - 150.0).abs() < 1e-9);
+        assert!((config.speeds.first_layer - 20.0).abs() < 1e-9);
+        assert!((config.retraction.length - 0.8).abs() < 1e-9);
+        assert!((config.retraction.speed - 45.0).abs() < 1e-9);
+        assert!((config.retraction.z_hop - 0.0).abs() < 1e-9);
+        assert!((config.retraction.min_travel - 1.5).abs() < 1e-9);
+        assert!((config.filament.nozzle_temp() - 200.0).abs() < 1e-9);
+        assert!((config.filament.bed_temp() - 60.0).abs() < 1e-9);
+        assert!((config.filament.first_layer_nozzle_temp() - 210.0).abs() < 1e-9);
+        assert!((config.filament.first_layer_bed_temp() - 65.0).abs() < 1e-9);
+        assert_eq!(config.cooling.fan_speed, 255);
+        assert!((config.cooling.fan_below_layer_time - 60.0).abs() < 1e-9);
+        assert_eq!(config.cooling.disable_fan_first_layers, 1);
         assert_eq!(config.skirt_loops, 1);
         assert!((config.skirt_distance - 6.0).abs() < 1e-9);
         assert!((config.brim_width - 0.0).abs() < 1e-9);
-        assert!((config.bed_x - 220.0).abs() < 1e-9);
-        assert!((config.bed_y - 220.0).abs() < 1e-9);
+        assert!((config.machine.bed_x - 220.0).abs() < 1e-9);
+        assert!((config.machine.bed_y - 220.0).abs() < 1e-9);
         assert!((config.extrusion_multiplier - 1.0).abs() < 1e-9);
-        assert!((config.filament_diameter - 1.75).abs() < 1e-9);
+        assert!((config.filament.diameter - 1.75).abs() < 1e-9);
     }
 
     #[test]
     fn from_toml_empty_produces_defaults() {
         let config = PrintConfig::from_toml("").unwrap();
         assert!((config.layer_height - 0.2).abs() < 1e-9);
-        assert!((config.nozzle_diameter - 0.4).abs() < 1e-9);
+        assert!((config.machine.nozzle_diameter() - 0.4).abs() < 1e-9);
         assert_eq!(config.wall_order, WallOrder::OuterFirst);
     }
 
@@ -1214,9 +1181,9 @@ mod tests {
         let config = PrintConfig::from_toml(toml).unwrap();
         assert!((config.layer_height - 0.1).abs() < 1e-9);
         assert!((config.infill_density - 0.5).abs() < 1e-9);
-        assert!((config.nozzle_diameter - 0.4).abs() < 1e-9);
+        assert!((config.machine.nozzle_diameter() - 0.4).abs() < 1e-9);
         assert_eq!(config.wall_count, 2);
-        assert!((config.perimeter_speed - 45.0).abs() < 1e-9);
+        assert!((config.speeds.perimeter - 45.0).abs() < 1e-9);
     }
 
     #[test]
@@ -1255,7 +1222,7 @@ mod tests {
     #[test]
     fn extrusion_width_with_custom_nozzle() {
         let mut config = PrintConfig::default();
-        config.nozzle_diameter = 0.6;
+        config.machine.nozzle_diameters = vec![0.6];
         let expected = 0.6 * 1.1;
         assert!((config.extrusion_width() - expected).abs() < 1e-9);
     }
@@ -1420,9 +1387,9 @@ custom_gcode_per_z = [[5.0, "M600"]]
         // Overridden fields.
         assert!((merged.infill_density - 0.8).abs() < 1e-9);
         assert_eq!(merged.wall_count, 4);
-        assert!((merged.perimeter_speed - 30.0).abs() < 1e-9);
+        assert!((merged.speeds.perimeter - 30.0).abs() < 1e-9);
         // Non-overridden fields preserved.
-        assert!((merged.infill_speed - base.infill_speed).abs() < 1e-9);
+        assert!((merged.speeds.infill - base.speeds.infill).abs() < 1e-9);
         assert_eq!(merged.top_solid_layers, base.top_solid_layers);
         assert_eq!(merged.bottom_solid_layers, base.bottom_solid_layers);
         assert!((merged.layer_height - base.layer_height).abs() < 1e-9);
@@ -1430,17 +1397,15 @@ custom_gcode_per_z = [[5.0, "M600"]]
 
     #[test]
     fn setting_overrides_merge_preserves_non_overridden() {
-        let base = PrintConfig {
-            infill_density: 0.3,
-            wall_count: 3,
-            perimeter_speed: 50.0,
-            ..Default::default()
-        };
+        let mut base = PrintConfig::default();
+        base.infill_density = 0.3;
+        base.wall_count = 3;
+        base.speeds.perimeter = 50.0;
         let overrides = SettingOverrides::default(); // all None
         let merged = overrides.merge_into(&base);
         assert!((merged.infill_density - 0.3).abs() < 1e-9);
         assert_eq!(merged.wall_count, 3);
-        assert!((merged.perimeter_speed - 50.0).abs() < 1e-9);
+        assert!((merged.speeds.perimeter - 50.0).abs() < 1e-9);
     }
 
     #[test]
@@ -1468,29 +1433,30 @@ arc_fitting_min_points = 5
     fn filament_density_and_cost_defaults() {
         let config = PrintConfig::default();
         assert!(
-            (config.filament_density - 1.24).abs() < 1e-9,
-            "filament_density should default to 1.24 (PLA)"
+            (config.filament.density - 1.24).abs() < 1e-9,
+            "filament.density should default to 1.24 (PLA)"
         );
         assert!(
-            (config.filament_cost_per_kg - 25.0).abs() < 1e-9,
-            "filament_cost_per_kg should default to 25.0"
+            (config.filament.cost_per_kg - 25.0).abs() < 1e-9,
+            "filament.cost_per_kg should default to 25.0"
         );
     }
 
     #[test]
     fn filament_density_and_cost_from_toml() {
         let toml = r#"
-filament_density = 1.04
-filament_cost_per_kg = 30.0
+[filament]
+density = 1.04
+cost_per_kg = 30.0
 "#;
         let config = PrintConfig::from_toml(toml).unwrap();
         assert!(
-            (config.filament_density - 1.04).abs() < 1e-9,
-            "filament_density should parse from TOML"
+            (config.filament.density - 1.04).abs() < 1e-9,
+            "filament.density should parse from TOML"
         );
         assert!(
-            (config.filament_cost_per_kg - 30.0).abs() < 1e-9,
-            "filament_cost_per_kg should parse from TOML"
+            (config.filament.cost_per_kg - 30.0).abs() < 1e-9,
+            "filament.cost_per_kg should parse from TOML"
         );
     }
 
@@ -1529,7 +1495,11 @@ polyhole_min_diameter = 0.5
         assert!((config.line_widths.internal_solid_infill - 0.42).abs() < 1e-9);
         assert!((config.line_widths.support - 0.42).abs() < 1e-9);
 
-        // SpeedConfig
+        // SpeedConfig (including migrated fields)
+        assert!((config.speeds.perimeter - 45.0).abs() < 1e-9);
+        assert!((config.speeds.infill - 80.0).abs() < 1e-9);
+        assert!((config.speeds.travel - 150.0).abs() < 1e-9);
+        assert!((config.speeds.first_layer - 20.0).abs() < 1e-9);
         assert!((config.speeds.bridge - 25.0).abs() < 1e-9);
         assert!((config.speeds.inner_wall - 0.0).abs() < 1e-9);
         assert!((config.speeds.gap_fill - 0.0).abs() < 1e-9);
@@ -1537,7 +1507,10 @@ polyhole_min_diameter = 0.5
         assert!((config.speeds.overhang_1_4 - 0.0).abs() < 1e-9);
         assert!((config.speeds.travel_z - 0.0).abs() < 1e-9);
 
-        // CoolingConfig
+        // CoolingConfig (including migrated fields)
+        assert_eq!(config.cooling.fan_speed, 255);
+        assert!((config.cooling.fan_below_layer_time - 60.0).abs() < 1e-9);
+        assert_eq!(config.cooling.disable_fan_first_layers, 1);
         assert!((config.cooling.fan_max_speed - 100.0).abs() < 1e-9);
         assert!((config.cooling.fan_min_speed - 35.0).abs() < 1e-9);
         assert!((config.cooling.slow_down_layer_time - 5.0).abs() < 1e-9);
@@ -1547,14 +1520,20 @@ polyhole_min_diameter = 0.5
         assert_eq!(config.cooling.full_fan_speed_layer, 0);
         assert!(config.cooling.slow_down_for_layer_cooling);
 
-        // RetractionConfig
+        // RetractionConfig (including migrated fields)
+        assert!((config.retraction.length - 0.8).abs() < 1e-9);
+        assert!((config.retraction.speed - 45.0).abs() < 1e-9);
+        assert!((config.retraction.z_hop - 0.0).abs() < 1e-9);
+        assert!((config.retraction.min_travel - 1.5).abs() < 1e-9);
         assert!((config.retraction.deretraction_speed - 0.0).abs() < 1e-9);
         assert!((config.retraction.retract_before_wipe - 0.0).abs() < 1e-9);
         assert!(!config.retraction.retract_when_changing_layer);
         assert!(!config.retraction.wipe);
         assert!((config.retraction.wipe_distance - 0.0).abs() < 1e-9);
 
-        // MachineConfig
+        // MachineConfig (including migrated fields)
+        assert!((config.machine.bed_x - 220.0).abs() < 1e-9);
+        assert!((config.machine.bed_y - 220.0).abs() < 1e-9);
         assert!((config.machine.printable_height - 250.0).abs() < 1e-9);
         assert!((config.machine.max_acceleration_x - 5000.0).abs() < 1e-9);
         assert!((config.machine.max_speed_z - 12.0).abs() < 1e-9);
@@ -1563,12 +1542,17 @@ polyhole_min_diameter = 0.5
         assert!(config.machine.start_gcode.is_empty());
         assert!(config.machine.printer_model.is_empty());
 
-        // AccelerationConfig
+        // AccelerationConfig (including migrated fields)
+        assert!((config.accel.print - 1000.0).abs() < 1e-9);
+        assert!((config.accel.travel - 1500.0).abs() < 1e-9);
         assert!((config.accel.outer_wall - 0.0).abs() < 1e-9);
         assert!((config.accel.inner_wall - 0.0).abs() < 1e-9);
         assert!((config.accel.bridge - 0.0).abs() < 1e-9);
 
-        // FilamentPropsConfig
+        // FilamentPropsConfig (including migrated fields)
+        assert!((config.filament.diameter - 1.75).abs() < 1e-9);
+        assert!((config.filament.density - 1.24).abs() < 1e-9);
+        assert!((config.filament.cost_per_kg - 25.0).abs() < 1e-9);
         assert!(config.filament.filament_type.is_empty());
         assert!((config.filament.max_volumetric_speed - 0.0).abs() < 1e-9);
         assert!((config.filament.nozzle_temperature_range_low - 190.0).abs() < 1e-9);
