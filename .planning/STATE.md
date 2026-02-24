@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 19 complete -- Slicing Summary and Print Statistics
+**Current focus:** Phase 20 in progress -- Expand PrintConfig Field Coverage and Profile Mapping
 
 ## Current Position
 
-Phase: 19 of 19 (Slicing Summary and Print Statistics)
-Plan: 2 of 2 in current phase (2 complete)
-Status: Complete
-Last activity: 2026-02-23 -- Completed 19-02-PLAN.md (CLI statistics display with ASCII table, CSV, JSON)
+Phase: 20 of 21 (Expand PrintConfig Field Coverage and Profile Mapping)
+Plan: 1 of 5 in current phase (1 complete)
+Status: In Progress
+Last activity: 2026-02-24 -- Completed 20-01-PLAN.md (sub-config structs and passthrough)
 
-Progress: [############################################################] 100% (93/93 overall)
+Progress: [############################################################] 100% (94/98 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 93
+- Total plans completed: 94
 - Average duration: 5.1 min
-- Total execution time: 7.9 hours
+- Total execution time: 7.95 hours
 
 **By Phase:**
 
@@ -48,9 +48,11 @@ Progress: [############################################################] 100% (9
 | 18    | 1     | 4min  | 4.0min   |
 | 19    | 2     | 16min | 8.0min   |
 
+| 20    | 1     | 3min  | 3.0min   |
+
 **Recent Trend:**
-- Last 5 plans: 17-01 (4min), 18-01 (4min), 19-01 (7min), 19-02 (9min)
-- Trend: Steady 4-9min/plan
+- Last 5 plans: 18-01 (4min), 19-01 (7min), 19-02 (9min), 20-01 (3min)
+- Trend: Steady 3-9min/plan
 
 *Updated after each plan completion*
 
@@ -408,6 +410,11 @@ Recent decisions affecting current work:
 - [19-02]: Support subtotal row shown only when any support feature has non-zero time
 - [19-02]: --json includes statistics by default; --json-no-stats excludes them
 
+- [20-01]: BTreeMap (not HashMap) for passthrough to ensure deterministic TOML serialization order
+- [20-01]: Vec<f64> for multi-extruder arrays with first-element accessor methods returning sensible defaults for empty vecs
+- [20-01]: New sub-config fields added alongside existing flat fields (no migration yet) for zero breaking changes
+- [20-01]: Industry-standard defaults from BambuStudio reference profiles
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
@@ -430,6 +437,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-23
-Stopped at: Completed 19-02-PLAN.md (CLI statistics display with ASCII table, CSV, JSON)
-Resume file: .planning/phases/19-slicing-summary-and-print-statistics/19-02-SUMMARY.md
+Last session: 2026-02-24
+Stopped at: Completed 20-01-PLAN.md (sub-config structs and passthrough)
+Resume file: .planning/phases/20-expand-printconfig-field-coverage-and-profile-mapping/20-01-SUMMARY.md
