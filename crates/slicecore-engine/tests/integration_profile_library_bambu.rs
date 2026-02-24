@@ -153,14 +153,14 @@ fn test_bambustudio_batch_convert_synthetic() {
     // Verify each TOML file loads into PrintConfig without error.
     let config = PrintConfig::from_file(&filament_files[0].path()).unwrap();
     assert!(
-        (config.nozzle_temp - 220.0).abs() < 1e-6,
+        (config.filament.nozzle_temp() - 220.0).abs() < 1e-6,
         "nozzle_temp should be 220.0, got {}",
-        config.nozzle_temp
+        config.filament.nozzle_temp()
     );
     assert!(
-        (config.bed_temp - 60.0).abs() < 1e-6,
+        (config.filament.bed_temp() - 60.0).abs() < 1e-6,
         "bed_temp should be 60.0, got {}",
-        config.bed_temp
+        config.filament.bed_temp()
     );
 
     // Verify machine TOML loads.
@@ -176,9 +176,9 @@ fn test_bambustudio_batch_convert_synthetic() {
     assert_eq!(machine_files.len(), 1);
     let machine_config = PrintConfig::from_file(&machine_files[0].path()).unwrap();
     assert!(
-        (machine_config.nozzle_diameter - 0.4).abs() < 1e-6,
+        (machine_config.machine.nozzle_diameter() - 0.4).abs() < 1e-6,
         "nozzle_diameter should be 0.4, got {}",
-        machine_config.nozzle_diameter
+        machine_config.machine.nozzle_diameter()
     );
 
     // Verify process TOML loads.
@@ -415,14 +415,14 @@ fn test_bambustudio_profile_loads_into_printconfig() {
 
     // Verify mapped field values.
     assert!(
-        (config.nozzle_temp - 210.0).abs() < 1e-6,
+        (config.filament.nozzle_temp() - 210.0).abs() < 1e-6,
         "nozzle_temp should be 210.0, got {}",
-        config.nozzle_temp
+        config.filament.nozzle_temp()
     );
     assert!(
-        (config.bed_temp - 60.0).abs() < 1e-6,
+        (config.filament.bed_temp() - 60.0).abs() < 1e-6,
         "bed_temp should be 60.0, got {}",
-        config.bed_temp
+        config.filament.bed_temp()
     );
     assert!(
         (config.extrusion_multiplier - 0.95).abs() < 1e-6,
@@ -704,7 +704,7 @@ fn test_real_bambustudio_unique_profiles() {
         let first_h2c = &h2c_files[0];
         let config = PrintConfig::from_file(&first_h2c.path()).unwrap();
         assert!(
-            config.nozzle_temp > 0.0,
+            config.filament.nozzle_temp() > 0.0,
             "H2C profile should have non-zero nozzle_temp"
         );
     }

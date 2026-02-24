@@ -248,14 +248,14 @@ fn test_prusaslicer_field_mapping_process() {
         config.infill_pattern,
         slicecore_engine::infill::InfillPattern::Cubic
     );
-    assert!((config.first_layer_speed - 20.0).abs() < 1e-9);
+    assert!((config.speeds.first_layer - 20.0).abs() < 1e-9);
     assert_eq!(
         config.seam_position,
         slicecore_engine::seam::SeamPosition::Aligned
     );
-    assert!((config.perimeter_speed - 45.0).abs() < 1e-9);
-    assert!((config.infill_speed - 80.0).abs() < 1e-9);
-    assert!((config.travel_speed - 150.0).abs() < 1e-9);
+    assert!((config.speeds.perimeter - 45.0).abs() < 1e-9);
+    assert!((config.speeds.infill - 80.0).abs() < 1e-9);
+    assert!((config.speeds.travel - 150.0).abs() < 1e-9);
     assert_eq!(config.top_solid_layers, 5);
     assert_eq!(config.bottom_solid_layers, 4);
 
@@ -288,14 +288,14 @@ fn test_prusaslicer_field_mapping_filament() {
     let result = import_prusaslicer_ini_profile(&fields, "Prusament PLA", "filament");
     let config = &result.config;
 
-    assert!((config.nozzle_temp - 210.0).abs() < 1e-9);
-    assert!((config.first_layer_nozzle_temp - 215.0).abs() < 1e-9);
-    assert!((config.bed_temp - 60.0).abs() < 1e-9);
-    assert!((config.first_layer_bed_temp - 65.0).abs() < 1e-9);
-    assert!((config.filament_density - 1.24).abs() < 1e-9);
-    assert!((config.filament_diameter - 1.75).abs() < 1e-9);
+    assert!((config.filament.nozzle_temp() - 210.0).abs() < 1e-9);
+    assert!((config.filament.first_layer_nozzle_temp() - 215.0).abs() < 1e-9);
+    assert!((config.filament.bed_temp() - 60.0).abs() < 1e-9);
+    assert!((config.filament.first_layer_bed_temp() - 65.0).abs() < 1e-9);
+    assert!((config.filament.density - 1.24).abs() < 1e-9);
+    assert!((config.filament.diameter - 1.75).abs() < 1e-9);
     assert!((config.extrusion_multiplier - 1.0).abs() < 1e-9);
-    assert!((config.filament_cost_per_kg - 25.0).abs() < 1e-9);
+    assert!((config.filament.cost_per_kg - 25.0).abs() < 1e-9);
 
     // Metadata.
     assert_eq!(result.metadata.profile_type.as_deref(), Some("filament"));
@@ -325,19 +325,19 @@ fn test_prusaslicer_field_mapping_machine() {
 
     // Takes first comma-separated value.
     assert!(
-        (config.nozzle_diameter - 0.4).abs() < 1e-9,
+        (config.machine.nozzle_diameter() - 0.4).abs() < 1e-9,
         "nozzle_diameter should be 0.4 (first value)"
     );
     assert!(
-        (config.retract_length - 0.8).abs() < 1e-9,
+        (config.retraction.length - 0.8).abs() < 1e-9,
         "retract_length should be 0.8"
     );
     assert!(
-        (config.retract_speed - 35.0).abs() < 1e-9,
+        (config.retraction.speed - 35.0).abs() < 1e-9,
         "retract_speed should be 35.0"
     );
     assert!(
-        (config.retract_z_hop - 0.2).abs() < 1e-9,
+        (config.retraction.z_hop - 0.2).abs() < 1e-9,
         "retract_z_hop should be 0.2 (from retract_lift)"
     );
     assert_eq!(
@@ -345,12 +345,12 @@ fn test_prusaslicer_field_mapping_machine() {
         slicecore_gcode_io::GcodeDialect::Marlin
     );
     assert!(
-        (config.min_travel_for_retract - 2.0).abs() < 1e-9,
+        (config.retraction.min_travel - 2.0).abs() < 1e-9,
         "min_travel_for_retract should be 2.0"
     );
-    assert!((config.jerk_x - 8.0).abs() < 1e-9);
-    assert!((config.jerk_y - 8.0).abs() < 1e-9);
-    assert!((config.jerk_z - 0.4).abs() < 1e-9);
+    assert!((config.machine.jerk_x() - 8.0).abs() < 1e-9);
+    assert!((config.machine.jerk_y() - 8.0).abs() < 1e-9);
+    assert!((config.machine.jerk_z() - 0.4).abs() < 1e-9);
 
     // Metadata.
     assert_eq!(result.metadata.profile_type.as_deref(), Some("machine"));
@@ -480,9 +480,9 @@ gcode_flavor = marlin
     let config = PrintConfig::from_file(&toml_path).unwrap();
     // Inheritance resolved: perimeter_speed should be child's 50, not parent's 45.
     assert!(
-        (config.perimeter_speed - 50.0).abs() < 1e-6,
+        (config.speeds.perimeter - 50.0).abs() < 1e-6,
         "perimeter_speed should be 50.0 (child override), got {}",
-        config.perimeter_speed
+        config.speeds.perimeter
     );
 }
 

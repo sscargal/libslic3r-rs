@@ -89,10 +89,10 @@ fn assemble_support_toolpath(
 ) -> Vec<ToolpathSegment> {
     let mut segments = Vec::new();
     let extrusion_width = config.extrusion_width();
-    let travel_speed = config.travel_speed * 60.0;
+    let travel_speed = config.speeds.travel * 60.0;
     // Support body uses infill speed; interface uses perimeter speed.
-    let body_speed = config.infill_speed * 60.0;
-    let _interface_speed = config.perimeter_speed * 60.0;
+    let body_speed = config.speeds.infill * 60.0;
+    let _interface_speed = config.speeds.perimeter * 60.0;
 
     let mut current_pos: Option<Point2> = None;
 
@@ -149,7 +149,7 @@ fn assemble_support_toolpath(
                     seg_len,
                     extrusion_width,
                     layer_height,
-                    config.filament_diameter,
+                    config.filament.diameter,
                     config.extrusion_multiplier * flow_multiplier,
                 );
 
@@ -194,7 +194,7 @@ fn assemble_bridge_toolpath(
 ) -> Vec<ToolpathSegment> {
     let mut segments = Vec::new();
     let extrusion_width = config.extrusion_width();
-    let travel_speed = config.travel_speed * 60.0;
+    let travel_speed = config.speeds.travel * 60.0;
     let bridge_speed = config.support.bridge.speed * 60.0;
     let bridge_flow = config.support.bridge.flow_ratio;
 
@@ -248,7 +248,7 @@ fn assemble_bridge_toolpath(
                     seg_len,
                     extrusion_width,
                     layer_height,
-                    config.filament_diameter,
+                    config.filament.diameter,
                     config.extrusion_multiplier * bridge_flow,
                 );
 
@@ -813,7 +813,7 @@ impl Engine {
                 let mut contours = layer.contours.clone();
                 crate::polyhole::convert_polyholes(
                     &mut contours,
-                    self.config.nozzle_diameter,
+                    self.config.machine.nozzle_diameter(),
                     self.config.polyhole_min_diameter,
                 );
                 contours
@@ -844,7 +844,7 @@ impl Engine {
                             FeatureType::InnerPerimeter
                         };
                         let perim_speed =
-                            self.config.perimeter_speed * 60.0; // mm/s -> mm/min
+                            self.config.speeds.perimeter * 60.0; // mm/s -> mm/min
                         for i in 1..perim.points.len() {
                             let (sx, sy) = perim.points[i - 1].to_mm();
                             let (ex, ey) = perim.points[i].to_mm();
@@ -865,7 +865,7 @@ impl Engine {
                                 seg_len,
                                 width,
                                 layer.layer_height,
-                                self.config.filament_diameter,
+                                self.config.filament.diameter,
                                 self.config.extrusion_multiplier,
                             );
                             var_width_segs.push(ToolpathSegment {
@@ -968,7 +968,7 @@ impl Engine {
                     &perimeters[0].inner_contour,
                     &contours,
                     self.config.gap_fill_min_width,
-                    self.config.nozzle_diameter,
+                    self.config.machine.nozzle_diameter(),
                     extrusion_width,
                 )
             } else {
@@ -991,7 +991,7 @@ impl Engine {
             // Arachne segments are prepended before classic perimeters,
             // with travel moves inserted between disconnected paths.
             if !arachne_segments.is_empty() {
-                let travel_speed = self.config.travel_speed * 60.0;
+                let travel_speed = self.config.speeds.travel * 60.0;
                 let mut var_segs = Vec::new();
                 let mut current_pos: Option<Point2> = None;
                 for seg in &arachne_segments {
@@ -1070,9 +1070,9 @@ impl Engine {
                         &classification.solid_regions,
                         &self.config.ironing,
                         layer.z,
-                        self.config.nozzle_diameter,
+                        self.config.machine.nozzle_diameter(),
                         layer.layer_height,
-                        self.config.filament_diameter,
+                        self.config.filament.diameter,
                         self.config.extrusion_multiplier,
                     );
                     toolpath.segments.extend(ironing_segs);
@@ -1116,8 +1116,8 @@ impl Engine {
                     FeatureType::Skirt
                 };
 
-                let speed = self.config.first_layer_speed * 60.0; // mm/s -> mm/min
-                let travel_speed = self.config.travel_speed * 60.0;
+                let speed = self.config.speeds.first_layer * 60.0; // mm/s -> mm/min
+                let travel_speed = self.config.speeds.travel * 60.0;
                 let extrusion_width = self.config.extrusion_width();
 
                 let mut extra_segments = Vec::new();
@@ -1164,7 +1164,7 @@ impl Engine {
                                 seg_len,
                                 extrusion_width,
                                 first_layer_height,
-                                self.config.filament_diameter,
+                                self.config.filament.diameter,
                                 self.config.extrusion_multiplier,
                             );
                             extra_segments.push(ToolpathSegment {
@@ -1189,7 +1189,7 @@ impl Engine {
                             close_len,
                             extrusion_width,
                             first_layer_height,
-                            self.config.filament_diameter,
+                            self.config.filament.diameter,
                             self.config.extrusion_multiplier,
                         );
                         extra_segments.push(ToolpathSegment {
@@ -1256,7 +1256,7 @@ impl Engine {
                     toolpath.layer_height,
                     &self.config.multi_material,
                     false, // has_tool_change: false in V1 (no modifier mesh tool assignments)
-                    self.config.nozzle_diameter,
+                    self.config.machine.nozzle_diameter(),
                 );
                 // Append tower commands to the end of the G-code stream.
                 // In a full multi-material implementation, these would be interleaved
@@ -1271,17 +1271,17 @@ impl Engine {
         // 5. Compute estimated time using trapezoid motion model.
         let time_estimate = estimate_print_time(
             &gcode_commands,
-            self.config.print_acceleration,
-            self.config.travel_acceleration,
+            self.config.accel.print,
+            self.config.accel.travel,
         );
         let estimated_time = time_estimate.total_seconds;
 
         // 5b. Compute filament usage.
         let filament_usage = estimate_filament_usage(
             &gcode_commands,
-            self.config.filament_diameter,
-            self.config.filament_density,
-            self.config.filament_cost_per_kg,
+            self.config.filament.diameter,
+            self.config.filament.density,
+            self.config.filament.cost_per_kg,
         );
 
         // 5c. Compute per-feature statistics.
@@ -1306,10 +1306,10 @@ impl Engine {
 
         // Start G-code.
         let start_config = StartConfig {
-            bed_temp: self.config.first_layer_bed_temp,
-            nozzle_temp: self.config.first_layer_nozzle_temp,
-            bed_x: self.config.bed_x,
-            bed_y: self.config.bed_y,
+            bed_temp: self.config.filament.first_layer_bed_temp(),
+            nozzle_temp: self.config.filament.first_layer_nozzle_temp(),
+            bed_x: self.config.machine.bed_x,
+            bed_y: self.config.machine.bed_y,
         };
         gcode_writer.write_start_gcode(&start_config)?;
 
@@ -1318,7 +1318,7 @@ impl Engine {
 
         // End G-code.
         let end_config = EndConfig {
-            retract_distance: self.config.retract_length,
+            retract_distance: self.config.retraction.length,
         };
         gcode_writer.write_end_gcode(&end_config)?;
 
@@ -1411,7 +1411,7 @@ impl Engine {
                 let mut c = layer.contours.clone();
                 crate::polyhole::convert_polyholes(
                     &mut c,
-                    self.config.nozzle_diameter,
+                    self.config.machine.nozzle_diameter(),
                     self.config.polyhole_min_diameter,
                 );
                 c
@@ -1437,7 +1437,7 @@ impl Engine {
                         } else {
                             FeatureType::InnerPerimeter
                         };
-                        let perim_speed = self.config.perimeter_speed * 60.0;
+                        let perim_speed = self.config.speeds.perimeter * 60.0;
                         for i in 1..perim.points.len() {
                             let (sx, sy) = perim.points[i - 1].to_mm();
                             let (ex, ey) = perim.points[i].to_mm();
@@ -1456,7 +1456,7 @@ impl Engine {
                                 seg_len,
                                 width,
                                 layer.layer_height,
-                                self.config.filament_diameter,
+                                self.config.filament.diameter,
                                 self.config.extrusion_multiplier,
                             );
                             var_width_segs.push(ToolpathSegment {
@@ -1549,7 +1549,7 @@ impl Engine {
                     &perimeters[0].inner_contour,
                     &preview_contours,
                     self.config.gap_fill_min_width,
-                    self.config.nozzle_diameter,
+                    self.config.machine.nozzle_diameter(),
                     extrusion_width,
                 )
             } else {
@@ -1568,7 +1568,7 @@ impl Engine {
             );
 
             if !arachne_segments.is_empty() {
-                let travel_speed = self.config.travel_speed * 60.0;
+                let travel_speed = self.config.speeds.travel * 60.0;
                 let mut var_segs = Vec::new();
                 let mut current_pos: Option<Point2> = None;
                 for seg in &arachne_segments {
@@ -1769,7 +1769,7 @@ impl Engine {
                         &perimeters[0].inner_contour,
                         region_contours,
                         region_config.gap_fill_min_width,
-                        region_config.nozzle_diameter,
+                        region_config.machine.nozzle_diameter(),
                         region_extrusion_width,
                     )
                 } else {
@@ -1851,9 +1851,9 @@ impl Engine {
                             &classification.solid_regions,
                             &self.config.ironing,
                             layer.z,
-                            self.config.nozzle_diameter,
+                            self.config.machine.nozzle_diameter(),
                             layer.layer_height,
-                            self.config.filament_diameter,
+                            self.config.filament.diameter,
                             self.config.extrusion_multiplier,
                         );
                         toolpath.segments.extend(ironing_segs);
@@ -1883,8 +1883,8 @@ impl Engine {
                     FeatureType::Skirt
                 };
 
-                let speed = self.config.first_layer_speed * 60.0;
-                let travel_speed = self.config.travel_speed * 60.0;
+                let speed = self.config.speeds.first_layer * 60.0;
+                let travel_speed = self.config.speeds.travel * 60.0;
                 let ext_width = self.config.extrusion_width();
 
                 let mut extra_segments = Vec::new();
@@ -1929,7 +1929,7 @@ impl Engine {
                                 seg_len,
                                 ext_width,
                                 first_layer_height,
-                                self.config.filament_diameter,
+                                self.config.filament.diameter,
                                 self.config.extrusion_multiplier,
                             );
                             extra_segments.push(ToolpathSegment {
@@ -1953,7 +1953,7 @@ impl Engine {
                             close_len,
                             ext_width,
                             first_layer_height,
-                            self.config.filament_diameter,
+                            self.config.filament.diameter,
                             self.config.extrusion_multiplier,
                         );
                         extra_segments.push(ToolpathSegment {
@@ -1997,17 +1997,17 @@ impl Engine {
         // 5. Compute estimated time using trapezoid motion model.
         let time_estimate = estimate_print_time(
             &gcode_commands,
-            self.config.print_acceleration,
-            self.config.travel_acceleration,
+            self.config.accel.print,
+            self.config.accel.travel,
         );
         let estimated_time = time_estimate.total_seconds;
 
         // 5b. Compute filament usage.
         let filament_usage = estimate_filament_usage(
             &gcode_commands,
-            self.config.filament_diameter,
-            self.config.filament_density,
-            self.config.filament_cost_per_kg,
+            self.config.filament.diameter,
+            self.config.filament.density,
+            self.config.filament.cost_per_kg,
         );
 
         // 5c. Compute per-feature statistics.
@@ -2026,16 +2026,16 @@ impl Engine {
         let mut gcode_writer = GcodeWriter::new(&mut buf, self.config.gcode_dialect);
 
         let start_config = StartConfig {
-            bed_temp: self.config.first_layer_bed_temp,
-            nozzle_temp: self.config.first_layer_nozzle_temp,
-            bed_x: self.config.bed_x,
-            bed_y: self.config.bed_y,
+            bed_temp: self.config.filament.first_layer_bed_temp(),
+            nozzle_temp: self.config.filament.first_layer_nozzle_temp(),
+            bed_x: self.config.machine.bed_x,
+            bed_y: self.config.machine.bed_y,
         };
         gcode_writer.write_start_gcode(&start_config)?;
         gcode_writer.write_commands(&gcode_commands)?;
 
         let end_config = EndConfig {
-            retract_distance: self.config.retract_length,
+            retract_distance: self.config.retraction.length,
         };
         gcode_writer.write_end_gcode(&end_config)?;
 
@@ -3112,21 +3112,17 @@ mod tests {
         let mesh = calibration_cube_20mm();
 
         // Low acceleration config: 500 mm/s^2.
-        let config_low_accel = PrintConfig {
-            print_acceleration: 500.0,
-            travel_acceleration: 750.0,
-            ..Default::default()
-        };
+        let mut config_low_accel = PrintConfig::default();
+        config_low_accel.accel.print = 500.0;
+        config_low_accel.accel.travel = 750.0;
         let result_low = Engine::new(config_low_accel)
             .slice(&mesh)
             .expect("low-accel slice should succeed");
 
         // High acceleration config: 3000 mm/s^2.
-        let config_high_accel = PrintConfig {
-            print_acceleration: 3000.0,
-            travel_acceleration: 4500.0,
-            ..Default::default()
-        };
+        let mut config_high_accel = PrintConfig::default();
+        config_high_accel.accel.print = 3000.0;
+        config_high_accel.accel.travel = 4500.0;
         let result_high = Engine::new(config_high_accel)
             .slice(&mesh)
             .expect("high-accel slice should succeed");

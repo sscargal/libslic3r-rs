@@ -103,7 +103,7 @@ pub fn generate_layer_gcode(
         }
     }
 
-    let retract_feedrate = config.retract_speed * 60.0; // mm/s -> mm/min
+    let retract_feedrate = config.retraction.speed * 60.0; // mm/s -> mm/min
 
     // Track the last feature type to insert comments on transitions.
     let mut last_feature: Option<FeatureType> = None;
@@ -122,7 +122,7 @@ pub fn generate_layer_gcode(
                 cmds.extend(bridge_fan_cmds);
             } else if last_feature == Some(FeatureType::Bridge) {
                 // Restore normal fan speed when leaving bridge.
-                cmds.push(GcodeCommand::SetFanSpeed(config.fan_speed));
+                cmds.push(GcodeCommand::SetFanSpeed(config.cooling.fan_speed));
             }
 
             let label = feature_label(seg.feature);
@@ -132,9 +132,9 @@ pub fn generate_layer_gcode(
             if config.acceleration_enabled {
                 let (print_accel, travel_accel) = match seg.feature {
                     FeatureType::Travel => {
-                        (config.travel_acceleration, config.travel_acceleration)
+                        (config.accel.travel, config.accel.travel)
                     }
-                    _ => (config.print_acceleration, config.travel_acceleration),
+                    _ => (config.accel.print, config.accel.travel),
                 };
                 let accel_str =
                     format_acceleration(config.gcode_dialect, print_accel, travel_accel);
@@ -207,7 +207,7 @@ pub fn generate_layer_gcode(
                 // If retracted from a previous travel, unretract first.
                 if *retracted {
                     cmds.push(GcodeCommand::Unretract {
-                        distance: config.retract_length,
+                        distance: config.retraction.length,
                         feedrate: retract_feedrate,
                     });
                     *retracted = false;
@@ -475,10 +475,8 @@ mod tests {
     #[test]
     fn z_hop_during_retraction() {
         let layer = travel_and_extrusion_layer(5.0);
-        let config = PrintConfig {
-            retract_z_hop: 0.4,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.retraction.z_hop = 0.4;
         let mut retracted = false;
 
         let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);

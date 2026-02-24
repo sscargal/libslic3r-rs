@@ -316,10 +316,11 @@ mod tests {
         // TOML should contain mapped non-default fields.
         // wall_count = 3 (default is 2, so it should appear).
         assert!(converted.toml_output.contains("wall_count"));
-        // perimeter_speed = 200 (default is 45, so it should appear).
-        assert!(converted.toml_output.contains("perimeter_speed"));
-        // travel_speed = 500 (default is 150, so it should appear).
-        assert!(converted.toml_output.contains("travel_speed"));
+        // speeds.perimeter = 200 (default is 45, so it should appear under [speeds]).
+        assert!(converted.toml_output.contains("[speeds]"));
+        assert!(converted.toml_output.contains("perimeter = 200.0"));
+        // speeds.travel = 500 (default is 150, so it should appear under [speeds]).
+        assert!(converted.toml_output.contains("travel = 500.0"));
 
         // layer_height = 0.2 matches default, so it should NOT appear in the body.
         // Check that it's not in the TOML body (only in comments).
@@ -342,7 +343,7 @@ mod tests {
         let mut config = PrintConfig::default();
         config.wall_count = 4;
         config.infill_density = 0.5;
-        config.perimeter_speed = 100.0;
+        config.speeds.perimeter = 100.0;
 
         let result = ImportResult {
             config,
@@ -365,7 +366,8 @@ mod tests {
         // Should contain only the 3 overridden fields (not 86 defaults).
         assert!(converted.toml_output.contains("wall_count = 4"));
         assert!(converted.toml_output.contains("infill_density = 0.5"));
-        assert!(converted.toml_output.contains("perimeter_speed = 100.0"));
+        // perimeter speed is in [speeds] sub-table
+        assert!(converted.toml_output.contains("perimeter = 100.0"));
 
         // Should NOT contain default fields.
         assert!(!converted.toml_output.contains("nozzle_diameter"));
@@ -399,8 +401,8 @@ mod tests {
         // Merged config should have fields from both.
         assert_eq!(merged.config.wall_count, 3); // from process
         assert!((merged.config.infill_density - 0.15).abs() < 1e-6); // from process
-        assert!((merged.config.nozzle_temp - 220.0).abs() < 1e-6); // from filament
-        assert!((merged.config.bed_temp - 55.0).abs() < 1e-6); // from filament
+        assert!((merged.config.filament.nozzle_temp() - 220.0).abs() < 1e-6); // from filament
+        assert!((merged.config.filament.bed_temp() - 55.0).abs() < 1e-6); // from filament
 
         // Metadata should be merged.
         assert_eq!(

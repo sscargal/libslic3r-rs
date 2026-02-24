@@ -424,7 +424,7 @@ pub fn compute_statistics(
 
         let filament_m = filament / 1000.0;
         let filament_g =
-            filament_mm_to_grams(filament, config.filament_diameter, config.filament_density);
+            filament_mm_to_grams(filament, config.filament.diameter, config.filament.density);
 
         let filament_pct_total = if total_filament_from_features > 0.0 {
             (filament / total_filament_from_features) * 100.0
@@ -533,13 +533,13 @@ pub fn compute_statistics(
     // 7. Compute summary.
     let model_filament_g = filament_mm_to_grams(
         model_filament_mm,
-        config.filament_diameter,
-        config.filament_density,
+        config.filament.diameter,
+        config.filament.density,
     );
     let support_filament_g = filament_mm_to_grams(
         support_filament_mm,
-        config.filament_diameter,
-        config.filament_density,
+        config.filament.diameter,
+        config.filament.density,
     );
 
     let summary = StatisticsSummary {

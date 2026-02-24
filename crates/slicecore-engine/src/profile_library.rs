@@ -1256,10 +1256,10 @@ mod tests {
         .unwrap();
 
         // Child overrides parent for nozzle_temperature and hot_plate_temp.
-        assert!((result.config.nozzle_temp - 220.0).abs() < 1e-6);
-        assert!((result.config.bed_temp - 60.0).abs() < 1e-6);
+        assert!((result.config.filament.nozzle_temp() - 220.0).abs() < 1e-6);
+        assert!((result.config.filament.bed_temp() - 60.0).abs() < 1e-6);
         // Parent's filament_density is inherited.
-        assert!((result.config.filament_density - 1.24).abs() < 1e-6);
+        assert!((result.config.filament.density - 1.24).abs() < 1e-6);
 
         let _ = std::fs::remove_dir_all(&dir);
     }

@@ -141,7 +141,7 @@ fn test_gcode_has_temperature_commands() {
     let gcode_str = String::from_utf8_lossy(&result.gcode);
 
     // M109 (wait for nozzle temp) with first_layer_nozzle_temp.
-    let expected_nozzle = format!("M109 S{:.0}", config.first_layer_nozzle_temp);
+    let expected_nozzle = format!("M109 S{:.0}", config.filament.first_layer_nozzle_temp());
     assert!(
         gcode_str.contains(&expected_nozzle),
         "G-code should contain '{}' for first-layer nozzle temp. G-code start:\n{}",
@@ -150,7 +150,7 @@ fn test_gcode_has_temperature_commands() {
     );
 
     // M190 (wait for bed temp) with first_layer_bed_temp.
-    let expected_bed = format!("M190 S{:.0}", config.first_layer_bed_temp);
+    let expected_bed = format!("M190 S{:.0}", config.filament.first_layer_bed_temp());
     assert!(
         gcode_str.contains(&expected_bed),
         "G-code should contain '{}' for first-layer bed temp",
@@ -193,10 +193,8 @@ fn test_gcode_has_retraction() {
 
 #[test]
 fn test_gcode_has_fan_commands() {
-    let config = PrintConfig {
-        disable_fan_first_layers: 1,
-        ..PrintConfig::default()
-    };
+    let mut config = PrintConfig::default();
+    config.cooling.disable_fan_first_layers = 1;
     let engine = Engine::new(config);
     let mesh = calibration_cube_20mm();
 

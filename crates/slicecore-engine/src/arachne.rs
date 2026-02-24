@@ -86,7 +86,7 @@ pub fn generate_arachne_perimeters(
         return Vec::new();
     }
 
-    let nozzle_width = config.nozzle_diameter;
+    let nozzle_width = config.machine.nozzle_diameter();
     let two_nozzle = 2.0 * nozzle_width;
     let max_width = two_nozzle;
 
@@ -539,10 +539,8 @@ mod tests {
     fn arachne_thin_wall_generates_variable_width() {
         // 0.8mm thin wall with 0.4mm nozzle = thin (< 2 * 0.4 = 0.8).
         let rect = make_rectangle(0.8, 10.0);
-        let config = PrintConfig {
-            nozzle_diameter: 0.4,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.machine.nozzle_diameters = vec![0.4];
 
         let results = generate_arachne_perimeters(&[rect], &config);
         assert_eq!(results.len(), 1, "Should have one result");
@@ -562,10 +560,8 @@ mod tests {
     fn arachne_wide_wall_falls_back_to_classic() {
         // 10mm wall with 0.4mm nozzle = standard (10 > 2 * 0.4).
         let rect = make_rectangle(10.0, 20.0);
-        let config = PrintConfig {
-            nozzle_diameter: 0.4,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.machine.nozzle_diameters = vec![0.4];
 
         let results = generate_arachne_perimeters(&[rect], &config);
         assert_eq!(results.len(), 1, "Should have one result");

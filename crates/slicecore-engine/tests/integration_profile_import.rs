@@ -41,15 +41,15 @@ fn test_synthetic_process_profile_roundtrip() {
         config.infill_density
     );
     assert!(
-        (config.perimeter_speed - 200.0).abs() < 1e-9,
+        (config.speeds.perimeter - 200.0).abs() < 1e-9,
         "perimeter_speed should be 200, got {}",
-        config.perimeter_speed
+        config.speeds.perimeter
     );
     assert_eq!(config.seam_position, SeamPosition::Aligned);
     assert!(
-        (config.print_acceleration - 10000.0).abs() < 1e-9,
+        (config.accel.print - 10000.0).abs() < 1e-9,
         "print_acceleration should be 10000, got {}",
-        config.print_acceleration
+        config.accel.print
     );
 }
 
@@ -68,26 +68,26 @@ fn test_synthetic_filament_profile_roundtrip() {
     let config = PrintConfig::from_json(json).unwrap();
 
     assert!(
-        (config.nozzle_temp - 220.0).abs() < 1e-9,
+        (config.filament.nozzle_temp() - 220.0).abs() < 1e-9,
         "nozzle_temp should be 220, got {}",
-        config.nozzle_temp
+        config.filament.nozzle_temp()
     );
     assert!(
-        (config.bed_temp - 55.0).abs() < 1e-9,
+        (config.filament.bed_temp() - 55.0).abs() < 1e-9,
         "bed_temp should be 55, got {}",
-        config.bed_temp
+        config.filament.bed_temp()
     );
     assert!(
-        (config.filament_density - 1.24).abs() < 1e-9,
+        (config.filament.density - 1.24).abs() < 1e-9,
         "filament_density should be 1.24, got {}",
-        config.filament_density
+        config.filament.density
     );
     assert!(
         (config.extrusion_multiplier - 0.98).abs() < 1e-9,
         "extrusion_multiplier should be 0.98, got {}",
         config.extrusion_multiplier
     );
-    assert_eq!(config.disable_fan_first_layers, 1);
+    assert_eq!(config.cooling.disable_fan_first_layers, 1);
 }
 
 #[test]
@@ -105,20 +105,20 @@ fn test_synthetic_machine_profile_roundtrip() {
     let config = PrintConfig::from_json(json).unwrap();
 
     assert!(
-        (config.nozzle_diameter - 0.4).abs() < 1e-9,
+        (config.machine.nozzle_diameter() - 0.4).abs() < 1e-9,
         "nozzle_diameter should be 0.4, got {}",
-        config.nozzle_diameter
+        config.machine.nozzle_diameter()
     );
     assert!(
-        (config.retract_length - 0.8).abs() < 1e-9,
+        (config.retraction.length - 0.8).abs() < 1e-9,
         "retract_length should be 0.8, got {}",
-        config.retract_length
+        config.retraction.length
     );
     assert_eq!(config.gcode_dialect, GcodeDialect::Marlin);
     assert!(
-        (config.jerk_x - 8.0).abs() < 1e-9,
+        (config.machine.jerk_x() - 8.0).abs() < 1e-9,
         "jerk_x should be 8.0, got {}",
-        config.jerk_x
+        config.machine.jerk_x()
     );
 }
 
@@ -150,9 +150,9 @@ fn test_synthetic_nil_values_use_defaults() {
 
     // Non-nil field should be overridden.
     assert!(
-        (config.perimeter_speed - 100.0).abs() < 1e-9,
+        (config.speeds.perimeter - 100.0).abs() < 1e-9,
         "perimeter_speed should be 100 (not nil), got {}",
-        config.perimeter_speed
+        config.speeds.perimeter
     );
 }
 
@@ -171,21 +171,21 @@ fn test_synthetic_mixed_array_scalar() {
 
     // Array-wrapped value.
     assert!(
-        (config.nozzle_temp - 210.0).abs() < 1e-9,
+        (config.filament.nozzle_temp() - 210.0).abs() < 1e-9,
         "nozzle_temp (array) should be 210, got {}",
-        config.nozzle_temp
+        config.filament.nozzle_temp()
     );
     // Scalar string value.
     assert!(
-        (config.bed_temp - 60.0).abs() < 1e-9,
+        (config.filament.bed_temp() - 60.0).abs() < 1e-9,
         "bed_temp (scalar) should be 60, got {}",
-        config.bed_temp
+        config.filament.bed_temp()
     );
     // Array-wrapped.
     assert!(
-        (config.filament_density - 1.27).abs() < 1e-9,
+        (config.filament.density - 1.27).abs() < 1e-9,
         "filament_density (array) should be 1.27, got {}",
-        config.filament_density
+        config.filament.density
     );
     // Scalar string.
     assert!(
@@ -197,15 +197,14 @@ fn test_synthetic_mixed_array_scalar() {
 
 #[test]
 fn test_native_json_config() {
-    // Native JSON with PrintConfig field names and real numeric values (not strings).
+    // Native JSON with PrintConfig nested field names and real numeric values (not strings).
     let json = r#"{
         "layer_height": 0.15,
-        "nozzle_diameter": 0.6,
+        "machine": { "nozzle_diameters": [0.6] },
         "wall_count": 4,
         "infill_density": 0.3,
-        "perimeter_speed": 60.0,
-        "nozzle_temp": 215.0,
-        "bed_temp": 65.0
+        "speeds": { "perimeter": 60.0 },
+        "filament": { "nozzle_temperatures": [215.0], "bed_temperatures": [65.0] }
     }"#;
 
     let config = PrintConfig::from_json(json).unwrap();
@@ -216,9 +215,9 @@ fn test_native_json_config() {
         config.layer_height
     );
     assert!(
-        (config.nozzle_diameter - 0.6).abs() < 1e-9,
+        (config.machine.nozzle_diameter() - 0.6).abs() < 1e-9,
         "nozzle_diameter should be 0.6, got {}",
-        config.nozzle_diameter
+        config.machine.nozzle_diameter()
     );
     assert_eq!(config.wall_count, 4);
     assert!(
@@ -227,19 +226,19 @@ fn test_native_json_config() {
         config.infill_density
     );
     assert!(
-        (config.perimeter_speed - 60.0).abs() < 1e-9,
+        (config.speeds.perimeter - 60.0).abs() < 1e-9,
         "perimeter_speed should be 60, got {}",
-        config.perimeter_speed
+        config.speeds.perimeter
     );
     assert!(
-        (config.nozzle_temp - 215.0).abs() < 1e-9,
+        (config.filament.nozzle_temp() - 215.0).abs() < 1e-9,
         "nozzle_temp should be 215, got {}",
-        config.nozzle_temp
+        config.filament.nozzle_temp()
     );
     assert!(
-        (config.bed_temp - 65.0).abs() < 1e-9,
+        (config.filament.bed_temp() - 65.0).abs() < 1e-9,
         "bed_temp should be 65, got {}",
-        config.bed_temp
+        config.filament.bed_temp()
     );
 }
 
@@ -380,7 +379,7 @@ fn test_real_orcaslicer_process_profile() {
 
     eprintln!(
         "  layer_height={}, wall_count={}, infill_density={:.2}, perimeter_speed={}",
-        config.layer_height, config.wall_count, config.infill_density, config.perimeter_speed
+        config.layer_height, config.wall_count, config.infill_density, config.speeds.perimeter
     );
 }
 
@@ -419,18 +418,18 @@ fn test_real_orcaslicer_filament_profile() {
     // Sanity check: nozzle_temp or bed_temp should be non-default.
     // ABS typically has bed_temp ~100, so check it's been loaded.
     let defaults = PrintConfig::default();
-    let has_non_default = (config.nozzle_temp - defaults.nozzle_temp).abs() > 1.0
-        || (config.bed_temp - defaults.bed_temp).abs() > 1.0;
+    let has_non_default = (config.filament.nozzle_temp() - defaults.filament.nozzle_temp()).abs() > 1.0
+        || (config.filament.bed_temp() - defaults.filament.bed_temp()).abs() > 1.0;
 
     assert!(
         has_non_default,
         "Filament profile should have at least one non-default temperature. nozzle_temp={}, bed_temp={}",
-        config.nozzle_temp, config.bed_temp
+        config.filament.nozzle_temp(), config.filament.bed_temp()
     );
 
     eprintln!(
         "  nozzle_temp={}, bed_temp={}, filament_density={}, extrusion_multiplier={}",
-        config.nozzle_temp, config.bed_temp, config.filament_density, config.extrusion_multiplier
+        config.filament.nozzle_temp(), config.filament.bed_temp(), config.filament.density, config.extrusion_multiplier
     );
 }
 
@@ -462,7 +461,7 @@ fn test_real_bambustudio_profile() {
     // Just verify it loaded without error and produced some config.
     eprintln!(
         "  layer_height={}, wall_count={}, perimeter_speed={}",
-        config.layer_height, config.wall_count, config.perimeter_speed
+        config.layer_height, config.wall_count, config.speeds.perimeter
     );
 }
 

@@ -78,14 +78,14 @@ fn config_summary(config: &PrintConfig) -> ConfigSummary {
     ConfigSummary {
         layer_height: config.layer_height,
         first_layer_height: config.first_layer_height,
-        nozzle_diameter: config.nozzle_diameter,
+        nozzle_diameter: config.machine.nozzle_diameter(),
         wall_count: config.wall_count,
         infill_density: config.infill_density,
         infill_pattern: format!("{:?}", config.infill_pattern),
-        filament_diameter: config.filament_diameter,
-        perimeter_speed: config.perimeter_speed,
-        infill_speed: config.infill_speed,
-        travel_speed: config.travel_speed,
+        filament_diameter: config.filament.diameter,
+        perimeter_speed: config.speeds.perimeter,
+        infill_speed: config.speeds.infill,
+        travel_speed: config.speeds.travel,
     }
 }
 
@@ -218,7 +218,7 @@ mod tests {
         let summary = config_summary(&config);
 
         assert!((summary.layer_height - config.layer_height).abs() < 1e-9);
-        assert!((summary.nozzle_diameter - config.nozzle_diameter).abs() < 1e-9);
+        assert!((summary.nozzle_diameter - config.machine.nozzle_diameter()).abs() < 1e-9);
         assert_eq!(summary.wall_count, config.wall_count);
         assert!((summary.infill_density - config.infill_density).abs() < 1e-9);
     }

@@ -112,9 +112,9 @@ fn test_batch_convert_single_profile() {
 
     // nozzle_temp should be 210.0 (not default 200.0).
     assert!(
-        (config.nozzle_temp - 210.0).abs() < 1e-6,
+        (config.filament.nozzle_temp() - 210.0).abs() < 1e-6,
         "nozzle_temp should be 210.0, got {}",
-        config.nozzle_temp
+        config.filament.nozzle_temp()
     );
 }
 
@@ -183,9 +183,9 @@ fn test_batch_convert_inheritance() {
 
     // Inherited from parent: nozzle_temp = 215.0.
     assert!(
-        (config.nozzle_temp - 215.0).abs() < 1e-6,
+        (config.filament.nozzle_temp() - 215.0).abs() < 1e-6,
         "nozzle_temp should be inherited as 215.0, got {}",
-        config.nozzle_temp
+        config.filament.nozzle_temp()
     );
 
     // Child override: extrusion_multiplier = 0.95 (from filament_flow_ratio).

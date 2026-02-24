@@ -69,12 +69,12 @@ pub fn generate_tool_change(
     let retract_len = if (from_tool as usize) < config.tools.len() {
         config.tools[from_tool as usize].retract_length
     } else {
-        print_config.retract_length
+        print_config.retraction.length
     };
     let retract_speed = if (from_tool as usize) < config.tools.len() {
         config.tools[from_tool as usize].retract_speed * 60.0 // mm/s -> mm/min
     } else {
-        print_config.retract_speed * 60.0
+        print_config.retraction.speed * 60.0
     };
 
     commands.push(GcodeCommand::Comment(format!(
@@ -89,7 +89,7 @@ pub fn generate_tool_change(
     // 2. Travel to purge tower position.
     let tower_x = config.purge_tower_position[0];
     let tower_y = config.purge_tower_position[1];
-    let travel_speed = print_config.travel_speed * 60.0;
+    let travel_speed = print_config.speeds.travel * 60.0;
 
     commands.push(GcodeCommand::RapidMove {
         x: Some(tower_x),
@@ -105,12 +105,12 @@ pub fn generate_tool_change(
     let prime_len = if (to_tool as usize) < config.tools.len() {
         config.tools[to_tool as usize].retract_length
     } else {
-        print_config.retract_length
+        print_config.retraction.length
     };
     let prime_speed = if (to_tool as usize) < config.tools.len() {
         config.tools[to_tool as usize].retract_speed * 60.0
     } else {
-        print_config.retract_speed * 60.0
+        print_config.retraction.speed * 60.0
     };
 
     commands.push(GcodeCommand::Unretract {
@@ -120,7 +120,7 @@ pub fn generate_tool_change(
 
     // 5. Wipe move across the purge tower.
     let wipe_end_x = tower_x + config.wipe_length;
-    let wipe_speed = print_config.perimeter_speed * 60.0;
+    let wipe_speed = print_config.speeds.perimeter * 60.0;
 
     commands.push(GcodeCommand::LinearMove {
         x: Some(wipe_end_x),

@@ -433,20 +433,20 @@ pub fn apply_prusaslicer_field_mapping(
         "fill_pattern" => map_infill_pattern_prusaslicer(value, config),
         "top_solid_layers" => parse_and_set_u32(value, &mut config.top_solid_layers),
         "bottom_solid_layers" => parse_and_set_u32(value, &mut config.bottom_solid_layers),
-        "perimeter_speed" => parse_and_set_f64(value, &mut config.perimeter_speed),
-        "infill_speed" => parse_and_set_f64(value, &mut config.infill_speed),
-        "travel_speed" => parse_and_set_f64(value, &mut config.travel_speed),
+        "perimeter_speed" => parse_and_set_f64(value, &mut config.speeds.perimeter),
+        "infill_speed" => parse_and_set_f64(value, &mut config.speeds.infill),
+        "travel_speed" => parse_and_set_f64(value, &mut config.speeds.travel),
         "first_layer_speed" => {
             // Skip percentage speed values (e.g., "50%").
             if value.ends_with('%') {
                 return false;
             }
-            parse_and_set_f64(value, &mut config.first_layer_speed)
+            parse_and_set_f64(value, &mut config.speeds.first_layer)
         }
         "skirts" => parse_and_set_u32(value, &mut config.skirt_loops),
         "skirt_distance" => parse_and_set_f64(value, &mut config.skirt_distance),
         "brim_width" => parse_and_set_f64(value, &mut config.brim_width),
-        "default_acceleration" => parse_and_set_f64(value, &mut config.print_acceleration),
+        "default_acceleration" => parse_and_set_f64(value, &mut config.accel.print),
         "seam_position" => map_seam_position_prusaslicer(value, config),
 
         // =====================================================================
@@ -466,7 +466,7 @@ pub fn apply_prusaslicer_field_mapping(
             if value.ends_with('%') {
                 return false;
             }
-            parse_and_set_f64(value, &mut config.perimeter_speed)
+            parse_and_set_f64(value, &mut config.speeds.perimeter)
         }
         "gap_fill_speed" => parse_and_set_f64(value, &mut config.speeds.gap_fill),
         "top_solid_infill_speed" | "top_infill_speed" => {
@@ -719,62 +719,39 @@ pub fn apply_prusaslicer_field_mapping(
         // Multi-extruder Vec<f64> array fields (comma-separated)
         // =====================================================================
         "nozzle_diameter" => {
-            // Populate both scalar (first value) and Vec (all values).
-            let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.nozzle_diameter);
             config.machine.nozzle_diameters = parse_comma_separated_f64(value);
             true
         }
         "machine_max_jerk_x" => {
-            let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.jerk_x);
             config.machine.jerk_values_x = parse_comma_separated_f64(value);
             true
         }
         "machine_max_jerk_y" => {
-            let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.jerk_y);
             config.machine.jerk_values_y = parse_comma_separated_f64(value);
             true
         }
         "machine_max_jerk_z" => {
-            let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.jerk_z);
             config.machine.jerk_values_z = parse_comma_separated_f64(value);
             true
         }
         "machine_max_jerk_e" => {
-            let first = first_comma_value(value);
-            if let Ok(v) = first.parse::<f64>() {
-                // No flat jerk_e on PrintConfig, but populate sub-config Vec.
-                let _ = v;
-            }
             config.machine.jerk_values_e = parse_comma_separated_f64(value);
             true
         }
         "temperature" => {
-            // Populate both scalar (first value) and Vec (all values).
-            let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.nozzle_temp);
             config.filament.nozzle_temperatures = parse_comma_separated_f64(value);
             true
         }
         "bed_temperature" => {
-            let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.bed_temp);
             config.filament.bed_temperatures = parse_comma_separated_f64(value);
             true
         }
         "first_layer_temperature" => {
-            let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.first_layer_nozzle_temp);
             config.filament.first_layer_nozzle_temperatures =
                 parse_comma_separated_f64(value);
             true
         }
         "first_layer_bed_temperature" => {
-            let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.first_layer_bed_temp);
             config.filament.first_layer_bed_temperatures =
                 parse_comma_separated_f64(value);
             true
@@ -857,15 +834,15 @@ pub fn apply_prusaslicer_field_mapping(
         // =====================================================================
         "filament_density" => {
             let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.filament_density)
+            parse_and_set_f64(first, &mut config.filament.density)
         }
         "filament_diameter" => {
             let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.filament_diameter)
+            parse_and_set_f64(first, &mut config.filament.diameter)
         }
         "filament_cost" => {
             let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.filament_cost_per_kg)
+            parse_and_set_f64(first, &mut config.filament.cost_per_kg)
         }
         "extrusion_multiplier" => {
             let first = first_comma_value(value);
@@ -873,31 +850,31 @@ pub fn apply_prusaslicer_field_mapping(
         }
         "disable_fan_first_layers" => {
             let first = first_comma_value(value);
-            parse_and_set_u32(first, &mut config.disable_fan_first_layers)
+            parse_and_set_u32(first, &mut config.cooling.disable_fan_first_layers)
         }
         "fan_below_layer_time" => {
             let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.fan_below_layer_time)
+            parse_and_set_f64(first, &mut config.cooling.fan_below_layer_time)
         }
 
         // =====================================================================
-        // Machine/Printer fields (existing flat fields)
+        // Machine/Printer fields (migrated to sub-configs)
         // =====================================================================
         "retract_length" => {
             let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.retract_length)
+            parse_and_set_f64(first, &mut config.retraction.length)
         }
         "retract_speed" => {
             let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.retract_speed)
+            parse_and_set_f64(first, &mut config.retraction.speed)
         }
         "retract_lift" => {
             let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.retract_z_hop)
+            parse_and_set_f64(first, &mut config.retraction.z_hop)
         }
         "retract_before_travel" => {
             let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.min_travel_for_retract)
+            parse_and_set_f64(first, &mut config.retraction.min_travel)
         }
         "gcode_flavor" => map_gcode_dialect_prusaslicer(value, config),
 
@@ -1371,7 +1348,7 @@ fill_density = 10%
             "temperature",
             "215"
         ));
-        assert!((config.nozzle_temp - 215.0).abs() < 1e-9);
+        assert!((config.filament.nozzle_temp() - 215.0).abs() < 1e-9);
     }
 
     #[test]
@@ -1384,7 +1361,7 @@ fill_density = 10%
             "nozzle_diameter",
             "0.4,0.4,0.4,0.4"
         ));
-        assert!((config.nozzle_diameter - 0.4).abs() < 1e-9);
+        assert!((config.machine.nozzle_diameter() - 0.4).abs() < 1e-9);
         assert_eq!(config.machine.nozzle_diameters, vec![0.4, 0.4, 0.4, 0.4]);
 
         // Single value.
@@ -1393,14 +1370,14 @@ fill_density = 10%
             "nozzle_diameter",
             "0.6"
         ));
-        assert!((config.nozzle_diameter - 0.6).abs() < 1e-9);
+        assert!((config.machine.nozzle_diameter() - 0.6).abs() < 1e-9);
         assert_eq!(config.machine.nozzle_diameters, vec![0.6]);
     }
 
     #[test]
     fn test_percentage_speed_skipped() {
         let mut config = PrintConfig::default();
-        let original_speed = config.first_layer_speed;
+        let original_speed = config.speeds.first_layer;
 
         // Percentage speed should be skipped (returns false).
         assert!(!apply_prusaslicer_field_mapping(
@@ -1408,7 +1385,7 @@ fill_density = 10%
             "first_layer_speed",
             "50%"
         ));
-        assert!((config.first_layer_speed - original_speed).abs() < 1e-9);
+        assert!((config.speeds.first_layer - original_speed).abs() < 1e-9);
 
         // Absolute speed should be mapped.
         assert!(apply_prusaslicer_field_mapping(
@@ -1416,7 +1393,7 @@ fill_density = 10%
             "first_layer_speed",
             "30"
         ));
-        assert!((config.first_layer_speed - 30.0).abs() < 1e-9);
+        assert!((config.speeds.first_layer - 30.0).abs() < 1e-9);
     }
 
     #[test]
@@ -1525,9 +1502,9 @@ fill_density = 10%
         assert!((result.config.layer_height - 0.15).abs() < 1e-9);
         assert_eq!(result.config.wall_count, 4);
         assert!((result.config.infill_density - 0.20).abs() < 1e-9);
-        assert!((result.config.nozzle_temp - 210.0).abs() < 1e-9);
-        assert!((result.config.bed_temp - 60.0).abs() < 1e-9);
-        assert!((result.config.nozzle_diameter - 0.4).abs() < 1e-9);
+        assert!((result.config.filament.nozzle_temp() - 210.0).abs() < 1e-9);
+        assert!((result.config.filament.bed_temp() - 60.0).abs() < 1e-9);
+        assert!((result.config.machine.nozzle_diameter() - 0.4).abs() < 1e-9);
         assert_eq!(result.config.gcode_dialect, GcodeDialect::Klipper);
 
         // Metadata.
@@ -1567,21 +1544,21 @@ fill_density = 10%
             "machine_max_jerk_x",
             "8,8"
         ));
-        assert!((config.jerk_x - 8.0).abs() < 1e-9);
+        assert!((config.machine.jerk_x() - 8.0).abs() < 1e-9);
 
         assert!(apply_prusaslicer_field_mapping(
             &mut config,
             "machine_max_jerk_y",
             "10,10"
         ));
-        assert!((config.jerk_y - 10.0).abs() < 1e-9);
+        assert!((config.machine.jerk_y() - 10.0).abs() < 1e-9);
 
         assert!(apply_prusaslicer_field_mapping(
             &mut config,
             "machine_max_jerk_z",
             "0.4,0.4"
         ));
-        assert!((config.jerk_z - 0.4).abs() < 1e-9);
+        assert!((config.machine.jerk_z() - 0.4).abs() < 1e-9);
     }
 
     #[test]
@@ -1912,7 +1889,7 @@ fill_density = 10%
             "0.4,0.6"
         ));
         assert_eq!(config.machine.nozzle_diameters, vec![0.4, 0.6]);
-        assert!((config.nozzle_diameter - 0.4).abs() < 1e-9);
+        assert!((config.machine.nozzle_diameter() - 0.4).abs() < 1e-9);
     }
 
     #[test]
@@ -1925,7 +1902,7 @@ fill_density = 10%
             "200,210"
         ));
         assert_eq!(config.filament.nozzle_temperatures, vec![200.0, 210.0]);
-        assert!((config.nozzle_temp - 200.0).abs() < 1e-9);
+        assert!((config.filament.nozzle_temp() - 200.0).abs() < 1e-9);
 
         assert!(apply_prusaslicer_field_mapping(
             &mut config,
@@ -1933,7 +1910,7 @@ fill_density = 10%
             "60,65"
         ));
         assert_eq!(config.filament.bed_temperatures, vec![60.0, 65.0]);
-        assert!((config.bed_temp - 60.0).abs() < 1e-9);
+        assert!((config.filament.bed_temp() - 60.0).abs() < 1e-9);
 
         assert!(apply_prusaslicer_field_mapping(
             &mut config,
@@ -1944,7 +1921,7 @@ fill_density = 10%
             config.filament.first_layer_nozzle_temperatures,
             vec![215.0, 220.0]
         );
-        assert!((config.first_layer_nozzle_temp - 215.0).abs() < 1e-9);
+        assert!((config.filament.first_layer_nozzle_temp() - 215.0).abs() < 1e-9);
 
         assert!(apply_prusaslicer_field_mapping(
             &mut config,
@@ -1955,7 +1932,7 @@ fill_density = 10%
             config.filament.first_layer_bed_temperatures,
             vec![65.0, 70.0]
         );
-        assert!((config.first_layer_bed_temp - 65.0).abs() < 1e-9);
+        assert!((config.filament.first_layer_bed_temp() - 65.0).abs() < 1e-9);
     }
 
     #[test]
@@ -1968,7 +1945,7 @@ fill_density = 10%
             "8,10"
         ));
         assert_eq!(config.machine.jerk_values_x, vec![8.0, 10.0]);
-        assert!((config.jerk_x - 8.0).abs() < 1e-9);
+        assert!((config.machine.jerk_x() - 8.0).abs() < 1e-9);
 
         assert!(apply_prusaslicer_field_mapping(
             &mut config,

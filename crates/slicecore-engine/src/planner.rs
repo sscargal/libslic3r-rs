@@ -31,14 +31,14 @@ pub struct RetractionMove {
 
 /// Decides whether to retract for a given travel distance.
 ///
-/// Returns `Some(RetractionMove)` if `travel_distance >= config.min_travel_for_retract`,
+/// Returns `Some(RetractionMove)` if `travel_distance >= config.retraction.min_travel`,
 /// otherwise `None` (short travel, no retraction needed).
 pub fn plan_retraction(travel_distance: f64, config: &PrintConfig) -> Option<RetractionMove> {
-    if travel_distance >= config.min_travel_for_retract {
+    if travel_distance >= config.retraction.min_travel {
         Some(RetractionMove {
-            retract_length: config.retract_length,
-            retract_speed: config.retract_speed,
-            z_hop: config.retract_z_hop,
+            retract_length: config.retraction.length,
+            retract_speed: config.retraction.speed,
+            z_hop: config.retraction.z_hop,
         })
     } else {
         None
@@ -94,7 +94,7 @@ pub fn generate_skirt(
     let mut result = first_loop;
 
     // 4. Additional loops: offset outward by one nozzle_diameter per loop.
-    let nozzle_offset = mm_to_coord(config.nozzle_diameter);
+    let nozzle_offset = mm_to_coord(config.machine.nozzle_diameter());
     for _ in 1..config.skirt_loops {
         // Offset from the last set of polygons.
         let prev = result.last().unwrap();
@@ -127,8 +127,8 @@ pub fn generate_brim(
         return Vec::new();
     }
 
-    let brim_loops = (config.brim_width / config.nozzle_diameter).ceil() as u32;
-    let nozzle_coord = mm_to_coord(config.nozzle_diameter);
+    let brim_loops = (config.brim_width / config.machine.nozzle_diameter()).ceil() as u32;
+    let nozzle_coord = mm_to_coord(config.machine.nozzle_diameter());
 
     let mut result = Vec::new();
 
@@ -158,11 +158,11 @@ pub fn plan_temperatures(layer_index: usize, config: &PrintConfig) -> Vec<GcodeC
         0 => {
             vec![
                 GcodeCommand::SetBedTemp {
-                    temp: config.first_layer_bed_temp,
+                    temp: config.filament.first_layer_bed_temp(),
                     wait: true,
                 },
                 GcodeCommand::SetExtruderTemp {
-                    temp: config.first_layer_nozzle_temp,
+                    temp: config.filament.first_layer_nozzle_temp(),
                     wait: true,
                 },
             ]
@@ -171,17 +171,17 @@ pub fn plan_temperatures(layer_index: usize, config: &PrintConfig) -> Vec<GcodeC
             let mut cmds = Vec::new();
 
             // Transition to normal bed temp if different.
-            if (config.bed_temp - config.first_layer_bed_temp).abs() > 0.1 {
+            if (config.filament.bed_temp() - config.filament.first_layer_bed_temp()).abs() > 0.1 {
                 cmds.push(GcodeCommand::SetBedTemp {
-                    temp: config.bed_temp,
+                    temp: config.filament.bed_temp(),
                     wait: false,
                 });
             }
 
             // Transition to normal nozzle temp if different.
-            if (config.nozzle_temp - config.first_layer_nozzle_temp).abs() > 0.1 {
+            if (config.filament.nozzle_temp() - config.filament.first_layer_nozzle_temp()).abs() > 0.1 {
                 cmds.push(GcodeCommand::SetExtruderTemp {
-                    temp: config.nozzle_temp,
+                    temp: config.filament.nozzle_temp(),
                     wait: false,
                 });
             }
@@ -198,7 +198,7 @@ pub fn plan_temperatures(layer_index: usize, config: &PrintConfig) -> Vec<GcodeC
 
 /// Generates fan control G-code commands for the given layer.
 ///
-/// - If `layer_index < config.disable_fan_first_layers`: emits FanOff.
+/// - If `layer_index < config.cooling.disable_fan_first_layers`: emits FanOff.
 /// - Otherwise: emits SetFanSpeed at the configured fan speed.
 ///   (Phase 3 simplification: full fan_speed whenever fan is enabled.)
 pub fn plan_fan(
@@ -206,10 +206,10 @@ pub fn plan_fan(
     _layer_time_seconds: f64,
     config: &PrintConfig,
 ) -> Vec<GcodeCommand> {
-    if (layer_index as u32) < config.disable_fan_first_layers {
+    if (layer_index as u32) < config.cooling.disable_fan_first_layers {
         vec![GcodeCommand::FanOff]
     } else {
-        vec![GcodeCommand::SetFanSpeed(config.fan_speed)]
+        vec![GcodeCommand::SetFanSpeed(config.cooling.fan_speed)]
     }
 }
 
@@ -335,11 +335,9 @@ mod tests {
     #[test]
     fn brim_2mm_width_produces_5_loops() {
         let square = make_square(20.0);
-        let config = PrintConfig {
-            brim_width: 2.0,
-            nozzle_diameter: 0.4,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.brim_width = 2.0;
+        config.machine.nozzle_diameters = vec![0.4];
 
         let brims = generate_brim(&[square], &config);
         // 2.0 / 0.4 = 5.0 -> ceil = 5 loops
@@ -365,22 +363,18 @@ mod tests {
 
     #[test]
     fn retraction_short_travel_returns_none() {
-        let config = PrintConfig {
-            min_travel_for_retract: 1.5,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.retraction.min_travel = 1.5;
         assert!(plan_retraction(1.0, &config).is_none());
     }
 
     #[test]
     fn retraction_long_travel_returns_some() {
-        let config = PrintConfig {
-            min_travel_for_retract: 1.5,
-            retract_length: 0.8,
-            retract_speed: 45.0,
-            retract_z_hop: 0.2,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.retraction.min_travel = 1.5;
+        config.retraction.length = 0.8;
+        config.retraction.speed = 45.0;
+        config.retraction.z_hop = 0.2;
 
         let retract = plan_retraction(2.0, &config).unwrap();
         assert!((retract.retract_length - 0.8).abs() < 1e-9);
@@ -390,10 +384,8 @@ mod tests {
 
     #[test]
     fn retraction_exact_threshold_triggers() {
-        let config = PrintConfig {
-            min_travel_for_retract: 1.5,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.retraction.min_travel = 1.5;
         assert!(plan_retraction(1.5, &config).is_some());
     }
 
@@ -410,7 +402,7 @@ mod tests {
         assert_eq!(
             cmds[0],
             GcodeCommand::SetBedTemp {
-                temp: config.first_layer_bed_temp,
+                temp: config.filament.first_layer_bed_temp(),
                 wait: true
             }
         );
@@ -418,7 +410,7 @@ mod tests {
         assert_eq!(
             cmds[1],
             GcodeCommand::SetExtruderTemp {
-                temp: config.first_layer_nozzle_temp,
+                temp: config.filament.first_layer_nozzle_temp(),
                 wait: true
             }
         );
@@ -426,13 +418,11 @@ mod tests {
 
     #[test]
     fn temperature_layer_1_emits_change_when_different() {
-        let config = PrintConfig {
-            nozzle_temp: 200.0,
-            first_layer_nozzle_temp: 210.0,
-            bed_temp: 60.0,
-            first_layer_bed_temp: 65.0,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.filament.nozzle_temperatures = vec![200.0];
+        config.filament.first_layer_nozzle_temperatures = vec![210.0];
+        config.filament.bed_temperatures = vec![60.0];
+        config.filament.first_layer_bed_temperatures = vec![65.0];
 
         let cmds = plan_temperatures(1, &config);
         assert_eq!(
@@ -461,13 +451,11 @@ mod tests {
 
     #[test]
     fn temperature_layer_1_no_change_when_same() {
-        let config = PrintConfig {
-            nozzle_temp: 200.0,
-            first_layer_nozzle_temp: 200.0,
-            bed_temp: 60.0,
-            first_layer_bed_temp: 60.0,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.filament.nozzle_temperatures = vec![200.0];
+        config.filament.first_layer_nozzle_temperatures = vec![200.0];
+        config.filament.bed_temperatures = vec![60.0];
+        config.filament.first_layer_bed_temperatures = vec![60.0];
 
         let cmds = plan_temperatures(1, &config);
         assert!(
@@ -487,10 +475,8 @@ mod tests {
 
     #[test]
     fn fan_layer_0_disabled_emits_fan_off() {
-        let config = PrintConfig {
-            disable_fan_first_layers: 1,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.cooling.disable_fan_first_layers = 1;
 
         let cmds = plan_fan(0, 10.0, &config);
         assert_eq!(cmds.len(), 1);
@@ -499,11 +485,9 @@ mod tests {
 
     #[test]
     fn fan_layer_1_emits_set_fan_speed() {
-        let config = PrintConfig {
-            disable_fan_first_layers: 1,
-            fan_speed: 255,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.cooling.disable_fan_first_layers = 1;
+        config.cooling.fan_speed = 255;
 
         let cmds = plan_fan(1, 10.0, &config);
         assert_eq!(cmds.len(), 1);
@@ -512,11 +496,9 @@ mod tests {
 
     #[test]
     fn fan_multiple_disabled_layers() {
-        let config = PrintConfig {
-            disable_fan_first_layers: 3,
-            fan_speed: 200,
-            ..Default::default()
-        };
+        let mut config = PrintConfig::default();
+        config.cooling.disable_fan_first_layers = 3;
+        config.cooling.fan_speed = 200;
 
         // Layers 0, 1, 2 should have fan off.
         for i in 0..3 {

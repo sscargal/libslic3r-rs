@@ -391,7 +391,7 @@ mod tests {
             inner,
             &[square],
             0.1,
-            config.nozzle_diameter,
+            config.machine.nozzle_diameter(),
             config.extrusion_width(),
         );
 

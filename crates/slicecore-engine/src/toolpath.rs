@@ -157,16 +157,16 @@ pub fn assemble_layer_toolpath(
 
     // Speeds in mm/min (config stores mm/s).
     let perimeter_speed = if is_first_layer {
-        config.first_layer_speed * 60.0
+        config.speeds.first_layer * 60.0
     } else {
-        config.perimeter_speed * 60.0
+        config.speeds.perimeter * 60.0
     };
     let infill_speed = if is_first_layer {
-        config.first_layer_speed * 60.0
+        config.speeds.first_layer * 60.0
     } else {
-        config.infill_speed * 60.0
+        config.speeds.infill * 60.0
     };
-    let travel_speed = config.travel_speed * 60.0;
+    let travel_speed = config.speeds.travel * 60.0;
 
     // Track the current nozzle position for inserting travel moves.
     let mut current_pos: Option<Point2> = None;
@@ -236,7 +236,7 @@ pub fn assemble_layer_toolpath(
                             seg_len,
                             extrusion_width,
                             layer_height,
-                            config.filament_diameter,
+                            config.filament.diameter,
                             config.extrusion_multiplier,
                         );
 
@@ -323,7 +323,7 @@ pub fn assemble_layer_toolpath(
                         seg_len,
                         gap_path.width,
                         layer_height,
-                        config.filament_diameter,
+                        config.filament.diameter,
                         config.extrusion_multiplier,
                     );
 
@@ -385,7 +385,7 @@ pub fn assemble_layer_toolpath(
                     seg_len,
                     extrusion_width,
                     layer_height,
-                    config.filament_diameter,
+                    config.filament.diameter,
                     config.extrusion_multiplier,
                 );
 
@@ -648,12 +648,7 @@ mod tests {
     #[test]
     fn toolpath_first_layer_uses_first_layer_speed() {
         let square = make_square(20.0);
-        let config = PrintConfig {
-            first_layer_speed: 20.0, // mm/s
-            perimeter_speed: 45.0,   // mm/s
-            infill_speed: 80.0,      // mm/s
-            ..Default::default()
-        };
+        let config = PrintConfig::default(); // speeds.first_layer=20, speeds.perimeter=45, speeds.infill=80
 
         let perimeters = generate_perimeters(&[square.clone()], &config);
         let infill = LayerInfill {
@@ -680,12 +675,7 @@ mod tests {
     #[test]
     fn toolpath_subsequent_layers_use_feature_speeds() {
         let square = make_square(20.0);
-        let config = PrintConfig {
-            perimeter_speed: 45.0, // mm/s
-            infill_speed: 80.0,    // mm/s
-            travel_speed: 150.0,   // mm/s
-            ..Default::default()
-        };
+        let config = PrintConfig::default(); // speeds.perimeter=45, speeds.infill=80, speeds.travel=150
 
         let perimeters = generate_perimeters(&[square.clone()], &config);
         let inner_contour = &perimeters[0].inner_contour;

@@ -330,32 +330,18 @@ fn apply_array_field_mapping(
         // --- Multi-extruder Vec<f64> array fields ---
         "nozzle_diameter" => {
             config.machine.nozzle_diameters = extract_array_f64(value);
-            // Also set the flat scalar field for backward compatibility.
-            if let Some(&first) = config.machine.nozzle_diameters.first() {
-                config.nozzle_diameter = first;
-            }
             true
         }
         "machine_max_jerk_x" => {
             config.machine.jerk_values_x = extract_array_f64(value);
-            // Also set flat scalar for backward compat.
-            if let Some(&first) = config.machine.jerk_values_x.first() {
-                config.jerk_x = first;
-            }
             true
         }
         "machine_max_jerk_y" => {
             config.machine.jerk_values_y = extract_array_f64(value);
-            if let Some(&first) = config.machine.jerk_values_y.first() {
-                config.jerk_y = first;
-            }
             true
         }
         "machine_max_jerk_z" => {
             config.machine.jerk_values_z = extract_array_f64(value);
-            if let Some(&first) = config.machine.jerk_values_z.first() {
-                config.jerk_z = first;
-            }
             true
         }
         "machine_max_jerk_e" => {
@@ -364,33 +350,20 @@ fn apply_array_field_mapping(
         }
         "nozzle_temperature" | "temperature" => {
             config.filament.nozzle_temperatures = extract_array_f64(value);
-            // Also set flat scalar for backward compat.
-            if let Some(&first) = config.filament.nozzle_temperatures.first() {
-                config.nozzle_temp = first;
-            }
             true
         }
         "bed_temperature" | "hot_plate_temp" => {
             config.filament.bed_temperatures = extract_array_f64(value);
-            if let Some(&first) = config.filament.bed_temperatures.first() {
-                config.bed_temp = first;
-            }
             true
         }
         "nozzle_temperature_initial_layer" | "first_layer_temperature" => {
             config.filament.first_layer_nozzle_temperatures = extract_array_f64(value);
-            if let Some(&first) = config.filament.first_layer_nozzle_temperatures.first() {
-                config.first_layer_nozzle_temp = first;
-            }
             true
         }
         "bed_temperature_initial_layer"
         | "first_layer_bed_temperature"
         | "hot_plate_temp_initial_layer" => {
             config.filament.first_layer_bed_temperatures = extract_array_f64(value);
-            if let Some(&first) = config.filament.first_layer_bed_temperatures.first() {
-                config.first_layer_bed_temp = first;
-            }
             true
         }
         _ => false,
@@ -411,15 +384,15 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "sparse_infill_pattern" => Some("infill_pattern"),
         "top_shell_layers" => Some("top_solid_layers"),
         "bottom_shell_layers" => Some("bottom_solid_layers"),
-        "outer_wall_speed" => Some("perimeter_speed"),
-        "sparse_infill_speed" => Some("infill_speed"),
-        "travel_speed" => Some("travel_speed"),
-        "initial_layer_speed" => Some("first_layer_speed"),
+        "outer_wall_speed" => Some("speeds.perimeter"),
+        "sparse_infill_speed" => Some("speeds.infill"),
+        "travel_speed" => Some("speeds.travel"),
+        "initial_layer_speed" => Some("speeds.first_layer"),
         "skirt_loops" => Some("skirt_loops"),
         "skirt_distance" => Some("skirt_distance"),
         "brim_width" => Some("brim_width"),
-        "default_acceleration" => Some("print_acceleration"),
-        "travel_acceleration" => Some("travel_acceleration"),
+        "default_acceleration" => Some("accel.print"),
+        "travel_acceleration" => Some("accel.travel"),
         "enable_arc_fitting" => Some("arc_fitting_enabled"),
         "adaptive_layer_height" => Some("adaptive_layer_height"),
         "wall_generator" => Some("arachne_enabled"),
@@ -506,21 +479,21 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "sparse_infill_acceleration" => Some("accel.sparse_infill"),
         "bridge_acceleration" => Some("accel.bridge"),
 
-        // --- Original filament fields ---
-        "nozzle_temperature" | "temperature" => Some("nozzle_temp"),
+        // --- Filament temperature fields (migrated to sub-config) ---
+        "nozzle_temperature" | "temperature" => Some("filament.nozzle_temperatures"),
         "nozzle_temperature_initial_layer" | "first_layer_temperature" => {
-            Some("first_layer_nozzle_temp")
+            Some("filament.first_layer_nozzle_temperatures")
         }
-        "hot_plate_temp" | "bed_temperature" => Some("bed_temp"),
+        "hot_plate_temp" | "bed_temperature" => Some("filament.bed_temperatures"),
         "hot_plate_temp_initial_layer"
         | "bed_temperature_initial_layer"
-        | "first_layer_bed_temperature" => Some("first_layer_bed_temp"),
-        "filament_density" => Some("filament_density"),
-        "filament_diameter" => Some("filament_diameter"),
-        "filament_cost" => Some("filament_cost_per_kg"),
+        | "first_layer_bed_temperature" => Some("filament.first_layer_bed_temperatures"),
+        "filament_density" => Some("filament.density"),
+        "filament_diameter" => Some("filament.diameter"),
+        "filament_cost" => Some("filament.cost_per_kg"),
         "filament_flow_ratio" => Some("extrusion_multiplier"),
-        "close_fan_the_first_x_layers" => Some("disable_fan_first_layers"),
-        "fan_cooling_layer_time" => Some("fan_below_layer_time"),
+        "close_fan_the_first_x_layers" => Some("cooling.disable_fan_first_layers"),
+        "fan_cooling_layer_time" => Some("cooling.fan_below_layer_time"),
 
         // --- Filament sub-config fields ---
         "filament_type" => Some("filament.filament_type"),
@@ -533,16 +506,16 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "filament_start_gcode" => Some("filament.filament_start_gcode"),
         "filament_end_gcode" => Some("filament.filament_end_gcode"),
 
-        // --- Original machine fields ---
-        "nozzle_diameter" => Some("nozzle_diameter"),
-        "retraction_length" => Some("retract_length"),
-        "retraction_speed" => Some("retract_speed"),
-        "z_hop" => Some("retract_z_hop"),
-        "retraction_minimum_travel" => Some("min_travel_for_retract"),
+        // --- Machine fields (migrated to sub-configs) ---
+        "nozzle_diameter" => Some("machine.nozzle_diameters"),
+        "retraction_length" => Some("retraction.length"),
+        "retraction_speed" => Some("retraction.speed"),
+        "z_hop" => Some("retraction.z_hop"),
+        "retraction_minimum_travel" => Some("retraction.min_travel"),
         "gcode_flavor" => Some("gcode_dialect"),
-        "machine_max_jerk_x" => Some("jerk_x"),
-        "machine_max_jerk_y" => Some("jerk_y"),
-        "machine_max_jerk_z" => Some("jerk_z"),
+        "machine_max_jerk_x" => Some("machine.jerk_values_x"),
+        "machine_max_jerk_y" => Some("machine.jerk_values_y"),
+        "machine_max_jerk_z" => Some("machine.jerk_values_z"),
         "machine_max_jerk_e" => Some("machine.jerk_values_e"),
 
         // --- Process misc fields ---
@@ -594,15 +567,15 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         }
         "top_shell_layers" => parse_and_set_u32(value, &mut config.top_solid_layers),
         "bottom_shell_layers" => parse_and_set_u32(value, &mut config.bottom_solid_layers),
-        "outer_wall_speed" => parse_and_set_f64(value, &mut config.perimeter_speed),
-        "sparse_infill_speed" => parse_and_set_f64(value, &mut config.infill_speed),
-        "travel_speed" => parse_and_set_f64(value, &mut config.travel_speed),
-        "initial_layer_speed" => parse_and_set_f64(value, &mut config.first_layer_speed),
+        "outer_wall_speed" => parse_and_set_f64(value, &mut config.speeds.perimeter),
+        "sparse_infill_speed" => parse_and_set_f64(value, &mut config.speeds.infill),
+        "travel_speed" => parse_and_set_f64(value, &mut config.speeds.travel),
+        "initial_layer_speed" => parse_and_set_f64(value, &mut config.speeds.first_layer),
         "skirt_loops" => parse_and_set_u32(value, &mut config.skirt_loops),
         "skirt_distance" => parse_and_set_f64(value, &mut config.skirt_distance),
         "brim_width" => parse_and_set_f64(value, &mut config.brim_width),
-        "default_acceleration" => parse_and_set_f64(value, &mut config.print_acceleration),
-        "travel_acceleration" => parse_and_set_f64(value, &mut config.travel_acceleration),
+        "default_acceleration" => parse_and_set_f64(value, &mut config.accel.print),
+        "travel_acceleration" => parse_and_set_f64(value, &mut config.accel.travel),
         "enable_arc_fitting" => {
             config.arc_fitting_enabled = value == "1" || value == "true";
             true
@@ -885,14 +858,16 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         // Note: temperature array fields are handled by apply_array_field_mapping.
         // These scalar fallbacks handle the case when apply_array_field_mapping
         // already consumed them (won't reach here), but we keep them for safety.
-        "filament_density" => parse_and_set_f64(value, &mut config.filament_density),
-        "filament_diameter" => parse_and_set_f64(value, &mut config.filament_diameter),
-        "filament_cost" => parse_and_set_f64(value, &mut config.filament_cost_per_kg),
+        "filament_density" => parse_and_set_f64(value, &mut config.filament.density),
+        "filament_diameter" => parse_and_set_f64(value, &mut config.filament.diameter),
+        "filament_cost" => parse_and_set_f64(value, &mut config.filament.cost_per_kg),
         "filament_flow_ratio" => parse_and_set_f64(value, &mut config.extrusion_multiplier),
         "close_fan_the_first_x_layers" => {
-            parse_and_set_u32(value, &mut config.disable_fan_first_layers)
+            parse_and_set_u32(value, &mut config.cooling.disable_fan_first_layers)
         }
-        "fan_cooling_layer_time" => parse_and_set_f64(value, &mut config.fan_below_layer_time),
+        "fan_cooling_layer_time" => {
+            parse_and_set_f64(value, &mut config.cooling.fan_below_layer_time)
+        }
 
         // --- Filament sub-config fields ---
         "filament_type" => {
@@ -939,11 +914,11 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
 
         // --- Machine fields (original flat) ---
         // Note: nozzle_diameter and jerk array fields are handled by apply_array_field_mapping.
-        "retraction_length" => parse_and_set_f64(value, &mut config.retract_length),
-        "retraction_speed" => parse_and_set_f64(value, &mut config.retract_speed),
-        "z_hop" => parse_and_set_f64(value, &mut config.retract_z_hop),
+        "retraction_length" => parse_and_set_f64(value, &mut config.retraction.length),
+        "retraction_speed" => parse_and_set_f64(value, &mut config.retraction.speed),
+        "z_hop" => parse_and_set_f64(value, &mut config.retraction.z_hop),
         "retraction_minimum_travel" => {
-            parse_and_set_f64(value, &mut config.min_travel_for_retract)
+            parse_and_set_f64(value, &mut config.retraction.min_travel)
         }
         "gcode_flavor" => {
             if let Some(dialect) = map_gcode_dialect(value) {
@@ -1206,8 +1181,8 @@ mod tests {
         assert!((config.layer_height - 0.2).abs() < 1e-9);
         assert_eq!(config.wall_count, 3);
         assert!((config.infill_density - 0.15).abs() < 1e-9);
-        assert!((config.perimeter_speed - 200.0).abs() < 1e-9);
-        assert!((config.travel_speed - 500.0).abs() < 1e-9);
+        assert!((config.speeds.perimeter - 200.0).abs() < 1e-9);
+        assert!((config.speeds.travel - 500.0).abs() < 1e-9);
         assert_eq!(config.seam_position, SeamPosition::Aligned);
 
         // Verify mapped fields are tracked.
@@ -1236,9 +1211,9 @@ mod tests {
         let result = import_upstream_profile(&json_val).unwrap();
         let config = &result.config;
 
-        assert!((config.nozzle_temp - 220.0).abs() < 1e-9);
-        assert!((config.bed_temp - 55.0).abs() < 1e-9);
-        assert!((config.filament_density - 1.24).abs() < 1e-9);
+        assert!((config.filament.nozzle_temp() - 220.0).abs() < 1e-9);
+        assert!((config.filament.bed_temp() - 55.0).abs() < 1e-9);
+        assert!((config.filament.density - 1.24).abs() < 1e-9);
         assert!((config.extrusion_multiplier - 0.98).abs() < 1e-9);
     }
 
@@ -1255,24 +1230,25 @@ mod tests {
         let result = import_upstream_profile(&json_val).unwrap();
         let config = &result.config;
 
-        assert!((config.nozzle_diameter - 0.4).abs() < 1e-9);
-        assert!((config.retract_length - 0.8).abs() < 1e-9);
+        assert!((config.machine.nozzle_diameter() - 0.4).abs() < 1e-9);
+        assert!((config.retraction.length - 0.8).abs() < 1e-9);
         assert_eq!(config.gcode_dialect, GcodeDialect::Klipper);
     }
 
     #[test]
     fn test_native_json_format() {
         // Native JSON format with PrintConfig-matching field names and numeric values.
+        // nozzle_diameter is now in machine sub-config.
         let json_str = r#"{
             "layer_height": 0.15,
-            "nozzle_diameter": 0.6,
+            "machine": { "nozzle_diameters": [0.6] },
             "wall_count": 4,
             "infill_density": 0.3
         }"#;
 
         let config = PrintConfig::from_json(json_str).unwrap();
         assert!((config.layer_height - 0.15).abs() < 1e-9);
-        assert!((config.nozzle_diameter - 0.6).abs() < 1e-9);
+        assert!((config.machine.nozzle_diameter() - 0.6).abs() < 1e-9);
         assert_eq!(config.wall_count, 4);
         assert!((config.infill_density - 0.3).abs() < 1e-9);
     }
@@ -1481,9 +1457,9 @@ mod tests {
         });
 
         let result = import_upstream_profile(&json_val).unwrap();
-        assert!((result.config.jerk_x - 10.0).abs() < 1e-9);
-        assert!((result.config.jerk_y - 10.0).abs() < 1e-9);
-        assert!((result.config.jerk_z - 0.5).abs() < 1e-9);
+        assert!((result.config.machine.jerk_x() - 10.0).abs() < 1e-9);
+        assert!((result.config.machine.jerk_y() - 10.0).abs() < 1e-9);
+        assert!((result.config.machine.jerk_z() - 0.5).abs() < 1e-9);
     }
 
     #[test]
@@ -1508,16 +1484,16 @@ mod tests {
         let result = import_upstream_profile(&json_val).unwrap();
         let config = &result.config;
 
-        assert!((config.nozzle_temp - 220.0).abs() < 1e-9);
-        assert!((config.first_layer_nozzle_temp - 225.0).abs() < 1e-9);
-        assert!((config.filament_density - 1.24).abs() < 1e-9);
-        assert!((config.filament_diameter - 1.75).abs() < 1e-9);
+        assert!((config.filament.nozzle_temp() - 220.0).abs() < 1e-9);
+        assert!((config.filament.first_layer_nozzle_temp() - 225.0).abs() < 1e-9);
+        assert!((config.filament.density - 1.24).abs() < 1e-9);
+        assert!((config.filament.diameter - 1.75).abs() < 1e-9);
         assert!((config.extrusion_multiplier - 0.98).abs() < 1e-9);
-        assert!((config.filament_cost_per_kg - 20.0).abs() < 1e-9);
-        assert_eq!(config.disable_fan_first_layers, 1);
-        assert!((config.bed_temp - 55.0).abs() < 1e-9);
-        assert!((config.first_layer_bed_temp - 60.0).abs() < 1e-9);
-        assert!((config.fan_below_layer_time - 30.0).abs() < 1e-9);
+        assert!((config.filament.cost_per_kg - 20.0).abs() < 1e-9);
+        assert_eq!(config.cooling.disable_fan_first_layers, 1);
+        assert!((config.filament.bed_temp() - 55.0).abs() < 1e-9);
+        assert!((config.filament.first_layer_bed_temp() - 60.0).abs() < 1e-9);
+        assert!((config.cooling.fan_below_layer_time - 30.0).abs() < 1e-9);
     }
 
     #[test]
@@ -1558,16 +1534,16 @@ mod tests {
         assert_eq!(config.infill_pattern, InfillPattern::Grid);
         assert_eq!(config.top_solid_layers, 4);
         assert_eq!(config.bottom_solid_layers, 3);
-        assert!((config.perimeter_speed - 200.0).abs() < 1e-9);
-        assert!((config.infill_speed - 270.0).abs() < 1e-9);
-        assert!((config.travel_speed - 500.0).abs() < 1e-9);
-        assert!((config.first_layer_speed - 50.0).abs() < 1e-9);
+        assert!((config.speeds.perimeter - 200.0).abs() < 1e-9);
+        assert!((config.speeds.infill - 270.0).abs() < 1e-9);
+        assert!((config.speeds.travel - 500.0).abs() < 1e-9);
+        assert!((config.speeds.first_layer - 50.0).abs() < 1e-9);
         assert_eq!(config.skirt_loops, 1);
         assert!((config.skirt_distance - 2.0).abs() < 1e-9);
         assert!((config.brim_width - 0.0).abs() < 1e-9);
         assert_eq!(config.seam_position, SeamPosition::Aligned);
-        assert!((config.print_acceleration - 10000.0).abs() < 1e-9);
-        assert!((config.travel_acceleration - 12000.0).abs() < 1e-9);
+        assert!((config.accel.print - 10000.0).abs() < 1e-9);
+        assert!((config.accel.travel - 12000.0).abs() < 1e-9);
         assert!(config.arc_fitting_enabled);
         assert!(!config.adaptive_layer_height);
         assert!(config.arachne_enabled);
@@ -1949,8 +1925,8 @@ mod tests {
         let config = &result.config;
 
         assert_eq!(config.machine.nozzle_diameters, vec![0.4, 0.6]);
-        // Scalar also set to first element for backward compat.
-        assert!((config.nozzle_diameter - 0.4).abs() < 1e-9);
+        // Accessor returns first element.
+        assert!((config.machine.nozzle_diameter() - 0.4).abs() < 1e-9);
     }
 
     #[test]
@@ -1978,11 +1954,11 @@ mod tests {
             vec![65.0, 75.0]
         );
 
-        // Scalar backward compat.
-        assert!((config.nozzle_temp - 220.0).abs() < 1e-9);
-        assert!((config.bed_temp - 60.0).abs() < 1e-9);
-        assert!((config.first_layer_nozzle_temp - 225.0).abs() < 1e-9);
-        assert!((config.first_layer_bed_temp - 65.0).abs() < 1e-9);
+        // Accessor returns first element.
+        assert!((config.filament.nozzle_temp() - 220.0).abs() < 1e-9);
+        assert!((config.filament.bed_temp() - 60.0).abs() < 1e-9);
+        assert!((config.filament.first_layer_nozzle_temp() - 225.0).abs() < 1e-9);
+        assert!((config.filament.first_layer_bed_temp() - 65.0).abs() < 1e-9);
     }
 
     #[test]
@@ -2004,10 +1980,10 @@ mod tests {
         assert_eq!(config.machine.jerk_values_z, vec![0.4, 0.3]);
         assert_eq!(config.machine.jerk_values_e, vec![2.5, 2.0]);
 
-        // Scalar backward compat.
-        assert!((config.jerk_x - 9.0).abs() < 1e-9);
-        assert!((config.jerk_y - 9.0).abs() < 1e-9);
-        assert!((config.jerk_z - 0.4).abs() < 1e-9);
+        // Accessor returns first element.
+        assert!((config.machine.jerk_x() - 9.0).abs() < 1e-9);
+        assert!((config.machine.jerk_y() - 9.0).abs() < 1e-9);
+        assert!((config.machine.jerk_z() - 0.4).abs() < 1e-9);
     }
 
     #[test]

@@ -51,14 +51,14 @@ fn test_round_trip_process_profile() {
         roundtrip.infill_density
     );
     assert!(
-        (roundtrip.perimeter_speed - 180.0).abs() < 1e-6,
+        (roundtrip.speeds.perimeter - 180.0).abs() < 1e-6,
         "perimeter_speed: expected 180, got {}",
-        roundtrip.perimeter_speed
+        roundtrip.speeds.perimeter
     );
     assert!(
-        (roundtrip.travel_speed - 400.0).abs() < 1e-6,
+        (roundtrip.speeds.travel - 400.0).abs() < 1e-6,
         "travel_speed: expected 400, got {}",
-        roundtrip.travel_speed
+        roundtrip.speeds.travel
     );
     assert_eq!(
         roundtrip.seam_position,
@@ -104,24 +104,24 @@ fn test_round_trip_filament_profile() {
     let roundtrip = PrintConfig::from_toml(&converted.toml_output).unwrap();
 
     assert!(
-        (roundtrip.nozzle_temp - 235.0).abs() < 1e-6,
+        (roundtrip.filament.nozzle_temp() - 235.0).abs() < 1e-6,
         "nozzle_temp: expected 235, got {}",
-        roundtrip.nozzle_temp
+        roundtrip.filament.nozzle_temp()
     );
     assert!(
-        (roundtrip.bed_temp - 80.0).abs() < 1e-6,
+        (roundtrip.filament.bed_temp() - 80.0).abs() < 1e-6,
         "bed_temp: expected 80, got {}",
-        roundtrip.bed_temp
+        roundtrip.filament.bed_temp()
     );
     assert!(
-        (roundtrip.filament_density - 1.08).abs() < 1e-6,
+        (roundtrip.filament.density - 1.08).abs() < 1e-6,
         "filament_density: expected 1.08, got {}",
-        roundtrip.filament_density
+        roundtrip.filament.density
     );
     assert!(
-        (roundtrip.filament_diameter - 1.75).abs() < 1e-6,
+        (roundtrip.filament.diameter - 1.75).abs() < 1e-6,
         "filament_diameter: expected 1.75, got {}",
-        roundtrip.filament_diameter
+        roundtrip.filament.diameter
     );
     assert!(
         (roundtrip.extrusion_multiplier - 0.95).abs() < 1e-6,
@@ -129,9 +129,9 @@ fn test_round_trip_filament_profile() {
         roundtrip.extrusion_multiplier
     );
     assert!(
-        (roundtrip.filament_cost_per_kg - 30.0).abs() < 1e-6,
+        (roundtrip.filament.cost_per_kg - 30.0).abs() < 1e-6,
         "filament_cost_per_kg: expected 30, got {}",
-        roundtrip.filament_cost_per_kg
+        roundtrip.filament.cost_per_kg
     );
 }
 
@@ -156,24 +156,24 @@ fn test_round_trip_machine_profile() {
     let roundtrip = PrintConfig::from_toml(&converted.toml_output).unwrap();
 
     assert!(
-        (roundtrip.nozzle_diameter - 0.6).abs() < 1e-6,
+        (roundtrip.machine.nozzle_diameter() - 0.6).abs() < 1e-6,
         "nozzle_diameter: expected 0.6, got {}",
-        roundtrip.nozzle_diameter
+        roundtrip.machine.nozzle_diameter()
     );
     assert!(
-        (roundtrip.retract_length - 1.0).abs() < 1e-6,
+        (roundtrip.retraction.length - 1.0).abs() < 1e-6,
         "retract_length: expected 1.0, got {}",
-        roundtrip.retract_length
+        roundtrip.retraction.length
     );
     assert!(
-        (roundtrip.retract_speed - 60.0).abs() < 1e-6,
+        (roundtrip.retraction.speed - 60.0).abs() < 1e-6,
         "retract_speed: expected 60, got {}",
-        roundtrip.retract_speed
+        roundtrip.retraction.speed
     );
     assert!(
-        (roundtrip.retract_z_hop - 0.3).abs() < 1e-6,
+        (roundtrip.retraction.z_hop - 0.3).abs() < 1e-6,
         "retract_z_hop: expected 0.3, got {}",
-        roundtrip.retract_z_hop
+        roundtrip.retraction.z_hop
     );
     assert_eq!(
         roundtrip.gcode_dialect,
@@ -230,14 +230,14 @@ fn test_merge_process_and_filament() {
 
     // Fields from filament profile.
     assert!(
-        (roundtrip.nozzle_temp - 240.0).abs() < 1e-6,
+        (roundtrip.filament.nozzle_temp() - 240.0).abs() < 1e-6,
         "nozzle_temp from filament: expected 240, got {}",
-        roundtrip.nozzle_temp
+        roundtrip.filament.nozzle_temp()
     );
     assert!(
-        (roundtrip.bed_temp - 90.0).abs() < 1e-6,
+        (roundtrip.filament.bed_temp() - 90.0).abs() < 1e-6,
         "bed_temp from filament: expected 90, got {}",
-        roundtrip.bed_temp
+        roundtrip.filament.bed_temp()
     );
 
     // Merged mapped_fields should contain fields from both sources (deduplicated).
@@ -298,21 +298,21 @@ fn test_merge_three_profiles() {
 
     // Filament fields.
     assert!(
-        (roundtrip.nozzle_temp - 250.0).abs() < 1e-6,
+        (roundtrip.filament.nozzle_temp() - 250.0).abs() < 1e-6,
         "nozzle_temp from filament"
     );
     assert!(
-        (roundtrip.bed_temp - 100.0).abs() < 1e-6,
+        (roundtrip.filament.bed_temp() - 100.0).abs() < 1e-6,
         "bed_temp from filament"
     );
 
     // Machine fields.
     assert!(
-        (roundtrip.retract_length - 1.2).abs() < 1e-6,
+        (roundtrip.retraction.length - 1.2).abs() < 1e-6,
         "retract_length from machine"
     );
     assert!(
-        (roundtrip.nozzle_diameter - 0.6).abs() < 1e-6,
+        (roundtrip.machine.nozzle_diameter() - 0.6).abs() < 1e-6,
         "nozzle_diameter from machine"
     );
     assert_eq!(
@@ -500,15 +500,15 @@ fn test_real_orcaslicer_profile_conversion() {
         roundtrip.layer_height
     );
     assert!(
-        roundtrip.perimeter_speed > 0.0,
+        roundtrip.speeds.perimeter > 0.0,
         "perimeter_speed should be positive, got {}",
-        roundtrip.perimeter_speed
+        roundtrip.speeds.perimeter
     );
 
     eprintln!(
         "  Round-trip successful: layer_height={}, perimeter_speed={}, mapped={}, unmapped={}",
         roundtrip.layer_height,
-        roundtrip.perimeter_speed,
+        roundtrip.speeds.perimeter,
         converted.mapped_count,
         converted.unmapped_fields.len()
     );
@@ -590,9 +590,9 @@ fn test_real_multi_file_merge() {
     );
     // At least one of the temperature fields should differ from default.
     let defaults = PrintConfig::default();
-    let has_filament_data = (roundtrip.nozzle_temp - defaults.nozzle_temp).abs() > 1.0
-        || (roundtrip.bed_temp - defaults.bed_temp).abs() > 1.0
-        || (roundtrip.filament_density - defaults.filament_density).abs() > 0.01;
+    let has_filament_data = (roundtrip.filament.nozzle_temp() - defaults.filament.nozzle_temp()).abs() > 1.0
+        || (roundtrip.filament.bed_temp() - defaults.filament.bed_temp()).abs() > 1.0
+        || (roundtrip.filament.density - defaults.filament.density).abs() > 0.01;
     assert!(
         has_filament_data,
         "Merged config should have some filament data differing from defaults"
@@ -601,8 +601,8 @@ fn test_real_multi_file_merge() {
     eprintln!(
         "  Merged: layer_height={}, nozzle_temp={}, nozzle_diameter={}, mapped={}, unmapped={}",
         roundtrip.layer_height,
-        roundtrip.nozzle_temp,
-        roundtrip.nozzle_diameter,
+        roundtrip.filament.nozzle_temp(),
+        roundtrip.machine.nozzle_diameter(),
         converted.mapped_count,
         converted.unmapped_fields.len()
     );
