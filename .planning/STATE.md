@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 20 of 21 (Expand PrintConfig Field Coverage and Profile Mapping)
-Plan: 2 of 5 in current phase (2 complete)
+Plan: 3 of 5 in current phase (3 complete)
 Status: In Progress
-Last activity: 2026-02-24 -- Completed 20-02-PLAN.md (expand JSON field mapping)
+Last activity: 2026-02-24 -- Completed 20-03-PLAN.md (expand PrusaSlicer INI field mapping)
 
-Progress: [############################################################] 100% (95/98 overall)
+Progress: [############################################################] 100% (96/98 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 94
+- Total plans completed: 95
 - Average duration: 5.1 min
-- Total execution time: 7.95 hours
+- Total execution time: 8.05 hours
 
 **By Phase:**
 
@@ -48,10 +48,10 @@ Progress: [############################################################] 100% (9
 | 18    | 1     | 4min  | 4.0min   |
 | 19    | 2     | 16min | 8.0min   |
 
-| 20    | 2     | 12min | 6.0min   |
+| 20    | 3     | 18min | 6.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 19-01 (7min), 19-02 (9min), 20-01 (3min), 20-02 (9min)
+- Last 5 plans: 19-02 (9min), 20-01 (3min), 20-02 (9min), 20-03 (6min)
 - Trend: Steady 3-9min/plan
 
 *Updated after each plan completion*
@@ -418,6 +418,10 @@ Recent decisions affecting current work:
 - [20-02]: Default match arm stores unmapped fields in passthrough AND tracks in unmapped_fields for backward compat with convert pipeline
 - [20-02]: Scalar flat fields still set alongside Vec/sub-config fields for zero breaking changes to engine code
 - [20-02]: passthrough_fields added to ImportResult alongside unmapped_fields (not replacing) for backward compatibility
+- [20-03]: PrusaSlicer INI default match arm stores unmapped fields in config.passthrough BTreeMap (same pattern as JSON mapper)
+- [20-03]: Vec<f64> and scalar flat fields populated simultaneously for multi-extruder INI fields (nozzle_diameter, jerk, temperature)
+- [20-03]: Percentage speed/width values (ending with %) skipped in INI mapper, matching existing behavior
+- [20-03]: PrusaSlicer-specific fields (fan_always_on, first_layer_speed_over_raft) explicitly routed to passthrough
 
 ### Roadmap Evolution
 
@@ -442,5 +446,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 20-01-PLAN.md (sub-config structs and passthrough)
-Resume file: .planning/phases/20-expand-printconfig-field-coverage-and-profile-mapping/20-01-SUMMARY.md
+Stopped at: Completed 20-03-PLAN.md (expand PrusaSlicer INI field mapping)
+Resume file: .planning/phases/20-expand-printconfig-field-coverage-and-profile-mapping/20-03-SUMMARY.md

@@ -440,7 +440,7 @@ Plans:
   5. INI profile mapper (PrusaSlicer) maps the same expanded field set
   6. Re-converted BambuStudio X1C profiles (0.20mm Standard + Generic PLA + X1C 0.4mm) contain all settings needed for a representative slice comparison
   7. All existing tests pass with no regressions
-**Plans:** 2/5 plans executed
+**Plans:** 3/5 plans executed
 
 Plans:
 - [ ] 20-01-PLAN.md -- Add nested sub-config structs (LineWidthConfig, SpeedConfig, CoolingConfig, RetractionConfig, MachineConfig, AccelerationConfig, FilamentPropsConfig) and passthrough BTreeMap to PrintConfig
