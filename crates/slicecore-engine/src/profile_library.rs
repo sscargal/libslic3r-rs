@@ -298,12 +298,19 @@ fn merge_inheritance(parent: ImportResult, child: ImportResult) -> ImportResult 
             all_unmapped.push(f.clone());
         }
     }
+    let mut all_passthrough = parent.passthrough_fields;
+    for f in &child.passthrough_fields {
+        if !all_passthrough.contains(f) {
+            all_passthrough.push(f.clone());
+        }
+    }
 
     // Use child's metadata (the leaf profile).
     ImportResult {
         config: merged_config,
         mapped_fields: all_mapped,
         unmapped_fields: all_unmapped,
+        passthrough_fields: all_passthrough,
         metadata: child.metadata,
     }
 }

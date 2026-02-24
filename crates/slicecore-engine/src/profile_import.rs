@@ -83,10 +83,16 @@ pub fn detect_config_format(data: &[u8]) -> ConfigFormat {
 pub struct ImportResult {
     /// The mapped PrintConfig (unmapped fields use defaults).
     pub config: PrintConfig,
-    /// Fields from the source that were successfully mapped to PrintConfig.
+    /// Fields from the source that were successfully mapped to PrintConfig typed fields.
     pub mapped_fields: Vec<String>,
-    /// Fields from the source that have no PrintConfig equivalent.
+    /// Fields from the source that have no typed PrintConfig equivalent.
+    ///
+    /// With passthrough storage, these fields are also stored in `config.passthrough`,
+    /// so they are preserved for round-trip fidelity. This list is kept for backward
+    /// compatibility with the convert pipeline (TOML comments) and CLI reporting.
     pub unmapped_fields: Vec<String>,
+    /// Fields stored in passthrough (no typed mapping, but preserved for round-trip).
+    pub passthrough_fields: Vec<String>,
     /// Source profile metadata (name, type, inherits).
     pub metadata: ProfileMetadata,
 }
@@ -119,6 +125,7 @@ pub fn import_upstream_profile(value: &serde_json::Value) -> Result<ImportResult
     let mut config = PrintConfig::default();
     let mut mapped_fields = Vec::new();
     let mut unmapped_fields = Vec::new();
+    let mut passthrough_fields = Vec::new();
 
     // Extract metadata.
     let metadata = ProfileMetadata {
@@ -159,6 +166,12 @@ pub fn import_upstream_profile(value: &serde_json::Value) -> Result<ImportResult
             continue;
         }
 
+        // Try array field mapping first (for Vec<f64> fields that need raw JSON value).
+        if apply_array_field_mapping(&mut config, key, val) {
+            mapped_fields.push(key.clone());
+            continue;
+        }
+
         // Extract string value (handles scalar, array-wrapped, and nil sentinel).
         let string_val = match extract_string_value(val) {
             Some(s) => s,
@@ -166,10 +179,18 @@ pub fn import_upstream_profile(value: &serde_json::Value) -> Result<ImportResult
         };
 
         // Apply field mapping.
-        if apply_field_mapping(&mut config, key, &string_val) {
-            mapped_fields.push(key.clone());
-        } else {
-            unmapped_fields.push(key.clone());
+        match apply_field_mapping(&mut config, key, &string_val) {
+            FieldMappingResult::Mapped => {
+                mapped_fields.push(key.clone());
+            }
+            FieldMappingResult::Passthrough => {
+                passthrough_fields.push(key.clone());
+                // Also track in unmapped for backward compat with convert pipeline.
+                unmapped_fields.push(key.clone());
+            }
+            FieldMappingResult::Failed => {
+                unmapped_fields.push(key.clone());
+            }
         }
     }
 
@@ -177,8 +198,23 @@ pub fn import_upstream_profile(value: &serde_json::Value) -> Result<ImportResult
         config,
         mapped_fields,
         unmapped_fields,
+        passthrough_fields,
         metadata,
     })
+}
+
+// ---------------------------------------------------------------------------
+// Field mapping result
+// ---------------------------------------------------------------------------
+
+/// Result of applying a single field mapping.
+enum FieldMappingResult {
+    /// Field was mapped to a typed PrintConfig field.
+    Mapped,
+    /// Field was stored in passthrough (no typed mapping).
+    Passthrough,
+    /// Field mapping failed (parse error, unrecognized value).
+    Failed,
 }
 
 // ---------------------------------------------------------------------------
@@ -243,9 +279,123 @@ fn extract_percentage(value: &serde_json::Value) -> Option<f64> {
     cleaned.parse::<f64>().ok().map(|v| v / 100.0)
 }
 
+/// Extract all values from a JSON array as f64 Vec.
+///
+/// Handles:
+/// - Array of strings: `["0.4", "0.6"]` -> `vec![0.4, 0.6]`
+/// - Array of numbers: `[0.4, 0.6]` -> `vec![0.4, 0.6]`
+/// - Single string: `"0.4"` -> `vec![0.4]`
+/// - Single number: `0.4` -> `vec![0.4]`
+/// - Nil sentinel: `"nil"` or `["nil"]` -> empty vec
+fn extract_array_f64(value: &serde_json::Value) -> Vec<f64> {
+    match value {
+        serde_json::Value::Array(arr) => arr
+            .iter()
+            .filter_map(|v| match v {
+                serde_json::Value::String(s) if s != "nil" => s.parse::<f64>().ok(),
+                serde_json::Value::Number(n) => n.as_f64(),
+                _ => None,
+            })
+            .collect(),
+        serde_json::Value::String(s) if s != "nil" => {
+            s.parse::<f64>().ok().into_iter().collect()
+        }
+        serde_json::Value::Number(n) => n.as_f64().into_iter().collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Parse a percentage string value, stripping `%` suffix if present.
+///
+/// `"50%"` -> `Some(50.0)`, `"80"` -> `Some(80.0)`, `"invalid"` -> `None`
+fn parse_percentage_or_f64(value: &str) -> Option<f64> {
+    let cleaned = value.trim_end_matches('%');
+    cleaned.parse::<f64>().ok()
+}
+
 // ---------------------------------------------------------------------------
 // Field mapping
 // ---------------------------------------------------------------------------
+
+/// Apply array field mapping for Vec<f64> multi-extruder fields.
+///
+/// These fields need the raw JSON value (not the extracted string) to preserve
+/// all array elements. Returns `true` if the field was handled.
+fn apply_array_field_mapping(
+    config: &mut PrintConfig,
+    key: &str,
+    value: &serde_json::Value,
+) -> bool {
+    match key {
+        // --- Multi-extruder Vec<f64> array fields ---
+        "nozzle_diameter" => {
+            config.machine.nozzle_diameters = extract_array_f64(value);
+            // Also set the flat scalar field for backward compatibility.
+            if let Some(&first) = config.machine.nozzle_diameters.first() {
+                config.nozzle_diameter = first;
+            }
+            true
+        }
+        "machine_max_jerk_x" => {
+            config.machine.jerk_values_x = extract_array_f64(value);
+            // Also set flat scalar for backward compat.
+            if let Some(&first) = config.machine.jerk_values_x.first() {
+                config.jerk_x = first;
+            }
+            true
+        }
+        "machine_max_jerk_y" => {
+            config.machine.jerk_values_y = extract_array_f64(value);
+            if let Some(&first) = config.machine.jerk_values_y.first() {
+                config.jerk_y = first;
+            }
+            true
+        }
+        "machine_max_jerk_z" => {
+            config.machine.jerk_values_z = extract_array_f64(value);
+            if let Some(&first) = config.machine.jerk_values_z.first() {
+                config.jerk_z = first;
+            }
+            true
+        }
+        "machine_max_jerk_e" => {
+            config.machine.jerk_values_e = extract_array_f64(value);
+            true
+        }
+        "nozzle_temperature" | "temperature" => {
+            config.filament.nozzle_temperatures = extract_array_f64(value);
+            // Also set flat scalar for backward compat.
+            if let Some(&first) = config.filament.nozzle_temperatures.first() {
+                config.nozzle_temp = first;
+            }
+            true
+        }
+        "bed_temperature" | "hot_plate_temp" => {
+            config.filament.bed_temperatures = extract_array_f64(value);
+            if let Some(&first) = config.filament.bed_temperatures.first() {
+                config.bed_temp = first;
+            }
+            true
+        }
+        "nozzle_temperature_initial_layer" | "first_layer_temperature" => {
+            config.filament.first_layer_nozzle_temperatures = extract_array_f64(value);
+            if let Some(&first) = config.filament.first_layer_nozzle_temperatures.first() {
+                config.first_layer_nozzle_temp = first;
+            }
+            true
+        }
+        "bed_temperature_initial_layer"
+        | "first_layer_bed_temperature"
+        | "hot_plate_temp_initial_layer" => {
+            config.filament.first_layer_bed_temperatures = extract_array_f64(value);
+            if let Some(&first) = config.filament.first_layer_bed_temperatures.first() {
+                config.first_layer_bed_temp = first;
+            }
+            true
+        }
+        _ => false,
+    }
+}
 
 /// Map an upstream JSON key name to the corresponding PrintConfig field name.
 ///
@@ -253,6 +403,7 @@ fn extract_percentage(value: &serde_json::Value) -> Option<f64> {
 /// ironing sub-fields, enum mappings with complex logic).
 pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
     match key {
+        // --- Original process fields ---
         "layer_height" => Some("layer_height"),
         "initial_layer_print_height" => Some("first_layer_height"),
         "wall_loops" => Some("wall_count"),
@@ -273,16 +424,116 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "adaptive_layer_height" => Some("adaptive_layer_height"),
         "wall_generator" => Some("arachne_enabled"),
         "seam_position" => Some("seam_position"),
-        "nozzle_temperature" => Some("nozzle_temp"),
-        "nozzle_temperature_initial_layer" => Some("first_layer_nozzle_temp"),
-        "hot_plate_temp" => Some("bed_temp"),
-        "hot_plate_temp_initial_layer" => Some("first_layer_bed_temp"),
+
+        // --- Speed sub-config fields ---
+        "bridge_speed" => Some("speeds.bridge"),
+        "inner_wall_speed" => Some("speeds.inner_wall"),
+        "gap_infill_speed" => Some("speeds.gap_fill"),
+        "top_surface_speed" => Some("speeds.top_surface"),
+        "internal_solid_infill_speed" => Some("speeds.internal_solid_infill"),
+        "initial_layer_infill_speed" => Some("speeds.initial_layer_infill"),
+        "support_speed" => Some("speeds.support"),
+        "support_interface_speed" => Some("speeds.support_interface"),
+        "small_perimeter_speed" => Some("speeds.small_perimeter"),
+        "solid_infill_speed" => Some("speeds.solid_infill"),
+        "overhang_1_4_speed" | "overhang_speed_0" => Some("speeds.overhang_1_4"),
+        "overhang_2_4_speed" | "overhang_speed_1" => Some("speeds.overhang_2_4"),
+        "overhang_3_4_speed" | "overhang_speed_2" => Some("speeds.overhang_3_4"),
+        "overhang_4_4_speed" | "overhang_speed_3" => Some("speeds.overhang_4_4"),
+        "travel_speed_z" => Some("speeds.travel_z"),
+
+        // --- Line width sub-config fields ---
+        "line_width" | "extrusion_width" => Some("line_widths.outer_wall"),
+        "outer_wall_line_width" => Some("line_widths.outer_wall"),
+        "inner_wall_line_width" => Some("line_widths.inner_wall"),
+        "sparse_infill_line_width" => Some("line_widths.infill"),
+        "top_surface_line_width" => Some("line_widths.top_surface"),
+        "initial_layer_line_width" => Some("line_widths.initial_layer"),
+        "internal_solid_infill_line_width" => Some("line_widths.internal_solid_infill"),
+        "support_line_width" => Some("line_widths.support"),
+
+        // --- Cooling sub-config fields ---
+        "fan_max_speed" => Some("cooling.fan_max_speed"),
+        "fan_min_speed" => Some("cooling.fan_min_speed"),
+        "slow_down_layer_time" | "slowdown_below_layer_time" => {
+            Some("cooling.slow_down_layer_time")
+        }
+        "slow_down_min_speed" | "min_print_speed" => Some("cooling.slow_down_min_speed"),
+        "overhang_fan_speed" => Some("cooling.overhang_fan_speed"),
+        "overhang_fan_threshold" => Some("cooling.overhang_fan_threshold"),
+        "full_fan_speed_layer" | "disable_fan_first_layers" => {
+            Some("cooling.full_fan_speed_layer")
+        }
+        "slow_down_for_layer_cooling" => Some("cooling.slow_down_for_layer_cooling"),
+
+        // --- Retraction sub-config fields ---
+        "deretraction_speed" => Some("retraction.deretraction_speed"),
+        "retract_before_wipe" => Some("retraction.retract_before_wipe"),
+        "retract_when_changing_layer" => Some("retraction.retract_when_changing_layer"),
+        "wipe" => Some("retraction.wipe"),
+        "wipe_distance" => Some("retraction.wipe_distance"),
+
+        // --- Machine sub-config fields ---
+        "machine_start_gcode" | "start_gcode" => Some("machine.start_gcode"),
+        "machine_end_gcode" | "end_gcode" => Some("machine.end_gcode"),
+        "layer_change_gcode" | "layer_gcode" => Some("machine.layer_change_gcode"),
+        "printable_height" | "max_print_height" => Some("machine.printable_height"),
+        "machine_max_acceleration_x" => Some("machine.max_acceleration_x"),
+        "machine_max_acceleration_y" => Some("machine.max_acceleration_y"),
+        "machine_max_acceleration_z" => Some("machine.max_acceleration_z"),
+        "machine_max_acceleration_e" => Some("machine.max_acceleration_e"),
+        "machine_max_acceleration_extruding" => Some("machine.max_acceleration_extruding"),
+        "machine_max_acceleration_retracting" => Some("machine.max_acceleration_retracting"),
+        "machine_max_acceleration_travel" => Some("machine.max_acceleration_travel"),
+        "machine_max_speed_x" => Some("machine.max_speed_x"),
+        "machine_max_speed_y" => Some("machine.max_speed_y"),
+        "machine_max_speed_z" => Some("machine.max_speed_z"),
+        "machine_max_speed_e" => Some("machine.max_speed_e"),
+        "nozzle_type" => Some("machine.nozzle_type"),
+        "printer_model" | "printer_model_id" => Some("machine.printer_model"),
+        "bed_shape" | "printable_area" => Some("machine.bed_shape"),
+        "min_layer_height" => Some("machine.min_layer_height"),
+        "max_layer_height" => Some("machine.max_layer_height"),
+
+        // --- Acceleration sub-config fields ---
+        "outer_wall_acceleration" => Some("accel.outer_wall"),
+        "inner_wall_acceleration" => Some("accel.inner_wall"),
+        "initial_layer_acceleration" => Some("accel.initial_layer"),
+        "initial_layer_travel_acceleration" | "initial_layer_travel_speed" => {
+            Some("accel.initial_layer_travel")
+        }
+        "top_surface_acceleration" => Some("accel.top_surface"),
+        "sparse_infill_acceleration" => Some("accel.sparse_infill"),
+        "bridge_acceleration" => Some("accel.bridge"),
+
+        // --- Original filament fields ---
+        "nozzle_temperature" | "temperature" => Some("nozzle_temp"),
+        "nozzle_temperature_initial_layer" | "first_layer_temperature" => {
+            Some("first_layer_nozzle_temp")
+        }
+        "hot_plate_temp" | "bed_temperature" => Some("bed_temp"),
+        "hot_plate_temp_initial_layer"
+        | "bed_temperature_initial_layer"
+        | "first_layer_bed_temperature" => Some("first_layer_bed_temp"),
         "filament_density" => Some("filament_density"),
         "filament_diameter" => Some("filament_diameter"),
         "filament_cost" => Some("filament_cost_per_kg"),
         "filament_flow_ratio" => Some("extrusion_multiplier"),
         "close_fan_the_first_x_layers" => Some("disable_fan_first_layers"),
         "fan_cooling_layer_time" => Some("fan_below_layer_time"),
+
+        // --- Filament sub-config fields ---
+        "filament_type" => Some("filament.filament_type"),
+        "filament_vendor" => Some("filament.filament_vendor"),
+        "filament_max_volumetric_speed" => Some("filament.max_volumetric_speed"),
+        "nozzle_temperature_range_low" => Some("filament.nozzle_temperature_range_low"),
+        "nozzle_temperature_range_high" => Some("filament.nozzle_temperature_range_high"),
+        "filament_retraction_length" => Some("filament.filament_retraction_length"),
+        "filament_retraction_speed" => Some("filament.filament_retraction_speed"),
+        "filament_start_gcode" => Some("filament.filament_start_gcode"),
+        "filament_end_gcode" => Some("filament.filament_end_gcode"),
+
+        // --- Original machine fields ---
         "nozzle_diameter" => Some("nozzle_diameter"),
         "retraction_length" => Some("retract_length"),
         "retraction_speed" => Some("retract_speed"),
@@ -292,6 +543,19 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "machine_max_jerk_x" => Some("jerk_x"),
         "machine_max_jerk_y" => Some("jerk_y"),
         "machine_max_jerk_z" => Some("jerk_z"),
+        "machine_max_jerk_e" => Some("machine.jerk_values_e"),
+
+        // --- Process misc fields ---
+        "bridge_flow" | "bridge_flow_ratio" => Some("bridge_flow"),
+        "elefant_foot_compensation" => Some("elefant_foot_compensation"),
+        "infill_direction" => Some("infill_direction"),
+        "infill_wall_overlap" | "infill_overlap" => Some("infill_wall_overlap"),
+        "spiral_mode" | "spiral_vase" => Some("spiral_mode"),
+        "only_one_wall_top" => Some("only_one_wall_top"),
+        "resolution" => Some("resolution"),
+        "raft_layers" => Some("raft_layers"),
+        "detect_thin_wall" | "thin_walls" => Some("detect_thin_wall"),
+
         // Ironing sub-fields don't map to simple top-level fields.
         _ => None,
     }
@@ -300,9 +564,13 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
 /// Apply a single field mapping from an upstream JSON key/value to PrintConfig.
 ///
 /// The `value` parameter is the already-extracted plain string (scalar or
-/// array-unwrapped). Returns `true` if the field was successfully mapped.
-fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> bool {
-    match key {
+/// array-unwrapped). Returns a `FieldMappingResult` indicating success, passthrough,
+/// or failure.
+///
+/// Note: Vec<f64> array fields (nozzle_diameter, jerk, temperatures) are handled
+/// by `apply_array_field_mapping` which is called first with the raw JSON value.
+fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> FieldMappingResult {
+    let mapped = match key {
         // --- Process fields ---
         "layer_height" => parse_and_set_f64(value, &mut config.layer_height),
         "initial_layer_print_height" => parse_and_set_f64(value, &mut config.first_layer_height),
@@ -385,15 +653,238 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> bool
             }
         }
 
-        // --- Filament fields ---
-        "nozzle_temperature" => parse_and_set_f64(value, &mut config.nozzle_temp),
-        "nozzle_temperature_initial_layer" => {
-            parse_and_set_f64(value, &mut config.first_layer_nozzle_temp)
+        // --- Speed sub-config fields ---
+        "bridge_speed" => parse_and_set_f64(value, &mut config.speeds.bridge),
+        "inner_wall_speed" => parse_and_set_f64(value, &mut config.speeds.inner_wall),
+        "gap_infill_speed" => parse_and_set_f64(value, &mut config.speeds.gap_fill),
+        "top_surface_speed" => parse_and_set_f64(value, &mut config.speeds.top_surface),
+        "internal_solid_infill_speed" => {
+            parse_and_set_f64(value, &mut config.speeds.internal_solid_infill)
         }
-        "hot_plate_temp" => parse_and_set_f64(value, &mut config.bed_temp),
-        "hot_plate_temp_initial_layer" => {
-            parse_and_set_f64(value, &mut config.first_layer_bed_temp)
+        "initial_layer_infill_speed" => {
+            parse_and_set_f64(value, &mut config.speeds.initial_layer_infill)
         }
+        "support_speed" => parse_and_set_f64(value, &mut config.speeds.support),
+        "support_interface_speed" => {
+            parse_and_set_f64(value, &mut config.speeds.support_interface)
+        }
+        "small_perimeter_speed" => {
+            // Handle percentage format: strip % if present, parse as raw mm/s.
+            if let Some(v) = parse_percentage_or_f64(value) {
+                config.speeds.small_perimeter = v;
+                true
+            } else {
+                false
+            }
+        }
+        "solid_infill_speed" => parse_and_set_f64(value, &mut config.speeds.solid_infill),
+        "overhang_1_4_speed" | "overhang_speed_0" => {
+            parse_and_set_f64(value, &mut config.speeds.overhang_1_4)
+        }
+        "overhang_2_4_speed" | "overhang_speed_1" => {
+            parse_and_set_f64(value, &mut config.speeds.overhang_2_4)
+        }
+        "overhang_3_4_speed" | "overhang_speed_2" => {
+            parse_and_set_f64(value, &mut config.speeds.overhang_3_4)
+        }
+        "overhang_4_4_speed" | "overhang_speed_3" => {
+            parse_and_set_f64(value, &mut config.speeds.overhang_4_4)
+        }
+        "travel_speed_z" => parse_and_set_f64(value, &mut config.speeds.travel_z),
+
+        // --- Line width sub-config fields ---
+        "line_width" | "extrusion_width" => {
+            // Base line width: store in passthrough for reference.
+            config
+                .passthrough
+                .insert(key.to_string(), value.to_string());
+            true
+        }
+        "outer_wall_line_width" => {
+            parse_and_set_f64(value, &mut config.line_widths.outer_wall)
+        }
+        "inner_wall_line_width" => {
+            parse_and_set_f64(value, &mut config.line_widths.inner_wall)
+        }
+        "sparse_infill_line_width" => {
+            parse_and_set_f64(value, &mut config.line_widths.infill)
+        }
+        "top_surface_line_width" => {
+            parse_and_set_f64(value, &mut config.line_widths.top_surface)
+        }
+        "initial_layer_line_width" => {
+            parse_and_set_f64(value, &mut config.line_widths.initial_layer)
+        }
+        "internal_solid_infill_line_width" => {
+            parse_and_set_f64(value, &mut config.line_widths.internal_solid_infill)
+        }
+        "support_line_width" => {
+            parse_and_set_f64(value, &mut config.line_widths.support)
+        }
+
+        // --- Cooling sub-config fields ---
+        "fan_max_speed" => {
+            // Percentage value (0-100), strip % if present.
+            if let Some(v) = parse_percentage_or_f64(value) {
+                config.cooling.fan_max_speed = v;
+                true
+            } else {
+                false
+            }
+        }
+        "fan_min_speed" => {
+            if let Some(v) = parse_percentage_or_f64(value) {
+                config.cooling.fan_min_speed = v;
+                true
+            } else {
+                false
+            }
+        }
+        "slow_down_layer_time" | "slowdown_below_layer_time" => {
+            parse_and_set_f64(value, &mut config.cooling.slow_down_layer_time)
+        }
+        "slow_down_min_speed" | "min_print_speed" => {
+            parse_and_set_f64(value, &mut config.cooling.slow_down_min_speed)
+        }
+        "overhang_fan_speed" => {
+            if let Some(v) = parse_percentage_or_f64(value) {
+                config.cooling.overhang_fan_speed = v;
+                true
+            } else {
+                false
+            }
+        }
+        "overhang_fan_threshold" => {
+            parse_and_set_f64(value, &mut config.cooling.overhang_fan_threshold)
+        }
+        "full_fan_speed_layer" => {
+            parse_and_set_u32(value, &mut config.cooling.full_fan_speed_layer)
+        }
+        "slow_down_for_layer_cooling" => {
+            config.cooling.slow_down_for_layer_cooling = value == "1" || value == "true";
+            true
+        }
+
+        // --- Retraction sub-config fields ---
+        "deretraction_speed" => {
+            parse_and_set_f64(value, &mut config.retraction.deretraction_speed)
+        }
+        "retract_before_wipe" => {
+            // Percentage value.
+            if let Some(v) = parse_percentage_or_f64(value) {
+                config.retraction.retract_before_wipe = v;
+                true
+            } else {
+                false
+            }
+        }
+        "retract_when_changing_layer" => {
+            config.retraction.retract_when_changing_layer = value == "1" || value == "true";
+            true
+        }
+        "wipe" => {
+            config.retraction.wipe = value == "1" || value == "true";
+            true
+        }
+        "wipe_distance" => {
+            parse_and_set_f64(value, &mut config.retraction.wipe_distance)
+        }
+
+        // --- Machine sub-config fields ---
+        "machine_start_gcode" | "start_gcode" => {
+            config.machine.start_gcode = value.to_string();
+            true
+        }
+        "machine_end_gcode" | "end_gcode" => {
+            config.machine.end_gcode = value.to_string();
+            true
+        }
+        "layer_change_gcode" | "layer_gcode" => {
+            config.machine.layer_change_gcode = value.to_string();
+            true
+        }
+        "printable_height" | "max_print_height" => {
+            parse_and_set_f64(value, &mut config.machine.printable_height)
+        }
+        "machine_max_acceleration_x" => {
+            parse_and_set_f64(value, &mut config.machine.max_acceleration_x)
+        }
+        "machine_max_acceleration_y" => {
+            parse_and_set_f64(value, &mut config.machine.max_acceleration_y)
+        }
+        "machine_max_acceleration_z" => {
+            parse_and_set_f64(value, &mut config.machine.max_acceleration_z)
+        }
+        "machine_max_acceleration_e" => {
+            parse_and_set_f64(value, &mut config.machine.max_acceleration_e)
+        }
+        "machine_max_acceleration_extruding" => {
+            parse_and_set_f64(value, &mut config.machine.max_acceleration_extruding)
+        }
+        "machine_max_acceleration_retracting" => {
+            parse_and_set_f64(value, &mut config.machine.max_acceleration_retracting)
+        }
+        "machine_max_acceleration_travel" => {
+            parse_and_set_f64(value, &mut config.machine.max_acceleration_travel)
+        }
+        "machine_max_speed_x" => {
+            parse_and_set_f64(value, &mut config.machine.max_speed_x)
+        }
+        "machine_max_speed_y" => {
+            parse_and_set_f64(value, &mut config.machine.max_speed_y)
+        }
+        "machine_max_speed_z" => {
+            parse_and_set_f64(value, &mut config.machine.max_speed_z)
+        }
+        "machine_max_speed_e" => {
+            parse_and_set_f64(value, &mut config.machine.max_speed_e)
+        }
+        "nozzle_type" => {
+            config.machine.nozzle_type = value.to_string();
+            true
+        }
+        "printer_model" | "printer_model_id" => {
+            config.machine.printer_model = value.to_string();
+            true
+        }
+        "bed_shape" | "printable_area" => {
+            config.machine.bed_shape = value.to_string();
+            true
+        }
+        "min_layer_height" => {
+            parse_and_set_f64(value, &mut config.machine.min_layer_height)
+        }
+        "max_layer_height" => {
+            parse_and_set_f64(value, &mut config.machine.max_layer_height)
+        }
+
+        // --- Acceleration sub-config fields ---
+        "outer_wall_acceleration" => {
+            parse_and_set_f64(value, &mut config.accel.outer_wall)
+        }
+        "inner_wall_acceleration" => {
+            parse_and_set_f64(value, &mut config.accel.inner_wall)
+        }
+        "initial_layer_acceleration" => {
+            parse_and_set_f64(value, &mut config.accel.initial_layer)
+        }
+        "initial_layer_travel_acceleration" | "initial_layer_travel_speed" => {
+            parse_and_set_f64(value, &mut config.accel.initial_layer_travel)
+        }
+        "top_surface_acceleration" => {
+            parse_and_set_f64(value, &mut config.accel.top_surface)
+        }
+        "sparse_infill_acceleration" => {
+            parse_and_set_f64(value, &mut config.accel.sparse_infill)
+        }
+        "bridge_acceleration" => {
+            parse_and_set_f64(value, &mut config.accel.bridge)
+        }
+
+        // --- Filament fields (original flat) ---
+        // Note: temperature array fields are handled by apply_array_field_mapping.
+        // These scalar fallbacks handle the case when apply_array_field_mapping
+        // already consumed them (won't reach here), but we keep them for safety.
         "filament_density" => parse_and_set_f64(value, &mut config.filament_density),
         "filament_diameter" => parse_and_set_f64(value, &mut config.filament_diameter),
         "filament_cost" => parse_and_set_f64(value, &mut config.filament_cost_per_kg),
@@ -403,8 +894,51 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> bool
         }
         "fan_cooling_layer_time" => parse_and_set_f64(value, &mut config.fan_below_layer_time),
 
-        // --- Machine fields ---
-        "nozzle_diameter" => parse_and_set_f64(value, &mut config.nozzle_diameter),
+        // --- Filament sub-config fields ---
+        "filament_type" => {
+            config.filament.filament_type = value.to_string();
+            true
+        }
+        "filament_vendor" => {
+            config.filament.filament_vendor = value.to_string();
+            true
+        }
+        "filament_max_volumetric_speed" => {
+            parse_and_set_f64(value, &mut config.filament.max_volumetric_speed)
+        }
+        "nozzle_temperature_range_low" => {
+            parse_and_set_f64(value, &mut config.filament.nozzle_temperature_range_low)
+        }
+        "nozzle_temperature_range_high" => {
+            parse_and_set_f64(value, &mut config.filament.nozzle_temperature_range_high)
+        }
+        "filament_retraction_length" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.filament.filament_retraction_length = Some(v);
+                true
+            } else {
+                false
+            }
+        }
+        "filament_retraction_speed" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.filament.filament_retraction_speed = Some(v);
+                true
+            } else {
+                false
+            }
+        }
+        "filament_start_gcode" => {
+            config.filament.filament_start_gcode = value.to_string();
+            true
+        }
+        "filament_end_gcode" => {
+            config.filament.filament_end_gcode = value.to_string();
+            true
+        }
+
+        // --- Machine fields (original flat) ---
+        // Note: nozzle_diameter and jerk array fields are handled by apply_array_field_mapping.
         "retraction_length" => parse_and_set_f64(value, &mut config.retract_length),
         "retraction_speed" => parse_and_set_f64(value, &mut config.retract_speed),
         "z_hop" => parse_and_set_f64(value, &mut config.retract_z_hop),
@@ -419,12 +953,63 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> bool
                 false
             }
         }
-        "machine_max_jerk_x" => parse_and_set_f64(value, &mut config.jerk_x),
-        "machine_max_jerk_y" => parse_and_set_f64(value, &mut config.jerk_y),
-        "machine_max_jerk_z" => parse_and_set_f64(value, &mut config.jerk_z),
 
-        // Unknown field.
-        _ => false,
+        // --- Process misc flat fields ---
+        "bridge_flow" | "bridge_flow_ratio" => {
+            parse_and_set_f64(value, &mut config.bridge_flow)
+        }
+        "elefant_foot_compensation" => {
+            parse_and_set_f64(value, &mut config.elefant_foot_compensation)
+        }
+        "infill_direction" => {
+            parse_and_set_f64(value, &mut config.infill_direction)
+        }
+        "infill_wall_overlap" | "infill_overlap" => {
+            // Handle percentage format: strip %, divide by 100.
+            let cleaned = value.trim_end_matches('%');
+            if let Ok(v) = cleaned.parse::<f64>() {
+                config.infill_wall_overlap = if value.contains('%') {
+                    v / 100.0
+                } else {
+                    v
+                };
+                true
+            } else {
+                false
+            }
+        }
+        "spiral_mode" | "spiral_vase" => {
+            config.spiral_mode = value == "1" || value == "true";
+            true
+        }
+        "only_one_wall_top" => {
+            config.only_one_wall_top = value == "1" || value == "true";
+            true
+        }
+        "resolution" => {
+            parse_and_set_f64(value, &mut config.resolution)
+        }
+        "raft_layers" => {
+            parse_and_set_u32(value, &mut config.raft_layers)
+        }
+        "detect_thin_wall" | "thin_walls" => {
+            config.detect_thin_wall = value == "1" || value == "true";
+            true
+        }
+
+        // --- Default: store unmapped fields in passthrough ---
+        _ => {
+            config
+                .passthrough
+                .insert(key.to_string(), value.to_string());
+            return FieldMappingResult::Passthrough;
+        }
+    };
+
+    if mapped {
+        FieldMappingResult::Mapped
+    } else {
+        FieldMappingResult::Failed
     }
 }
 
@@ -986,5 +1571,595 @@ mod tests {
         assert!(config.arc_fitting_enabled);
         assert!(!config.adaptive_layer_height);
         assert!(config.arachne_enabled);
+    }
+
+    // ========================================================================
+    // Phase 20 Plan 02: Expanded field mapping tests
+    // ========================================================================
+
+    #[test]
+    fn test_extract_array_f64_string_array() {
+        let val = json!(["0.4", "0.6"]);
+        assert_eq!(extract_array_f64(&val), vec![0.4, 0.6]);
+    }
+
+    #[test]
+    fn test_extract_array_f64_number_array() {
+        let val = json!([0.4, 0.6]);
+        assert_eq!(extract_array_f64(&val), vec![0.4, 0.6]);
+    }
+
+    #[test]
+    fn test_extract_array_f64_single_string() {
+        let val = json!("0.4");
+        assert_eq!(extract_array_f64(&val), vec![0.4]);
+    }
+
+    #[test]
+    fn test_extract_array_f64_single_number() {
+        let val = json!(0.4);
+        assert_eq!(extract_array_f64(&val), vec![0.4]);
+    }
+
+    #[test]
+    fn test_extract_array_f64_nil() {
+        let val = json!("nil");
+        assert!(extract_array_f64(&val).is_empty());
+
+        let val = json!(["nil"]);
+        assert!(extract_array_f64(&val).is_empty());
+    }
+
+    #[test]
+    fn test_extract_array_f64_mixed_with_nil() {
+        // Array with some nil entries -- only valid values extracted.
+        let val = json!(["0.4", "nil", "0.6"]);
+        assert_eq!(extract_array_f64(&val), vec![0.4, 0.6]);
+    }
+
+    #[test]
+    fn test_extract_array_f64_null() {
+        let val = json!(null);
+        assert!(extract_array_f64(&val).is_empty());
+    }
+
+    #[test]
+    fn test_speed_fields_mapping() {
+        let json_val = json!({
+            "type": "process",
+            "name": "Speed Test",
+            "bridge_speed": "50",
+            "inner_wall_speed": "300",
+            "gap_infill_speed": "200",
+            "top_surface_speed": "100",
+            "internal_solid_infill_speed": "250",
+            "initial_layer_infill_speed": "40",
+            "support_speed": "150",
+            "support_interface_speed": "80",
+            "small_perimeter_speed": "50%",
+            "solid_infill_speed": "200",
+            "overhang_1_4_speed": "60",
+            "overhang_2_4_speed": "40",
+            "overhang_3_4_speed": "25",
+            "overhang_4_4_speed": "15",
+            "travel_speed_z": "12"
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert!((config.speeds.bridge - 50.0).abs() < 1e-9);
+        assert!((config.speeds.inner_wall - 300.0).abs() < 1e-9);
+        assert!((config.speeds.gap_fill - 200.0).abs() < 1e-9);
+        assert!((config.speeds.top_surface - 100.0).abs() < 1e-9);
+        assert!((config.speeds.internal_solid_infill - 250.0).abs() < 1e-9);
+        assert!((config.speeds.initial_layer_infill - 40.0).abs() < 1e-9);
+        assert!((config.speeds.support - 150.0).abs() < 1e-9);
+        assert!((config.speeds.support_interface - 80.0).abs() < 1e-9);
+        assert!((config.speeds.small_perimeter - 50.0).abs() < 1e-9);
+        assert!((config.speeds.solid_infill - 200.0).abs() < 1e-9);
+        assert!((config.speeds.overhang_1_4 - 60.0).abs() < 1e-9);
+        assert!((config.speeds.overhang_2_4 - 40.0).abs() < 1e-9);
+        assert!((config.speeds.overhang_3_4 - 25.0).abs() < 1e-9);
+        assert!((config.speeds.overhang_4_4 - 15.0).abs() < 1e-9);
+        assert!((config.speeds.travel_z - 12.0).abs() < 1e-9);
+
+        // All should be mapped.
+        assert!(result.mapped_fields.contains(&"bridge_speed".to_string()));
+        assert!(result.mapped_fields.contains(&"gap_infill_speed".to_string()));
+    }
+
+    #[test]
+    fn test_line_width_fields_mapping() {
+        let json_val = json!({
+            "type": "process",
+            "name": "Width Test",
+            "outer_wall_line_width": "0.42",
+            "inner_wall_line_width": "0.45",
+            "sparse_infill_line_width": "0.50",
+            "top_surface_line_width": "0.40",
+            "initial_layer_line_width": "0.55",
+            "internal_solid_infill_line_width": "0.42",
+            "support_line_width": "0.38"
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert!((config.line_widths.outer_wall - 0.42).abs() < 1e-9);
+        assert!((config.line_widths.inner_wall - 0.45).abs() < 1e-9);
+        assert!((config.line_widths.infill - 0.50).abs() < 1e-9);
+        assert!((config.line_widths.top_surface - 0.40).abs() < 1e-9);
+        assert!((config.line_widths.initial_layer - 0.55).abs() < 1e-9);
+        assert!((config.line_widths.internal_solid_infill - 0.42).abs() < 1e-9);
+        assert!((config.line_widths.support - 0.38).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_machine_gcode_string_fields() {
+        let json_val = json!({
+            "type": "machine",
+            "name": "GCode Test",
+            "machine_start_gcode": "G28 ; home all\\nG1 Z5 F3000",
+            "machine_end_gcode": "M104 S0\\nM140 S0",
+            "layer_change_gcode": ";LAYER_CHANGE",
+            "nozzle_type": "hardened_steel",
+            "printer_model": "X1Carbon",
+            "bed_shape": "0x0,256x0,256x256,0x256"
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert!(config.machine.start_gcode.contains("G28"));
+        assert!(config.machine.end_gcode.contains("M104"));
+        assert!(config.machine.layer_change_gcode.contains("LAYER_CHANGE"));
+        assert_eq!(config.machine.nozzle_type, "hardened_steel");
+        assert_eq!(config.machine.printer_model, "X1Carbon");
+        assert!(config.machine.bed_shape.contains("256"));
+    }
+
+    #[test]
+    fn test_cooling_fields_mapping() {
+        let json_val = json!({
+            "type": "process",
+            "name": "Cooling Test",
+            "fan_max_speed": "80%",
+            "fan_min_speed": "20%",
+            "slow_down_layer_time": "10",
+            "slow_down_min_speed": "15",
+            "overhang_fan_speed": "100%",
+            "overhang_fan_threshold": "30",
+            "full_fan_speed_layer": "3",
+            "slow_down_for_layer_cooling": "1"
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert!((config.cooling.fan_max_speed - 80.0).abs() < 1e-9);
+        assert!((config.cooling.fan_min_speed - 20.0).abs() < 1e-9);
+        assert!((config.cooling.slow_down_layer_time - 10.0).abs() < 1e-9);
+        assert!((config.cooling.slow_down_min_speed - 15.0).abs() < 1e-9);
+        assert!((config.cooling.overhang_fan_speed - 100.0).abs() < 1e-9);
+        assert!((config.cooling.overhang_fan_threshold - 30.0).abs() < 1e-9);
+        assert_eq!(config.cooling.full_fan_speed_layer, 3);
+        assert!(config.cooling.slow_down_for_layer_cooling);
+    }
+
+    #[test]
+    fn test_retraction_fields_mapping() {
+        let json_val = json!({
+            "type": "machine",
+            "name": "Retraction Test",
+            "deretraction_speed": "30",
+            "retract_before_wipe": "70%",
+            "retract_when_changing_layer": "1",
+            "wipe": "1",
+            "wipe_distance": "2.0"
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert!((config.retraction.deretraction_speed - 30.0).abs() < 1e-9);
+        assert!((config.retraction.retract_before_wipe - 70.0).abs() < 1e-9);
+        assert!(config.retraction.retract_when_changing_layer);
+        assert!(config.retraction.wipe);
+        assert!((config.retraction.wipe_distance - 2.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_acceleration_fields_mapping() {
+        let json_val = json!({
+            "type": "process",
+            "name": "Accel Test",
+            "outer_wall_acceleration": "5000",
+            "inner_wall_acceleration": "10000",
+            "initial_layer_acceleration": "500",
+            "initial_layer_travel_acceleration": "1000",
+            "top_surface_acceleration": "2000",
+            "sparse_infill_acceleration": "10000",
+            "bridge_acceleration": "1000"
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert!((config.accel.outer_wall - 5000.0).abs() < 1e-9);
+        assert!((config.accel.inner_wall - 10000.0).abs() < 1e-9);
+        assert!((config.accel.initial_layer - 500.0).abs() < 1e-9);
+        assert!((config.accel.initial_layer_travel - 1000.0).abs() < 1e-9);
+        assert!((config.accel.top_surface - 2000.0).abs() < 1e-9);
+        assert!((config.accel.sparse_infill - 10000.0).abs() < 1e-9);
+        assert!((config.accel.bridge - 1000.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_machine_acceleration_and_speed_fields() {
+        let json_val = json!({
+            "type": "machine",
+            "name": "Machine Limits Test",
+            "printable_height": "300",
+            "machine_max_acceleration_x": "10000",
+            "machine_max_acceleration_y": "10000",
+            "machine_max_acceleration_z": "200",
+            "machine_max_acceleration_e": "5000",
+            "machine_max_acceleration_extruding": "20000",
+            "machine_max_acceleration_retracting": "5000",
+            "machine_max_acceleration_travel": "12000",
+            "machine_max_speed_x": "500",
+            "machine_max_speed_y": "500",
+            "machine_max_speed_z": "20",
+            "machine_max_speed_e": "30",
+            "min_layer_height": "0.04",
+            "max_layer_height": "0.32"
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert!((config.machine.printable_height - 300.0).abs() < 1e-9);
+        assert!((config.machine.max_acceleration_x - 10000.0).abs() < 1e-9);
+        assert!((config.machine.max_acceleration_y - 10000.0).abs() < 1e-9);
+        assert!((config.machine.max_acceleration_z - 200.0).abs() < 1e-9);
+        assert!((config.machine.max_acceleration_e - 5000.0).abs() < 1e-9);
+        assert!((config.machine.max_acceleration_extruding - 20000.0).abs() < 1e-9);
+        assert!((config.machine.max_acceleration_retracting - 5000.0).abs() < 1e-9);
+        assert!((config.machine.max_acceleration_travel - 12000.0).abs() < 1e-9);
+        assert!((config.machine.max_speed_x - 500.0).abs() < 1e-9);
+        assert!((config.machine.max_speed_y - 500.0).abs() < 1e-9);
+        assert!((config.machine.max_speed_z - 20.0).abs() < 1e-9);
+        assert!((config.machine.max_speed_e - 30.0).abs() < 1e-9);
+        assert!((config.machine.min_layer_height - 0.04).abs() < 1e-9);
+        assert!((config.machine.max_layer_height - 0.32).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_filament_sub_config_fields() {
+        let json_val = json!({
+            "type": "filament",
+            "name": "PLA Test",
+            "filament_type": "PLA",
+            "filament_vendor": "eSUN",
+            "filament_max_volumetric_speed": "15",
+            "nozzle_temperature_range_low": "190",
+            "nozzle_temperature_range_high": "230",
+            "filament_retraction_length": "0.8",
+            "filament_retraction_speed": "30",
+            "filament_start_gcode": "M900 K0.04",
+            "filament_end_gcode": "M900 K0"
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert_eq!(config.filament.filament_type, "PLA");
+        assert_eq!(config.filament.filament_vendor, "eSUN");
+        assert!((config.filament.max_volumetric_speed - 15.0).abs() < 1e-9);
+        assert!((config.filament.nozzle_temperature_range_low - 190.0).abs() < 1e-9);
+        assert!((config.filament.nozzle_temperature_range_high - 230.0).abs() < 1e-9);
+        assert_eq!(config.filament.filament_retraction_length, Some(0.8));
+        assert_eq!(config.filament.filament_retraction_speed, Some(30.0));
+        assert_eq!(config.filament.filament_start_gcode, "M900 K0.04");
+        assert_eq!(config.filament.filament_end_gcode, "M900 K0");
+    }
+
+    #[test]
+    fn test_process_misc_fields() {
+        let json_val = json!({
+            "type": "process",
+            "name": "Misc Test",
+            "bridge_flow": "0.95",
+            "elefant_foot_compensation": "0.1",
+            "infill_direction": "45",
+            "infill_wall_overlap": "15%",
+            "spiral_mode": "1",
+            "only_one_wall_top": "1",
+            "resolution": "0.015",
+            "raft_layers": "2",
+            "detect_thin_wall": "1"
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert!((config.bridge_flow - 0.95).abs() < 1e-9);
+        assert!((config.elefant_foot_compensation - 0.1).abs() < 1e-9);
+        assert!((config.infill_direction - 45.0).abs() < 1e-9);
+        assert!((config.infill_wall_overlap - 0.15).abs() < 1e-9);
+        assert!(config.spiral_mode);
+        assert!(config.only_one_wall_top);
+        assert!((config.resolution - 0.015).abs() < 1e-9);
+        assert_eq!(config.raft_layers, 2);
+        assert!(config.detect_thin_wall);
+    }
+
+    #[test]
+    fn test_unknown_fields_go_to_passthrough() {
+        let json_val = json!({
+            "type": "process",
+            "name": "Passthrough Test",
+            "layer_height": "0.2",
+            "ams_drying_temperature": "55",
+            "scan_first_layer": "1",
+            "timelapse_gcode": "M400\nM971"
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        // Known field mapped normally.
+        assert!((config.layer_height - 0.2).abs() < 1e-9);
+        assert!(result.mapped_fields.contains(&"layer_height".to_string()));
+
+        // Unknown fields stored in passthrough.
+        assert_eq!(
+            config.passthrough.get("ams_drying_temperature").unwrap(),
+            "55"
+        );
+        assert_eq!(config.passthrough.get("scan_first_layer").unwrap(), "1");
+        assert!(config
+            .passthrough
+            .get("timelapse_gcode")
+            .unwrap()
+            .contains("M400"));
+
+        // Passthrough fields tracked in passthrough_fields.
+        assert!(result
+            .passthrough_fields
+            .contains(&"ams_drying_temperature".to_string()));
+        assert!(result
+            .passthrough_fields
+            .contains(&"scan_first_layer".to_string()));
+        assert!(result
+            .passthrough_fields
+            .contains(&"timelapse_gcode".to_string()));
+    }
+
+    #[test]
+    fn test_nozzle_diameter_array_populates_vec() {
+        let json_val = json!({
+            "type": "machine",
+            "name": "Dual Extruder",
+            "nozzle_diameter": ["0.4", "0.6"]
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert_eq!(config.machine.nozzle_diameters, vec![0.4, 0.6]);
+        // Scalar also set to first element for backward compat.
+        assert!((config.nozzle_diameter - 0.4).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_temperature_arrays_populate_vecs() {
+        let json_val = json!({
+            "type": "filament",
+            "name": "Temp Array Test",
+            "nozzle_temperature": ["220", "230"],
+            "bed_temperature": ["60", "70"],
+            "nozzle_temperature_initial_layer": ["225", "235"],
+            "bed_temperature_initial_layer": ["65", "75"]
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert_eq!(config.filament.nozzle_temperatures, vec![220.0, 230.0]);
+        assert_eq!(config.filament.bed_temperatures, vec![60.0, 70.0]);
+        assert_eq!(
+            config.filament.first_layer_nozzle_temperatures,
+            vec![225.0, 235.0]
+        );
+        assert_eq!(
+            config.filament.first_layer_bed_temperatures,
+            vec![65.0, 75.0]
+        );
+
+        // Scalar backward compat.
+        assert!((config.nozzle_temp - 220.0).abs() < 1e-9);
+        assert!((config.bed_temp - 60.0).abs() < 1e-9);
+        assert!((config.first_layer_nozzle_temp - 225.0).abs() < 1e-9);
+        assert!((config.first_layer_bed_temp - 65.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_jerk_arrays_populate_vecs() {
+        let json_val = json!({
+            "type": "machine",
+            "name": "Jerk Array Test",
+            "machine_max_jerk_x": ["9", "7"],
+            "machine_max_jerk_y": ["9", "7"],
+            "machine_max_jerk_z": ["0.4", "0.3"],
+            "machine_max_jerk_e": ["2.5", "2.0"]
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert_eq!(config.machine.jerk_values_x, vec![9.0, 7.0]);
+        assert_eq!(config.machine.jerk_values_y, vec![9.0, 7.0]);
+        assert_eq!(config.machine.jerk_values_z, vec![0.4, 0.3]);
+        assert_eq!(config.machine.jerk_values_e, vec![2.5, 2.0]);
+
+        // Scalar backward compat.
+        assert!((config.jerk_x - 9.0).abs() < 1e-9);
+        assert!((config.jerk_y - 9.0).abs() < 1e-9);
+        assert!((config.jerk_z - 0.4).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_overhang_speed_aliases() {
+        // Test alternative key names (overhang_speed_0/1/2/3).
+        let json_val = json!({
+            "type": "process",
+            "name": "Overhang Alias Test",
+            "overhang_speed_0": "60",
+            "overhang_speed_1": "40",
+            "overhang_speed_2": "25",
+            "overhang_speed_3": "15"
+        });
+
+        let result = import_upstream_profile(&json_val).unwrap();
+        let config = &result.config;
+
+        assert!((config.speeds.overhang_1_4 - 60.0).abs() < 1e-9);
+        assert!((config.speeds.overhang_2_4 - 40.0).abs() < 1e-9);
+        assert!((config.speeds.overhang_3_4 - 25.0).abs() < 1e-9);
+        assert!((config.speeds.overhang_4_4 - 15.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_match_arm_count_exceeds_100() {
+        // Build a large JSON profile programmatically to avoid macro recursion limit.
+        use serde_json::Map;
+        let mut obj = Map::new();
+        obj.insert("type".into(), json!("process"));
+        obj.insert("name".into(), json!("100+ Fields Test"));
+
+        // Process basics (19)
+        for key in &[
+            "layer_height", "initial_layer_print_height", "wall_loops",
+            "sparse_infill_density", "top_shell_layers", "bottom_shell_layers",
+            "outer_wall_speed", "sparse_infill_speed", "travel_speed",
+            "initial_layer_speed", "skirt_loops", "skirt_distance",
+            "brim_width", "default_acceleration", "travel_acceleration",
+            "enable_arc_fitting", "adaptive_layer_height",
+            "wall_generator", "seam_position",
+        ] {
+            obj.insert((*key).into(), json!("10"));
+        }
+        // Speed sub-config (15)
+        for key in &[
+            "bridge_speed", "inner_wall_speed", "gap_infill_speed",
+            "top_surface_speed", "internal_solid_infill_speed",
+            "initial_layer_infill_speed", "support_speed",
+            "support_interface_speed", "small_perimeter_speed",
+            "solid_infill_speed", "overhang_1_4_speed", "overhang_2_4_speed",
+            "overhang_3_4_speed", "overhang_4_4_speed", "travel_speed_z",
+        ] {
+            obj.insert((*key).into(), json!("50"));
+        }
+        // Line widths (7)
+        for key in &[
+            "outer_wall_line_width", "inner_wall_line_width",
+            "sparse_infill_line_width", "top_surface_line_width",
+            "initial_layer_line_width", "internal_solid_infill_line_width",
+            "support_line_width",
+        ] {
+            obj.insert((*key).into(), json!("0.45"));
+        }
+        // Cooling (8)
+        for key in &[
+            "fan_max_speed", "fan_min_speed", "slow_down_layer_time",
+            "slow_down_min_speed", "overhang_fan_speed",
+            "overhang_fan_threshold", "full_fan_speed_layer",
+            "slow_down_for_layer_cooling",
+        ] {
+            obj.insert((*key).into(), json!("10"));
+        }
+        // Retraction (5)
+        for key in &[
+            "deretraction_speed", "retract_before_wipe",
+            "retract_when_changing_layer", "wipe", "wipe_distance",
+        ] {
+            obj.insert((*key).into(), json!("1"));
+        }
+        // Machine limits (14)
+        for key in &[
+            "printable_height", "machine_max_acceleration_x",
+            "machine_max_acceleration_y", "machine_max_acceleration_z",
+            "machine_max_acceleration_e", "machine_max_acceleration_extruding",
+            "machine_max_acceleration_retracting", "machine_max_acceleration_travel",
+            "machine_max_speed_x", "machine_max_speed_y",
+            "machine_max_speed_z", "machine_max_speed_e",
+            "min_layer_height", "max_layer_height",
+        ] {
+            obj.insert((*key).into(), json!("100"));
+        }
+        // Acceleration (7)
+        for key in &[
+            "outer_wall_acceleration", "inner_wall_acceleration",
+            "initial_layer_acceleration", "initial_layer_travel_acceleration",
+            "top_surface_acceleration", "sparse_infill_acceleration",
+            "bridge_acceleration",
+        ] {
+            obj.insert((*key).into(), json!("5000"));
+        }
+        // Process misc (9)
+        for key in &[
+            "bridge_flow", "elefant_foot_compensation", "infill_direction",
+            "infill_wall_overlap", "resolution", "spiral_mode",
+            "only_one_wall_top", "raft_layers", "detect_thin_wall",
+        ] {
+            obj.insert((*key).into(), json!("0"));
+        }
+        // Ironing (4)
+        obj.insert("ironing_type".into(), json!("top"));
+        obj.insert("ironing_flow".into(), json!("15%"));
+        obj.insert("ironing_speed".into(), json!("20"));
+        obj.insert("ironing_spacing".into(), json!("0.1"));
+        // Machine strings (4)
+        obj.insert("machine_start_gcode".into(), json!("G28"));
+        obj.insert("machine_end_gcode".into(), json!("M84"));
+        obj.insert("nozzle_type".into(), json!("brass"));
+        obj.insert("printer_model".into(), json!("TestPrinter"));
+        // Retraction + dialect (5)
+        obj.insert("retraction_length".into(), json!("0.8"));
+        obj.insert("retraction_speed".into(), json!("45"));
+        obj.insert("z_hop".into(), json!("0.3"));
+        obj.insert("retraction_minimum_travel".into(), json!("1.5"));
+        obj.insert("gcode_flavor".into(), json!("klipper"));
+        // Filament (9)
+        obj.insert("filament_type".into(), json!("PLA"));
+        obj.insert("filament_vendor".into(), json!("eSUN"));
+        obj.insert("filament_density".into(), json!("1.24"));
+        obj.insert("filament_diameter".into(), json!("1.75"));
+        obj.insert("filament_cost".into(), json!("20"));
+        obj.insert("filament_flow_ratio".into(), json!("0.98"));
+        obj.insert("filament_max_volumetric_speed".into(), json!("15"));
+        obj.insert("filament_retraction_length".into(), json!("0.8"));
+        obj.insert("filament_retraction_speed".into(), json!("30"));
+        // Array fields (7)
+        obj.insert("nozzle_diameter".into(), json!(["0.4"]));
+        obj.insert("nozzle_temperature".into(), json!(["220"]));
+        obj.insert("hot_plate_temp".into(), json!(["60"]));
+        obj.insert("machine_max_jerk_x".into(), json!(["9"]));
+        obj.insert("machine_max_jerk_y".into(), json!(["9"]));
+        obj.insert("machine_max_jerk_z".into(), json!(["0.4"]));
+        obj.insert("machine_max_jerk_e".into(), json!(["2.5"]));
+
+        let json_val = serde_json::Value::Object(obj);
+        let result = import_upstream_profile(&json_val).unwrap();
+
+        // Should have at least 100 mapped fields.
+        assert!(
+            result.mapped_fields.len() >= 100,
+            "Expected at least 100 mapped fields, got {}: {:?}",
+            result.mapped_fields.len(),
+            result.mapped_fields
+        );
     }
 }

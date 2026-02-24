@@ -923,6 +923,7 @@ impl PrintConfig {
                 config,
                 mapped_fields: Vec::new(),
                 unmapped_fields: Vec::new(),
+                passthrough_fields: Vec::new(),
                 metadata: crate::profile_import::ProfileMetadata::default(),
             })
         }

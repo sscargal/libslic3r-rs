@@ -389,37 +389,41 @@ fn test_selective_output_no_defaults() {
 
 #[test]
 fn test_unmapped_fields_in_output() {
+    // bridge_speed and gap_infill_speed are now mapped to typed fields (Phase 20).
+    // Use truly unknown fields to test passthrough/unmapped reporting.
     let json = serde_json::json!({
         "type": "process",
         "name": "Unmapped Test",
         "layer_height": "0.2",
-        "bridge_speed": "50",
-        "gap_infill_speed": "200"
+        "ams_drying_temperature": "55",
+        "scan_first_layer": "1"
     });
 
     let import = import_upstream_profile(&json).unwrap();
     let converted = convert_to_toml(&import);
 
-    // Unmapped fields should appear as comments in TOML output.
+    // Passthrough fields (no typed mapping) should appear as comments in TOML output.
     assert!(
-        converted.toml_output.contains("bridge_speed"),
-        "TOML should mention unmapped bridge_speed"
+        converted.toml_output.contains("ams_drying_temperature"),
+        "TOML should mention unmapped ams_drying_temperature"
     );
     assert!(
-        converted.toml_output.contains("gap_infill_speed"),
-        "TOML should mention unmapped gap_infill_speed"
+        converted.toml_output.contains("scan_first_layer"),
+        "TOML should mention unmapped scan_first_layer"
     );
 
-    // ConvertResult should report them.
+    // ConvertResult should report them via unmapped_fields (backward compat).
     assert!(
-        converted.unmapped_fields.contains(&"bridge_speed".to_string()),
-        "unmapped_fields should contain bridge_speed"
+        converted
+            .unmapped_fields
+            .contains(&"ams_drying_temperature".to_string()),
+        "unmapped_fields should contain ams_drying_temperature"
     );
     assert!(
         converted
             .unmapped_fields
-            .contains(&"gap_infill_speed".to_string()),
-        "unmapped_fields should contain gap_infill_speed"
+            .contains(&"scan_first_layer".to_string()),
+        "unmapped_fields should contain scan_first_layer"
     );
 }
 

@@ -157,6 +157,7 @@ pub fn merge_import_results(results: &[ImportResult]) -> ImportResult {
             config: PrintConfig::default(),
             mapped_fields: Vec::new(),
             unmapped_fields: Vec::new(),
+            passthrough_fields: Vec::new(),
             metadata: crate::profile_import::ProfileMetadata::default(),
         };
     }
@@ -239,10 +240,21 @@ pub fn merge_import_results(results: &[ImportResult]) -> ImportResult {
         inherits: last.metadata.inherits.clone(),
     };
 
+    // Merge passthrough_fields from all results.
+    let mut all_passthrough: Vec<String> = Vec::new();
+    for r in results {
+        for f in &r.passthrough_fields {
+            if !all_passthrough.contains(f) {
+                all_passthrough.push(f.clone());
+            }
+        }
+    }
+
     ImportResult {
         config: merged_config,
         mapped_fields: all_mapped,
         unmapped_fields: all_unmapped,
+        passthrough_fields: all_passthrough,
         metadata,
     }
 }
@@ -340,6 +352,7 @@ mod tests {
                 "outer_wall_speed".into(),
             ],
             unmapped_fields: vec![],
+            passthrough_fields: vec![],
             metadata: ProfileMetadata {
                 name: Some("Test Selective".into()),
                 profile_type: Some("process".into()),
@@ -413,6 +426,7 @@ mod tests {
             config,
             mapped_fields: vec!["sparse_infill_density".into()],
             unmapped_fields: vec![],
+            passthrough_fields: vec![],
             metadata: ProfileMetadata::default(),
         };
 
@@ -438,19 +452,22 @@ mod tests {
             "type": "process",
             "name": "Test",
             "layer_height": "0.2",
-            "bridge_speed": "60",
-            "gap_infill_speed": "200"
+            "ams_drying_temperature": "55",
+            "scan_first_layer": "1"
         });
 
         let result = import_upstream_profile(&json_val).unwrap();
         let converted = convert_to_toml(&result);
 
-        // Unmapped fields should appear as comments.
+        // Passthrough fields (stored in config.passthrough, also in unmapped_fields)
+        // should appear as comments.
         assert!(converted
             .toml_output
             .contains("# Unmapped fields from source"));
-        assert!(converted.toml_output.contains("# - bridge_speed"));
-        assert!(converted.toml_output.contains("# - gap_infill_speed"));
+        assert!(converted
+            .toml_output
+            .contains("# - ams_drying_temperature"));
+        assert!(converted.toml_output.contains("# - scan_first_layer"));
     }
 
     #[test]

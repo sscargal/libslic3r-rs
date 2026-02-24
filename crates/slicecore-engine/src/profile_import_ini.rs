@@ -451,6 +451,7 @@ pub fn import_prusaslicer_ini_profile(
         config,
         mapped_fields,
         unmapped_fields,
+        passthrough_fields: Vec::new(),
         metadata: ProfileMetadata {
             name: Some(name.to_string()),
             profile_type: Some(profile_type.to_string()),
