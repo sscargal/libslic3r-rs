@@ -8,6 +8,8 @@
 //! [`WallOrder`] controls whether perimeters are printed inside-out or
 //! outside-in.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use slicecore_gcode_io::GcodeDialect;
 
@@ -28,6 +30,426 @@ pub enum WallOrder {
     /// Print outer wall first, then inner walls.
     #[default]
     OuterFirst,
+}
+
+// ============================================================================
+// Sub-config structs for organized field grouping
+// ============================================================================
+
+/// Per-feature line width configuration.
+///
+/// Controls the extrusion width for different feature types. A value of 0.0
+/// typically means "auto from nozzle diameter". Defaults are BambuStudio
+/// reference values for a 0.4mm nozzle.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LineWidthConfig {
+    /// Outer wall line width in mm.
+    pub outer_wall: f64,
+    /// Inner wall line width in mm.
+    pub inner_wall: f64,
+    /// Sparse infill line width in mm.
+    pub infill: f64,
+    /// Top surface line width in mm.
+    pub top_surface: f64,
+    /// Initial (first) layer line width in mm.
+    pub initial_layer: f64,
+    /// Internal solid infill line width in mm.
+    pub internal_solid_infill: f64,
+    /// Support structure line width in mm.
+    pub support: f64,
+}
+
+impl Default for LineWidthConfig {
+    fn default() -> Self {
+        Self {
+            outer_wall: 0.42,
+            inner_wall: 0.45,
+            infill: 0.45,
+            top_surface: 0.42,
+            initial_layer: 0.5,
+            internal_solid_infill: 0.42,
+            support: 0.42,
+        }
+    }
+}
+
+/// Per-feature speed configuration (mm/s).
+///
+/// A value of 0.0 means "inherit from the parent speed" (e.g., inner_wall
+/// inherits from perimeter_speed). This matches upstream slicer behavior
+/// where 0 indicates automatic/inherited speed.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SpeedConfig {
+    /// Bridge print speed (mm/s).
+    pub bridge: f64,
+    /// Inner wall speed (mm/s, 0 = inherit from perimeter_speed).
+    pub inner_wall: f64,
+    /// Gap fill speed (mm/s, 0 = inherit from perimeter_speed).
+    pub gap_fill: f64,
+    /// Top surface speed (mm/s, 0 = inherit from perimeter_speed).
+    pub top_surface: f64,
+    /// Internal solid infill speed (mm/s, 0 = inherit).
+    pub internal_solid_infill: f64,
+    /// Initial layer infill speed (mm/s, 0 = inherit).
+    pub initial_layer_infill: f64,
+    /// Support structure speed (mm/s, 0 = inherit).
+    pub support: f64,
+    /// Support interface speed (mm/s, 0 = inherit).
+    pub support_interface: f64,
+    /// Small perimeter speed (mm/s, 0 = inherit from perimeter_speed).
+    pub small_perimeter: f64,
+    /// Solid infill speed (mm/s, 0 = inherit).
+    pub solid_infill: f64,
+    /// Overhang speed for 0-25% overhang (mm/s, 0 = inherit).
+    pub overhang_1_4: f64,
+    /// Overhang speed for 25-50% overhang (mm/s, 0 = inherit).
+    pub overhang_2_4: f64,
+    /// Overhang speed for 50-75% overhang (mm/s, 0 = inherit).
+    pub overhang_3_4: f64,
+    /// Overhang speed for 75-100% overhang (mm/s, 0 = inherit).
+    pub overhang_4_4: f64,
+    /// Z-axis travel speed (mm/s, 0 = use travel_speed).
+    pub travel_z: f64,
+}
+
+impl Default for SpeedConfig {
+    fn default() -> Self {
+        Self {
+            bridge: 25.0,
+            inner_wall: 0.0,
+            gap_fill: 0.0,
+            top_surface: 0.0,
+            internal_solid_infill: 0.0,
+            initial_layer_infill: 0.0,
+            support: 0.0,
+            support_interface: 0.0,
+            small_perimeter: 0.0,
+            solid_infill: 0.0,
+            overhang_1_4: 0.0,
+            overhang_2_4: 0.0,
+            overhang_3_4: 0.0,
+            overhang_4_4: 0.0,
+            travel_z: 0.0,
+        }
+    }
+}
+
+/// Cooling and fan configuration.
+///
+/// Controls fan speeds, layer-time-based slowdown, and overhang cooling.
+/// Percentage values are 0-100 (not 0-1 fraction).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct CoolingConfig {
+    /// Maximum fan speed (percentage, 0-100).
+    pub fan_max_speed: f64,
+    /// Minimum fan speed (percentage, 0-100).
+    pub fan_min_speed: f64,
+    /// Slow down if layer time falls below this value (seconds).
+    pub slow_down_layer_time: f64,
+    /// Minimum speed when slowing down for layer cooling (mm/s).
+    pub slow_down_min_speed: f64,
+    /// Fan speed for overhang regions (percentage, 0-100).
+    pub overhang_fan_speed: f64,
+    /// Overhang angle threshold for fan override (degrees).
+    pub overhang_fan_threshold: f64,
+    /// Layer number at which fan reaches full speed (0 = immediate).
+    pub full_fan_speed_layer: u32,
+    /// Enable automatic slowdown for layer cooling.
+    pub slow_down_for_layer_cooling: bool,
+}
+
+impl Default for CoolingConfig {
+    fn default() -> Self {
+        Self {
+            fan_max_speed: 100.0,
+            fan_min_speed: 35.0,
+            slow_down_layer_time: 5.0,
+            slow_down_min_speed: 10.0,
+            overhang_fan_speed: 100.0,
+            overhang_fan_threshold: 25.0,
+            full_fan_speed_layer: 0,
+            slow_down_for_layer_cooling: true,
+        }
+    }
+}
+
+/// Additional retraction configuration.
+///
+/// Note: The existing flat `retract_length`, `retract_speed`, `retract_z_hop`,
+/// and `min_travel_for_retract` fields on `PrintConfig` are NOT moved here yet
+/// (migration happens in Plan 04). These are ADDITIONAL retraction fields not
+/// previously in `PrintConfig`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RetractionConfig {
+    /// Deretraction (unretract) speed in mm/s (0 = same as retraction speed).
+    pub deretraction_speed: f64,
+    /// Percentage of retraction to perform before wipe (0-100).
+    pub retract_before_wipe: f64,
+    /// Whether to retract when changing layers.
+    pub retract_when_changing_layer: bool,
+    /// Enable wipe move during retraction.
+    pub wipe: bool,
+    /// Wipe distance in mm.
+    pub wipe_distance: f64,
+}
+
+impl Default for RetractionConfig {
+    fn default() -> Self {
+        Self {
+            deretraction_speed: 0.0,
+            retract_before_wipe: 0.0,
+            retract_when_changing_layer: false,
+            wipe: false,
+            wipe_distance: 0.0,
+        }
+    }
+}
+
+/// Machine/printer hardware configuration.
+///
+/// Contains printer capabilities, motion limits, G-code templates, and
+/// multi-extruder array fields. Vec fields use single-element defaults
+/// for single-extruder printers.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MachineConfig {
+    /// Maximum printable height in mm.
+    pub printable_height: f64,
+    /// Maximum X acceleration (mm/s^2).
+    pub max_acceleration_x: f64,
+    /// Maximum Y acceleration (mm/s^2).
+    pub max_acceleration_y: f64,
+    /// Maximum Z acceleration (mm/s^2).
+    pub max_acceleration_z: f64,
+    /// Maximum E (extruder) acceleration (mm/s^2).
+    pub max_acceleration_e: f64,
+    /// Maximum acceleration while extruding (mm/s^2).
+    pub max_acceleration_extruding: f64,
+    /// Maximum acceleration while retracting (mm/s^2).
+    pub max_acceleration_retracting: f64,
+    /// Maximum acceleration during travel moves (mm/s^2).
+    pub max_acceleration_travel: f64,
+    /// Maximum X speed (mm/s).
+    pub max_speed_x: f64,
+    /// Maximum Y speed (mm/s).
+    pub max_speed_y: f64,
+    /// Maximum Z speed (mm/s).
+    pub max_speed_z: f64,
+    /// Maximum E (extruder) speed (mm/s).
+    pub max_speed_e: f64,
+    /// Nozzle diameters per extruder (mm). Multi-extruder array.
+    pub nozzle_diameters: Vec<f64>,
+    /// Jerk values for X axis per extruder (mm/s). Multi-extruder array.
+    pub jerk_values_x: Vec<f64>,
+    /// Jerk values for Y axis per extruder (mm/s). Multi-extruder array.
+    pub jerk_values_y: Vec<f64>,
+    /// Jerk values for Z axis per extruder (mm/s). Multi-extruder array.
+    pub jerk_values_z: Vec<f64>,
+    /// Jerk values for E axis per extruder (mm/s). Multi-extruder array.
+    pub jerk_values_e: Vec<f64>,
+    /// Machine start G-code template.
+    pub start_gcode: String,
+    /// Machine end G-code template.
+    pub end_gcode: String,
+    /// G-code inserted at every layer change.
+    pub layer_change_gcode: String,
+    /// Nozzle type descriptor (e.g., "hardened_steel", "brass").
+    pub nozzle_type: String,
+    /// Printer model identifier.
+    pub printer_model: String,
+    /// Bed shape descriptor (serialized polygon or rectangle).
+    pub bed_shape: String,
+    /// Minimum layer height the printer can handle (mm).
+    pub min_layer_height: f64,
+    /// Maximum layer height (mm, 0 = auto from nozzle diameter).
+    pub max_layer_height: f64,
+}
+
+impl Default for MachineConfig {
+    fn default() -> Self {
+        Self {
+            printable_height: 250.0,
+            max_acceleration_x: 5000.0,
+            max_acceleration_y: 5000.0,
+            max_acceleration_z: 100.0,
+            max_acceleration_e: 5000.0,
+            max_acceleration_extruding: 5000.0,
+            max_acceleration_retracting: 5000.0,
+            max_acceleration_travel: 5000.0,
+            max_speed_x: 500.0,
+            max_speed_y: 500.0,
+            max_speed_z: 12.0,
+            max_speed_e: 120.0,
+            nozzle_diameters: vec![0.4],
+            jerk_values_x: vec![8.0],
+            jerk_values_y: vec![8.0],
+            jerk_values_z: vec![0.4],
+            jerk_values_e: vec![2.5],
+            start_gcode: String::new(),
+            end_gcode: String::new(),
+            layer_change_gcode: String::new(),
+            nozzle_type: String::new(),
+            printer_model: String::new(),
+            bed_shape: String::new(),
+            min_layer_height: 0.07,
+            max_layer_height: 0.0,
+        }
+    }
+}
+
+impl MachineConfig {
+    /// Returns the primary nozzle diameter (first extruder), or 0.4 if empty.
+    pub fn nozzle_diameter(&self) -> f64 {
+        self.nozzle_diameters.first().copied().unwrap_or(0.4)
+    }
+
+    /// Returns the primary X jerk value (first extruder), or 8.0 if empty.
+    pub fn jerk_x(&self) -> f64 {
+        self.jerk_values_x.first().copied().unwrap_or(8.0)
+    }
+
+    /// Returns the primary Y jerk value (first extruder), or 8.0 if empty.
+    pub fn jerk_y(&self) -> f64 {
+        self.jerk_values_y.first().copied().unwrap_or(8.0)
+    }
+
+    /// Returns the primary Z jerk value (first extruder), or 0.4 if empty.
+    pub fn jerk_z(&self) -> f64 {
+        self.jerk_values_z.first().copied().unwrap_or(0.4)
+    }
+
+    /// Returns the primary E jerk value (first extruder), or 2.5 if empty.
+    pub fn jerk_e(&self) -> f64 {
+        self.jerk_values_e.first().copied().unwrap_or(2.5)
+    }
+}
+
+/// Per-feature acceleration configuration (mm/s^2).
+///
+/// A value of 0.0 means "use the base print_acceleration". These are
+/// ADDITIONAL per-feature acceleration fields; the existing flat
+/// `print_acceleration` and `travel_acceleration` on `PrintConfig` are
+/// NOT moved here yet (migration happens in Plan 04).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AccelerationConfig {
+    /// Outer wall acceleration (mm/s^2, 0 = use print_acceleration).
+    pub outer_wall: f64,
+    /// Inner wall acceleration (mm/s^2, 0 = use print_acceleration).
+    pub inner_wall: f64,
+    /// Initial layer acceleration (mm/s^2, 0 = use print_acceleration).
+    pub initial_layer: f64,
+    /// Initial layer travel acceleration (mm/s^2, 0 = use travel_acceleration).
+    pub initial_layer_travel: f64,
+    /// Top surface acceleration (mm/s^2, 0 = use print_acceleration).
+    pub top_surface: f64,
+    /// Sparse infill acceleration (mm/s^2, 0 = use print_acceleration).
+    pub sparse_infill: f64,
+    /// Bridge acceleration (mm/s^2, 0 = use print_acceleration).
+    pub bridge: f64,
+}
+
+impl Default for AccelerationConfig {
+    fn default() -> Self {
+        Self {
+            outer_wall: 0.0,
+            inner_wall: 0.0,
+            initial_layer: 0.0,
+            initial_layer_travel: 0.0,
+            top_surface: 0.0,
+            sparse_infill: 0.0,
+            bridge: 0.0,
+        }
+    }
+}
+
+/// Filament properties configuration.
+///
+/// Contains filament metadata, temperature ranges, per-extruder temperature
+/// arrays, and filament-specific retraction overrides. The existing flat
+/// `filament_density`, `filament_cost_per_kg`, and `filament_diameter` fields
+/// on `PrintConfig` are NOT moved here yet (migration happens in Plan 04).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FilamentPropsConfig {
+    /// Filament material type (e.g., "PLA", "ABS", "PETG").
+    pub filament_type: String,
+    /// Filament vendor/manufacturer name.
+    pub filament_vendor: String,
+    /// Maximum volumetric speed (mm^3/s, 0 = unlimited).
+    pub max_volumetric_speed: f64,
+    /// Low end of recommended nozzle temperature range (degrees C).
+    pub nozzle_temperature_range_low: f64,
+    /// High end of recommended nozzle temperature range (degrees C).
+    pub nozzle_temperature_range_high: f64,
+    /// Per-extruder nozzle temperatures (degrees C). Multi-extruder array.
+    pub nozzle_temperatures: Vec<f64>,
+    /// Per-extruder bed temperatures (degrees C). Multi-extruder array.
+    pub bed_temperatures: Vec<f64>,
+    /// Per-extruder first layer nozzle temperatures (degrees C). Multi-extruder array.
+    pub first_layer_nozzle_temperatures: Vec<f64>,
+    /// Per-extruder first layer bed temperatures (degrees C). Multi-extruder array.
+    pub first_layer_bed_temperatures: Vec<f64>,
+    /// Filament-specific retraction length override (mm, None = use global).
+    pub filament_retraction_length: Option<f64>,
+    /// Filament-specific retraction speed override (mm/s, None = use global).
+    pub filament_retraction_speed: Option<f64>,
+    /// Filament start G-code (run once when filament loaded).
+    pub filament_start_gcode: String,
+    /// Filament end G-code (run once when filament unloaded).
+    pub filament_end_gcode: String,
+}
+
+impl Default for FilamentPropsConfig {
+    fn default() -> Self {
+        Self {
+            filament_type: String::new(),
+            filament_vendor: String::new(),
+            max_volumetric_speed: 0.0,
+            nozzle_temperature_range_low: 190.0,
+            nozzle_temperature_range_high: 240.0,
+            nozzle_temperatures: vec![200.0],
+            bed_temperatures: vec![60.0],
+            first_layer_nozzle_temperatures: vec![210.0],
+            first_layer_bed_temperatures: vec![65.0],
+            filament_retraction_length: None,
+            filament_retraction_speed: None,
+            filament_start_gcode: String::new(),
+            filament_end_gcode: String::new(),
+        }
+    }
+}
+
+impl FilamentPropsConfig {
+    /// Returns the primary nozzle temperature (first extruder), or 200.0 if empty.
+    pub fn nozzle_temp(&self) -> f64 {
+        self.nozzle_temperatures.first().copied().unwrap_or(200.0)
+    }
+
+    /// Returns the primary bed temperature (first extruder), or 60.0 if empty.
+    pub fn bed_temp(&self) -> f64 {
+        self.bed_temperatures.first().copied().unwrap_or(60.0)
+    }
+
+    /// Returns the primary first layer nozzle temperature, or 210.0 if empty.
+    pub fn first_layer_nozzle_temp(&self) -> f64 {
+        self.first_layer_nozzle_temperatures
+            .first()
+            .copied()
+            .unwrap_or(210.0)
+    }
+
+    /// Returns the primary first layer bed temperature, or 65.0 if empty.
+    pub fn first_layer_bed_temp(&self) -> f64 {
+        self.first_layer_bed_temperatures
+            .first()
+            .copied()
+            .unwrap_or(65.0)
+    }
 }
 
 /// Print configuration controlling the entire slicing pipeline.
@@ -218,6 +640,48 @@ pub struct PrintConfig {
     /// a `plugin.toml` manifest.
     #[serde(default)]
     pub plugin_dir: Option<String>,
+
+    // --- Sub-config structs (Phase 20) ---
+    /// Per-feature line width configuration.
+    pub line_widths: LineWidthConfig,
+    /// Per-feature speed configuration.
+    pub speeds: SpeedConfig,
+    /// Cooling and fan configuration.
+    pub cooling: CoolingConfig,
+    /// Additional retraction configuration.
+    pub retraction: RetractionConfig,
+    /// Machine/printer hardware configuration.
+    pub machine: MachineConfig,
+    /// Per-feature acceleration configuration.
+    pub accel: AccelerationConfig,
+    /// Filament properties configuration.
+    pub filament: FilamentPropsConfig,
+
+    /// Passthrough fields from upstream profiles that have no engine equivalent.
+    /// Preserved for round-trip fidelity and G-code template variable access.
+    /// Uses `BTreeMap` for deterministic serialization order.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub passthrough: BTreeMap<String, String>,
+
+    // --- Process misc fields (Phase 20) ---
+    /// Bridge flow ratio (1.0 = normal flow).
+    pub bridge_flow: f64,
+    /// Elephant foot compensation in mm.
+    pub elefant_foot_compensation: f64,
+    /// Infill line direction in degrees.
+    pub infill_direction: f64,
+    /// Infill-wall overlap as a fraction (0-1).
+    pub infill_wall_overlap: f64,
+    /// Enable spiral (vase) mode.
+    pub spiral_mode: bool,
+    /// Use only one wall on top surfaces.
+    pub only_one_wall_top: bool,
+    /// G-code resolution in mm.
+    pub resolution: f64,
+    /// Number of raft layers (0 = disabled).
+    pub raft_layers: u32,
+    /// Enable thin wall detection.
+    pub detect_thin_wall: bool,
 }
 
 /// Scarf joint seam configuration.
@@ -376,6 +840,25 @@ impl Default for PrintConfig {
             multi_material: MultiMaterialConfig::default(),
             sequential: SequentialConfig::default(),
             plugin_dir: None,
+
+            line_widths: LineWidthConfig::default(),
+            speeds: SpeedConfig::default(),
+            cooling: CoolingConfig::default(),
+            retraction: RetractionConfig::default(),
+            machine: MachineConfig::default(),
+            accel: AccelerationConfig::default(),
+            filament: FilamentPropsConfig::default(),
+            passthrough: BTreeMap::new(),
+
+            bridge_flow: 1.0,
+            elefant_foot_compensation: 0.0,
+            infill_direction: 45.0,
+            infill_wall_overlap: 0.15,
+            spiral_mode: false,
+            only_one_wall_top: false,
+            resolution: 0.012,
+            raft_layers: 0,
+            detect_thin_wall: true,
         }
     }
 }
@@ -1026,5 +1509,329 @@ polyhole_min_diameter = 0.5
         let config = PrintConfig::from_toml(toml).unwrap();
         assert!(config.polyhole_enabled);
         assert!((config.polyhole_min_diameter - 0.5).abs() < 1e-9);
+    }
+
+    // ========================================================================
+    // Phase 20 sub-config tests
+    // ========================================================================
+
+    #[test]
+    fn sub_config_defaults() {
+        let config = PrintConfig::default();
+
+        // LineWidthConfig
+        assert!((config.line_widths.outer_wall - 0.42).abs() < 1e-9);
+        assert!((config.line_widths.inner_wall - 0.45).abs() < 1e-9);
+        assert!((config.line_widths.infill - 0.45).abs() < 1e-9);
+        assert!((config.line_widths.top_surface - 0.42).abs() < 1e-9);
+        assert!((config.line_widths.initial_layer - 0.5).abs() < 1e-9);
+        assert!((config.line_widths.internal_solid_infill - 0.42).abs() < 1e-9);
+        assert!((config.line_widths.support - 0.42).abs() < 1e-9);
+
+        // SpeedConfig
+        assert!((config.speeds.bridge - 25.0).abs() < 1e-9);
+        assert!((config.speeds.inner_wall - 0.0).abs() < 1e-9);
+        assert!((config.speeds.gap_fill - 0.0).abs() < 1e-9);
+        assert!((config.speeds.top_surface - 0.0).abs() < 1e-9);
+        assert!((config.speeds.overhang_1_4 - 0.0).abs() < 1e-9);
+        assert!((config.speeds.travel_z - 0.0).abs() < 1e-9);
+
+        // CoolingConfig
+        assert!((config.cooling.fan_max_speed - 100.0).abs() < 1e-9);
+        assert!((config.cooling.fan_min_speed - 35.0).abs() < 1e-9);
+        assert!((config.cooling.slow_down_layer_time - 5.0).abs() < 1e-9);
+        assert!((config.cooling.slow_down_min_speed - 10.0).abs() < 1e-9);
+        assert!((config.cooling.overhang_fan_speed - 100.0).abs() < 1e-9);
+        assert!((config.cooling.overhang_fan_threshold - 25.0).abs() < 1e-9);
+        assert_eq!(config.cooling.full_fan_speed_layer, 0);
+        assert!(config.cooling.slow_down_for_layer_cooling);
+
+        // RetractionConfig
+        assert!((config.retraction.deretraction_speed - 0.0).abs() < 1e-9);
+        assert!((config.retraction.retract_before_wipe - 0.0).abs() < 1e-9);
+        assert!(!config.retraction.retract_when_changing_layer);
+        assert!(!config.retraction.wipe);
+        assert!((config.retraction.wipe_distance - 0.0).abs() < 1e-9);
+
+        // MachineConfig
+        assert!((config.machine.printable_height - 250.0).abs() < 1e-9);
+        assert!((config.machine.max_acceleration_x - 5000.0).abs() < 1e-9);
+        assert!((config.machine.max_speed_z - 12.0).abs() < 1e-9);
+        assert!((config.machine.min_layer_height - 0.07).abs() < 1e-9);
+        assert!((config.machine.max_layer_height - 0.0).abs() < 1e-9);
+        assert!(config.machine.start_gcode.is_empty());
+        assert!(config.machine.printer_model.is_empty());
+
+        // AccelerationConfig
+        assert!((config.accel.outer_wall - 0.0).abs() < 1e-9);
+        assert!((config.accel.inner_wall - 0.0).abs() < 1e-9);
+        assert!((config.accel.bridge - 0.0).abs() < 1e-9);
+
+        // FilamentPropsConfig
+        assert!(config.filament.filament_type.is_empty());
+        assert!((config.filament.max_volumetric_speed - 0.0).abs() < 1e-9);
+        assert!((config.filament.nozzle_temperature_range_low - 190.0).abs() < 1e-9);
+        assert!((config.filament.nozzle_temperature_range_high - 240.0).abs() < 1e-9);
+        assert!(config.filament.filament_retraction_length.is_none());
+        assert!(config.filament.filament_retraction_speed.is_none());
+
+        // Passthrough
+        assert!(config.passthrough.is_empty());
+
+        // Process misc
+        assert!((config.bridge_flow - 1.0).abs() < 1e-9);
+        assert!((config.elefant_foot_compensation - 0.0).abs() < 1e-9);
+        assert!((config.infill_direction - 45.0).abs() < 1e-9);
+        assert!((config.infill_wall_overlap - 0.15).abs() < 1e-9);
+        assert!(!config.spiral_mode);
+        assert!(!config.only_one_wall_top);
+        assert!((config.resolution - 0.012).abs() < 1e-9);
+        assert_eq!(config.raft_layers, 0);
+        assert!(config.detect_thin_wall);
+    }
+
+    #[test]
+    fn sub_config_from_toml() {
+        let toml = r#"
+bridge_flow = 0.95
+spiral_mode = true
+infill_direction = 90.0
+
+[line_widths]
+outer_wall = 0.40
+inner_wall = 0.50
+infill = 0.55
+
+[speeds]
+bridge = 30.0
+inner_wall = 40.0
+overhang_1_4 = 15.0
+travel_z = 5.0
+
+[cooling]
+fan_max_speed = 80.0
+fan_min_speed = 20.0
+slow_down_for_layer_cooling = false
+full_fan_speed_layer = 3
+
+[retraction]
+deretraction_speed = 30.0
+wipe = true
+wipe_distance = 2.0
+
+[machine]
+printable_height = 300.0
+max_speed_x = 600.0
+start_gcode = "G28 ; home"
+printer_model = "TestPrinter"
+nozzle_diameters = [0.4, 0.6]
+jerk_values_x = [9.0, 7.0]
+min_layer_height = 0.05
+
+[accel]
+outer_wall = 1000.0
+bridge = 500.0
+
+[filament]
+filament_type = "PETG"
+max_volumetric_speed = 12.0
+nozzle_temperatures = [230.0, 240.0]
+bed_temperatures = [80.0]
+first_layer_nozzle_temperatures = [235.0]
+first_layer_bed_temperatures = [85.0]
+filament_retraction_length = 1.5
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+
+        // Process misc flat fields
+        assert!((config.bridge_flow - 0.95).abs() < 1e-9);
+        assert!(config.spiral_mode);
+        assert!((config.infill_direction - 90.0).abs() < 1e-9);
+
+        // LineWidthConfig
+        assert!((config.line_widths.outer_wall - 0.40).abs() < 1e-9);
+        assert!((config.line_widths.inner_wall - 0.50).abs() < 1e-9);
+        assert!((config.line_widths.infill - 0.55).abs() < 1e-9);
+        // Unspecified fields retain defaults
+        assert!((config.line_widths.top_surface - 0.42).abs() < 1e-9);
+
+        // SpeedConfig
+        assert!((config.speeds.bridge - 30.0).abs() < 1e-9);
+        assert!((config.speeds.inner_wall - 40.0).abs() < 1e-9);
+        assert!((config.speeds.overhang_1_4 - 15.0).abs() < 1e-9);
+        assert!((config.speeds.travel_z - 5.0).abs() < 1e-9);
+        // Unspecified retains default
+        assert!((config.speeds.gap_fill - 0.0).abs() < 1e-9);
+
+        // CoolingConfig
+        assert!((config.cooling.fan_max_speed - 80.0).abs() < 1e-9);
+        assert!((config.cooling.fan_min_speed - 20.0).abs() < 1e-9);
+        assert!(!config.cooling.slow_down_for_layer_cooling);
+        assert_eq!(config.cooling.full_fan_speed_layer, 3);
+
+        // RetractionConfig
+        assert!((config.retraction.deretraction_speed - 30.0).abs() < 1e-9);
+        assert!(config.retraction.wipe);
+        assert!((config.retraction.wipe_distance - 2.0).abs() < 1e-9);
+
+        // MachineConfig
+        assert!((config.machine.printable_height - 300.0).abs() < 1e-9);
+        assert!((config.machine.max_speed_x - 600.0).abs() < 1e-9);
+        assert_eq!(config.machine.start_gcode, "G28 ; home");
+        assert_eq!(config.machine.printer_model, "TestPrinter");
+        assert_eq!(config.machine.nozzle_diameters, vec![0.4, 0.6]);
+        assert_eq!(config.machine.jerk_values_x, vec![9.0, 7.0]);
+        assert!((config.machine.min_layer_height - 0.05).abs() < 1e-9);
+
+        // AccelerationConfig
+        assert!((config.accel.outer_wall - 1000.0).abs() < 1e-9);
+        assert!((config.accel.bridge - 500.0).abs() < 1e-9);
+        // Unspecified retains default
+        assert!((config.accel.inner_wall - 0.0).abs() < 1e-9);
+
+        // FilamentPropsConfig
+        assert_eq!(config.filament.filament_type, "PETG");
+        assert!((config.filament.max_volumetric_speed - 12.0).abs() < 1e-9);
+        assert_eq!(config.filament.nozzle_temperatures, vec![230.0, 240.0]);
+        assert_eq!(config.filament.bed_temperatures, vec![80.0]);
+        assert_eq!(config.filament.first_layer_nozzle_temperatures, vec![235.0]);
+        assert_eq!(config.filament.first_layer_bed_temperatures, vec![85.0]);
+        assert_eq!(config.filament.filament_retraction_length, Some(1.5));
+    }
+
+    #[test]
+    fn passthrough_round_trip() {
+        let mut config = PrintConfig::default();
+        config
+            .passthrough
+            .insert("custom_key".to_string(), "custom_value".to_string());
+        config
+            .passthrough
+            .insert("ams_drying_temp".to_string(), "55".to_string());
+
+        // Serialize to TOML and back
+        let toml_str = toml::to_string(&config).unwrap();
+        let restored: PrintConfig = toml::from_str(&toml_str).unwrap();
+
+        assert_eq!(restored.passthrough.len(), 2);
+        assert_eq!(
+            restored.passthrough.get("custom_key").unwrap(),
+            "custom_value"
+        );
+        assert_eq!(restored.passthrough.get("ams_drying_temp").unwrap(), "55");
+    }
+
+    #[test]
+    fn vec_f64_array_fields() {
+        let config = PrintConfig::default();
+
+        // MachineConfig Vec<f64> defaults
+        assert_eq!(config.machine.nozzle_diameters, vec![0.4]);
+        assert_eq!(config.machine.jerk_values_x, vec![8.0]);
+        assert_eq!(config.machine.jerk_values_y, vec![8.0]);
+        assert_eq!(config.machine.jerk_values_z, vec![0.4]);
+        assert_eq!(config.machine.jerk_values_e, vec![2.5]);
+
+        // MachineConfig convenience accessors
+        assert!((config.machine.nozzle_diameter() - 0.4).abs() < 1e-9);
+        assert!((config.machine.jerk_x() - 8.0).abs() < 1e-9);
+        assert!((config.machine.jerk_y() - 8.0).abs() < 1e-9);
+        assert!((config.machine.jerk_z() - 0.4).abs() < 1e-9);
+        assert!((config.machine.jerk_e() - 2.5).abs() < 1e-9);
+
+        // FilamentPropsConfig Vec<f64> defaults
+        assert_eq!(config.filament.nozzle_temperatures, vec![200.0]);
+        assert_eq!(config.filament.bed_temperatures, vec![60.0]);
+        assert_eq!(config.filament.first_layer_nozzle_temperatures, vec![210.0]);
+        assert_eq!(config.filament.first_layer_bed_temperatures, vec![65.0]);
+
+        // FilamentPropsConfig convenience accessors
+        assert!((config.filament.nozzle_temp() - 200.0).abs() < 1e-9);
+        assert!((config.filament.bed_temp() - 60.0).abs() < 1e-9);
+        assert!((config.filament.first_layer_nozzle_temp() - 210.0).abs() < 1e-9);
+        assert!((config.filament.first_layer_bed_temp() - 65.0).abs() < 1e-9);
+
+        // Empty vec accessors return fallback defaults
+        let empty_machine = MachineConfig {
+            nozzle_diameters: vec![],
+            jerk_values_x: vec![],
+            jerk_values_y: vec![],
+            jerk_values_z: vec![],
+            jerk_values_e: vec![],
+            ..Default::default()
+        };
+        assert!((empty_machine.nozzle_diameter() - 0.4).abs() < 1e-9);
+        assert!((empty_machine.jerk_x() - 8.0).abs() < 1e-9);
+        assert!((empty_machine.jerk_y() - 8.0).abs() < 1e-9);
+        assert!((empty_machine.jerk_z() - 0.4).abs() < 1e-9);
+        assert!((empty_machine.jerk_e() - 2.5).abs() < 1e-9);
+
+        let empty_filament = FilamentPropsConfig {
+            nozzle_temperatures: vec![],
+            bed_temperatures: vec![],
+            first_layer_nozzle_temperatures: vec![],
+            first_layer_bed_temperatures: vec![],
+            ..Default::default()
+        };
+        assert!((empty_filament.nozzle_temp() - 200.0).abs() < 1e-9);
+        assert!((empty_filament.bed_temp() - 60.0).abs() < 1e-9);
+        assert!((empty_filament.first_layer_nozzle_temp() - 210.0).abs() < 1e-9);
+        assert!((empty_filament.first_layer_bed_temp() - 65.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn vec_f64_toml_round_trip() {
+        let toml = r#"
+[machine]
+nozzle_diameters = [0.4, 0.6]
+jerk_values_x = [8.0, 6.0]
+jerk_values_y = [8.0, 6.0]
+jerk_values_z = [0.4, 0.3]
+jerk_values_e = [2.5, 2.0]
+
+[filament]
+nozzle_temperatures = [200.0, 210.0]
+bed_temperatures = [60.0, 70.0]
+first_layer_nozzle_temperatures = [210.0, 220.0]
+first_layer_bed_temperatures = [65.0, 75.0]
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+
+        // Verify deserialization
+        assert_eq!(config.machine.nozzle_diameters, vec![0.4, 0.6]);
+        assert_eq!(config.machine.jerk_values_x, vec![8.0, 6.0]);
+        assert_eq!(config.machine.jerk_values_y, vec![8.0, 6.0]);
+        assert_eq!(config.machine.jerk_values_z, vec![0.4, 0.3]);
+        assert_eq!(config.machine.jerk_values_e, vec![2.5, 2.0]);
+        assert_eq!(config.filament.nozzle_temperatures, vec![200.0, 210.0]);
+        assert_eq!(config.filament.bed_temperatures, vec![60.0, 70.0]);
+        assert_eq!(
+            config.filament.first_layer_nozzle_temperatures,
+            vec![210.0, 220.0]
+        );
+        assert_eq!(
+            config.filament.first_layer_bed_temperatures,
+            vec![65.0, 75.0]
+        );
+
+        // Convenience accessors return first element
+        assert!((config.machine.nozzle_diameter() - 0.4).abs() < 1e-9);
+        assert!((config.filament.nozzle_temp() - 200.0).abs() < 1e-9);
+
+        // Round-trip: serialize then deserialize
+        let toml_output = toml::to_string(&config).unwrap();
+        let restored: PrintConfig = toml::from_str(&toml_output).unwrap();
+        assert_eq!(restored.machine.nozzle_diameters, vec![0.4, 0.6]);
+        assert_eq!(restored.machine.jerk_values_x, vec![8.0, 6.0]);
+        assert_eq!(restored.filament.nozzle_temperatures, vec![200.0, 210.0]);
+        assert_eq!(restored.filament.bed_temperatures, vec![60.0, 70.0]);
+        assert_eq!(
+            restored.filament.first_layer_nozzle_temperatures,
+            vec![210.0, 220.0]
+        );
+        assert_eq!(
+            restored.filament.first_layer_bed_temperatures,
+            vec![65.0, 75.0]
+        );
     }
 }
