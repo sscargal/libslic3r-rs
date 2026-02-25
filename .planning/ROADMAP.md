@@ -461,7 +461,7 @@ Plans:
   5. `slicecore analyze-gcode <file>` CLI subcommand outputs analysis as ASCII table, CSV, or JSON (reusing stats_display patterns)
   6. `slicecore compare-gcode <file1> <file2>` CLI subcommand shows side-by-side metrics comparison with delta columns
   7. Analysis of BambuStudio, OrcaSlicer, and PrusaSlicer G-code files produces correct metrics validated against header-reported values
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 21-01-PLAN.md -- Core G-code parser, slicer detection, metric types, and header metadata extraction
