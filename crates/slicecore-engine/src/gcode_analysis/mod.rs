@@ -20,11 +20,13 @@
 //! println!("Total time: {:.1}s", analysis.total_time_estimate_s);
 //! ```
 
+pub mod comparison;
 pub mod metrics;
 pub mod parser;
 pub mod slicer_detect;
 
 // Re-export primary types for convenient access.
+pub use comparison::{compare_gcode_analyses, ComparisonDelta, ComparisonResult, FeatureDelta};
 pub use metrics::{
     filament_mm_to_volume_mm3, filament_mm_to_weight_g, FeatureMetrics, GcodeAnalysis,
     HeaderMetadata, LayerMetrics, SpeedStats,
