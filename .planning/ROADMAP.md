@@ -467,3 +467,20 @@ Plans:
 - [ ] 21-01-PLAN.md -- Core G-code parser, slicer detection, metric types, and header metadata extraction
 - [ ] 21-02-PLAN.md -- N-file comparison logic, CLI subcommands (analyze-gcode, compare-gcode), and display formatting
 - [ ] 21-03-PLAN.md -- Integration tests with synthetic and real G-code files, phase success criteria verification
+
+### Phase 22: Migrate from lib3mf to lib3mf-core ecosystem
+
+**Goal:** Replace lib3mf 0.1.3 with lib3mf-core 0.2.0 in slicecore-fileio, eliminating the C dependency (zstd-sys) that blocks WASM compilation, and enabling 3MF parsing on all targets including WASM
+**Depends on:** Phase 21
+**Requirements:** MESH-02, FOUND-01, FOUND-03
+**Success Criteria** (what must be TRUE):
+  1. lib3mf-core 0.2.0 replaces lib3mf 0.1.3 as the 3MF dependency, with no C/C++ libraries in the dependency tree
+  2. 3MF parsing works identically (behavioral equivalence) -- same vertex and triangle counts from the same input files
+  3. The WASM cfg gate is removed -- 3MF parsing is available on all targets including wasm32-unknown-unknown and wasm32-wasip2
+  4. No references to old lib3mf crate remain in any source file
+  5. WASM compilation of slicecore-fileio succeeds, proving the migration unlocked WASM 3MF support
+**Plans:** 2 plans
+
+Plans:
+- [ ] 22-01-PLAN.md -- Swap lib3mf to lib3mf-core, rewrite threemf.rs parser + tests, remove WASM cfg gates from lib.rs
+- [ ] 22-02-PLAN.md -- Verify WASM compilation, add integration test, CI validation, final phase verification
