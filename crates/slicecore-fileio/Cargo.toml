@@ -13,13 +13,9 @@ byteorder = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 tobj = { version = "4", default-features = false }
-
-# lib3mf depends on zip -> zstd-sys (C library), which cannot compile for
-# wasm32-unknown-unknown without a C cross-compiler. 3MF support is therefore
-# excluded on WASM targets. On native targets, 3MF is always available.
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-lib3mf = { version = "0.1", default-features = false }
+lib3mf-core = { version = "0.2", default-features = false }
 
 [dev-dependencies]
 proptest = { workspace = true }
 tempfile = { workspace = true }
+glam = "0.31"
