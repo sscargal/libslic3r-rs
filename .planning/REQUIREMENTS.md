@@ -9,7 +9,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 
 ### Foundation (FOUND)
 
-- [ ] **FOUND-01**: Pure Rust implementation with no FFI to C/C++/Python/Go
+- [x] **FOUND-01**: Pure Rust implementation with no FFI to C/C++/Python/Go
 - [ ] **FOUND-02**: Multi-platform support: macOS (ARM/x86), Linux (ARM/x86), Windows (ARM/x86)
 - [ ] **FOUND-03**: WASM compilation target (wasm32-wasi and wasm32-unknown-unknown)
 - [ ] **FOUND-04**: Coordinate precision strategy locked (f64 vs i64 vs hybrid)
@@ -21,7 +21,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 ### Mesh I/O (MESH)
 
 - [ ] **MESH-01**: Import STL files (binary and ASCII)
-- [ ] **MESH-02**: Import 3MF files via lib3mf-core
+- [x] **MESH-02**: Import 3MF files via lib3mf-core
 - [ ] **MESH-03**: Import OBJ files
 - [ ] **MESH-04**: Export G-code in multiple dialects (Marlin, Klipper, RepRapFirmware, Bambu)
 - [ ] **MESH-05**: Auto-repair non-manifold geometry
@@ -185,13 +185,13 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FOUND-01 | Phase 1 | Pending |
+| FOUND-01 | Phase 1 | Complete |
 | FOUND-04 | Phase 1 | Pending |
 | FOUND-05 | Phase 1 | Pending |
 | FOUND-08 | Phase 1 | Pending |
 | MESH-09 | Phase 1 | Pending |
 | MESH-01 | Phase 2 | Pending |
-| MESH-02 | Phase 2 | Pending |
+| MESH-02 | Phase 2 | Complete |
 | MESH-03 | Phase 2 | Pending |
 | MESH-04 | Phase 2 | Pending |
 | MESH-05 | Phase 2 | Pending |

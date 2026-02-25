@@ -479,7 +479,7 @@ Plans:
   3. The WASM cfg gate is removed -- 3MF parsing is available on all targets including wasm32-unknown-unknown and wasm32-wasip2
   4. No references to old lib3mf crate remain in any source file
   5. WASM compilation of slicecore-fileio succeeds, proving the migration unlocked WASM 3MF support
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 22-01-PLAN.md -- Swap lib3mf to lib3mf-core, rewrite threemf.rs parser + tests, remove WASM cfg gates from lib.rs

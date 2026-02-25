@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 21 in progress -- G-code Analysis and Comparison Tool
+**Current focus:** Phase 22 in progress -- Migrate from lib3mf to lib3mf-core ecosystem
 
 ## Current Position
 
-Phase: 21 of 21 (G-code Analysis and Comparison Tool)
-Plan: 3 of 3 in current phase (3 complete)
-Status: Phase Complete
-Last activity: 2026-02-25 -- Completed 21-03-PLAN.md (Integration tests and final verification)
+Phase: 22 of 22 (Migrate from lib3mf to lib3mf-core ecosystem)
+Plan: 1 of 2 in current phase (1 complete)
+Status: In Progress
+Last activity: 2026-02-25 -- Completed 22-01-PLAN.md (lib3mf to lib3mf-core migration)
 
-Progress: [############################################################] 100% (101/101 overall)
+Progress: [############################################################] 99% (102/103 overall)
 
 ## Performance Metrics
 
@@ -52,12 +52,14 @@ Progress: [############################################################] 100% (1
 
 | 21    | 3     | 16min | 5.3min   |
 
+| 22    | 1     | 4min  | 4.0min   |
+
 **Recent Trend:**
-- Last 5 plans: 20-05 (10min), 21-01 (6min), 21-02 (5min), 21-03 (5min)
-- Trend: 5-10min/plan
+- Last 5 plans: 21-01 (6min), 21-02 (5min), 21-03 (5min), 22-01 (4min)
+- Trend: 4-6min/plan
 
 *Updated after each plan completion*
-| Phase 21 P03 | 5min | 2 tasks | 2 files |
+| Phase 22 P01 | 4min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -443,6 +445,12 @@ Recent decisions affecting current work:
 - [21-02]: analyze-gcode reads full file to String for stdin support (stdin cannot be rewound)
 - [Phase 21]: [21-03]: Layer count assertions use >= N (not ==) because parser detects layers from both annotations and Z-moves
 
+- [22-01]: lib3mf-core 0.2.0 replaces lib3mf 0.1.3 (unconditional, pure Rust, WASM-compatible)
+- [22-01]: ZipArchiver+find_model_path+parse_model pipeline for in-memory 3MF parsing
+- [22-01]: Object uses Geometry::Mesh enum pattern instead of mesh: Option<Mesh>
+- [22-01]: WASM cfg gates removed from slicecore-fileio -- 3MF available on all targets
+- [22-01]: glam 0.31 as dev-dependency for BuildItem transform field in tests
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
@@ -467,5 +475,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Phase 22 context gathered
-Resume file: .planning/phases/22-migrate-from-lib3mf-to-lib3mf-core-ecosystem/22-CONTEXT.md
+Stopped at: Completed 22-01-PLAN.md (lib3mf to lib3mf-core migration)
+Resume file: .planning/phases/22-migrate-from-lib3mf-to-lib3mf-core-ecosystem/22-01-SUMMARY.md
