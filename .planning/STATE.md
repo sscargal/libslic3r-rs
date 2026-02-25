@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 20 in progress -- Expand PrintConfig Field Coverage and Profile Mapping
+**Current focus:** Phase 20 complete -- Expand PrintConfig Field Coverage and Profile Mapping
 
 ## Current Position
 
 Phase: 20 of 21 (Expand PrintConfig Field Coverage and Profile Mapping)
-Plan: 4 of 5 in current phase (4 complete)
-Status: In Progress
-Last activity: 2026-02-24 -- Completed 20-04-PLAN.md (migrate flat fields to sub-configs)
+Plan: 5 of 5 in current phase (5 complete)
+Status: Phase Complete
+Last activity: 2026-02-25 -- Completed 20-05-PLAN.md (re-convert profiles and verify field coverage)
 
-Progress: [############################################################] 100% (97/98 overall)
+Progress: [############################################################] 100% (98/98 overall)
 
 ## Performance Metrics
 
@@ -48,11 +48,11 @@ Progress: [############################################################] 100% (9
 | 18    | 1     | 4min  | 4.0min   |
 | 19    | 2     | 16min | 8.0min   |
 
-| 20    | 4     | 43min | 10.8min  |
+| 20    | 5     | 53min | 10.6min  |
 
 **Recent Trend:**
-- Last 5 plans: 20-01 (3min), 20-02 (9min), 20-03 (6min), 20-04 (25min)
-- Trend: 3-25min/plan (20-04 large migration)
+- Last 5 plans: 20-01 (3min), 20-02 (9min), 20-03 (6min), 20-04 (25min), 20-05 (10min)
+- Trend: 3-25min/plan (Phase 20 complete)
 
 *Updated after each plan completion*
 
@@ -425,6 +425,8 @@ Recent decisions affecting current work:
 - [Phase 20]: [20-04]: Removed backward-compat flat scalar fields from profile_import.rs and profile_import_ini.rs array mapping sections since flat fields no longer exist
 - [Phase 20]: [20-04]: Test struct literals converted from PrintConfig { field: val, ..Default } to mut config = PrintConfig::default(); config.sub.field = val pattern
 - [Phase 20]: [20-04]: TOML output assertions updated to check for sub-table names ([speeds], [retraction], etc.) instead of flat field names
+- [Phase 20]: [20-05]: Batch-converted TOML used for field count verification (60 mapped after inheritance) instead of raw single-profile import (25 without inheritance)
+- [Phase 20]: [20-05]: PrusaSlicer converted profiles use process/machine/filament subdirectory names consistently across all sources
 
 ### Roadmap Evolution
 
@@ -448,6 +450,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24
-Stopped at: Completed 20-04-PLAN.md (migrate flat fields to sub-configs)
-Resume file: .planning/phases/20-expand-printconfig-field-coverage-and-profile-mapping/20-04-SUMMARY.md
+Last session: 2026-02-25
+Stopped at: Completed 20-05-PLAN.md (re-convert profiles and verify field coverage) -- Phase 20 complete
+Resume file: .planning/phases/20-expand-printconfig-field-coverage-and-profile-mapping/20-05-SUMMARY.md
