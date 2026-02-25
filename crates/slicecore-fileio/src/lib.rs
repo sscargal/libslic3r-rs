@@ -10,13 +10,11 @@
 //! |------------|--------|--------|----------------|
 //! | Binary STL | Yes    | -      | [`stl_binary`] |
 //! | ASCII STL  | Yes    | -      | [`stl_ascii`]  |
-//! | 3MF        | Yes*   | -      | [`threemf`]    |
+//! | 3MF        | Yes    | -      | [`threemf`]    |
 //! | OBJ        | Yes    | -      | [`obj`]        |
 //!
-//! *3MF support requires native targets. On `wasm32-unknown-unknown`, 3MF
-//! parsing is unavailable because lib3mf depends on `zip` -> `zstd-sys`
-//! (C library). The [`load_mesh`] function returns
-//! [`FileIOError::ThreeMfError`] for 3MF data on WASM targets.
+//! 3MF support is available on all targets (including WASM) via
+//! [`lib3mf_core`], a pure Rust implementation.
 //!
 //! # Format Detection
 //!
@@ -35,10 +33,6 @@ pub mod obj;
 pub mod stl;
 pub mod stl_ascii;
 pub mod stl_binary;
-
-// 3MF support is only available on native targets.
-// lib3mf -> zip -> zstd-sys (C library) cannot compile for wasm32-unknown-unknown.
-#[cfg(not(target_arch = "wasm32"))]
 pub mod threemf;
 
 // Re-export primary types at crate root.
@@ -54,11 +48,10 @@ use slicecore_mesh::TriangleMesh;
 /// appropriate parser:
 /// - [`MeshFormat::StlBinary`] -> [`stl_binary::parse`]
 /// - [`MeshFormat::StlAscii`] -> [`stl_ascii::parse`]
-/// - [`MeshFormat::ThreeMf`] -> [`threemf::parse`] (native only)
+/// - [`MeshFormat::ThreeMf`] -> [`threemf::parse`]
 /// - [`MeshFormat::Obj`] -> [`obj::parse`]
 ///
-/// On WASM targets, 3MF format returns [`FileIOError::ThreeMfError`] because
-/// the lib3mf dependency is not available.
+/// 3MF parsing is available on all targets via lib3mf-core (pure Rust).
 ///
 /// # Errors
 ///
@@ -76,17 +69,8 @@ pub fn load_mesh(data: &[u8]) -> Result<TriangleMesh, FileIOError> {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 fn parse_threemf_dispatch(data: &[u8]) -> Result<TriangleMesh, FileIOError> {
     threemf::parse(data)
-}
-
-#[cfg(target_arch = "wasm32")]
-fn parse_threemf_dispatch(_data: &[u8]) -> Result<TriangleMesh, FileIOError> {
-    Err(FileIOError::ThreeMfError(
-        "3MF parsing is not available on WASM targets (lib3mf depends on native C libraries)"
-            .to_string(),
-    ))
 }
 
 /// Load a mesh from a reader, auto-detecting the file format.
@@ -188,23 +172,43 @@ f 1 2 3
 
     #[test]
     fn load_mesh_dispatches_3mf() {
-        // Create a minimal 3MF using lib3mf's write API.
+        // Create a minimal 3MF using lib3mf-core's write API.
+        use lib3mf_core::model::{Geometry, Mesh, Object, ObjectType, ResourceId};
+        use lib3mf_core::Model;
         use std::io::Cursor;
 
-        let mut model = lib3mf::Model::new();
-        let mut mesh = lib3mf::Mesh::new();
-        mesh.vertices.push(lib3mf::Vertex::new(0.0, 0.0, 0.0));
-        mesh.vertices.push(lib3mf::Vertex::new(1.0, 0.0, 0.0));
-        mesh.vertices.push(lib3mf::Vertex::new(0.5, 1.0, 0.0));
-        mesh.triangles.push(lib3mf::Triangle::new(0, 1, 2));
+        let mut model = Model::default();
+        let mut mesh = Mesh::new();
+        mesh.add_vertex(0.0, 0.0, 0.0);
+        mesh.add_vertex(1.0, 0.0, 0.0);
+        mesh.add_vertex(0.5, 1.0, 0.0);
+        mesh.add_triangle(0, 1, 2);
 
-        let mut object = lib3mf::Object::new(1);
-        object.mesh = Some(mesh);
-        model.resources.objects.push(object);
-        model.build.items.push(lib3mf::BuildItem::new(1));
+        let object = Object {
+            id: ResourceId(1),
+            object_type: ObjectType::Model,
+            name: None,
+            part_number: None,
+            uuid: None,
+            pid: None,
+            pindex: None,
+            thumbnail: None,
+            geometry: Geometry::Mesh(mesh),
+        };
+        model
+            .resources
+            .add_object(object)
+            .expect("add object");
+        model.build.items.push(lib3mf_core::model::BuildItem {
+            object_id: ResourceId(1),
+            uuid: None,
+            path: None,
+            part_number: None,
+            transform: glam::Mat4::IDENTITY,
+        });
 
         let mut buffer = Cursor::new(Vec::new());
-        model.to_writer(&mut buffer).expect("write 3MF");
+        model.write(&mut buffer).expect("write 3MF");
         let data = buffer.into_inner();
 
         let mesh = load_mesh(&data).unwrap();
