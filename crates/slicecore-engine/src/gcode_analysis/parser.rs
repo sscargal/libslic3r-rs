@@ -458,24 +458,23 @@ fn parse_move(
     };
 
     // Z-hop detection: Z-only rapid move after retraction.
-    if has_z && !has_xy && !has_e && is_rapid && state.in_retraction {
-        if new_z > state.z {
-            // Z going up after retraction = z-hop start.
-            state.zhop_z = Some(state.z);
-        }
+    if has_z && !has_xy && !has_e && is_rapid && state.in_retraction && new_z > state.z {
+        // Z going up after retraction = z-hop start.
+        state.zhop_z = Some(state.z);
     }
 
     // Z-hop end: returning to layer Z.
-    if has_z && state.zhop_z.is_some() {
-        if new_z <= state.zhop_z.unwrap() + 1e-6 {
-            let zhop_dist = state.z - new_z;
-            if zhop_dist > 0.0 {
-                state.zhop_count += 1;
-                // Total Z-hop distance is both up and down.
-                state.zhop_distance_mm += (state.z - state.zhop_z.unwrap()) + zhop_dist;
-            }
-            state.zhop_z = None;
+    if has_z
+        && state.zhop_z.is_some()
+        && new_z <= state.zhop_z.unwrap() + 1e-6
+    {
+        let zhop_dist = state.z - new_z;
+        if zhop_dist > 0.0 {
+            state.zhop_count += 1;
+            // Total Z-hop distance is both up and down.
+            state.zhop_distance_mm += (state.z - state.zhop_z.unwrap()) + zhop_dist;
         }
+        state.zhop_z = None;
     }
 
     // Retraction/extrusion tracking.
