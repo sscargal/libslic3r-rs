@@ -9,9 +9,13 @@
 //! - `list-profiles`: List profiles from the profile library
 //! - `search-profiles`: Search profiles by keyword
 //! - `show-profile`: Show details of a specific profile
+//! - `analyze-gcode`: Analyze a G-code file with structured metrics output
+//! - `compare-gcode`: Compare multiple G-code files with deltas
 
+mod analysis_display;
 mod stats_display;
 
+use std::io::{BufReader, IsTerminal, Read as _};
 use std::path::PathBuf;
 use std::process;
 
@@ -85,7 +89,18 @@ PROFILE DISCOVERY:
   View a profile's details:
     slicecore show-profile orcaslicer/BBL/filament/Bambu_PLA_Basic_BBL_A1
   View raw TOML content:
-    slicecore show-profile orcaslicer/BBL/filament/Bambu_PLA_Basic_BBL_A1 --raw"
+    slicecore show-profile orcaslicer/BBL/filament/Bambu_PLA_Basic_BBL_A1 --raw
+
+G-CODE ANALYSIS:
+  Analyze a single G-code file:
+    slicecore analyze-gcode output.gcode
+    slicecore analyze-gcode output.gcode --json
+    slicecore analyze-gcode output.gcode --csv --summary
+    cat output.gcode | slicecore analyze-gcode -
+
+  Compare G-code files from different slicers:
+    slicecore compare-gcode bambu.gcode orca.gcode prusa.gcode
+    slicecore compare-gcode baseline.gcode variant.gcode --json"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -281,6 +296,66 @@ enum Commands {
         #[arg(long, default_value = "text")]
         format: String,
     },
+
+    /// Analyze a G-code file and display structured metrics
+    AnalyzeGcode {
+        /// Input G-code file path (use "-" for stdin)
+        input: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Output as CSV
+        #[arg(long)]
+        csv: bool,
+
+        /// Disable ANSI color output
+        #[arg(long)]
+        no_color: bool,
+
+        /// Filament density in g/cm3 (default: 1.24 for PLA)
+        #[arg(long, default_value = "1.24")]
+        density: f64,
+
+        /// Filament diameter in mm (default: 1.75)
+        #[arg(long, default_value = "1.75")]
+        diameter: f64,
+
+        /// Filter output to specific feature types (comma-separated)
+        #[arg(long)]
+        filter: Option<String>,
+
+        /// Summary only (no per-layer detail)
+        #[arg(long)]
+        summary: bool,
+    },
+
+    /// Compare multiple G-code files (first file is baseline)
+    CompareGcode {
+        /// G-code files to compare (first is baseline, need at least 2)
+        files: Vec<PathBuf>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Output as CSV
+        #[arg(long)]
+        csv: bool,
+
+        /// Disable ANSI color output
+        #[arg(long)]
+        no_color: bool,
+
+        /// Filament density in g/cm3 (default: 1.24 for PLA)
+        #[arg(long, default_value = "1.24")]
+        density: f64,
+
+        /// Filament diameter in mm (default: 1.75)
+        #[arg(long, default_value = "1.75")]
+        diameter: f64,
+    },
 }
 
 fn main() {
@@ -357,6 +432,24 @@ fn main() {
             ai_config,
             format,
         } => cmd_ai_suggest(&input, ai_config.as_deref(), &format),
+        Commands::AnalyzeGcode {
+            input,
+            json,
+            csv,
+            no_color,
+            density,
+            diameter,
+            filter,
+            summary,
+        } => cmd_analyze_gcode(&input, json, csv, no_color, density, diameter, filter, summary),
+        Commands::CompareGcode {
+            files,
+            json,
+            csv,
+            no_color,
+            density,
+            diameter,
+        } => cmd_compare_gcode(&files, json, csv, no_color, density, diameter),
     }
 }
 
@@ -1377,5 +1470,115 @@ fn cmd_ai_suggest(
             }
             process::exit(1);
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// G-code analysis commands
+// ---------------------------------------------------------------------------
+
+/// Analyze a G-code file and display structured metrics.
+#[allow(clippy::too_many_arguments)]
+fn cmd_analyze_gcode(
+    input: &str,
+    json: bool,
+    csv: bool,
+    no_color: bool,
+    density: f64,
+    diameter: f64,
+    filter: Option<String>,
+    summary_only: bool,
+) {
+    // Read input: stdin or file.
+    let (contents, filename) = if input == "-" {
+        let mut buf = String::new();
+        if let Err(e) = std::io::stdin().lock().read_to_string(&mut buf) {
+            eprintln!("Error: Failed to read from stdin: {}", e);
+            process::exit(1);
+        }
+        (buf, "<stdin>".to_string())
+    } else {
+        let contents = match std::fs::read_to_string(input) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Error: Failed to read '{}': {}", input, e);
+                process::exit(1);
+            }
+        };
+        (contents, input.to_string())
+    };
+
+    // Parse using BufReader over the content bytes.
+    let reader = BufReader::new(contents.as_bytes());
+    let analysis = slicecore_engine::parse_gcode_file(reader, &filename, diameter, density);
+
+    // Parse filter list.
+    let filter_list: Option<Vec<String>> = filter.map(|f| {
+        f.split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    });
+
+    // Dispatch to output format.
+    if json {
+        analysis_display::display_analysis_json(&analysis);
+    } else if csv {
+        analysis_display::display_analysis_csv(&analysis, summary_only);
+    } else {
+        let use_color = !no_color && std::io::stdout().is_terminal();
+        analysis_display::display_analysis_table(&analysis, use_color, summary_only, &filter_list);
+    }
+}
+
+/// Compare multiple G-code files (first file is baseline).
+fn cmd_compare_gcode(
+    files: &[PathBuf],
+    json: bool,
+    csv: bool,
+    no_color: bool,
+    density: f64,
+    diameter: f64,
+) {
+    if files.len() < 2 {
+        eprintln!("Error: compare-gcode requires at least 2 files (first is baseline).");
+        eprintln!("Usage: slicecore compare-gcode <baseline.gcode> <other.gcode> [more.gcode ...]");
+        process::exit(1);
+    }
+
+    // Parse all files.
+    let mut analyses: Vec<slicecore_engine::GcodeAnalysis> = Vec::new();
+    for file in files {
+        let contents = match std::fs::read_to_string(file) {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("Error: Failed to read '{}': {}", file.display(), e);
+                process::exit(1);
+            }
+        };
+        let reader = BufReader::new(contents.as_bytes());
+        let filename = file
+            .file_name()
+            .map(|f| f.to_string_lossy().to_string())
+            .unwrap_or_else(|| file.display().to_string());
+        let analysis = slicecore_engine::parse_gcode_file(reader, &filename, diameter, density);
+        analyses.push(analysis);
+    }
+
+    // Split into baseline and others.
+    let baseline = analyses.remove(0);
+    let others = analyses;
+
+    // Compare.
+    let result = slicecore_engine::compare_gcode_analyses(baseline, others);
+
+    // Dispatch to output format.
+    if json {
+        analysis_display::display_comparison_json(&result);
+    } else if csv {
+        analysis_display::display_comparison_csv(&result);
+    } else {
+        let use_color = !no_color && std::io::stdout().is_terminal();
+        analysis_display::display_comparison_table(&result, use_color);
     }
 }
