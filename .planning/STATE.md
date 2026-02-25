@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 20 complete -- Expand PrintConfig Field Coverage and Profile Mapping
+**Current focus:** Phase 21 in progress -- G-code Analysis and Comparison Tool
 
 ## Current Position
 
-Phase: 20 of 21 (Expand PrintConfig Field Coverage and Profile Mapping)
-Plan: 5 of 5 in current phase (5 complete)
-Status: Phase Complete
-Last activity: 2026-02-25 -- Completed 20-05-PLAN.md (re-convert profiles and verify field coverage)
+Phase: 21 of 21 (G-code Analysis and Comparison Tool)
+Plan: 1 of 3 in current phase (1 complete)
+Status: In Progress
+Last activity: 2026-02-25 -- Completed 21-01-PLAN.md (G-code parser core with slicer detection)
 
-Progress: [############################################################] 100% (98/98 overall)
+Progress: [############################################################] 100% (99/101 overall)
 
 ## Performance Metrics
 
@@ -50,9 +50,11 @@ Progress: [############################################################] 100% (9
 
 | 20    | 5     | 53min | 10.6min  |
 
+| 21    | 1     | 6min  | 6.0min   |
+
 **Recent Trend:**
-- Last 5 plans: 20-01 (3min), 20-02 (9min), 20-03 (6min), 20-04 (25min), 20-05 (10min)
-- Trend: 3-25min/plan (Phase 20 complete)
+- Last 5 plans: 20-03 (6min), 20-04 (25min), 20-05 (10min), 21-01 (6min)
+- Trend: 6-25min/plan
 
 *Updated after each plan completion*
 
@@ -428,6 +430,12 @@ Recent decisions affecting current work:
 - [Phase 20]: [20-05]: Batch-converted TOML used for field count verification (60 mapped after inheritance) instead of raw single-profile import (25 without inheritance)
 - [Phase 20]: [20-05]: PrusaSlicer converted profiles use process/machine/filament subdirectory names consistently across all sources
 
+- [21-01]: GcodeParserState tracks absolute/relative extrusion mode separately from positioning mode
+- [21-01]: Z-hop detection uses retraction-state tracking with zhop_z sentinel
+- [21-01]: Header parsing scans both first 200 and last 100 lines for PrusaSlicer tail metadata
+- [21-01]: Arc moves (G2/G3) use chord distance approximation for metrics (acceptable for analysis)
+- [21-01]: FeatureMetrics and LayerMetrics re-exported at crate root without aliasing (no name conflict)
+
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
@@ -451,5 +459,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 20-05-PLAN.md (re-convert profiles and verify field coverage) -- Phase 20 complete
-Resume file: .planning/phases/20-expand-printconfig-field-coverage-and-profile-mapping/20-05-SUMMARY.md
+Stopped at: Completed 21-01-PLAN.md (G-code parser core with slicer detection and metrics)
+Resume file: .planning/phases/21-g-code-analysis-and-comparison-tool/21-01-SUMMARY.md
