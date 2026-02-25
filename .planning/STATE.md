@@ -454,6 +454,7 @@ Recent decisions affecting current work:
 - Phase 19 added: Slicing Summary and Print Statistics
 - Phase 20 added: Expand PrintConfig Field Coverage and Profile Mapping
 - Phase 21 added: G-code Analysis and Comparison Tool
+- Phase 22 added: Migrate from lib3mf to lib3mf-core ecosystem. Replace the third-party lib3mf crate with our own lib3mf-core ecosystem (lib3mf-core, lib3mf-converters, lib3mf-cli, lib3mf-async) for pure Rust 3MF parsing with full WASM compatibility.
 
 ### Pending Todos
 
@@ -466,5 +467,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 21-03-PLAN.md (Integration tests and final verification) -- Phase 21 complete
-Resume file: .planning/phases/21-g-code-analysis-and-comparison-tool/21-03-SUMMARY.md
+Stopped at: Phase 22 context gathered
+Resume file: .planning/phases/22-migrate-from-lib3mf-to-lib3mf-core-ecosystem/22-CONTEXT.md
