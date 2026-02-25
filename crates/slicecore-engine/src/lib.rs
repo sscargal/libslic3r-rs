@@ -32,6 +32,7 @@ pub mod extrusion;
 pub mod filament;
 pub mod flow_control;
 pub mod gap_fill;
+pub mod gcode_analysis;
 pub mod gcode_gen;
 pub mod infill;
 pub mod ironing;
@@ -79,6 +80,11 @@ pub use planner::{
 };
 pub use gcode_gen::{generate_full_gcode, generate_layer_gcode};
 pub use gap_fill::{detect_and_fill_gaps, GapFillPath};
+pub use gcode_analysis::{
+    detect_slicer, filament_mm_to_volume_mm3, filament_mm_to_weight_g, parse_gcode_file,
+    FeatureFormat, FeatureMetrics, GcodeAnalysis, HeaderMetadata, LayerMetrics, SlicerType,
+    SpeedStats,
+};
 pub use arachne::{generate_arachne_perimeters, ArachnePerimeter, ArachneResult};
 pub use preview::{generate_preview, LayerPreview, SlicePreview};
 pub use ironing::{generate_ironing_passes, IroningConfig};

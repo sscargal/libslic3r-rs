@@ -325,7 +325,7 @@ pub fn extract_gcode_metrics(commands: &[GcodeCommand]) -> GcodeMetrics {
 /// Uses the same cross-section model as `filament.rs`:
 /// `volume_mm3 = length_mm * PI * (diameter/2)^2`
 /// `weight_g = volume_mm3 * (density_g_per_cm3 / 1000)`
-fn filament_mm_to_grams(length_mm: f64, filament_diameter: f64, filament_density: f64) -> f64 {
+pub fn filament_mm_to_grams(length_mm: f64, filament_diameter: f64, filament_density: f64) -> f64 {
     let radius = filament_diameter / 2.0;
     let cross_section_mm2 = std::f64::consts::PI * radius * radius;
     let volume_mm3 = length_mm * cross_section_mm2;
