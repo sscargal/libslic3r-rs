@@ -481,7 +481,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Update lib3mf-core crates to v0.3.0 | 2026-02-26 | ff54f95 | [1-update-lib3mf-core-crates-to-v0-3-0](./quick/1-update-lib3mf-core-crates-to-v0-3-0/) |
-| 2 | Test CLI with 3MF and G-code files | 2026-02-26 | 7275283 | [2-test-cli-with-3mf-and-g-code-files](./quick/2-test-cli-with-3mf-and-g-code-files/) |
+| 2 | Test CLI with 3MF and G-code files | 2026-02-26 | df205fa | [2-test-cli-with-3mf-and-g-code-files](./quick/2-test-cli-with-3mf-and-g-code-files/) |
 
 ## Session Continuity
 
