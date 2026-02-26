@@ -13,7 +13,7 @@ byteorder = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 tobj = { version = "4", default-features = false }
-lib3mf-core = { version = "0.2", default-features = false }
+lib3mf-core = { version = "0.3", default-features = false }
 
 [dev-dependencies]
 proptest = { workspace = true }

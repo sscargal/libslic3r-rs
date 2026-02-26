@@ -25,6 +25,7 @@ fn create_3mf(objects: Vec<Object>) -> Vec<u8> {
             path: None,
             part_number: None,
             transform: glam::Mat4::IDENTITY,
+            printable: None,
         });
     }
 

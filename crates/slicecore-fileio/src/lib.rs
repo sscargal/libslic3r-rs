@@ -205,6 +205,7 @@ f 1 2 3
             path: None,
             part_number: None,
             transform: glam::Mat4::IDENTITY,
+            printable: None,
         });
 
         let mut buffer = Cursor::new(Vec::new());

@@ -98,6 +98,7 @@ mod tests {
                 path: None,
                 part_number: None,
                 transform: glam::Mat4::IDENTITY,
+                printable: None,
             });
         }
 
@@ -226,6 +227,7 @@ mod tests {
             path: None,
             part_number: None,
             transform: glam::Mat4::IDENTITY,
+            printable: None,
         });
 
         let mut buffer = Cursor::new(Vec::new());
