@@ -478,6 +478,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-25
-Stopped at: Completed 22-02-PLAN.md (WASM verification and CI enforcement) -- Phase 22 complete
-Resume file: .planning/phases/22-migrate-from-lib3mf-to-lib3mf-core-ecosystem/22-02-SUMMARY.md
+Last session: 2026-02-26
+Stopped at: Completed quick task 1 -- Update lib3mf-core to v0.3.0
+Resume file: .planning/quick/1-update-lib3mf-core-crates-to-v0-3-0/1-SUMMARY.md
