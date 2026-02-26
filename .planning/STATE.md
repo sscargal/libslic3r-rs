@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 22 of 22 (Migrate from lib3mf to lib3mf-core ecosystem)
 Plan: 2 of 2 in current phase (2 complete)
 Status: Complete
-Last activity: 2026-02-26 - Completed quick task 1: Update lib3mf-core crates to v0.3.0
+Last activity: 2026-02-26 - Completed quick task 2: Test CLI with 3MF and G-code files
 
 Progress: [############################################################] 100% (103/103 overall)
 
@@ -481,9 +481,10 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Update lib3mf-core crates to v0.3.0 | 2026-02-26 | ff54f95 | [1-update-lib3mf-core-crates-to-v0-3-0](./quick/1-update-lib3mf-core-crates-to-v0-3-0/) |
+| 2 | Test CLI with 3MF and G-code files | 2026-02-26 | 7275283 | [2-test-cli-with-3mf-and-g-code-files](./quick/2-test-cli-with-3mf-and-g-code-files/) |
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed quick task 1 -- Update lib3mf-core to v0.3.0
-Resume file: .planning/quick/1-update-lib3mf-core-crates-to-v0-3-0/1-SUMMARY.md
+Stopped at: Completed quick task 2 -- Test CLI with 3MF and G-code files (3MF parsing fails due to production extension; G-code tools all succeed)
+Resume file: .planning/quick/2-test-cli-with-3mf-and-g-code-files/2-SUMMARY.md
