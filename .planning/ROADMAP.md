@@ -484,3 +484,81 @@ Plans:
 Plans:
 - [ ] 22-01-PLAN.md -- Swap lib3mf to lib3mf-core, rewrite threemf.rs parser + tests, remove WASM cfg gates from lib.rs
 - [ ] 22-02-PLAN.md -- Verify WASM compilation, add integration test, CI validation, final phase verification
+
+### Phase 23: Progress/Cancellation API
+
+**Goal:** Add rich progress reporting and cooperative cancellation to the slicing engine by extending the existing EventBus with SliceEvent::Progress (percentage, ETA, elapsed time, throughput) and introducing a CancellationToken (Arc<AtomicBool> wrapper) passed as Option<CancellationToken> on all public slice methods -- enabling GUI, web service, and print farm applications to track slicing progress and cancel operations mid-flight
+**Requirements**: API-05
+**Depends on:** Phase 22
+**Success Criteria** (what must be TRUE):
+  1. CancellationToken type exists with new(), cancel(), is_cancelled() using Arc<AtomicBool>, re-exported at crate root
+  2. All 5 public Engine slice methods accept Option<CancellationToken> as final parameter -- existing callers pass None for backward compatibility
+  3. Engine checks cancellation token once per layer and returns Err(EngineError::Cancelled) -- clean error, no partial results
+  4. SliceEvent::Progress emitted after each layer with overall_percent (10-90%), stage_percent (0-100%), ETA via rolling average over last 20 layers, elapsed_seconds, and layers_per_second
+  5. WASM compilation works: timing gracefully disabled (elapsed_seconds=0.0, eta_seconds=None on wasm32)
+  6. Integration tests verify cancellation (pre-flight and mid-flight), progress event accuracy, and ETA estimation
+**Plans:** 2 plans
+
+Plans:
+- [ ] 23-01-PLAN.md -- Core types (CancellationToken, EngineError::Cancelled, SliceEvent::Progress) and method signature changes with call site updates
+- [ ] 23-02-PLAN.md -- Progress emission logic, cancellation checking, WASM-safe timing, integration tests
+
+### Phase 24: Mesh Export (STL/3MF Write)
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 23
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 24 to break down)
+
+### Phase 25: Parallel Slicing Pipeline (rayon)
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 24
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 25 to break down)
+
+### Phase 26: Thumbnail/Preview Rasterization
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 25
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 26 to break down)
+
+### Phase 27: Build Plate Auto-Arrangement
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 26
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 27 to break down)
+
+### Phase 28: G-code Post-Processing Plugin Point
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 27
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 28 to break down)
+
+### Phase 29: Mesh Boolean Operations (CSG)
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 28
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 29 to break down)
