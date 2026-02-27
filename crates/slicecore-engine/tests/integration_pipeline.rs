@@ -113,7 +113,7 @@ fn test_stl_to_gcode_calibration_cube() {
     let engine = Engine::new(config);
     let mesh = calibration_cube_20mm();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
 
     // Result is Ok (verified by expect above).
 
@@ -192,7 +192,7 @@ fn test_stl_to_gcode_with_custom_config() {
     // Default config: 0.2mm layers, 0.3mm first layer.
     let config_default = PrintConfig::default();
     let result_default = Engine::new(config_default)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("default slice should succeed");
 
     // Custom config: 0.1mm layers, 0.1mm first layer, 50% infill.
@@ -203,7 +203,7 @@ fn test_stl_to_gcode_with_custom_config() {
         ..PrintConfig::default()
     };
     let result_custom = Engine::new(config_custom)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("custom slice should succeed");
 
     // Layer count should be approximately 2x.
@@ -240,7 +240,7 @@ fn test_stl_to_gcode_with_supports() {
         ..PrintConfig::default()
     };
     let result_no_support = Engine::new(config_no_support)
-        .slice(&t_shape)
+        .slice(&t_shape, None)
         .expect("no-support slice should succeed");
 
     // With support enabled.
@@ -252,7 +252,7 @@ fn test_stl_to_gcode_with_supports() {
         ..PrintConfig::default()
     };
     let result_with_support = Engine::new(config_with_support)
-        .slice(&t_shape)
+        .slice(&t_shape, None)
         .expect("support slice should succeed");
 
     let gcode_no_support = String::from_utf8_lossy(&result_no_support.gcode);
@@ -297,7 +297,7 @@ fn test_stl_to_gcode_with_brim() {
         ..PrintConfig::default()
     };
     let result_no_brim = Engine::new(config_no_brim)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("no-brim slice should succeed");
 
     // With brim.
@@ -307,7 +307,7 @@ fn test_stl_to_gcode_with_brim() {
         ..PrintConfig::default()
     };
     let result_brim = Engine::new(config_brim)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("brim slice should succeed");
 
     // Brim should produce more G-code (additional first-layer extrusion).
@@ -380,7 +380,7 @@ fn test_mesh_repair_integration() {
     let config = PrintConfig::default();
     let engine = Engine::new(config);
     let result = engine
-        .slice(&repaired_mesh)
+        .slice(&repaired_mesh, None)
         .expect("slicing repaired mesh should succeed");
 
     // Should produce valid G-code.
@@ -404,7 +404,7 @@ fn test_json_output_integration() {
     let engine = Engine::new(config.clone());
     let mesh = calibration_cube_20mm();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
 
     // Serialize to JSON.
     let json_str = to_json(&result, &config).expect("to_json should succeed");
@@ -467,7 +467,7 @@ fn test_event_system_integration() {
     })));
 
     let result = engine
-        .slice_with_events(&mesh, &bus)
+        .slice_with_events(&mesh, &bus, None)
         .expect("slice_with_events should succeed");
 
     let captured = events.lock().unwrap();

@@ -59,7 +59,7 @@ fn test_calibration_cube_produces_gcode() {
     let engine = Engine::new(config);
     let mesh = calibration_cube_20mm();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
 
     // G-code should be non-empty.
     assert!(
@@ -98,7 +98,7 @@ fn test_gcode_has_start_and_end_sequences() {
     let engine = Engine::new(config);
     let mesh = calibration_cube_20mm();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let gcode_str = String::from_utf8_lossy(&result.gcode);
     let lines: Vec<&str> = gcode_str.lines().collect();
 
@@ -137,7 +137,7 @@ fn test_gcode_has_temperature_commands() {
     let engine = Engine::new(config.clone());
     let mesh = calibration_cube_20mm();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let gcode_str = String::from_utf8_lossy(&result.gcode);
 
     // M109 (wait for nozzle temp) with first_layer_nozzle_temp.
@@ -168,7 +168,7 @@ fn test_gcode_has_retraction() {
     let engine = Engine::new(config.clone());
     let mesh = calibration_cube_20mm();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let gcode_str = String::from_utf8_lossy(&result.gcode);
 
     // Retraction: a negative E value in a G1 command (e.g., "G1 E-0.800").
@@ -198,7 +198,7 @@ fn test_gcode_has_fan_commands() {
     let engine = Engine::new(config);
     let mesh = calibration_cube_20mm();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let gcode_str = String::from_utf8_lossy(&result.gcode);
 
     // G-code should contain M106 (fan on) somewhere.

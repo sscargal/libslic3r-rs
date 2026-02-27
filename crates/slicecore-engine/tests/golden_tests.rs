@@ -215,7 +215,7 @@ fn golden_calibration_cube_default() {
     let engine = Engine::new(config);
     let mesh = build_golden_cube();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let gcode = String::from_utf8_lossy(&result.gcode);
 
     // --- Layer count ---
@@ -293,7 +293,7 @@ fn golden_calibration_cube_fine() {
     let engine = Engine::new(config);
     let mesh = build_golden_cube();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let gcode = String::from_utf8_lossy(&result.gcode);
 
     // --- Layer count ---
@@ -349,7 +349,7 @@ fn golden_cylinder_default() {
     let engine = Engine::new(config);
     let mesh = build_golden_cylinder();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let gcode = String::from_utf8_lossy(&result.gcode);
 
     // --- Layer count ---
@@ -404,10 +404,10 @@ fn golden_determinism_cube() {
     let mesh = build_golden_cube();
 
     let engine1 = Engine::new(config.clone());
-    let result1 = engine1.slice(&mesh).expect("first slice should succeed");
+    let result1 = engine1.slice(&mesh, None).expect("first slice should succeed");
 
     let engine2 = Engine::new(config);
-    let result2 = engine2.slice(&mesh).expect("second slice should succeed");
+    let result2 = engine2.slice(&mesh, None).expect("second slice should succeed");
 
     // Bit-for-bit identical output.
     assert_eq!(
@@ -432,10 +432,10 @@ fn golden_determinism_cylinder() {
     let mesh = build_golden_cylinder();
 
     let engine1 = Engine::new(config.clone());
-    let result1 = engine1.slice(&mesh).expect("first slice should succeed");
+    let result1 = engine1.slice(&mesh, None).expect("first slice should succeed");
 
     let engine2 = Engine::new(config);
-    let result2 = engine2.slice(&mesh).expect("second slice should succeed");
+    let result2 = engine2.slice(&mesh, None).expect("second slice should succeed");
 
     assert_eq!(
         result1.gcode, result2.gcode,
@@ -458,7 +458,7 @@ fn golden_cube_extrusion_consistency() {
     let mesh = build_golden_cube();
 
     let engine = Engine::new(config);
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let gcode = String::from_utf8_lossy(&result.gcode);
 
     let total_e = total_extrusion(&gcode);
@@ -479,7 +479,7 @@ fn golden_cube_extrusion_consistency() {
         ..PrintConfig::default()
     };
     let fine_engine = Engine::new(fine_config);
-    let fine_result = fine_engine.slice(&mesh).expect("fine slice should succeed");
+    let fine_result = fine_engine.slice(&mesh, None).expect("fine slice should succeed");
     let fine_gcode = String::from_utf8_lossy(&fine_result.gcode);
     let fine_total_e = total_extrusion(&fine_gcode);
 
@@ -505,7 +505,7 @@ fn golden_cube_gcode_command_variety() {
     let engine = Engine::new(config);
     let mesh = build_golden_cube();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let gcode = String::from_utf8_lossy(&result.gcode);
 
     let commands = extract_command_lines(&gcode);

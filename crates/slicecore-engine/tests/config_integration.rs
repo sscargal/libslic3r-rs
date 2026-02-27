@@ -181,7 +181,7 @@ fn sc2_sequential_enabled_single_object_emits_warning() {
     let mesh = calibration_cube(100.0, 100.0);
 
     let (bus, warnings) = capture_warnings();
-    let _result = engine.slice_with_events(&mesh, &bus);
+    let _result = engine.slice_with_events(&mesh, &bus, None);
 
     let captured = warnings.lock().unwrap();
     let has_sequential_warning = captured
@@ -208,7 +208,7 @@ fn sc2_sequential_enabled_multi_object_validates_clearance() {
     let mesh = two_cubes_mesh();
 
     let (bus, warnings) = capture_warnings();
-    let result = engine.slice_with_events(&mesh, &bus);
+    let result = engine.slice_with_events(&mesh, &bus, None);
 
     // Two cubes are well separated (80mm apart) > 35mm clearance.
     // Should succeed without collision error.
@@ -292,7 +292,7 @@ fn sc2_sequential_collision_returns_config_error() {
         ..Default::default()
     };
     let engine = Engine::new(config);
-    let result = engine.slice(&mesh);
+    let result = engine.slice(&mesh, None);
 
     assert!(
         result.is_err(),
@@ -324,7 +324,7 @@ fn sc3_multi_material_enabled_generates_purge_tower() {
     let engine = Engine::new(config);
     let mesh = calibration_cube(100.0, 100.0);
 
-    let result = engine.slice(&mesh);
+    let result = engine.slice(&mesh, None);
     assert!(
         result.is_ok(),
         "Multi-material with valid config should succeed. Error: {:?}",
@@ -356,7 +356,7 @@ fn sc3_multi_material_emits_warning_about_no_tool_assignments() {
     let mesh = calibration_cube(100.0, 100.0);
 
     let (bus, warnings) = capture_warnings();
-    let _result = engine.slice_with_events(&mesh, &bus);
+    let _result = engine.slice_with_events(&mesh, &bus, None);
 
     let captured = warnings.lock().unwrap();
     let has_tool_warning = captured
@@ -396,7 +396,7 @@ fn sc4_config_driven_features_work_without_manual_api_calls() {
     let engine = Engine::new(config);
     let mesh = calibration_cube(100.0, 100.0);
     let (bus, warnings) = capture_warnings();
-    let result = engine.slice_with_events(&mesh, &bus);
+    let result = engine.slice_with_events(&mesh, &bus, None);
 
     // Should succeed (single object passes sequential, multi-material generates tower).
     assert!(

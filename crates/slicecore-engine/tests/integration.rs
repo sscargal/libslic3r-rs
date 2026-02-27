@@ -50,7 +50,7 @@ fn test_gcode_passes_validation() {
     let engine = Engine::new(config);
     let mesh = calibration_cube_20mm();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let gcode_str = String::from_utf8_lossy(&result.gcode);
 
     let validation = validate_gcode(&gcode_str);
@@ -75,7 +75,7 @@ fn test_infill_density_zero_and_hundred() {
         ..PrintConfig::default()
     };
     let result_zero = Engine::new(config_zero)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("0% infill slice should succeed");
 
     // 100% infill -- solid fill throughout.
@@ -84,7 +84,7 @@ fn test_infill_density_zero_and_hundred() {
         ..PrintConfig::default()
     };
     let result_full = Engine::new(config_full)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("100% infill slice should succeed");
 
     // Both should produce non-empty G-code.
@@ -122,7 +122,7 @@ fn test_skirt_present_in_output() {
     let engine = Engine::new(config);
     let mesh = calibration_cube_20mm();
 
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let gcode_str = String::from_utf8_lossy(&result.gcode);
 
     // Skirt produces extrusion moves on the first layer. We verify by
@@ -158,7 +158,7 @@ fn test_brim_works() {
         ..PrintConfig::default()
     };
     let result_no_brim = Engine::new(config_no_brim)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("no-brim slice should succeed");
 
     // With brim.
@@ -168,7 +168,7 @@ fn test_brim_works() {
         ..PrintConfig::default()
     };
     let result_brim = Engine::new(config_brim)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("brim slice should succeed");
 
     // Brim should produce more G-code (more first-layer extrusion).

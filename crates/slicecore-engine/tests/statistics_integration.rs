@@ -45,7 +45,7 @@ fn slice_cube_default() -> (slicecore_engine::SliceResult, PrintStatistics) {
     let config = PrintConfig::default();
     let engine = Engine::new(config);
     let mesh = calibration_cube_20mm();
-    let result = engine.slice(&mesh).expect("slice should succeed");
+    let result = engine.slice(&mesh, None).expect("slice should succeed");
     let statistics = result
         .statistics
         .clone()

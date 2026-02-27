@@ -169,7 +169,7 @@ fn sc1_auto_support_identifies_overhangs_and_generates_traditional_support() {
     };
 
     let engine = Engine::new(config);
-    let result = engine.slice(&mesh).unwrap();
+    let result = engine.slice(&mesh, None).unwrap();
     let gcode = String::from_utf8_lossy(&result.gcode);
 
     // G-code must contain support toolpath comments.
@@ -227,7 +227,7 @@ fn sc1_support_produces_valid_gcode() {
     };
 
     let engine = Engine::new(config);
-    let result = engine.slice(&mesh).unwrap();
+    let result = engine.slice(&mesh, None).unwrap();
     let gcode = String::from_utf8_lossy(&result.gcode);
 
     let validation = validate_gcode(&gcode);
@@ -256,7 +256,7 @@ fn sc2_tree_supports_use_less_material_than_traditional() {
         },
         ..Default::default()
     };
-    let trad_result = Engine::new(trad_config).slice(&mesh).unwrap();
+    let trad_result = Engine::new(trad_config).slice(&mesh, None).unwrap();
 
     // Slice with tree support.
     let tree_config = PrintConfig {
@@ -267,7 +267,7 @@ fn sc2_tree_supports_use_less_material_than_traditional() {
         },
         ..Default::default()
     };
-    let tree_result = Engine::new(tree_config).slice(&mesh).unwrap();
+    let tree_result = Engine::new(tree_config).slice(&mesh, None).unwrap();
 
     // Extract total E-axis values (filament usage proxy).
     let trad_e = extract_total_extrusion(&trad_result.gcode);
@@ -275,7 +275,7 @@ fn sc2_tree_supports_use_less_material_than_traditional() {
 
     // Both should generate support (non-zero extrusion above the no-support baseline).
     let no_support_config = PrintConfig::default();
-    let no_support_result = Engine::new(no_support_config).slice(&mesh).unwrap();
+    let no_support_result = Engine::new(no_support_config).slice(&mesh, None).unwrap();
     let baseline_e = extract_total_extrusion(&no_support_result.gcode);
 
     // Both support types should add material above baseline.
@@ -335,7 +335,7 @@ fn sc3_bridge_detection_applies_bridge_settings() {
     };
 
     let engine = Engine::new(config);
-    let result = engine.slice(&mesh).unwrap();
+    let result = engine.slice(&mesh, None).unwrap();
     let gcode = String::from_utf8_lossy(&result.gcode);
 
     // G-code must contain bridge toolpath comments.
@@ -366,7 +366,7 @@ fn sc3_bridge_gcode_is_valid() {
     };
 
     let engine = Engine::new(config);
-    let result = engine.slice(&mesh).unwrap();
+    let result = engine.slice(&mesh, None).unwrap();
     let gcode = String::from_utf8_lossy(&result.gcode);
 
     let validation = validate_gcode(&gcode);
@@ -400,7 +400,7 @@ fn sc4_manual_enforcers_and_blockers_override_auto_support() {
         },
         ..Default::default()
     };
-    let result = Engine::new(config).slice(&mesh).unwrap();
+    let result = Engine::new(config).slice(&mesh, None).unwrap();
     let gcode = String::from_utf8_lossy(&result.gcode);
     let auto_support_count = gcode
         .lines()
@@ -496,7 +496,7 @@ fn sc5_interface_layers_produce_distinct_support_infill() {
     };
 
     let engine = Engine::new(config);
-    let result = engine.slice(&mesh).unwrap();
+    let result = engine.slice(&mesh, None).unwrap();
     let gcode = String::from_utf8_lossy(&result.gcode);
 
     // G-code must contain support body.
@@ -541,7 +541,7 @@ fn sc5_interface_density_configurable() {
         },
         ..Default::default()
     };
-    let low_result = Engine::new(low_config).slice(&mesh).unwrap();
+    let low_result = Engine::new(low_config).slice(&mesh, None).unwrap();
     let low_e = extract_total_extrusion(&low_result.gcode);
 
     // High interface density.
@@ -556,7 +556,7 @@ fn sc5_interface_density_configurable() {
         },
         ..Default::default()
     };
-    let high_result = Engine::new(high_config).slice(&mesh).unwrap();
+    let high_result = Engine::new(high_config).slice(&mesh, None).unwrap();
     let high_e = extract_total_extrusion(&high_result.gcode);
 
     // Higher interface density should use more material (or equal).
@@ -578,12 +578,12 @@ fn test_support_disabled_output_unchanged() {
 
     // Default config has support disabled.
     let default_config = PrintConfig::default();
-    let default_result = Engine::new(default_config.clone()).slice(&mesh).unwrap();
+    let default_result = Engine::new(default_config.clone()).slice(&mesh, None).unwrap();
 
     // Explicitly disabled support.
     let mut disabled_config = default_config;
     disabled_config.support.enabled = false;
-    let disabled_result = Engine::new(disabled_config).slice(&mesh).unwrap();
+    let disabled_result = Engine::new(disabled_config).slice(&mesh, None).unwrap();
 
     assert_eq!(
         default_result.gcode, disabled_result.gcode,
@@ -622,7 +622,7 @@ fn test_support_gcode_valid() {
     ];
 
     for (i, config) in configs.iter().enumerate() {
-        let result = Engine::new(config.clone()).slice(&mesh).unwrap();
+        let result = Engine::new(config.clone()).slice(&mesh, None).unwrap();
         let gcode = String::from_utf8_lossy(&result.gcode);
         let validation = validate_gcode(&gcode);
         assert!(
@@ -648,7 +648,7 @@ fn test_overhang_angle_configurable() {
         },
         ..Default::default()
     };
-    let result_45 = Engine::new(config_45).slice(&mesh).unwrap();
+    let result_45 = Engine::new(config_45).slice(&mesh, None).unwrap();
     let e_45 = extract_total_extrusion(&result_45.gcode);
 
     // 70 degrees: less aggressive, should generate less support.
@@ -661,7 +661,7 @@ fn test_overhang_angle_configurable() {
         },
         ..Default::default()
     };
-    let result_70 = Engine::new(config_70).slice(&mesh).unwrap();
+    let result_70 = Engine::new(config_70).slice(&mesh, None).unwrap();
     let e_70 = extract_total_extrusion(&result_70.gcode);
 
     // 45-degree threshold should produce at least as much material as 70-degree.

@@ -381,7 +381,7 @@ fn bench_slice_calibration_cube(c: &mut Criterion) {
     let engine = Engine::new(config);
 
     c.bench_function("slice_calibration_cube", |b| {
-        b.iter(|| engine.slice(&mesh).unwrap())
+        b.iter(|| engine.slice(&mesh, None).unwrap())
     });
 }
 
@@ -391,7 +391,7 @@ fn bench_slice_cylinder(c: &mut Criterion) {
     let engine = Engine::new(config);
 
     c.bench_function("slice_cylinder_64sides", |b| {
-        b.iter(|| engine.slice(&mesh).unwrap())
+        b.iter(|| engine.slice(&mesh, None).unwrap())
     });
 }
 
@@ -401,7 +401,7 @@ fn bench_slice_sphere(c: &mut Criterion) {
     let engine = Engine::new(config);
 
     c.bench_function("slice_dense_sphere_1280tri", |b| {
-        b.iter(|| engine.slice(&mesh).unwrap())
+        b.iter(|| engine.slice(&mesh, None).unwrap())
     });
 }
 
@@ -411,7 +411,7 @@ fn bench_slice_thin_wall(c: &mut Criterion) {
     let engine = Engine::new(config);
 
     c.bench_function("slice_thin_wall_box", |b| {
-        b.iter(|| engine.slice(&mesh).unwrap())
+        b.iter(|| engine.slice(&mesh, None).unwrap())
     });
 }
 
@@ -421,7 +421,7 @@ fn bench_slice_multi_overhang(c: &mut Criterion) {
     let engine = Engine::new(config);
 
     c.bench_function("slice_multi_overhang", |b| {
-        b.iter(|| engine.slice(&mesh).unwrap())
+        b.iter(|| engine.slice(&mesh, None).unwrap())
     });
 }
 
@@ -440,7 +440,7 @@ fn bench_slice_cube_full_config(c: &mut Criterion) {
     let engine = Engine::new(config);
 
     c.bench_function("slice_cube_full_config", |b| {
-        b.iter(|| engine.slice(&mesh).unwrap())
+        b.iter(|| engine.slice(&mesh, None).unwrap())
     });
 }
 
@@ -451,7 +451,7 @@ fn bench_memory_estimate(c: &mut Criterion) {
 
     c.bench_function("memory_estimate_cube", |b| {
         b.iter(|| {
-            let result = engine.slice(&mesh).unwrap();
+            let result = engine.slice(&mesh, None).unwrap();
             // Capture output metrics that correlate with memory usage.
             let gcode_bytes = result.gcode.len();
             let layers = result.layer_count;

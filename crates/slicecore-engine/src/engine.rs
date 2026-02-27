@@ -525,9 +525,9 @@ impl Engine {
     /// - [`EngineError::EmptyMesh`] if the mesh has no triangles.
     /// - [`EngineError::NoLayers`] if slicing produces no layers.
     /// - [`EngineError::GcodeError`] if G-code writing fails.
-    pub fn slice(&self, mesh: &TriangleMesh) -> Result<SliceResult, EngineError> {
+    pub fn slice(&self, mesh: &TriangleMesh, cancel: Option<CancellationToken>) -> Result<SliceResult, EngineError> {
         let mut buf = Vec::new();
-        let result = self.slice_to_writer(mesh, &mut buf)?;
+        let result = self.slice_to_writer(mesh, &mut buf, cancel)?;
         Ok(SliceResult {
             gcode: buf,
             layer_count: result.layer_count,
@@ -563,6 +563,7 @@ impl Engine {
         &self,
         mesh: &TriangleMesh,
         event_bus: &crate::event::EventBus,
+        cancel: Option<CancellationToken>,
     ) -> Result<SliceResult, EngineError> {
         let start = std::time::Instant::now();
 
@@ -573,7 +574,7 @@ impl Engine {
         });
 
         let mut buf = Vec::new();
-        let result = self.slice_to_writer_with_events(mesh, &mut buf, Some(event_bus))?;
+        let result = self.slice_to_writer_with_events(mesh, &mut buf, Some(event_bus), cancel)?;
 
         // Emit completion.
         let elapsed = start.elapsed().as_secs_f64();
@@ -647,8 +648,9 @@ impl Engine {
         &self,
         mesh: &TriangleMesh,
         writer: W,
+        cancel: Option<CancellationToken>,
     ) -> Result<SliceResult, EngineError> {
-        self.slice_to_writer_with_events(mesh, writer, None)
+        self.slice_to_writer_with_events(mesh, writer, None, cancel)
     }
 
     /// Internal slicing pipeline with optional event emission.
@@ -657,7 +659,9 @@ impl Engine {
         mesh: &TriangleMesh,
         writer: W,
         event_bus: Option<&crate::event::EventBus>,
+        cancel: Option<CancellationToken>,
     ) -> Result<SliceResult, EngineError> {
+        let _cancel = cancel;
         // Validate mesh.
         if mesh.triangle_count() == 0 {
             return Err(EngineError::EmptyMesh);
@@ -1395,7 +1399,7 @@ impl Engine {
     /// # Errors
     ///
     /// Same errors as [`Engine::slice`].
-    pub fn slice_with_preview(&self, mesh: &TriangleMesh) -> Result<SliceResult, EngineError> {
+    pub fn slice_with_preview(&self, mesh: &TriangleMesh, cancel: Option<CancellationToken>) -> Result<SliceResult, EngineError> {
         // Validate mesh.
         if mesh.triangle_count() == 0 {
             return Err(EngineError::EmptyMesh);
@@ -1429,7 +1433,7 @@ impl Engine {
         let bounding_box = [min_x, min_y, min_z, max_x, max_y, max_z];
 
         // Run slicing pipeline to get G-code (reuses slice method).
-        let mut result = self.slice(mesh)?;
+        let mut result = self.slice(mesh, cancel)?;
 
         // Build preview from the toolpaths.
         // We need to re-run the pipeline to capture layer toolpaths.
@@ -1678,9 +1682,10 @@ impl Engine {
         &self,
         mesh: &TriangleMesh,
         modifiers: &[ModifierMesh],
+        cancel: Option<CancellationToken>,
     ) -> Result<SliceResult, EngineError> {
         if modifiers.is_empty() {
-            return self.slice(mesh);
+            return self.slice(mesh, cancel);
         }
 
         // Validate mesh.
@@ -2187,7 +2192,7 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = unit_cube();
 
-        let result = engine.slice(&mesh).expect("slice should succeed");
+        let result = engine.slice(&mesh, None).expect("slice should succeed");
 
         assert!(
             !result.gcode.is_empty(),
@@ -2206,7 +2211,7 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = unit_cube();
 
-        let result = engine.slice(&mesh).expect("slice should succeed");
+        let result = engine.slice(&mesh, None).expect("slice should succeed");
         let gcode_str = String::from_utf8_lossy(&result.gcode);
 
         // Should contain home command from start gcode.
@@ -2244,7 +2249,7 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = unit_cube();
 
-        let result = engine.slice(&mesh).expect("slice should succeed");
+        let result = engine.slice(&mesh, None).expect("slice should succeed");
 
         // 1mm cube with 0.2mm layers = 5 layers.
         assert_eq!(
@@ -2260,7 +2265,7 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = unit_cube();
 
-        let result = engine.slice(&mesh).expect("slice should succeed");
+        let result = engine.slice(&mesh, None).expect("slice should succeed");
 
         assert!(
             result.estimated_time_seconds > 0.0,
@@ -2275,10 +2280,10 @@ mod tests {
         let mesh = unit_cube();
 
         let engine1 = Engine::new(config.clone());
-        let result1 = engine1.slice(&mesh).expect("first slice should succeed");
+        let result1 = engine1.slice(&mesh, None).expect("first slice should succeed");
 
         let engine2 = Engine::new(config);
-        let result2 = engine2.slice(&mesh).expect("second slice should succeed");
+        let result2 = engine2.slice(&mesh, None).expect("second slice should succeed");
 
         assert_eq!(
             result1.gcode, result2.gcode,
@@ -2297,13 +2302,13 @@ mod tests {
 
         let config_default = PrintConfig::default();
         let result_default = Engine::new(config_default.clone())
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("default slice should succeed");
 
         let mut config_adaptive_off = config_default;
         config_adaptive_off.adaptive_layer_height = false;
         let result_off = Engine::new(config_adaptive_off)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("adaptive=false slice should succeed");
 
         assert_eq!(
@@ -2325,7 +2330,7 @@ mod tests {
         };
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh).expect("adaptive slice should succeed");
+        let result = engine.slice(&mesh, None).expect("adaptive slice should succeed");
         assert!(
             !result.gcode.is_empty(),
             "Adaptive G-code output should be non-empty"
@@ -2360,7 +2365,7 @@ mod tests {
         };
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh).expect("adaptive slice should succeed");
+        let result = engine.slice(&mesh, None).expect("adaptive slice should succeed");
         assert!(
             result.layer_count > 0,
             "Adaptive should produce at least 1 layer"
@@ -2411,7 +2416,7 @@ mod tests {
             ..Default::default()
         };
         let result_02 = Engine::new(config_02)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("0.2mm slice should succeed");
 
         let config_01 = PrintConfig {
@@ -2420,7 +2425,7 @@ mod tests {
             ..Default::default()
         };
         let result_01 = Engine::new(config_01)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("0.1mm slice should succeed");
 
         // With 0.2mm layers we get 5; with 0.1mm we should get ~10.
@@ -2440,13 +2445,13 @@ mod tests {
 
         let config_default = PrintConfig::default();
         let result_default = Engine::new(config_default.clone())
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("default slice should succeed");
 
         let mut config_off = config_default;
         config_off.arachne_enabled = false;
         let result_off = Engine::new(config_off)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("arachne=false slice should succeed");
 
         assert_eq!(
@@ -2465,7 +2470,7 @@ mod tests {
         };
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh).expect("arachne slice should succeed");
+        let result = engine.slice(&mesh, None).expect("arachne slice should succeed");
         assert!(
             !result.gcode.is_empty(),
             "Arachne-enabled G-code output should be non-empty"
@@ -2498,14 +2503,14 @@ mod tests {
         // Default config has support disabled.
         let config_default = PrintConfig::default();
         let result_default = Engine::new(config_default.clone())
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("default slice should succeed");
 
         // Explicitly set support.enabled = false.
         let mut config_explicit = config_default;
         config_explicit.support.enabled = false;
         let result_explicit = Engine::new(config_explicit)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("support-disabled slice should succeed");
 
         assert_eq!(
@@ -2529,7 +2534,7 @@ mod tests {
         };
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh).expect("support-enabled slice should succeed");
+        let result = engine.slice(&mesh, None).expect("support-enabled slice should succeed");
         assert!(
             !result.gcode.is_empty(),
             "Support-enabled G-code output should be non-empty"
@@ -2570,13 +2575,13 @@ mod tests {
 
         let config_default = PrintConfig::default();
         let result_default = Engine::new(config_default.clone())
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("default slice should succeed");
 
         let mut config_explicit = config_default;
         config_explicit.arc_fitting_enabled = false;
         let result_explicit = Engine::new(config_explicit)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("arc-fitting-disabled slice should succeed");
 
         assert_eq!(
@@ -2597,7 +2602,7 @@ mod tests {
         };
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh).expect("arc-fitting slice should succeed");
+        let result = engine.slice(&mesh, None).expect("arc-fitting slice should succeed");
         assert!(
             !result.gcode.is_empty(),
             "Arc-fitting-enabled G-code output should be non-empty"
@@ -2620,7 +2625,7 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = unit_cube();
 
-        let result = engine.slice(&mesh).expect("slice should succeed");
+        let result = engine.slice(&mesh, None).expect("slice should succeed");
 
         assert!(
             result.time_estimate.total_seconds > 0.0,
@@ -2644,7 +2649,7 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = unit_cube();
 
-        let result = engine.slice(&mesh).expect("slice should succeed");
+        let result = engine.slice(&mesh, None).expect("slice should succeed");
 
         assert!(
             result.filament_usage.length_mm > 0.0,
@@ -2743,7 +2748,7 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = calibration_cube_20mm();
 
-        let result = engine.slice(&mesh).expect("Klipper slice should succeed");
+        let result = engine.slice(&mesh, None).expect("Klipper slice should succeed");
         let gcode_str = String::from_utf8_lossy(&result.gcode);
 
         // Validate G-code passes syntax validation.
@@ -2784,7 +2789,7 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = calibration_cube_20mm();
 
-        let result = engine.slice(&mesh).expect("RepRap slice should succeed");
+        let result = engine.slice(&mesh, None).expect("RepRap slice should succeed");
         let gcode_str = String::from_utf8_lossy(&result.gcode);
 
         // Validate G-code passes syntax validation.
@@ -2821,7 +2826,7 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = calibration_cube_20mm();
 
-        let result = engine.slice(&mesh).expect("Bambu slice should succeed");
+        let result = engine.slice(&mesh, None).expect("Bambu slice should succeed");
         let gcode_str = String::from_utf8_lossy(&result.gcode);
 
         // Validate G-code passes syntax validation.
@@ -2977,7 +2982,7 @@ mod tests {
 
         // Slice with modifiers through the full engine pipeline.
         let result = engine
-            .slice_with_modifiers(&model_mesh, &modifiers)
+            .slice_with_modifiers(&model_mesh, &modifiers, None)
             .expect("modifier slice should succeed");
 
         let gcode_str = String::from_utf8_lossy(&result.gcode);
@@ -3066,7 +3071,7 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = calibration_cube_20mm();
 
-        let result = engine.slice(&mesh).expect("slice should succeed");
+        let result = engine.slice(&mesh, None).expect("slice should succeed");
 
         // SC4.1: time_estimate.total_seconds > 0
         assert!(
@@ -3169,7 +3174,7 @@ mod tests {
         config_low_accel.accel.print = 500.0;
         config_low_accel.accel.travel = 750.0;
         let result_low = Engine::new(config_low_accel)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("low-accel slice should succeed");
 
         // High acceleration config: 3000 mm/s^2.
@@ -3177,7 +3182,7 @@ mod tests {
         config_high_accel.accel.print = 3000.0;
         config_high_accel.accel.travel = 4500.0;
         let result_high = Engine::new(config_high_accel)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .expect("high-accel slice should succeed");
 
         // Low acceleration should produce a longer time estimate because
@@ -3340,7 +3345,7 @@ mod tests {
         };
         let engine = Engine::new(cube_config);
         let mesh = calibration_cube_20mm();
-        let cube_result = engine.slice(&mesh).expect("arc-fitting engine slice should succeed");
+        let cube_result = engine.slice(&mesh, None).expect("arc-fitting engine slice should succeed");
         assert!(
             !cube_result.gcode.is_empty(),
             "Arc-fitting enabled should still produce valid G-code"
@@ -3362,7 +3367,7 @@ mod tests {
         };
         let engine = Engine::new(config);
         let mesh = unit_cube();
-        let result = engine.slice(&mesh);
+        let result = engine.slice(&mesh, None);
         assert!(
             result.is_ok(),
             "Built-in pattern should work without plugin registry: {:?}",
@@ -3385,7 +3390,7 @@ mod tests {
         };
         let engine = Engine::new(config);
         let mesh = calibration_cube_20mm();
-        let result = engine.slice(&mesh);
+        let result = engine.slice(&mesh, None);
         assert!(result.is_err(), "Plugin pattern without registry should fail");
         let err = result.unwrap_err();
         match &err {
@@ -3561,7 +3566,7 @@ mod tests {
         let config = PrintConfig::default();
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh).expect("self-intersecting mesh should slice successfully");
+        let result = engine.slice(&mesh, None).expect("self-intersecting mesh should slice successfully");
 
         assert!(
             !result.gcode.is_empty(),
@@ -3612,7 +3617,7 @@ mod tests {
         let config = PrintConfig::default();
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh).expect("offset overlapping cubes should slice successfully");
+        let result = engine.slice(&mesh, None).expect("offset overlapping cubes should slice successfully");
 
         assert!(
             !result.gcode.is_empty(),
@@ -3657,7 +3662,7 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = unit_cube();
 
-        let result = engine.slice(&mesh).expect("slice should succeed");
+        let result = engine.slice(&mesh, None).expect("slice should succeed");
 
         assert!(
             result.statistics.is_some(),

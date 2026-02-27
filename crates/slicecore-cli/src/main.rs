@@ -589,7 +589,7 @@ fn cmd_slice(
     }
 
     // 6. Slice.
-    let result = match engine.slice(&repaired_mesh) {
+    let result = match engine.slice(&repaired_mesh, None) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("Error: Slicing failed: {}", e);

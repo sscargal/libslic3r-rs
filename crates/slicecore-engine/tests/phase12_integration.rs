@@ -376,7 +376,7 @@ fn sc3_two_overlapping_cubes_slices_end_to_end() {
     let engine = Engine::new(config);
 
     let result = engine
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("two overlapping cubes should slice successfully");
 
     assert!(
@@ -397,7 +397,7 @@ fn sc3_three_overlapping_cubes_slices_end_to_end() {
     let engine = Engine::new(config);
 
     let result = engine
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("three overlapping cubes should slice successfully");
 
     assert!(
@@ -418,7 +418,7 @@ fn sc3_offset_shell_slices_successfully() {
     let engine = Engine::new(config);
 
     let result = engine
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("offset shell model should slice successfully");
 
     assert!(

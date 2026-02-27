@@ -58,10 +58,10 @@ fn test_deterministic_output() {
     let mesh = calibration_cube_20mm();
 
     let engine1 = Engine::new(config.clone());
-    let result1 = engine1.slice(&mesh).expect("first slice should succeed");
+    let result1 = engine1.slice(&mesh, None).expect("first slice should succeed");
 
     let engine2 = Engine::new(config);
-    let result2 = engine2.slice(&mesh).expect("second slice should succeed");
+    let result2 = engine2.slice(&mesh, None).expect("second slice should succeed");
 
     assert_eq!(
         result1.gcode, result2.gcode,
@@ -92,10 +92,10 @@ fn test_deterministic_with_custom_config() {
     let mesh = calibration_cube_20mm();
 
     let engine1 = Engine::new(config.clone());
-    let result1 = engine1.slice(&mesh).expect("first slice should succeed");
+    let result1 = engine1.slice(&mesh, None).expect("first slice should succeed");
 
     let engine2 = Engine::new(config);
-    let result2 = engine2.slice(&mesh).expect("second slice should succeed");
+    let result2 = engine2.slice(&mesh, None).expect("second slice should succeed");
 
     assert_eq!(
         result1.gcode, result2.gcode,
@@ -123,7 +123,7 @@ fn test_layer_height_variation() {
         ..PrintConfig::default()
     };
     let result_02 = Engine::new(config_02)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("0.2mm slice should succeed");
 
     // 0.1mm layers.
@@ -133,7 +133,7 @@ fn test_layer_height_variation() {
         ..PrintConfig::default()
     };
     let result_01 = Engine::new(config_01)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("0.1mm slice should succeed");
 
     // Both should produce non-empty G-code.
@@ -173,7 +173,7 @@ fn test_layer_height_produces_valid_gcode_both() {
         ..PrintConfig::default()
     };
     let result_02 = Engine::new(config_02)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("0.2mm slice should succeed");
     let gcode_02 = String::from_utf8_lossy(&result_02.gcode);
     let validation_02 = validate_gcode(&gcode_02);
@@ -190,7 +190,7 @@ fn test_layer_height_produces_valid_gcode_both() {
         ..PrintConfig::default()
     };
     let result_01 = Engine::new(config_01)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("0.1mm slice should succeed");
     let gcode_01 = String::from_utf8_lossy(&result_01.gcode);
     let validation_01 = validate_gcode(&gcode_01);
@@ -215,7 +215,7 @@ fn test_different_configs_produce_different_output() {
         ..PrintConfig::default()
     };
     let result_a = Engine::new(config_a)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("config A slice should succeed");
 
     let config_b = PrintConfig {
@@ -224,7 +224,7 @@ fn test_different_configs_produce_different_output() {
         ..PrintConfig::default()
     };
     let result_b = Engine::new(config_b)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("config B slice should succeed");
 
     assert_ne!(

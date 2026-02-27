@@ -331,7 +331,7 @@ fn sc1_arachne_thin_walls() {
         ..Default::default()
     };
     let engine = Engine::new(config);
-    let result = engine.slice(&mesh).expect("arachne thin wall slice should succeed");
+    let result = engine.slice(&mesh, None).expect("arachne thin wall slice should succeed");
 
     assert!(
         !result.gcode.is_empty(),
@@ -362,7 +362,7 @@ fn sc1_arachne_vs_classic_produces_valid_gcode() {
         ..Default::default()
     };
     let classic_result = Engine::new(classic_config)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("classic thin wall slice should succeed");
     assert!(!classic_result.gcode.is_empty());
 
@@ -372,7 +372,7 @@ fn sc1_arachne_vs_classic_produces_valid_gcode() {
         ..Default::default()
     };
     let arachne_result = Engine::new(arachne_config)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("arachne thin wall slice should succeed");
     assert!(!arachne_result.gcode.is_empty());
 
@@ -408,7 +408,7 @@ fn sc2_all_infill_patterns() {
         };
         let engine = Engine::new(config);
         let result = engine
-            .slice(&mesh)
+            .slice(&mesh, None)
             .unwrap_or_else(|e| panic!("{:?} should succeed: {:?}", pattern, e));
         assert!(
             !result.gcode.is_empty(),
@@ -439,7 +439,7 @@ fn sc2_patterns_produce_different_gcode() {
             infill_density: 0.2,
             ..Default::default()
         };
-        let result = Engine::new(config).slice(&mesh).unwrap();
+        let result = Engine::new(config).slice(&mesh, None).unwrap();
         gcodes.push((pattern.clone(), result.gcode));
     }
     // Each pattern should produce different G-code.
@@ -474,7 +474,7 @@ fn sc2_all_patterns_produce_valid_gcode() {
             ..Default::default()
         };
         let result = Engine::new(config)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .unwrap_or_else(|e| panic!("{:?} should succeed: {:?}", pattern, e));
         let gcode_str = String::from_utf8_lossy(&result.gcode);
         let validation = validate_gcode(&gcode_str);
@@ -506,7 +506,7 @@ fn sc3_seam_strategies_differ() {
             ..Default::default()
         };
         let result = Engine::new(config)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .unwrap_or_else(|e| panic!("{:?} should succeed: {:?}", strategy, e));
         gcodes.push(result.gcode);
     }
@@ -537,7 +537,7 @@ fn sc3_all_seam_strategies_produce_valid_gcode() {
             ..Default::default()
         };
         let result = Engine::new(config)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .unwrap_or_else(|e| panic!("{:?} should succeed: {:?}", strategy, e));
         let gcode_str = String::from_utf8_lossy(&result.gcode);
         let validation = validate_gcode(&gcode_str);
@@ -560,7 +560,7 @@ fn sc3_scarf_joint_produces_valid_gcode() {
         ..Default::default()
     };
     let result = Engine::new(config)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("scarf joint slice should succeed");
     assert!(!result.gcode.is_empty());
     let gcode_str = String::from_utf8_lossy(&result.gcode);
@@ -587,7 +587,7 @@ fn sc4_adaptive_layer_heights() {
         ..Default::default()
     };
     let result = Engine::new(config)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("adaptive sphere slice should succeed");
     assert!(result.layer_count > 0);
 
@@ -598,7 +598,7 @@ fn sc4_adaptive_layer_heights() {
         ..Default::default()
     };
     let uniform_result = Engine::new(uniform_config)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("uniform sphere slice should succeed");
 
     assert!(
@@ -620,7 +620,7 @@ fn sc4_adaptive_produces_valid_gcode() {
         ..Default::default()
     };
     let result = Engine::new(config)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("adaptive slice should succeed");
     let gcode_str = String::from_utf8_lossy(&result.gcode);
     let validation = validate_gcode(&gcode_str);
@@ -643,7 +643,7 @@ fn sc5_gap_fill_enabled() {
         ..Default::default()
     };
     let result = Engine::new(config)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("gap fill slice should succeed");
     assert!(
         !result.gcode.is_empty(),
@@ -666,7 +666,7 @@ fn sc5_gap_fill_disabled_still_works() {
         ..Default::default()
     };
     let result = Engine::new(config)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("gap fill disabled slice should succeed");
     assert!(!result.gcode.is_empty());
 }
@@ -695,10 +695,10 @@ fn determinism_all_patterns() {
             ..Default::default()
         };
         let result1 = Engine::new(config.clone())
-            .slice(&mesh)
+            .slice(&mesh, None)
             .unwrap_or_else(|e| panic!("{:?} first slice failed: {:?}", pattern, e));
         let result2 = Engine::new(config)
-            .slice(&mesh)
+            .slice(&mesh, None)
             .unwrap_or_else(|e| panic!("{:?} second slice failed: {:?}", pattern, e));
         assert_eq!(
             result1.gcode, result2.gcode,
@@ -719,10 +719,10 @@ fn determinism_adaptive_layers() {
         ..Default::default()
     };
     let result1 = Engine::new(config.clone())
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("adaptive first slice should succeed");
     let result2 = Engine::new(config)
-        .slice(&mesh)
+        .slice(&mesh, None)
         .expect("adaptive second slice should succeed");
     assert_eq!(
         result1.gcode, result2.gcode,
@@ -741,7 +741,7 @@ fn preview_data_from_calibration_cube() {
     let config = PrintConfig::default();
     let engine = Engine::new(config);
     let result = engine
-        .slice_with_preview(&mesh)
+        .slice_with_preview(&mesh, None)
         .expect("preview slice should succeed");
 
     let preview = result.preview.as_ref().expect("preview should be present");
@@ -773,7 +773,7 @@ fn preview_data_serializes_to_json() {
     };
     let engine = Engine::new(config);
     let result = engine
-        .slice_with_preview(&mesh)
+        .slice_with_preview(&mesh, None)
         .expect("preview slice should succeed");
 
     let preview = result.preview.as_ref().unwrap();
@@ -798,7 +798,7 @@ fn all_gcode_passes_validation() {
 
     // Default config.
     let result = Engine::new(PrintConfig::default())
-        .slice(&cube)
+        .slice(&cube, None)
         .expect("default slice should succeed");
     let gcode_str = String::from_utf8_lossy(&result.gcode);
     let validation = validate_gcode(&gcode_str);
