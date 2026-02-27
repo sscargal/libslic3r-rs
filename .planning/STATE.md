@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 23 of 29 (Progress/Cancellation API)
-Plan: 1 of 2 in current phase (1 complete)
-Status: In Progress
-Last activity: 2026-02-27 - Completed 23-01: Define types and update signatures
+Plan: 2 of 2 in current phase (2 complete)
+Status: Phase Complete
+Last activity: 2026-02-27 - Completed 23-02: Progress emission and cancellation checking
 
-Progress: [############################################################] 100% (104/105 overall)
+Progress: [############################################################] 100% (105/105 overall)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 98
+- Total plans completed: 99
 - Average duration: 5.2 min
-- Total execution time: 8.53 hours
+- Total execution time: 8.60 hours
 
 **By Phase:**
 
@@ -55,13 +55,14 @@ Progress: [############################################################] 100% (1
 | 22    | 2     | 8min  | 4.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 21-03 (5min), 22-01 (4min), 22-02 (4min), 23-01 (8min)
+- Last 5 plans: 21-03 (5min), 22-01 (4min), 22-02 (4min), 23-01 (8min), 23-02 (4min)
 - Trend: 4-8min/plan
 
 *Updated after each plan completion*
 | Phase 22 P01 | 4min | 2 tasks | 3 files |
 | Phase 22 P02 | 4min | 2 tasks | 1 files |
 | Phase 23 P01 | 8min | 2 tasks | 16 files |
+| Phase 23 P02 | 4min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -459,6 +460,9 @@ Recent decisions affecting current work:
 - [23-01]: CancellationToken uses Arc<AtomicBool> with Acquire/Release ordering for thread-safe cooperative cancellation
 - [23-01]: Cancel parameter added as Option<CancellationToken> (last param) to preserve backward compatibility via None
 - [23-01]: Cancel token accepted but not yet checked in Plan 01 -- actual checking logic deferred to Plan 02
+- [23-02]: WASM-safe timing via cfg-gated start_timer() returning Option<Instant> -- None on wasm32 yields 0.0 elapsed and None ETA
+- [23-02]: Rolling average ETA over last 20 layer durations, returns None until 3 layers processed
+- [23-02]: Overall percent maps 10-90% for layer processing (0-10% slicing, 90-100% gcode gen)
 
 ### Roadmap Evolution
 
@@ -498,5 +502,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-27
-Stopped at: Completed 23-01-PLAN.md (Progress/Cancellation API types and signatures)
-Resume file: .planning/phases/23-progress-cancellation-api/23-01-SUMMARY.md
+Stopped at: Completed 23-02-PLAN.md (Progress emission and cancellation checking)
+Resume file: .planning/phases/23-progress-cancellation-api/23-02-SUMMARY.md

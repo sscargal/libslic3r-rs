@@ -497,7 +497,7 @@ Plans:
   4. SliceEvent::Progress emitted after each layer with overall_percent (10-90%), stage_percent (0-100%), ETA via rolling average over last 20 layers, elapsed_seconds, and layers_per_second
   5. WASM compilation works: timing gracefully disabled (elapsed_seconds=0.0, eta_seconds=None on wasm32)
   6. Integration tests verify cancellation (pre-flight and mid-flight), progress event accuracy, and ETA estimation
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 23-01-PLAN.md -- Core types (CancellationToken, EngineError::Cancelled, SliceEvent::Progress) and method signature changes with call site updates
