@@ -98,6 +98,18 @@ impl Default for CancellationToken {
     }
 }
 
+/// Start a timer. Returns `None` on `wasm32` where `Instant::now()` panics.
+#[cfg(not(target_arch = "wasm32"))]
+fn start_timer() -> Option<std::time::Instant> {
+    Some(std::time::Instant::now())
+}
+
+/// Start a timer. Returns `None` on `wasm32` where `Instant::now()` panics.
+#[cfg(target_arch = "wasm32")]
+fn start_timer() -> Option<std::time::Instant> {
+    None
+}
+
 /// Result of a slicing operation.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SliceResult {
@@ -565,7 +577,7 @@ impl Engine {
         event_bus: &crate::event::EventBus,
         cancel: Option<CancellationToken>,
     ) -> Result<SliceResult, EngineError> {
-        let start = std::time::Instant::now();
+        let start = start_timer();
 
         // Emit stage: mesh slicing.
         event_bus.emit(&crate::event::SliceEvent::StageChanged {
@@ -577,7 +589,7 @@ impl Engine {
         let result = self.slice_to_writer_with_events(mesh, &mut buf, Some(event_bus), cancel)?;
 
         // Emit completion.
-        let elapsed = start.elapsed().as_secs_f64();
+        let elapsed = start.map_or(0.0, |s| s.elapsed().as_secs_f64());
         event_bus.emit(&crate::event::SliceEvent::Complete {
             layers: result.layer_count,
             time_seconds: elapsed,
@@ -661,7 +673,7 @@ impl Engine {
         event_bus: Option<&crate::event::EventBus>,
         cancel: Option<CancellationToken>,
     ) -> Result<SliceResult, EngineError> {
-        let _cancel = cancel;
+        let slice_start = start_timer();
         // Validate mesh.
         if mesh.triangle_count() == 0 {
             return Err(EngineError::EmptyMesh);
@@ -852,8 +864,18 @@ impl Engine {
         let total_layers = layers.len();
         // Track seam position across layers for Aligned strategy.
         let mut previous_seam: Option<slicecore_math::IPoint2> = None;
+        let mut layer_durations: Vec<f64> = Vec::with_capacity(total_layers);
 
         for (layer_idx, layer) in layers.iter().enumerate() {
+            // Check cancellation before processing this layer.
+            if let Some(ref token) = cancel {
+                if token.is_cancelled() {
+                    return Err(EngineError::Cancelled);
+                }
+            }
+
+            let layer_start = start_timer();
+
             if layer.contours.is_empty() {
                 // Empty layer -- produce empty toolpath.
                 layer_toolpaths.push(LayerToolpath {
@@ -1151,6 +1173,51 @@ impl Engine {
                     z: layer.z,
                 });
             }
+
+            // Track layer duration and emit Progress event.
+            if let Some(ls) = layer_start {
+                layer_durations.push(ls.elapsed().as_secs_f64());
+            }
+
+            if let Some(bus) = event_bus {
+                let layers_done = layer_idx + 1;
+                let stage_pct = (layers_done as f32 / total_layers as f32) * 100.0;
+                // Overall: 10-90% for layer processing (0-10% mesh slicing, 90-100% gcode gen).
+                let overall_pct = 10.0 + (stage_pct / 100.0) * 80.0;
+
+                let (elapsed, eta, lps) = if let Some(start) = slice_start {
+                    let elapsed = start.elapsed().as_secs_f64();
+                    let lps = layers_done as f64 / elapsed.max(0.001);
+
+                    // Rolling average ETA over last 20 layers.
+                    const ETA_WINDOW: usize = 20;
+                    let window_start = layer_durations.len().saturating_sub(ETA_WINDOW);
+                    let window = &layer_durations[window_start..];
+                    let eta = if layers_done >= 3 && !window.is_empty() {
+                        let avg = window.iter().sum::<f64>() / window.len() as f64;
+                        let remaining = total_layers - layers_done;
+                        Some(avg * remaining as f64)
+                    } else {
+                        None
+                    };
+
+                    (elapsed, eta, lps)
+                } else {
+                    // WASM: no timing available.
+                    (0.0, None, 0.0)
+                };
+
+                bus.emit(&crate::event::SliceEvent::Progress {
+                    overall_percent: overall_pct,
+                    stage_percent: stage_pct,
+                    stage: "layer_processing".to_string(),
+                    layer: layer_idx,
+                    total_layers,
+                    elapsed_seconds: elapsed,
+                    eta_seconds: eta,
+                    layers_per_second: lps,
+                });
+            }
         }
 
         // 3. First-layer extras: skirt/brim.
@@ -1433,7 +1500,7 @@ impl Engine {
         let bounding_box = [min_x, min_y, min_z, max_x, max_y, max_z];
 
         // Run slicing pipeline to get G-code (reuses slice method).
-        let mut result = self.slice(mesh, cancel)?;
+        let mut result = self.slice(mesh, cancel.clone())?;
 
         // Build preview from the toolpaths.
         // We need to re-run the pipeline to capture layer toolpaths.
@@ -1453,6 +1520,13 @@ impl Engine {
         let mut previous_seam: Option<slicecore_math::IPoint2> = None;
 
         for (layer_idx, layer) in layers.iter().enumerate() {
+            // Check cancellation in preview layer loop.
+            if let Some(ref token) = cancel {
+                if token.is_cancelled() {
+                    return Err(EngineError::Cancelled);
+                }
+            }
+
             if layer.contours.is_empty() {
                 layer_toolpaths.push(LayerToolpath {
                     layer_index: layer_idx,
@@ -1725,6 +1799,13 @@ impl Engine {
         let mut previous_seam: Option<slicecore_math::IPoint2> = None;
 
         for (layer_idx, layer) in layers.iter().enumerate() {
+            // Check cancellation before processing this layer.
+            if let Some(ref token) = cancel {
+                if token.is_cancelled() {
+                    return Err(EngineError::Cancelled);
+                }
+            }
+
             if layer.contours.is_empty() {
                 layer_toolpaths.push(LayerToolpath {
                     layer_index: layer_idx,
