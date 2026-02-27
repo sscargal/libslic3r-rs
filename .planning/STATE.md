@@ -467,10 +467,17 @@ Recent decisions affecting current work:
 - Phase 20 added: Expand PrintConfig Field Coverage and Profile Mapping
 - Phase 21 added: G-code Analysis and Comparison Tool
 - Phase 22 added: Migrate from lib3mf to lib3mf-core ecosystem. Replace the third-party lib3mf crate with our own lib3mf-core ecosystem (lib3mf-core, lib3mf-converters, lib3mf-cli, lib3mf-async) for pure Rust 3MF parsing with full WASM compatibility.
+- Phase 23 added: Progress/Cancellation API
+- Phase 24 added: Mesh Export (STL/3MF Write)
+- Phase 25 added: Parallel Slicing Pipeline (rayon)
+- Phase 26 added: Thumbnail/Preview Rasterization
+- Phase 27 added: Build Plate Auto-Arrangement
+- Phase 28 added: G-code Post-Processing Plugin Point
+- Phase 29 added: Mesh Boolean Operations (CSG)
 
 ### Pending Todos
 
-None yet.
+1 pending — /gsd:check-todos to review
 
 ### Blockers/Concerns
 
