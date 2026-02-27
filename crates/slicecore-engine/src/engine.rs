@@ -13,6 +13,8 @@
 //! 5. **G-code writing**: Dialect-aware output via GcodeWriter
 
 use std::io::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use slicecore_gcode_io::{EndConfig, GcodeWriter, StartConfig};
@@ -44,6 +46,57 @@ use crate::toolpath::{
 use crate::extrusion::compute_e_value;
 
 use slicecore_math::Point2;
+
+/// Thread-safe cancellation token for cooperative cancellation of slicing operations.
+///
+/// Create a token, pass it (or a clone) to a slice method, and call `.cancel()`
+/// from any thread to request cancellation. The engine checks the token once
+/// per layer and returns `Err(EngineError::Cancelled)` if triggered.
+///
+/// # Example
+///
+/// ```
+/// use slicecore_engine::CancellationToken;
+///
+/// let token = CancellationToken::new();
+/// let token_clone = token.clone();
+///
+/// // In another thread:
+/// // token_clone.cancel();
+///
+/// assert!(!token.is_cancelled());
+/// token.cancel();
+/// assert!(token.is_cancelled());
+/// ```
+#[derive(Clone, Debug)]
+pub struct CancellationToken {
+    cancelled: Arc<AtomicBool>,
+}
+
+impl CancellationToken {
+    /// Creates a new cancellation token in the non-cancelled state.
+    pub fn new() -> Self {
+        Self {
+            cancelled: Arc::new(AtomicBool::new(false)),
+        }
+    }
+
+    /// Requests cancellation. All clones observe this immediately.
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Release);
+    }
+
+    /// Returns `true` if cancellation has been requested.
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Acquire)
+    }
+}
+
+impl Default for CancellationToken {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// Result of a slicing operation.
 #[derive(Debug, Serialize, Deserialize)]
@@ -3644,5 +3697,10 @@ mod tests {
             nonzero_features > 0,
             "At least some features should have segments"
         );
+    }
+
+    fn _assert_cancellation_token_send_sync() {
+        fn _check<T: Send + Sync + Clone>() {}
+        _check::<CancellationToken>();
     }
 }

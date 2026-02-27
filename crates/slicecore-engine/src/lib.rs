@@ -64,7 +64,7 @@ pub use config::{
 pub use custom_gcode::{substitute_placeholders, CustomGcodeHooks};
 pub use flow_control::PerFeatureFlow;
 pub use seam::{select_seam_point, SeamPosition};
-pub use engine::{Engine, SliceResult};
+pub use engine::{CancellationToken, Engine, SliceResult};
 pub use error::EngineError;
 pub use estimation::{estimate_print_time, trapezoid_time, PrintTimeEstimate};
 pub use filament::{estimate_filament_usage, FilamentUsage};

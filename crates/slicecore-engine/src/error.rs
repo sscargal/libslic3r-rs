@@ -41,4 +41,8 @@ pub enum EngineError {
         /// Human-readable error description.
         message: String,
     },
+
+    /// Operation was cancelled via CancellationToken.
+    #[error("Slicing operation was cancelled")]
+    Cancelled,
 }

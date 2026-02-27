@@ -92,6 +92,29 @@ pub enum SliceEvent {
         /// Total slicing time in seconds.
         time_seconds: f64,
     },
+
+    /// Rich progress update emitted during per-layer processing.
+    ///
+    /// Contains both overall pipeline progress and per-stage progress,
+    /// plus timing data for ETA estimation.
+    Progress {
+        /// Overall progress across the entire slice operation (0.0 to 100.0).
+        overall_percent: f32,
+        /// Progress within the current pipeline stage (0.0 to 100.0).
+        stage_percent: f32,
+        /// Current pipeline stage name.
+        stage: String,
+        /// Current layer index (zero-based).
+        layer: usize,
+        /// Total number of layers.
+        total_layers: usize,
+        /// Elapsed time since slice start in seconds (0.0 on WASM).
+        elapsed_seconds: f64,
+        /// Estimated time remaining in seconds (None if insufficient data or on WASM).
+        eta_seconds: Option<f64>,
+        /// Processing throughput in layers per second (0.0 on WASM).
+        layers_per_second: f64,
+    },
 }
 
 /// Trait for receiving slicing events.
