@@ -114,7 +114,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 - [ ] **API-02**: Full-featured CLI interface (slice, validate, analyze commands)
 - [ ] **API-03**: JSON structured output (settings, slicing results, metadata)
 - [ ] **API-04**: MessagePack structured output option
-- [ ] **API-05**: Event system for progress, warnings, errors (pub/sub)
+- [x] **API-05**: Event system for progress, warnings, errors (pub/sub)
 - [ ] ~~**API-06**: C FFI layer for cross-language use (C-compatible API)~~ **EXCLUDED** -- conflicts with PROJECT.md Out of Scope (no FFI bindings)
 - [ ] ~~**API-07**: Python bindings via PyO3~~ **EXCLUDED** -- conflicts with PROJECT.md Out of Scope (no FFI bindings)
 
@@ -271,7 +271,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | API-01 | Phase 9 | Pending |
 | API-03 | Phase 9 | Pending |
 | API-04 | Phase 9 | Pending |
-| API-05 | Phase 9 | Pending |
+| API-05 | Phase 9 | Complete |
 | TEST-01 | Phase 9 | Pending |
 | TEST-02 | Phase 9 | Pending |
 | TEST-03 | Phase 9 | Pending |
