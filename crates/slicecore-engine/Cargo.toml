@@ -44,3 +44,8 @@ harness = false
 [[bench]]
 name = "geometry_benchmark"
 harness = false
+
+[[bench]]
+name = "parallel_benchmark"
+harness = false
+required-features = ["parallel"]
