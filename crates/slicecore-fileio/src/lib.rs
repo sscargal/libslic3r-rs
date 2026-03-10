@@ -29,6 +29,7 @@
 
 pub mod detect;
 pub mod error;
+pub mod export;
 pub mod obj;
 pub mod stl;
 pub mod stl_ascii;
@@ -38,6 +39,7 @@ pub mod threemf;
 // Re-export primary types at crate root.
 pub use detect::{detect_format, MeshFormat};
 pub use error::FileIOError;
+pub use export::{save_mesh, save_mesh_to_writer, ExportFormat};
 pub use stl::parse_stl;
 
 use slicecore_mesh::TriangleMesh;
