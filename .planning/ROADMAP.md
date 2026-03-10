@@ -521,14 +521,21 @@ Plans:
 
 ### Phase 25: Parallel Slicing Pipeline (rayon)
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Add rayon-based parallelism to the per-layer processing pipeline, enabling multi-core speedup for perimeter generation, surface classification, infill, and toolpath assembly while maintaining bit-identical output via two-pass seam alignment and lightning infill sequential fallback
+**Requirements**: FOUND-06
 **Depends on:** Phase 24
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. Per-layer processing runs in parallel via rayon par_iter when parallel_slicing config is true and the parallel Cargo feature is enabled
+  2. Parallel G-code output is byte-for-byte identical to sequential output for the same input mesh and config
+  3. Lightning infill automatically falls back to sequential processing (cross-layer tree state dependency)
+  4. WASM targets compile with parallel feature disabled, running single-threaded
+  5. Criterion benchmarks show measurable wall-time speedup for parallel vs sequential on a 200-layer test mesh
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 25 to break down)
-
+- [ ] 25-01-PLAN.md -- Rayon dependency, parallel feature flag, PrintConfig fields, maybe_par_iter! macro
+- [ ] 25-02-PLAN.md -- Convert layer processing loops to parallel with two-pass seam, lightning fallback, determinism test
+- [ ] 25-03-PLAN.md -- Criterion benchmarks comparing parallel vs sequential performance
 ### Phase 26: Thumbnail/Preview Rasterization
 
 **Goal:** [To be planned]
