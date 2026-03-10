@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 25-03-PLAN.md
-last_updated: "2026-03-10T21:43:21.693Z"
-last_activity: "2026-03-10 - Completed 25-03: Parallel benchmark comparing sequential vs parallel slicing"
+stopped_at: Completed 25-04-PLAN.md
+last_updated: "2026-03-10T21:57:35.645Z"
+last_activity: "2026-03-10 - Completed 25-04: WASM CI build fix (gap closure)"
 progress:
   total_phases: 29
   completed_phases: 25
-  total_plans: 102
-  completed_plans: 102
+  total_plans: 103
+  completed_plans: 103
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 25 of 29 (Parallel Slicing Pipeline - rayon)
-Plan: 3 of 3 in current phase (3 complete)
+Plan: 4 of 4 in current phase (4 complete)
 Status: Phase Complete
-Last activity: 2026-03-10 - Completed 25-03: Parallel benchmark comparing sequential vs parallel slicing
+Last activity: 2026-03-10 - Completed 25-04: WASM CI build fix (gap closure)
 
-Progress: [██████████] 100% (102/102 overall)
+Progress: [██████████] 100% (103/103 overall)
 
 ## Performance Metrics
 
@@ -84,6 +84,7 @@ Progress: [██████████] 100% (102/102 overall)
 | Phase 25 P01 | 3min | 2 tasks | 4 files |
 | Phase 25 P02 | 13min | 2 tasks | 4 files |
 | Phase 25 P03 | 2min | 1 tasks | 2 files |
+| Phase 25 P04 | 1 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -494,6 +495,7 @@ Recent decisions affecting current work:
 - [Phase 25]: [25-02]: Two-pass seam alignment for bit-identical parallel output: pass 1 parallel with no seam, pass 2 sequential seam chain
 - [Phase 25]: [25-02]: Plugin infill patterns force sequential mode (Engine not Sync due to PluginRegistry)
 - [Phase 25]: [25-03]: 40mm tall cube (200 layers) as benchmark mesh; three variants (sequential, parallel_auto, parallel_4_threads) for scaling visibility
+- [Phase 25]: [25-04]: Single --no-default-features flag sufficient for WASM CI since only slicecore-engine has problematic default feature (parallel/rayon)
 
 ### Roadmap Evolution
 
@@ -532,6 +534,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-10T21:43:21.689Z
-Stopped at: Completed 25-03-PLAN.md
+Last session: 2026-03-10T21:57:35.641Z
+Stopped at: Completed 25-04-PLAN.md
 Resume file: None
