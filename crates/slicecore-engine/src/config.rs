@@ -679,6 +679,17 @@ pub struct PrintConfig {
     pub raft_layers: u32,
     /// Enable thin wall detection.
     pub detect_thin_wall: bool,
+
+    // --- Parallelism ---
+    /// Whether to use parallel (rayon) processing for per-layer operations.
+    /// When false, layers are processed sequentially (useful for debugging
+    /// or determinism verification). Default: true.
+    pub parallel_slicing: bool,
+
+    /// Number of threads for parallel processing. None = auto-detect
+    /// (rayon default: number of logical CPUs). Only effective when
+    /// parallel_slicing is true and the `parallel` feature is enabled.
+    pub thread_count: Option<usize>,
 }
 
 /// Scarf joint seam configuration.
@@ -825,6 +836,9 @@ impl Default for PrintConfig {
             resolution: 0.012,
             raft_layers: 0,
             detect_thin_wall: true,
+
+            parallel_slicing: true,
+            thread_count: None,
         }
     }
 }

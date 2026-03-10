@@ -39,6 +39,7 @@ pub mod ironing;
 pub mod modifier;
 pub mod multimaterial;
 pub mod output;
+mod parallel;
 pub mod perimeter;
 pub mod planner;
 pub mod polyhole;
