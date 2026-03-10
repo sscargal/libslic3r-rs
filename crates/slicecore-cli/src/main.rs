@@ -9,6 +9,7 @@
 //! - `list-profiles`: List profiles from the profile library
 //! - `search-profiles`: Search profiles by keyword
 //! - `show-profile`: Show details of a specific profile
+//! - `convert`: Convert a mesh file between formats (STL, 3MF, OBJ)
 //! - `analyze-gcode`: Analyze a G-code file with structured metrics output
 //! - `compare-gcode`: Compare multiple G-code files with deltas
 
@@ -26,7 +27,7 @@ use slicecore_engine::{
     batch_convert_profiles, batch_convert_prusaslicer_profiles, load_index, write_merged_index,
     Engine, PrintConfig, ProfileIndexEntry,
 };
-use slicecore_fileio::load_mesh;
+use slicecore_fileio::{load_mesh, save_mesh};
 use slicecore_gcode_io::validate_gcode;
 use slicecore_mesh::{compute_stats, repair};
 use slicecore_plugin::PluginRegistry;
@@ -90,6 +91,12 @@ PROFILE DISCOVERY:
     slicecore show-profile orcaslicer/BBL/filament/Bambu_PLA_Basic_BBL_A1
   View raw TOML content:
     slicecore show-profile orcaslicer/BBL/filament/Bambu_PLA_Basic_BBL_A1 --raw
+
+MESH CONVERSION:
+  Convert between mesh file formats:
+    slicecore convert model.stl model.3mf
+    slicecore convert model.3mf model.obj
+  Supported output formats: .stl (binary), .3mf, .obj
 
 G-CODE ANALYSIS:
   Analyze a single G-code file:
@@ -331,6 +338,17 @@ enum Commands {
         summary: bool,
     },
 
+    /// Convert a mesh file between formats (STL, 3MF, OBJ).
+    ///
+    /// Input format is auto-detected from file content.
+    /// Output format is determined by the output file extension.
+    Convert {
+        /// Input mesh file path
+        input: PathBuf,
+        /// Output mesh file path (format detected from extension: .stl, .3mf, .obj)
+        output: PathBuf,
+    },
+
     /// Compare multiple G-code files (first file is baseline)
     CompareGcode {
         /// G-code files to compare (first is baseline, need at least 2)
@@ -442,6 +460,7 @@ fn main() {
             filter,
             summary,
         } => cmd_analyze_gcode(&input, json, csv, no_color, density, diameter, filter, summary),
+        Commands::Convert { input, output } => cmd_convert(&input, &output),
         Commands::CompareGcode {
             files,
             json,
@@ -1532,6 +1551,34 @@ fn cmd_analyze_gcode(
 }
 
 /// Compare multiple G-code files (first file is baseline).
+/// Convert a mesh file between formats.
+fn cmd_convert(input: &std::path::Path, output: &std::path::Path) {
+    let data = match std::fs::read(input) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("Error reading {}: {}", input.display(), e);
+            process::exit(1);
+        }
+    };
+    let mesh = match load_mesh(&data) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("Error parsing {}: {}", input.display(), e);
+            process::exit(1);
+        }
+    };
+    if let Err(e) = save_mesh(&mesh, output) {
+        eprintln!("Error writing {}: {}", output.display(), e);
+        process::exit(1);
+    }
+    eprintln!(
+        "Converted {} ({} triangles) -> {}",
+        input.display(),
+        mesh.triangle_count(),
+        output.display()
+    );
+}
+
 fn cmd_compare_gcode(
     files: &[PathBuf],
     json: bool,
