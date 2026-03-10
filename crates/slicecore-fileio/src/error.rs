@@ -41,6 +41,14 @@ pub enum FileIOError {
     #[error(transparent)]
     MeshError(#[from] slicecore_mesh::MeshError),
 
+    /// Error during mesh export/write operations.
+    #[error("write error: {0}")]
+    WriteError(String),
+
+    /// Unsupported export format (file extension not recognized for export).
+    #[error("unsupported export format: {0}")]
+    UnsupportedExportFormat(String),
+
     /// I/O error from the standard library.
     #[error(transparent)]
     IoError(#[from] std::io::Error),
