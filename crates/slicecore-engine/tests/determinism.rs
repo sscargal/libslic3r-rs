@@ -237,3 +237,177 @@ fn test_different_configs_produce_different_output() {
         "Different layer heights should produce different layer counts"
     );
 }
+
+// ===========================================================================
+// Parallel vs Sequential Determinism Tests (Phase 25)
+// ===========================================================================
+
+/// Verifies that parallel and sequential slicing produce byte-identical G-code
+/// for the same input mesh and config with default settings.
+#[cfg(feature = "parallel")]
+#[test]
+fn test_parallel_sequential_determinism() {
+    let mesh = calibration_cube_20mm();
+
+    let config_parallel = PrintConfig {
+        parallel_slicing: true,
+        ..PrintConfig::default()
+    };
+    let config_sequential = PrintConfig {
+        parallel_slicing: false,
+        ..PrintConfig::default()
+    };
+
+    let result_parallel = Engine::new(config_parallel)
+        .slice(&mesh, None)
+        .expect("parallel slice should succeed");
+
+    let result_sequential = Engine::new(config_sequential)
+        .slice(&mesh, None)
+        .expect("sequential slice should succeed");
+
+    assert_eq!(
+        result_parallel.layer_count, result_sequential.layer_count,
+        "Parallel and sequential should produce same layer count: parallel={}, sequential={}",
+        result_parallel.layer_count, result_sequential.layer_count
+    );
+
+    assert_eq!(
+        result_parallel.gcode, result_sequential.gcode,
+        "Parallel and sequential G-code must be byte-identical. \
+         Parallel: {} bytes, Sequential: {} bytes",
+        result_parallel.gcode.len(),
+        result_sequential.gcode.len()
+    );
+}
+
+/// Verifies parallel/sequential determinism with Aligned seam position
+/// (the seam strategy most affected by parallelization due to cross-layer tracking).
+#[cfg(feature = "parallel")]
+#[test]
+fn test_parallel_sequential_determinism_aligned_seam() {
+    use slicecore_engine::seam::SeamPosition;
+
+    let mesh = calibration_cube_20mm();
+
+    let config_parallel = PrintConfig {
+        parallel_slicing: true,
+        seam_position: SeamPosition::Aligned,
+        ..PrintConfig::default()
+    };
+    let config_sequential = PrintConfig {
+        parallel_slicing: false,
+        seam_position: SeamPosition::Aligned,
+        ..PrintConfig::default()
+    };
+
+    let result_parallel = Engine::new(config_parallel)
+        .slice(&mesh, None)
+        .expect("parallel aligned-seam slice should succeed");
+
+    let result_sequential = Engine::new(config_sequential)
+        .slice(&mesh, None)
+        .expect("sequential aligned-seam slice should succeed");
+
+    assert_eq!(
+        result_parallel.gcode, result_sequential.gcode,
+        "Aligned seam: parallel and sequential G-code must be byte-identical. \
+         Parallel: {} bytes, Sequential: {} bytes",
+        result_parallel.gcode.len(),
+        result_sequential.gcode.len()
+    );
+}
+
+/// Verifies parallel/sequential determinism with Grid infill pattern.
+#[cfg(feature = "parallel")]
+#[test]
+fn test_parallel_sequential_determinism_grid_infill() {
+    use slicecore_engine::infill::InfillPattern;
+
+    let mesh = calibration_cube_20mm();
+
+    let config_parallel = PrintConfig {
+        parallel_slicing: true,
+        infill_pattern: InfillPattern::Grid,
+        infill_density: 0.2,
+        ..PrintConfig::default()
+    };
+    let config_sequential = PrintConfig {
+        parallel_slicing: false,
+        infill_pattern: InfillPattern::Grid,
+        infill_density: 0.2,
+        ..PrintConfig::default()
+    };
+
+    let result_parallel = Engine::new(config_parallel)
+        .slice(&mesh, None)
+        .expect("parallel grid slice should succeed");
+
+    let result_sequential = Engine::new(config_sequential)
+        .slice(&mesh, None)
+        .expect("sequential grid slice should succeed");
+
+    assert_eq!(
+        result_parallel.gcode, result_sequential.gcode,
+        "Grid infill: parallel and sequential G-code must be byte-identical"
+    );
+}
+
+/// Verifies parallel/sequential determinism with Rectilinear infill pattern.
+#[cfg(feature = "parallel")]
+#[test]
+fn test_parallel_sequential_determinism_rectilinear_infill() {
+    use slicecore_engine::infill::InfillPattern;
+
+    let mesh = calibration_cube_20mm();
+
+    let config_parallel = PrintConfig {
+        parallel_slicing: true,
+        infill_pattern: InfillPattern::Rectilinear,
+        infill_density: 0.15,
+        ..PrintConfig::default()
+    };
+    let config_sequential = PrintConfig {
+        parallel_slicing: false,
+        infill_pattern: InfillPattern::Rectilinear,
+        infill_density: 0.15,
+        ..PrintConfig::default()
+    };
+
+    let result_parallel = Engine::new(config_parallel)
+        .slice(&mesh, None)
+        .expect("parallel rectilinear slice should succeed");
+
+    let result_sequential = Engine::new(config_sequential)
+        .slice(&mesh, None)
+        .expect("sequential rectilinear slice should succeed");
+
+    assert_eq!(
+        result_parallel.gcode, result_sequential.gcode,
+        "Rectilinear infill: parallel and sequential G-code must be byte-identical"
+    );
+}
+
+/// Verifies that parallel_slicing=false produces identical output to previous runs.
+#[test]
+fn test_sequential_explicit_determinism() {
+    let mesh = calibration_cube_20mm();
+
+    let config = PrintConfig {
+        parallel_slicing: false,
+        ..PrintConfig::default()
+    };
+
+    let result1 = Engine::new(config.clone())
+        .slice(&mesh, None)
+        .expect("first sequential slice should succeed");
+
+    let result2 = Engine::new(config)
+        .slice(&mesh, None)
+        .expect("second sequential slice should succeed");
+
+    assert_eq!(
+        result1.gcode, result2.gcode,
+        "Explicit parallel_slicing=false must produce deterministic output"
+    );
+}
