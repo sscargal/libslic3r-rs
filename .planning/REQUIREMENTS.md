@@ -14,7 +14,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 - [x] **FOUND-03**: WASM compilation target (wasm32-wasi and wasm32-unknown-unknown)
 - [ ] **FOUND-04**: Coordinate precision strategy locked (f64 vs i64 vs hybrid)
 - [ ] **FOUND-05**: Polygon boolean operations work (i-overlay or clipper2-rust)
-- [ ] **FOUND-06**: Performance matches or beats C++ libslic3r (>=1.0x, targeting >=1.5x)
+- [x] **FOUND-06**: Performance matches or beats C++ libslic3r (>=1.0x, targeting >=1.5x)
 - [ ] **FOUND-07**: Memory usage <=80% of C++ libslic3r
 - [ ] **FOUND-08**: Test coverage >80% on core algorithms
 
@@ -266,7 +266,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | AI-06 | Phase 8 | Pending |
 | FOUND-02 | Phase 9 | Pending |
 | FOUND-03 | Phase 9 | Complete |
-| FOUND-06 | Phase 9 | Pending |
+| FOUND-06 | Phase 9 | Complete |
 | FOUND-07 | Phase 9 | Pending |
 | API-01 | Phase 9 | Pending |
 | API-03 | Phase 9 | Pending |
