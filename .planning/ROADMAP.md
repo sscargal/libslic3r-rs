@@ -530,7 +530,7 @@ Plans:
   3. Lightning infill automatically falls back to sequential processing (cross-layer tree state dependency)
   4. WASM targets compile with parallel feature disabled, running single-threaded
   5. Criterion benchmarks show measurable wall-time speedup for parallel vs sequential on a 200-layer test mesh
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 25-01-PLAN.md -- Rayon dependency, parallel feature flag, PrintConfig fields, maybe_par_iter! macro
