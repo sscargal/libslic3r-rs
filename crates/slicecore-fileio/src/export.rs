@@ -9,8 +9,14 @@
 //! before being handed to the appropriate exporter. The f64 -> f32 vertex
 //! conversion is lossy but acceptable for all mesh file formats.
 
+use std::fs::File;
 use std::io::{BufWriter, Seek, Write};
 use std::path::Path;
+
+use lib3mf_converters::obj::ObjExporter;
+use lib3mf_converters::stl::BinaryStlExporter;
+use lib3mf_core::model::{BuildItem, Geometry, Mesh, Object, ObjectType, ResourceId};
+use lib3mf_core::Model;
 
 use crate::error::FileIOError;
 use slicecore_mesh::TriangleMesh;
@@ -39,7 +45,64 @@ pub enum ExportFormat {
 /// Returns [`FileIOError::UnsupportedExportFormat`] if the extension is missing
 /// or not recognized.
 pub fn format_from_extension(path: &Path) -> Result<ExportFormat, FileIOError> {
-    todo!("implement format_from_extension")
+    match path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("stl") => Ok(ExportFormat::Stl),
+        Some("3mf") => Ok(ExportFormat::ThreeMf),
+        Some("obj") => Ok(ExportFormat::Obj),
+        Some(ext) => Err(FileIOError::UnsupportedExportFormat(ext.to_string())),
+        None => Err(FileIOError::UnsupportedExportFormat(
+            "no extension".to_string(),
+        )),
+    }
+}
+
+/// Convert a [`TriangleMesh`] to a [`lib3mf_core::Model`] for export.
+///
+/// The conversion is lossy: f64 vertices are cast to f32, which is acceptable
+/// for all mesh file formats (STL is inherently f32, OBJ typically f32, and
+/// the 3MF spec uses float).
+fn triangle_mesh_to_model(mesh: &TriangleMesh) -> Result<Model, FileIOError> {
+    let mut lib3mf_mesh = Mesh::new();
+
+    for v in mesh.vertices() {
+        lib3mf_mesh.add_vertex(v.x as f32, v.y as f32, v.z as f32);
+    }
+
+    for tri in mesh.indices() {
+        lib3mf_mesh.add_triangle(tri[0], tri[1], tri[2]);
+    }
+
+    let mut model = Model::default();
+    let object = Object {
+        id: ResourceId(1),
+        object_type: ObjectType::Model,
+        name: None,
+        part_number: None,
+        uuid: None,
+        pid: None,
+        pindex: None,
+        thumbnail: None,
+        geometry: Geometry::Mesh(lib3mf_mesh),
+    };
+    model
+        .resources
+        .add_object(object)
+        .map_err(|e| FileIOError::WriteError(e.to_string()))?;
+    model.build.items.push(BuildItem {
+        object_id: ResourceId(1),
+        uuid: None,
+        path: None,
+        part_number: None,
+        transform: glam::Mat4::IDENTITY,
+        printable: None,
+    });
+
+    Ok(model)
 }
 
 /// Save a mesh to a file, auto-detecting the format from the file extension.
@@ -50,7 +113,10 @@ pub fn format_from_extension(path: &Path) -> Result<ExportFormat, FileIOError> {
 /// - [`FileIOError::WriteError`] if the export fails.
 /// - [`FileIOError::IoError`] if file creation fails.
 pub fn save_mesh(mesh: &TriangleMesh, path: &Path) -> Result<(), FileIOError> {
-    todo!("implement save_mesh")
+    let format = format_from_extension(path)?;
+    let file = File::create(path)?;
+    let writer = BufWriter::new(file);
+    save_mesh_to_writer(mesh, writer, format)
 }
 
 /// Save a mesh to any writer that implements `Write + Seek`.
@@ -65,10 +131,28 @@ pub fn save_mesh(mesh: &TriangleMesh, path: &Path) -> Result<(), FileIOError> {
 /// - [`FileIOError::WriteError`] if the export fails.
 pub fn save_mesh_to_writer<W: Write + Seek>(
     mesh: &TriangleMesh,
-    writer: W,
+    mut writer: W,
     format: ExportFormat,
 ) -> Result<(), FileIOError> {
-    todo!("implement save_mesh_to_writer")
+    let model = triangle_mesh_to_model(mesh)?;
+
+    match format {
+        ExportFormat::ThreeMf => {
+            model
+                .write(&mut writer)
+                .map_err(|e| FileIOError::WriteError(e.to_string()))?;
+        }
+        ExportFormat::Stl => {
+            BinaryStlExporter::write(&model, &mut writer)
+                .map_err(|e| FileIOError::WriteError(e.to_string()))?;
+        }
+        ExportFormat::Obj => {
+            ObjExporter::write(&model, &mut writer)
+                .map_err(|e| FileIOError::WriteError(e.to_string()))?;
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

@@ -6,12 +6,12 @@
 //!
 //! # Supported Formats
 //!
-//! | Format     | Import | Export | Module         |
-//! |------------|--------|--------|----------------|
-//! | Binary STL | Yes    | -      | [`stl_binary`] |
-//! | ASCII STL  | Yes    | -      | [`stl_ascii`]  |
-//! | 3MF        | Yes    | -      | [`threemf`]    |
-//! | OBJ        | Yes    | -      | [`obj`]        |
+//! | Format     | Import | Export | Module                    |
+//! |------------|--------|--------|---------------------------|
+//! | Binary STL | Yes    | Yes    | [`stl_binary`] [`export`] |
+//! | ASCII STL  | Yes    | -      | [`stl_ascii`]             |
+//! | 3MF        | Yes    | Yes    | [`threemf`] [`export`]    |
+//! | OBJ        | Yes    | Yes    | [`obj`] [`export`]        |
 //!
 //! 3MF support is available on all targets (including WASM) via
 //! [`lib3mf_core`], a pure Rust implementation.

@@ -76,18 +76,26 @@ pub fn detect_format(data: &[u8]) -> Result<MeshFormat, FileIOError> {
         }
     }
 
-    // 4. Check for OBJ: first non-empty, non-comment line starts with "v ".
+    // 4. Check for OBJ: first non-empty, non-comment line starts with a known
+    //    OBJ keyword. Valid OBJ files may begin with group lines ("g ") before
+    //    vertex data ("v "), so we check the first few significant lines.
     if let Ok(text) = std::str::from_utf8(data) {
+        let mut checked = 0;
         for line in text.lines() {
             let trimmed = line.trim();
             if trimmed.is_empty() || trimmed.starts_with('#') {
                 continue;
             }
-            if trimmed.starts_with("v ") {
+            if trimmed.starts_with("v ")
+                || trimmed.starts_with("g ")
+                || trimmed.starts_with("o ")
+            {
                 return Ok(MeshFormat::Obj);
             }
-            // First non-empty, non-comment line doesn't start with "v ".
-            break;
+            checked += 1;
+            if checked >= 3 {
+                break;
+            }
         }
     }
 
