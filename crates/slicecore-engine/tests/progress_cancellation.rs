@@ -80,7 +80,11 @@ fn test_cancellation_returns_cancelled_error() {
 
 #[test]
 fn test_cancellation_mid_slice() {
-    let config = PrintConfig::default();
+    // Use sequential mode so LayerComplete events trigger cancellation callback.
+    let config = PrintConfig {
+        parallel_slicing: false,
+        ..PrintConfig::default()
+    };
     let engine = Engine::new(config);
     let mesh = make_cube_mesh();
 
@@ -251,7 +255,11 @@ fn test_progress_events_emitted() {
 
 #[test]
 fn test_progress_eta_none_for_first_layers() {
-    let config = PrintConfig::default();
+    // Use sequential mode so per-layer Progress events with ETA are emitted.
+    let config = PrintConfig {
+        parallel_slicing: false,
+        ..PrintConfig::default()
+    };
     let engine = Engine::new(config);
     let mesh = make_cube_mesh();
 

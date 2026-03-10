@@ -44,6 +44,9 @@ use crate::toolpath::{
     assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment,
 };
 use crate::extrusion::compute_e_value;
+use crate::parallel::{maybe_par_iter, AtomicProgress};
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 use slicecore_math::Point2;
 
@@ -333,6 +336,288 @@ fn assemble_bridge_toolpath(
     }
 
     segments
+}
+
+/// Processes a single layer: perimeters, surface classification, infill,
+/// gap fill, toolpath assembly, Arachne, support, bridge, and ironing.
+///
+/// This is a standalone function (not a method on Engine) so it can be
+/// called from rayon parallel closures without requiring `&Engine` to be `Sync`.
+///
+/// Returns `(LayerToolpath, Option<IPoint2>)` where the second element is
+/// the last seam point from this layer.
+#[allow(clippy::too_many_arguments)]
+fn process_single_layer(
+    layer_idx: usize,
+    layer: &SliceLayer,
+    layers: &[SliceLayer],
+    config: &PrintConfig,
+    lightning_ctx: Option<&lightning::LightningContext>,
+    support_result: &support::SupportResult,
+    previous_seam: Option<slicecore_math::IPoint2>,
+) -> Result<(LayerToolpath, Option<slicecore_math::IPoint2>), EngineError> {
+    if layer.contours.is_empty() {
+        return Ok((
+            LayerToolpath {
+                layer_index: layer_idx,
+                z: layer.z,
+                layer_height: layer.layer_height,
+                segments: Vec::new(),
+            },
+            previous_seam,
+        ));
+    }
+
+    let extrusion_width = config.extrusion_width();
+
+    // 2a-pre. Polyhole conversion.
+    let contours = if config.polyhole_enabled {
+        let mut contours = layer.contours.clone();
+        crate::polyhole::convert_polyholes(
+            &mut contours,
+            config.machine.nozzle_diameter(),
+            config.polyhole_min_diameter,
+        );
+        contours
+    } else {
+        layer.contours.clone()
+    };
+
+    // 2a. Generate perimeters (with optional Arachne variable-width).
+    let (perimeters, arachne_segments) = if config.arachne_enabled {
+        let arachne_results = generate_arachne_perimeters(&contours, config);
+
+        let mut classic_perimeters = Vec::new();
+        let mut var_width_segs = Vec::new();
+
+        for result in &arachne_results {
+            if let Some(ref classic) = result.classic_fallback {
+                classic_perimeters.push(classic.clone());
+            }
+            for perim in &result.perimeters {
+                if perim.points.len() < 2 {
+                    continue;
+                }
+                let feature = if perim.is_outer {
+                    FeatureType::VariableWidthPerimeter
+                } else {
+                    FeatureType::InnerPerimeter
+                };
+                let perim_speed = config.speeds.perimeter * 60.0;
+                for i in 1..perim.points.len() {
+                    let (sx, sy) = perim.points[i - 1].to_mm();
+                    let (ex, ey) = perim.points[i].to_mm();
+                    let start_pt = Point2::new(sx, sy);
+                    let end_pt = Point2::new(ex, ey);
+                    let seg_len = {
+                        let dx = end_pt.x - start_pt.x;
+                        let dy = end_pt.y - start_pt.y;
+                        (dx * dx + dy * dy).sqrt()
+                    };
+                    if seg_len < 0.0001 {
+                        continue;
+                    }
+                    let width = (perim.widths[i - 1] + perim.widths[i]) / 2.0;
+                    let e = compute_e_value(
+                        seg_len,
+                        width,
+                        layer.layer_height,
+                        config.filament.diameter,
+                        config.extrusion_multiplier,
+                    );
+                    var_width_segs.push(ToolpathSegment {
+                        start: start_pt,
+                        end: end_pt,
+                        feature,
+                        e_value: e,
+                        feedrate: perim_speed,
+                        z: layer.z,
+                        extrusion_width: Some(width),
+                    });
+                }
+            }
+        }
+
+        (classic_perimeters, var_width_segs)
+    } else {
+        let perimeters = generate_perimeters(&contours, config);
+        (perimeters, Vec::new())
+    };
+
+    // 2b. Surface classification.
+    let classification = classify_surfaces(
+        layers,
+        layer_idx,
+        config.top_solid_layers,
+        config.bottom_solid_layers,
+    );
+
+    // 2c. Infill generation.
+    let mut all_infill_lines = Vec::new();
+    let mut infill_is_solid = false;
+
+    if !classification.solid_regions.is_empty() {
+        let solid_lines = generate_infill(
+            &InfillPattern::Rectilinear,
+            &classification.solid_regions,
+            1.0,
+            layer_idx,
+            layer.z,
+            extrusion_width,
+            None,
+        );
+        if !solid_lines.is_empty() {
+            all_infill_lines.extend(solid_lines);
+            infill_is_solid = true;
+        }
+    }
+
+    // Sparse infill: use generate_infill directly (not generate_infill_for_layer)
+    // because plugin patterns force sequential mode and won't reach this code path.
+    if !classification.sparse_regions.is_empty() && config.infill_density > 0.0 {
+        let sparse_lines = generate_infill(
+            &config.infill_pattern,
+            &classification.sparse_regions,
+            config.infill_density,
+            layer_idx,
+            layer.z,
+            extrusion_width,
+            lightning_ctx,
+        );
+        all_infill_lines.extend(sparse_lines);
+    }
+
+    if classification.solid_regions.is_empty()
+        && classification.sparse_regions.is_empty()
+        && !perimeters.is_empty()
+    {
+        let inner = &perimeters[0].inner_contour;
+        if !inner.is_empty() && config.infill_density > 0.0 {
+            let lines = generate_infill(
+                &config.infill_pattern,
+                inner,
+                config.infill_density,
+                layer_idx,
+                layer.z,
+                extrusion_width,
+                lightning_ctx,
+            );
+            all_infill_lines.extend(lines);
+        }
+    }
+
+    let infill = LayerInfill {
+        lines: all_infill_lines,
+        is_solid: infill_is_solid,
+    };
+
+    // 2d. Gap fill.
+    let gap_fills = if config.gap_fill_enabled && !perimeters.is_empty() {
+        detect_and_fill_gaps(
+            &perimeters[0].shells,
+            &perimeters[0].inner_contour,
+            &contours,
+            config.gap_fill_min_width,
+            config.machine.nozzle_diameter(),
+            extrusion_width,
+        )
+    } else {
+        Vec::new()
+    };
+
+    // 2e. Assemble toolpath.
+    let (mut toolpath, layer_seam) = assemble_layer_toolpath(
+        layer_idx,
+        layer.z,
+        layer.layer_height,
+        &perimeters,
+        &gap_fills,
+        &infill,
+        config,
+        previous_seam,
+    );
+
+    // 2f. Arachne variable-width perimeter segments.
+    if !arachne_segments.is_empty() {
+        let travel_speed = config.speeds.travel * 60.0;
+        let mut var_segs = Vec::new();
+        let mut current_pos: Option<Point2> = None;
+        for seg in &arachne_segments {
+            if let Some(pos) = current_pos {
+                let dx = seg.start.x - pos.x;
+                let dy = seg.start.y - pos.y;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist > 0.001 {
+                    var_segs.push(ToolpathSegment {
+                        start: pos,
+                        end: seg.start,
+                        feature: FeatureType::Travel,
+                        e_value: 0.0,
+                        feedrate: travel_speed,
+                        z: layer.z,
+                        extrusion_width: None,
+                    });
+                }
+            }
+            var_segs.push(seg.clone());
+            current_pos = Some(seg.end);
+        }
+        var_segs.append(&mut toolpath.segments);
+        toolpath.segments = var_segs;
+    }
+
+    // 2g. Support toolpaths.
+    if let Some(layer_support) = support_result.regions.get(layer_idx) {
+        if !layer_support.is_empty() {
+            let support_segs = assemble_support_toolpath(
+                layer_support,
+                config,
+                layer.z,
+                layer.layer_height,
+            );
+            toolpath.segments.extend(support_segs);
+        }
+    }
+
+    // 2h. Bridge toolpaths.
+    if let Some(layer_bridges) = support_result.bridge_regions.get(layer_idx) {
+        if !layer_bridges.is_empty() {
+            let bridge_segs = assemble_bridge_toolpath(
+                layer_bridges,
+                config,
+                layer.z,
+                layer.layer_height,
+            );
+            toolpath.segments.extend(bridge_segs);
+        }
+    }
+
+    // 2i. Ironing passes.
+    if config.ironing.enabled && !classification.solid_regions.is_empty() {
+        let is_top_layer =
+            layer_idx >= layers.len().saturating_sub(config.top_solid_layers as usize);
+        let has_top_exposure = if layer_idx + 1 < layers.len() {
+            !layers[layer_idx + 1].contours.is_empty()
+                && !classification.solid_regions.is_empty()
+        } else {
+            true
+        };
+
+        if is_top_layer || has_top_exposure {
+            let ironing_segs = generate_ironing_passes(
+                &classification.solid_regions,
+                &config.ironing,
+                layer.z,
+                config.machine.nozzle_diameter(),
+                layer.layer_height,
+                config.filament.diameter,
+                config.extrusion_multiplier,
+            );
+            toolpath.segments.extend(ironing_segs);
+        }
+    }
+
+    Ok((toolpath, layer_seam))
 }
 
 /// The slicing engine -- orchestrates the full pipeline.
@@ -859,365 +1144,432 @@ impl Engine {
             });
         }
 
-        // 2. Process each layer: perimeters, surface classification, infill, toolpath.
-        let mut layer_toolpaths: Vec<LayerToolpath> = Vec::with_capacity(layers.len());
-        let total_layers = layers.len();
-        // Track seam position across layers for Aligned strategy.
-        let mut previous_seam: Option<slicecore_math::IPoint2> = None;
-        let mut layer_durations: Vec<f64> = Vec::with_capacity(total_layers);
+        // Initialize rayon thread pool if configured.
+        crate::parallel::init_thread_pool(self.config.thread_count);
 
-        for (layer_idx, layer) in layers.iter().enumerate() {
-            // Check cancellation before processing this layer.
-            if let Some(ref token) = cancel {
-                if token.is_cancelled() {
-                    return Err(EngineError::Cancelled);
+        // Determine whether to use parallel processing.
+        // Parallel mode is disabled for:
+        // - Lightning infill (builds cross-layer tree state)
+        // - Plugin infill patterns (require &Engine which is not Sync)
+        // - When parallel_slicing is explicitly false
+        let is_plugin_pattern = matches!(self.config.infill_pattern, InfillPattern::Plugin(_));
+        let use_parallel = self.config.parallel_slicing
+            && self.config.infill_pattern != InfillPattern::Lightning
+            && !is_plugin_pattern;
+
+        // 2. Process each layer: perimeters, surface classification, infill, toolpath.
+        let total_layers = layers.len();
+        let mut layer_toolpaths: Vec<LayerToolpath>;
+
+        if use_parallel {
+            // --- PARALLEL PATH ---
+            // Pass 1: Process all layers in parallel with previous_seam = None.
+            // Each layer is independent except for seam alignment.
+            let progress = AtomicProgress::new(total_layers);
+            let layer_results: Result<Vec<(LayerToolpath, Option<slicecore_math::IPoint2>)>, EngineError> =
+                maybe_par_iter!(layers)
+                    .enumerate()
+                    .map(|(layer_idx, layer)| {
+                        // Check cancellation at the start of each layer.
+                        if let Some(ref token) = cancel {
+                            if token.is_cancelled() {
+                                return Err(EngineError::Cancelled);
+                            }
+                        }
+
+                        let result = process_single_layer(
+                            layer_idx,
+                            layer,
+                            &layers,
+                            &self.config,
+                            lightning_ctx.as_ref(),
+                            &support_result,
+                            None, // No previous_seam in parallel pass 1
+                        )?;
+
+                        progress.increment();
+                        Ok(result)
+                    })
+                    .collect();
+
+            let layer_results = layer_results?;
+
+            // Pass 2: Sequential seam alignment for bit-identical output.
+            // Re-run seam placement sequentially to produce the same seam positions
+            // as the sequential path. Since assemble_layer_toolpath with
+            // previous_seam=None may select different seam points than with
+            // previous_seam=Some(...), we need to re-assemble toolpaths for layers
+            // where seam alignment matters.
+            let mut previous_seam: Option<slicecore_math::IPoint2> = None;
+            let mut final_toolpaths = Vec::with_capacity(layer_results.len());
+
+            for (layer_idx, (tp, layer_seam)) in layer_results.into_iter().enumerate() {
+                if previous_seam.is_some() && layers[layer_idx].contours.is_empty() == false {
+                    // Re-process this layer with the correct previous_seam
+                    // to get bit-identical seam placement.
+                    let (re_tp, re_seam) = process_single_layer(
+                        layer_idx,
+                        &layers[layer_idx],
+                        &layers,
+                        &self.config,
+                        lightning_ctx.as_ref(),
+                        &support_result,
+                        previous_seam,
+                    )?;
+                    if re_seam.is_some() {
+                        previous_seam = re_seam;
+                    }
+                    final_toolpaths.push(re_tp);
+                } else {
+                    // First layer or empty layer: parallel result is correct.
+                    if layer_seam.is_some() {
+                        previous_seam = layer_seam;
+                    }
+                    final_toolpaths.push(tp);
                 }
             }
 
-            let layer_start = start_timer();
-
-            if layer.contours.is_empty() {
-                // Empty layer -- produce empty toolpath.
-                layer_toolpaths.push(LayerToolpath {
-                    layer_index: layer_idx,
-                    z: layer.z,
-                    layer_height: layer.layer_height,
-                    segments: Vec::new(),
+            // Emit summary progress after parallel section.
+            if let Some(bus) = event_bus {
+                bus.emit(&crate::event::SliceEvent::Progress {
+                    overall_percent: 90.0,
+                    stage_percent: 100.0,
+                    stage: "layer_processing".to_string(),
+                    layer: total_layers.saturating_sub(1),
+                    total_layers,
+                    elapsed_seconds: slice_start.map_or(0.0, |s| s.elapsed().as_secs_f64()),
+                    eta_seconds: None,
+                    layers_per_second: 0.0,
                 });
-                continue;
             }
 
-            // 2a-pre. Polyhole conversion (before perimeters).
-            let contours = if self.config.polyhole_enabled {
-                let mut contours = layer.contours.clone();
-                crate::polyhole::convert_polyholes(
-                    &mut contours,
-                    self.config.machine.nozzle_diameter(),
-                    self.config.polyhole_min_diameter,
-                );
-                contours
-            } else {
-                layer.contours.clone()
-            };
+            layer_toolpaths = final_toolpaths;
+        } else {
+            // --- SEQUENTIAL PATH ---
+            let mut seq_toolpaths: Vec<LayerToolpath> = Vec::with_capacity(layers.len());
+            let mut previous_seam: Option<slicecore_math::IPoint2> = None;
+            let mut layer_durations: Vec<f64> = Vec::with_capacity(total_layers);
 
-            // 2a. Generate perimeters (with optional Arachne variable-width).
-            let (perimeters, arachne_segments) = if self.config.arachne_enabled {
-                let arachne_results =
-                    generate_arachne_perimeters(&contours, &self.config);
-
-                let mut classic_perimeters = Vec::new();
-                let mut var_width_segs = Vec::new();
-
-                for result in &arachne_results {
-                    if let Some(ref classic) = result.classic_fallback {
-                        classic_perimeters.push(classic.clone());
+            for (layer_idx, layer) in layers.iter().enumerate() {
+                // Check cancellation before processing this layer.
+                if let Some(ref token) = cancel {
+                    if token.is_cancelled() {
+                        return Err(EngineError::Cancelled);
                     }
-                    // Convert Arachne perimeters to ToolpathSegments.
-                    for perim in &result.perimeters {
-                        if perim.points.len() < 2 {
-                            continue;
+                }
+
+                let layer_start = start_timer();
+
+                if layer.contours.is_empty() {
+                    seq_toolpaths.push(LayerToolpath {
+                        layer_index: layer_idx,
+                        z: layer.z,
+                        layer_height: layer.layer_height,
+                        segments: Vec::new(),
+                    });
+                    continue;
+                }
+
+                // Use the Engine method for sequential path (supports plugin infill).
+                let contours = if self.config.polyhole_enabled {
+                    let mut contours = layer.contours.clone();
+                    crate::polyhole::convert_polyholes(
+                        &mut contours,
+                        self.config.machine.nozzle_diameter(),
+                        self.config.polyhole_min_diameter,
+                    );
+                    contours
+                } else {
+                    layer.contours.clone()
+                };
+
+                let (perimeters, arachne_segments) = if self.config.arachne_enabled {
+                    let arachne_results =
+                        generate_arachne_perimeters(&contours, &self.config);
+
+                    let mut classic_perimeters = Vec::new();
+                    let mut var_width_segs = Vec::new();
+
+                    for result in &arachne_results {
+                        if let Some(ref classic) = result.classic_fallback {
+                            classic_perimeters.push(classic.clone());
                         }
-                        let feature = if perim.is_outer {
-                            FeatureType::VariableWidthPerimeter
-                        } else {
-                            FeatureType::InnerPerimeter
-                        };
-                        let perim_speed =
-                            self.config.speeds.perimeter * 60.0; // mm/s -> mm/min
-                        for i in 1..perim.points.len() {
-                            let (sx, sy) = perim.points[i - 1].to_mm();
-                            let (ex, ey) = perim.points[i].to_mm();
-                            let start_pt = Point2::new(sx, sy);
-                            let end_pt = Point2::new(ex, ey);
-                            let seg_len = {
-                                let dx = end_pt.x - start_pt.x;
-                                let dy = end_pt.y - start_pt.y;
-                                (dx * dx + dy * dy).sqrt()
-                            };
-                            if seg_len < 0.0001 {
+                        for perim in &result.perimeters {
+                            if perim.points.len() < 2 {
                                 continue;
                             }
-                            // Use average width of start and end points.
-                            let width =
-                                (perim.widths[i - 1] + perim.widths[i]) / 2.0;
-                            let e = compute_e_value(
-                                seg_len,
-                                width,
-                                layer.layer_height,
-                                self.config.filament.diameter,
-                                self.config.extrusion_multiplier,
-                            );
-                            var_width_segs.push(ToolpathSegment {
-                                start: start_pt,
-                                end: end_pt,
-                                feature,
-                                e_value: e,
-                                feedrate: perim_speed,
-                                z: layer.z,
-                                extrusion_width: Some(width),
-                            });
+                            let feature = if perim.is_outer {
+                                FeatureType::VariableWidthPerimeter
+                            } else {
+                                FeatureType::InnerPerimeter
+                            };
+                            let perim_speed =
+                                self.config.speeds.perimeter * 60.0;
+                            for i in 1..perim.points.len() {
+                                let (sx, sy) = perim.points[i - 1].to_mm();
+                                let (ex, ey) = perim.points[i].to_mm();
+                                let start_pt = Point2::new(sx, sy);
+                                let end_pt = Point2::new(ex, ey);
+                                let seg_len = {
+                                    let dx = end_pt.x - start_pt.x;
+                                    let dy = end_pt.y - start_pt.y;
+                                    (dx * dx + dy * dy).sqrt()
+                                };
+                                if seg_len < 0.0001 {
+                                    continue;
+                                }
+                                let width =
+                                    (perim.widths[i - 1] + perim.widths[i]) / 2.0;
+                                let e = compute_e_value(
+                                    seg_len,
+                                    width,
+                                    layer.layer_height,
+                                    self.config.filament.diameter,
+                                    self.config.extrusion_multiplier,
+                                );
+                                var_width_segs.push(ToolpathSegment {
+                                    start: start_pt,
+                                    end: end_pt,
+                                    feature,
+                                    e_value: e,
+                                    feedrate: perim_speed,
+                                    z: layer.z,
+                                    extrusion_width: Some(width),
+                                });
+                            }
                         }
+                    }
+
+                    (classic_perimeters, var_width_segs)
+                } else {
+                    let perimeters = generate_perimeters(&contours, &self.config);
+                    (perimeters, Vec::new())
+                };
+
+                let classification = classify_surfaces(
+                    &layers,
+                    layer_idx,
+                    self.config.top_solid_layers,
+                    self.config.bottom_solid_layers,
+                );
+
+                let mut all_infill_lines = Vec::new();
+                let mut infill_is_solid = false;
+
+                if !classification.solid_regions.is_empty() {
+                    let solid_lines = generate_infill(
+                        &InfillPattern::Rectilinear,
+                        &classification.solid_regions,
+                        1.0,
+                        layer_idx,
+                        layer.z,
+                        extrusion_width,
+                        None,
+                    );
+                    if !solid_lines.is_empty() {
+                        all_infill_lines.extend(solid_lines);
+                        infill_is_solid = true;
                     }
                 }
 
-                (classic_perimeters, var_width_segs)
-            } else {
-                let perimeters = generate_perimeters(&contours, &self.config);
-                (perimeters, Vec::new())
-            };
-
-            // 2b. Surface classification.
-            let classification = classify_surfaces(
-                &layers,
-                layer_idx,
-                self.config.top_solid_layers,
-                self.config.bottom_solid_layers,
-            );
-
-            // 2c. Infill generation.
-            // Use inner_contour from perimeters as the infill boundary.
-            // Intersect with solid/sparse classification.
-            let mut all_infill_lines = Vec::new();
-            let mut infill_is_solid = false;
-
-            // Generate solid infill for solid regions.
-            // Solid infill always uses Rectilinear regardless of config pattern.
-            if !classification.solid_regions.is_empty() {
-                let solid_lines = generate_infill(
-                    &InfillPattern::Rectilinear,
-                    &classification.solid_regions,
-                    1.0,
-                    layer_idx,
-                    layer.z,
-                    extrusion_width,
-                    None,
-                );
-                if !solid_lines.is_empty() {
-                    all_infill_lines.extend(solid_lines);
-                    infill_is_solid = true;
-                }
-            }
-
-            // Generate sparse infill for sparse regions using configured pattern.
-            // Uses generate_infill_for_layer to support Plugin patterns.
-            if !classification.sparse_regions.is_empty()
-                && self.config.infill_density > 0.0
-            {
-                let sparse_lines = self.generate_infill_for_layer(
-                    &self.config.infill_pattern,
-                    &classification.sparse_regions,
-                    self.config.infill_density,
-                    layer_idx,
-                    layer.z,
-                    extrusion_width,
-                    lightning_ctx.as_ref(),
-                )?;
-                all_infill_lines.extend(sparse_lines);
-            }
-
-            // If there were no classified regions (possible edge case), use inner_contour.
-            if classification.solid_regions.is_empty()
-                && classification.sparse_regions.is_empty()
-                && !perimeters.is_empty()
-            {
-                let inner = &perimeters[0].inner_contour;
-                if !inner.is_empty() && self.config.infill_density > 0.0 {
-                    let lines = self.generate_infill_for_layer(
+                if !classification.sparse_regions.is_empty()
+                    && self.config.infill_density > 0.0
+                {
+                    let sparse_lines = self.generate_infill_for_layer(
                         &self.config.infill_pattern,
-                        inner,
+                        &classification.sparse_regions,
                         self.config.infill_density,
                         layer_idx,
                         layer.z,
                         extrusion_width,
                         lightning_ctx.as_ref(),
                     )?;
-                    all_infill_lines.extend(lines);
+                    all_infill_lines.extend(sparse_lines);
                 }
-            }
 
-            let infill = LayerInfill {
-                lines: all_infill_lines,
-                is_solid: infill_is_solid,
-            };
-
-            // 2d. Gap fill between perimeters.
-            let gap_fills = if self.config.gap_fill_enabled && !perimeters.is_empty() {
-                detect_and_fill_gaps(
-                    &perimeters[0].shells,
-                    &perimeters[0].inner_contour,
-                    &contours,
-                    self.config.gap_fill_min_width,
-                    self.config.machine.nozzle_diameter(),
-                    extrusion_width,
-                )
-            } else {
-                Vec::new()
-            };
-
-            // 2e. Assemble toolpath with seam placement.
-            let (mut toolpath, layer_seam) = assemble_layer_toolpath(
-                layer_idx,
-                layer.z,
-                layer.layer_height,
-                &perimeters,
-                &gap_fills,
-                &infill,
-                &self.config,
-                previous_seam,
-            );
-
-            // 2f. Insert Arachne variable-width perimeter segments.
-            // Arachne segments are prepended before classic perimeters,
-            // with travel moves inserted between disconnected paths.
-            if !arachne_segments.is_empty() {
-                let travel_speed = self.config.speeds.travel * 60.0;
-                let mut var_segs = Vec::new();
-                let mut current_pos: Option<Point2> = None;
-                for seg in &arachne_segments {
-                    // Insert travel to segment start if needed.
-                    if let Some(pos) = current_pos {
-                        let dx = seg.start.x - pos.x;
-                        let dy = seg.start.y - pos.y;
-                        let dist = (dx * dx + dy * dy).sqrt();
-                        if dist > 0.001 {
-                            var_segs.push(ToolpathSegment {
-                                start: pos,
-                                end: seg.start,
-                                feature: FeatureType::Travel,
-                                e_value: 0.0,
-                                feedrate: travel_speed,
-                                z: layer.z,
-                                extrusion_width: None,
-                            });
-                        }
+                if classification.solid_regions.is_empty()
+                    && classification.sparse_regions.is_empty()
+                    && !perimeters.is_empty()
+                {
+                    let inner = &perimeters[0].inner_contour;
+                    if !inner.is_empty() && self.config.infill_density > 0.0 {
+                        let lines = self.generate_infill_for_layer(
+                            &self.config.infill_pattern,
+                            inner,
+                            self.config.infill_density,
+                            layer_idx,
+                            layer.z,
+                            extrusion_width,
+                            lightning_ctx.as_ref(),
+                        )?;
+                        all_infill_lines.extend(lines);
                     }
-                    var_segs.push(seg.clone());
-                    current_pos = Some(seg.end);
                 }
-                // Prepend variable-width segments before classic perimeters.
-                var_segs.append(&mut toolpath.segments);
-                toolpath.segments = var_segs;
-            }
 
-            // 2g. Assemble support toolpaths.
-            if let Some(layer_support) = support_result.regions.get(layer_idx) {
-                if !layer_support.is_empty() {
-                    let support_segs = assemble_support_toolpath(
-                        layer_support,
-                        &self.config,
-                        layer.z,
-                        layer.layer_height,
-                    );
-                    toolpath.segments.extend(support_segs);
-                }
-            }
-
-            // 2h. Assemble bridge toolpaths.
-            if let Some(layer_bridges) = support_result.bridge_regions.get(layer_idx) {
-                if !layer_bridges.is_empty() {
-                    let bridge_segs = assemble_bridge_toolpath(
-                        layer_bridges,
-                        &self.config,
-                        layer.z,
-                        layer.layer_height,
-                    );
-                    toolpath.segments.extend(bridge_segs);
-                }
-            }
-
-            // 2i. Ironing passes for top surfaces.
-            // Ironing is applied after all other features (perimeters, infill,
-            // support, bridges) so it smooths the final top surface.
-            if self.config.ironing.enabled && !classification.solid_regions.is_empty() {
-                // Only iron layers that have top surfaces.
-                // Top surface detection: a layer has top surfaces if it's in the
-                // last `top_solid_layers` layers OR if the layer above has a
-                // different (smaller) footprint.
-                let is_top_layer = layer_idx
-                    >= layers.len().saturating_sub(self.config.top_solid_layers as usize);
-                let has_top_exposure = if layer_idx + 1 < layers.len() {
-                    // If the layer above is different from this one, there are
-                    // exposed top surfaces (already captured in solid_regions).
-                    !layers[layer_idx + 1].contours.is_empty()
-                        && !classification.solid_regions.is_empty()
-                } else {
-                    true // Last layer is always a top surface
+                let infill = LayerInfill {
+                    lines: all_infill_lines,
+                    is_solid: infill_is_solid,
                 };
 
-                if is_top_layer || has_top_exposure {
-                    let ironing_segs = generate_ironing_passes(
-                        &classification.solid_regions,
-                        &self.config.ironing,
-                        layer.z,
+                let gap_fills = if self.config.gap_fill_enabled && !perimeters.is_empty() {
+                    detect_and_fill_gaps(
+                        &perimeters[0].shells,
+                        &perimeters[0].inner_contour,
+                        &contours,
+                        self.config.gap_fill_min_width,
                         self.config.machine.nozzle_diameter(),
-                        layer.layer_height,
-                        self.config.filament.diameter,
-                        self.config.extrusion_multiplier,
-                    );
-                    toolpath.segments.extend(ironing_segs);
+                        extrusion_width,
+                    )
+                } else {
+                    Vec::new()
+                };
+
+                let (mut toolpath, layer_seam) = assemble_layer_toolpath(
+                    layer_idx,
+                    layer.z,
+                    layer.layer_height,
+                    &perimeters,
+                    &gap_fills,
+                    &infill,
+                    &self.config,
+                    previous_seam,
+                );
+
+                if !arachne_segments.is_empty() {
+                    let travel_speed = self.config.speeds.travel * 60.0;
+                    let mut var_segs = Vec::new();
+                    let mut current_pos: Option<Point2> = None;
+                    for seg in &arachne_segments {
+                        if let Some(pos) = current_pos {
+                            let dx = seg.start.x - pos.x;
+                            let dy = seg.start.y - pos.y;
+                            let dist = (dx * dx + dy * dy).sqrt();
+                            if dist > 0.001 {
+                                var_segs.push(ToolpathSegment {
+                                    start: pos,
+                                    end: seg.start,
+                                    feature: FeatureType::Travel,
+                                    e_value: 0.0,
+                                    feedrate: travel_speed,
+                                    z: layer.z,
+                                    extrusion_width: None,
+                                });
+                            }
+                        }
+                        var_segs.push(seg.clone());
+                        current_pos = Some(seg.end);
+                    }
+                    var_segs.append(&mut toolpath.segments);
+                    toolpath.segments = var_segs;
                 }
-            }
 
-            // Update cross-layer seam tracking.
-            if layer_seam.is_some() {
-                previous_seam = layer_seam;
-            }
+                if let Some(layer_support) = support_result.regions.get(layer_idx) {
+                    if !layer_support.is_empty() {
+                        let support_segs = assemble_support_toolpath(
+                            layer_support,
+                            &self.config,
+                            layer.z,
+                            layer.layer_height,
+                        );
+                        toolpath.segments.extend(support_segs);
+                    }
+                }
 
-            layer_toolpaths.push(toolpath);
+                if let Some(layer_bridges) = support_result.bridge_regions.get(layer_idx) {
+                    if !layer_bridges.is_empty() {
+                        let bridge_segs = assemble_bridge_toolpath(
+                            layer_bridges,
+                            &self.config,
+                            layer.z,
+                            layer.layer_height,
+                        );
+                        toolpath.segments.extend(bridge_segs);
+                    }
+                }
 
-            // Emit layer completion event.
-            if let Some(bus) = event_bus {
-                bus.emit(&crate::event::SliceEvent::LayerComplete {
-                    layer: layer_idx,
-                    total: total_layers,
-                    z: layer.z,
-                });
-            }
-
-            // Track layer duration and emit Progress event.
-            if let Some(ls) = layer_start {
-                layer_durations.push(ls.elapsed().as_secs_f64());
-            }
-
-            if let Some(bus) = event_bus {
-                let layers_done = layer_idx + 1;
-                let stage_pct = (layers_done as f32 / total_layers as f32) * 100.0;
-                // Overall: 10-90% for layer processing (0-10% mesh slicing, 90-100% gcode gen).
-                let overall_pct = 10.0 + (stage_pct / 100.0) * 80.0;
-
-                let (elapsed, eta, lps) = if let Some(start) = slice_start {
-                    let elapsed = start.elapsed().as_secs_f64();
-                    let lps = layers_done as f64 / elapsed.max(0.001);
-
-                    // Rolling average ETA over last 20 layers.
-                    const ETA_WINDOW: usize = 20;
-                    let window_start = layer_durations.len().saturating_sub(ETA_WINDOW);
-                    let window = &layer_durations[window_start..];
-                    let eta = if layers_done >= 3 && !window.is_empty() {
-                        let avg = window.iter().sum::<f64>() / window.len() as f64;
-                        let remaining = total_layers - layers_done;
-                        Some(avg * remaining as f64)
+                if self.config.ironing.enabled && !classification.solid_regions.is_empty() {
+                    let is_top_layer = layer_idx
+                        >= layers.len().saturating_sub(self.config.top_solid_layers as usize);
+                    let has_top_exposure = if layer_idx + 1 < layers.len() {
+                        !layers[layer_idx + 1].contours.is_empty()
+                            && !classification.solid_regions.is_empty()
                     } else {
-                        None
+                        true
                     };
 
-                    (elapsed, eta, lps)
-                } else {
-                    // WASM: no timing available.
-                    (0.0, None, 0.0)
-                };
+                    if is_top_layer || has_top_exposure {
+                        let ironing_segs = generate_ironing_passes(
+                            &classification.solid_regions,
+                            &self.config.ironing,
+                            layer.z,
+                            self.config.machine.nozzle_diameter(),
+                            layer.layer_height,
+                            self.config.filament.diameter,
+                            self.config.extrusion_multiplier,
+                        );
+                        toolpath.segments.extend(ironing_segs);
+                    }
+                }
 
-                bus.emit(&crate::event::SliceEvent::Progress {
-                    overall_percent: overall_pct,
-                    stage_percent: stage_pct,
-                    stage: "layer_processing".to_string(),
-                    layer: layer_idx,
-                    total_layers,
-                    elapsed_seconds: elapsed,
-                    eta_seconds: eta,
-                    layers_per_second: lps,
-                });
+                if layer_seam.is_some() {
+                    previous_seam = layer_seam;
+                }
+
+                seq_toolpaths.push(toolpath);
+
+                // Emit layer completion event.
+                if let Some(bus) = event_bus {
+                    bus.emit(&crate::event::SliceEvent::LayerComplete {
+                        layer: layer_idx,
+                        total: total_layers,
+                        z: layer.z,
+                    });
+                }
+
+                // Track layer duration and emit Progress event.
+                if let Some(ls) = layer_start {
+                    layer_durations.push(ls.elapsed().as_secs_f64());
+                }
+
+                if let Some(bus) = event_bus {
+                    let layers_done = layer_idx + 1;
+                    let stage_pct = (layers_done as f32 / total_layers as f32) * 100.0;
+                    let overall_pct = 10.0 + (stage_pct / 100.0) * 80.0;
+
+                    let (elapsed, eta, lps) = if let Some(start) = slice_start {
+                        let elapsed = start.elapsed().as_secs_f64();
+                        let lps = layers_done as f64 / elapsed.max(0.001);
+
+                        const ETA_WINDOW: usize = 20;
+                        let window_start = layer_durations.len().saturating_sub(ETA_WINDOW);
+                        let window = &layer_durations[window_start..];
+                        let eta = if layers_done >= 3 && !window.is_empty() {
+                            let avg = window.iter().sum::<f64>() / window.len() as f64;
+                            let remaining = total_layers - layers_done;
+                            Some(avg * remaining as f64)
+                        } else {
+                            None
+                        };
+
+                        (elapsed, eta, lps)
+                    } else {
+                        (0.0, None, 0.0)
+                    };
+
+                    bus.emit(&crate::event::SliceEvent::Progress {
+                        overall_percent: overall_pct,
+                        stage_percent: stage_pct,
+                        stage: "layer_processing".to_string(),
+                        layer: layer_idx,
+                        total_layers,
+                        elapsed_seconds: elapsed,
+                        eta_seconds: eta,
+                        layers_per_second: lps,
+                    });
+                }
             }
+
+            layer_toolpaths = seq_toolpaths;
         }
 
         // 3. First-layer extras: skirt/brim.
@@ -1516,221 +1868,97 @@ impl Engine {
             None
         };
 
-        let mut layer_toolpaths: Vec<LayerToolpath> = Vec::with_capacity(layers.len());
-        let mut previous_seam: Option<slicecore_math::IPoint2> = None;
+        // Use process_single_layer for preview pipeline (no support in preview).
+        let empty_support = support::SupportResult::empty();
+        let is_plugin_pattern = matches!(self.config.infill_pattern, InfillPattern::Plugin(_));
+        let use_parallel = self.config.parallel_slicing
+            && self.config.infill_pattern != InfillPattern::Lightning
+            && !is_plugin_pattern;
 
-        for (layer_idx, layer) in layers.iter().enumerate() {
-            // Check cancellation in preview layer loop.
-            if let Some(ref token) = cancel {
-                if token.is_cancelled() {
-                    return Err(EngineError::Cancelled);
-                }
-            }
+        let layer_toolpaths: Vec<LayerToolpath>;
 
-            if layer.contours.is_empty() {
-                layer_toolpaths.push(LayerToolpath {
-                    layer_index: layer_idx,
-                    z: layer.z,
-                    layer_height: layer.layer_height,
-                    segments: Vec::new(),
-                });
-                continue;
-            }
-
-            // Polyhole conversion in preview pipeline.
-            let preview_contours = if self.config.polyhole_enabled {
-                let mut c = layer.contours.clone();
-                crate::polyhole::convert_polyholes(
-                    &mut c,
-                    self.config.machine.nozzle_diameter(),
-                    self.config.polyhole_min_diameter,
-                );
-                c
-            } else {
-                layer.contours.clone()
-            };
-
-            let (perimeters, arachne_segments) = if self.config.arachne_enabled {
-                let arachne_results =
-                    generate_arachne_perimeters(&preview_contours, &self.config);
-                let mut classic_perimeters = Vec::new();
-                let mut var_width_segs = Vec::new();
-                for r in &arachne_results {
-                    if let Some(ref classic) = r.classic_fallback {
-                        classic_perimeters.push(classic.clone());
-                    }
-                    for perim in &r.perimeters {
-                        if perim.points.len() < 2 {
-                            continue;
-                        }
-                        let feature = if perim.is_outer {
-                            FeatureType::VariableWidthPerimeter
-                        } else {
-                            FeatureType::InnerPerimeter
-                        };
-                        let perim_speed = self.config.speeds.perimeter * 60.0;
-                        for i in 1..perim.points.len() {
-                            let (sx, sy) = perim.points[i - 1].to_mm();
-                            let (ex, ey) = perim.points[i].to_mm();
-                            let start_pt = Point2::new(sx, sy);
-                            let end_pt = Point2::new(ex, ey);
-                            let seg_len = {
-                                let dx = end_pt.x - start_pt.x;
-                                let dy = end_pt.y - start_pt.y;
-                                (dx * dx + dy * dy).sqrt()
-                            };
-                            if seg_len < 0.0001 {
-                                continue;
+        if use_parallel {
+            // Parallel pass 1: process all layers without seam alignment.
+            let layer_results: Result<Vec<(LayerToolpath, Option<slicecore_math::IPoint2>)>, EngineError> =
+                maybe_par_iter!(layers)
+                    .enumerate()
+                    .map(|(layer_idx, layer)| {
+                        if let Some(ref token) = cancel {
+                            if token.is_cancelled() {
+                                return Err(EngineError::Cancelled);
                             }
-                            let width = (perim.widths[i - 1] + perim.widths[i]) / 2.0;
-                            let e = compute_e_value(
-                                seg_len,
-                                width,
-                                layer.layer_height,
-                                self.config.filament.diameter,
-                                self.config.extrusion_multiplier,
-                            );
-                            var_width_segs.push(ToolpathSegment {
-                                start: start_pt,
-                                end: end_pt,
-                                feature,
-                                e_value: e,
-                                feedrate: perim_speed,
-                                z: layer.z,
-                                extrusion_width: Some(width),
-                            });
                         }
-                    }
-                }
-                (classic_perimeters, var_width_segs)
-            } else {
-                let perimeters = generate_perimeters(&preview_contours, &self.config);
-                (perimeters, Vec::new())
-            };
+                        process_single_layer(
+                            layer_idx,
+                            layer,
+                            &layers,
+                            &self.config,
+                            lightning_ctx.as_ref(),
+                            &empty_support,
+                            None,
+                        )
+                    })
+                    .collect();
 
-            let classification = classify_surfaces(
-                &layers,
-                layer_idx,
-                self.config.top_solid_layers,
-                self.config.bottom_solid_layers,
-            );
+            let layer_results = layer_results?;
 
-            let extrusion_width = self.config.extrusion_width();
-            let mut all_infill_lines = Vec::new();
-            let mut infill_is_solid = false;
+            // Pass 2: Sequential seam alignment.
+            let mut previous_seam: Option<slicecore_math::IPoint2> = None;
+            let mut final_toolpaths = Vec::with_capacity(layer_results.len());
 
-            if !classification.solid_regions.is_empty() {
-                let solid_lines = generate_infill(
-                    &InfillPattern::Rectilinear,
-                    &classification.solid_regions,
-                    1.0,
-                    layer_idx,
-                    layer.z,
-                    extrusion_width,
-                    None,
-                );
-                if !solid_lines.is_empty() {
-                    all_infill_lines.extend(solid_lines);
-                    infill_is_solid = true;
-                }
-            }
-
-            if !classification.sparse_regions.is_empty()
-                && self.config.infill_density > 0.0
-            {
-                let sparse_lines = self.generate_infill_for_layer(
-                    &self.config.infill_pattern,
-                    &classification.sparse_regions,
-                    self.config.infill_density,
-                    layer_idx,
-                    layer.z,
-                    extrusion_width,
-                    lightning_ctx.as_ref(),
-                )?;
-                all_infill_lines.extend(sparse_lines);
-            }
-
-            if classification.solid_regions.is_empty()
-                && classification.sparse_regions.is_empty()
-                && !perimeters.is_empty()
-            {
-                let inner = &perimeters[0].inner_contour;
-                if !inner.is_empty() && self.config.infill_density > 0.0 {
-                    let lines = self.generate_infill_for_layer(
-                        &self.config.infill_pattern,
-                        inner,
-                        self.config.infill_density,
+            for (layer_idx, (tp, layer_seam)) in layer_results.into_iter().enumerate() {
+                if previous_seam.is_some() && !layers[layer_idx].contours.is_empty() {
+                    let (re_tp, re_seam) = process_single_layer(
                         layer_idx,
-                        layer.z,
-                        extrusion_width,
+                        &layers[layer_idx],
+                        &layers,
+                        &self.config,
                         lightning_ctx.as_ref(),
+                        &empty_support,
+                        previous_seam,
                     )?;
-                    all_infill_lines.extend(lines);
-                }
-            }
-
-            let infill = LayerInfill {
-                lines: all_infill_lines,
-                is_solid: infill_is_solid,
-            };
-
-            let gap_fills = if self.config.gap_fill_enabled && !perimeters.is_empty() {
-                crate::gap_fill::detect_and_fill_gaps(
-                    &perimeters[0].shells,
-                    &perimeters[0].inner_contour,
-                    &preview_contours,
-                    self.config.gap_fill_min_width,
-                    self.config.machine.nozzle_diameter(),
-                    extrusion_width,
-                )
-            } else {
-                Vec::new()
-            };
-
-            let (mut toolpath, layer_seam) = assemble_layer_toolpath(
-                layer_idx,
-                layer.z,
-                layer.layer_height,
-                &perimeters,
-                &gap_fills,
-                &infill,
-                &self.config,
-                previous_seam,
-            );
-
-            if !arachne_segments.is_empty() {
-                let travel_speed = self.config.speeds.travel * 60.0;
-                let mut var_segs = Vec::new();
-                let mut current_pos: Option<Point2> = None;
-                for seg in &arachne_segments {
-                    if let Some(pos) = current_pos {
-                        let dx = seg.start.x - pos.x;
-                        let dy = seg.start.y - pos.y;
-                        let dist = (dx * dx + dy * dy).sqrt();
-                        if dist > 0.001 {
-                            var_segs.push(ToolpathSegment {
-                                start: pos,
-                                end: seg.start,
-                                feature: FeatureType::Travel,
-                                e_value: 0.0,
-                                feedrate: travel_speed,
-                                z: layer.z,
-                                extrusion_width: None,
-                            });
-                        }
+                    if re_seam.is_some() {
+                        previous_seam = re_seam;
                     }
-                    var_segs.push(seg.clone());
-                    current_pos = Some(seg.end);
+                    final_toolpaths.push(re_tp);
+                } else {
+                    if layer_seam.is_some() {
+                        previous_seam = layer_seam;
+                    }
+                    final_toolpaths.push(tp);
                 }
-                var_segs.append(&mut toolpath.segments);
-                toolpath.segments = var_segs;
             }
 
-            if layer_seam.is_some() {
-                previous_seam = layer_seam;
+            layer_toolpaths = final_toolpaths;
+        } else {
+            // Sequential path using process_single_layer.
+            let mut seq_toolpaths = Vec::with_capacity(layers.len());
+            let mut previous_seam: Option<slicecore_math::IPoint2> = None;
+
+            for (layer_idx, layer) in layers.iter().enumerate() {
+                if let Some(ref token) = cancel {
+                    if token.is_cancelled() {
+                        return Err(EngineError::Cancelled);
+                    }
+                }
+
+                let (tp, layer_seam) = process_single_layer(
+                    layer_idx,
+                    layer,
+                    &layers,
+                    &self.config,
+                    lightning_ctx.as_ref(),
+                    &empty_support,
+                    previous_seam,
+                )?;
+
+                if layer_seam.is_some() {
+                    previous_seam = layer_seam;
+                }
+                seq_toolpaths.push(tp);
             }
 
-            layer_toolpaths.push(toolpath);
+            layer_toolpaths = seq_toolpaths;
         }
 
         // Generate preview from captured data.

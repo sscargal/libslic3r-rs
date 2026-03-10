@@ -453,7 +453,12 @@ fn test_json_output_integration() {
 
 #[test]
 fn test_event_system_integration() {
-    let config = PrintConfig::default();
+    let config = PrintConfig {
+        // Use sequential mode so per-layer events are emitted.
+        // In parallel mode, LayerComplete events are suppressed.
+        parallel_slicing: false,
+        ..PrintConfig::default()
+    };
     let engine = Engine::new(config);
     let mesh = calibration_cube_20mm();
 
