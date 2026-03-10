@@ -3,7 +3,7 @@
 //! These types are intentionally separate from `slicecore-math` (which uses f64)
 //! to keep the rasterizer in f32 throughout for performance. They are crate-internal only.
 
-use slicecore_math::{BBox3, Point3, Vec3};
+use slicecore_math::{Point3, Vec3};
 
 /// A 3D vector in f32 space.
 #[derive(Clone, Copy, Debug)]
@@ -139,6 +139,7 @@ impl Mat4f {
     }
 
     /// Matrix multiplication: self * other.
+    #[allow(clippy::needless_range_loop)]
     pub fn multiply(&self, other: &Self) -> Self {
         let mut result = [[0.0f32; 4]; 4];
         for i in 0..4 {
