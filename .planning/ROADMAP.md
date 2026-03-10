@@ -513,7 +513,7 @@ Plans:
   3. ExportFormat is auto-detected from file extension (.stl, .3mf, .obj)
   4. lib3mf-core upgraded from 0.3 to 0.4 with no regressions in existing 3MF import
   5. CLI `slicecore convert input.ext output.ext` converts between mesh formats
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 24-01-PLAN.md -- lib3mf-core 0.4 upgrade, lib3mf-converters dep, export module (save_mesh, ExportFormat, round-trip tests)
