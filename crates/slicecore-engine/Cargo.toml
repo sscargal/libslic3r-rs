@@ -7,9 +7,10 @@ rust-version.workspace = true
 description = "Slicing pipeline orchestrator and print configuration for the slicecore engine"
 
 [features]
-default = []
+default = ["parallel"]
 plugins = ["dep:slicecore-plugin"]
 ai = ["dep:slicecore-ai"]
+parallel = ["dep:rayon"]
 
 [dependencies]
 slicecore-math = { path = "../slicecore-math" }
@@ -25,6 +26,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 toml = "0.8"
 boostvoronoi = "0.11.1"
+rayon = { version = "1.11", optional = true }
 rmp-serde = { workspace = true }
 walkdir = { workspace = true }
 
