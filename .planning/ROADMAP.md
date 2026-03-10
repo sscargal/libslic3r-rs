@@ -505,13 +505,19 @@ Plans:
 
 ### Phase 24: Mesh Export (STL/3MF Write)
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Add bidirectional mesh I/O to slicecore-fileio by upgrading lib3mf-core to 0.4, adding lib3mf-converters 0.4 for STL/OBJ export, implementing save_mesh/save_mesh_to_writer with ExportFormat enum, and adding a CLI convert subcommand for mesh format conversion
 **Depends on:** Phase 23
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. save_mesh writes valid 3MF, Binary STL, and OBJ files that round-trip back through load_mesh
+  2. save_mesh_to_writer works with any Write+Seek destination (File, Cursor)
+  3. ExportFormat is auto-detected from file extension (.stl, .3mf, .obj)
+  4. lib3mf-core upgraded from 0.3 to 0.4 with no regressions in existing 3MF import
+  5. CLI `slicecore convert input.ext output.ext` converts between mesh formats
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 24 to break down)
+- [ ] 24-01-PLAN.md -- lib3mf-core 0.4 upgrade, lib3mf-converters dep, export module (save_mesh, ExportFormat, round-trip tests)
+- [ ] 24-02-PLAN.md -- CLI convert subcommand, integration tests, phase verification
 
 ### Phase 25: Parallel Slicing Pipeline (rayon)
 
