@@ -540,13 +540,23 @@ Plans:
 
 ### Phase 26: Thumbnail/Preview Rasterization
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Rasterize 3D model meshes into PNG thumbnail images using a custom CPU-based software renderer with Gouraud shading, supporting 6 camera angles, configurable resolutions, and three output targets (3MF embedding, G-code header comments, standalone PNG files) -- all pure Rust, WASM-compatible, no GPU dependencies
+**Requirements**: RENDER-01, RENDER-02, RENDER-03, RENDER-04, RENDER-05, RENDER-06, RENDER-07, RENDER-08, RENDER-09
 **Depends on:** Phase 25
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. A TriangleMesh can be rendered to an RGBA pixel buffer from any of 6 camera angles (front, back, left, right, top, isometric) with z-buffered triangle rasterization
+  2. Gouraud shading with vertex normal interpolation produces smooth brightness variation across curved surfaces
+  3. PNG encoding produces valid PNG files from RGBA buffers
+  4. 3MF export can include a thumbnail at Metadata/thumbnail.png via lib3mf-core Model.attachments
+  5. G-code output can include base64-encoded PNG thumbnails in header comments (PrusaSlicer/Creality formats)
+  6. CLI `slicecore thumbnail` subcommand generates standalone PNG files; `slice --thumbnails` embeds thumbnails in output
+  7. The render crate compiles for wasm32-unknown-unknown
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 26 to break down)
+- [ ] 26-01-PLAN.md -- Core slicecore-render crate (framebuffer, rasterizer, camera, shading, PNG encoding, public API)
+- [ ] 26-02-PLAN.md -- Integration (3MF thumbnail embedding, G-code comments, PrintConfig field, CLI subcommand)
+- [ ] 26-03-PLAN.md -- Integration tests verifying all 9 RENDER requirements
 
 ### Phase 27: Build Plate Auto-Arrangement
 
