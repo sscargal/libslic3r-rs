@@ -12,6 +12,7 @@
 //! - `convert`: Convert a mesh file between formats (STL, 3MF, OBJ)
 //! - `analyze-gcode`: Analyze a G-code file with structured metrics output
 //! - `compare-gcode`: Compare multiple G-code files with deltas
+//! - `arrange`: Arrange multiple mesh files on a build plate
 
 mod analysis_display;
 mod stats_display;
@@ -169,6 +170,10 @@ enum Commands {
         /// Embed thumbnail images in output (3MF or G-code).
         #[arg(long)]
         thumbnails: bool,
+
+        /// Auto-arrange input mesh(es) on bed before slicing.
+        #[arg(long)]
+        auto_arrange: bool,
     },
 
     /// Validate a G-code file
@@ -403,6 +408,52 @@ enum Commands {
         #[arg(long, default_value = "1.75")]
         diameter: f64,
     },
+
+    /// Arrange multiple mesh files on a build plate.
+    ///
+    /// Outputs a JSON arrangement plan by default. Use --apply to write
+    /// transformed mesh files, or --format 3mf to produce a positioned 3MF.
+    Arrange {
+        /// Input mesh files to arrange
+        #[arg(required = true)]
+        input: Vec<PathBuf>,
+
+        /// Print config file (TOML or JSON; optional)
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+
+        /// Bed shape string (e.g., "0x0,220x0,220x220,0x220"). Overrides config.
+        #[arg(long)]
+        bed_shape: Option<String>,
+
+        /// Part spacing in mm
+        #[arg(long, default_value = "2.0")]
+        spacing: f64,
+
+        /// Bed edge margin in mm
+        #[arg(long, default_value = "5.0")]
+        margin: f64,
+
+        /// Rotation step in degrees
+        #[arg(long, default_value = "45.0")]
+        rotation_step: f64,
+
+        /// Disable auto-orient
+        #[arg(long)]
+        no_auto_orient: bool,
+
+        /// Enable sequential printing mode
+        #[arg(long)]
+        sequential: bool,
+
+        /// Apply transforms and write output files
+        #[arg(long)]
+        apply: bool,
+
+        /// Output format: "json" (default) or "3mf" (positioned 3MF)
+        #[arg(long, default_value = "json")]
+        format: String,
+    },
 }
 
 fn main() {
@@ -423,6 +474,7 @@ fn main() {
             time_precision,
             sort_stats,
             thumbnails,
+            auto_arrange,
         } => cmd_slice(
             &input,
             config.as_deref(),
@@ -437,6 +489,7 @@ fn main() {
             &time_precision,
             &sort_stats,
             thumbnails,
+            auto_arrange,
         ),
         Commands::Validate { input } => cmd_validate(&input),
         Commands::Analyze { input } => cmd_analyze(&input),
@@ -508,6 +561,29 @@ fn main() {
             density,
             diameter,
         } => cmd_compare_gcode(&files, json, csv, no_color, density, diameter),
+        Commands::Arrange {
+            input,
+            config,
+            bed_shape,
+            spacing,
+            margin,
+            rotation_step,
+            no_auto_orient,
+            sequential,
+            apply,
+            format,
+        } => cmd_arrange(
+            &input,
+            config.as_deref(),
+            bed_shape.as_deref(),
+            spacing,
+            margin,
+            rotation_step,
+            no_auto_orient,
+            sequential,
+            apply,
+            &format,
+        ),
     }
 }
 
@@ -527,6 +603,7 @@ fn cmd_slice(
     time_precision: &str,
     sort_stats: &str,
     thumbnails: bool,
+    auto_arrange: bool,
 ) {
     // 1. Read input file.
     let data = match std::fs::read(input) {
@@ -643,6 +720,42 @@ fn cmd_slice(
             }
             Err(e) => {
                 eprintln!("Warning: Failed to load plugins from '{}': {}", dir, e);
+            }
+        }
+    }
+
+    // 5b. Auto-arrange (if requested).
+    if auto_arrange {
+        let part = slicecore_arrange::ArrangePart {
+            id: input
+                .file_stem()
+                .map_or_else(|| "input".into(), |s| s.to_string_lossy().into_owned()),
+            vertices: repaired_mesh.vertices().to_vec(),
+            mesh_height: {
+                let zs: Vec<f64> = repaired_mesh.vertices().iter().map(|v| v.z).collect();
+                let z_min = zs.iter().copied().fold(f64::INFINITY, f64::min);
+                let z_max = zs.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+                z_max - z_min
+            },
+            ..Default::default()
+        };
+        let arrange_config = slicecore_arrange::ArrangeConfig::default();
+        let bed_shape_str = &print_config.machine.bed_shape;
+        let bed_x = print_config.machine.bed_x;
+        let bed_y = print_config.machine.bed_y;
+        match slicecore_arrange::arrange(&[part], &arrange_config, bed_shape_str, bed_x, bed_y) {
+            Ok(result) => {
+                let json = serde_json::to_string_pretty(&result).unwrap_or_default();
+                eprintln!("Auto-arrange plan:\n{json}");
+                if !result.unplaced_parts.is_empty() {
+                    eprintln!(
+                        "Warning: {} part(s) could not be placed on the bed",
+                        result.unplaced_parts.len()
+                    );
+                }
+            }
+            Err(e) => {
+                eprintln!("Warning: Auto-arrange failed: {e}");
             }
         }
     }
@@ -1841,5 +1954,249 @@ fn cmd_compare_gcode(
     } else {
         let use_color = !no_color && std::io::stdout().is_terminal();
         analysis_display::display_comparison_table(&result, use_color);
+    }
+}
+
+/// Arrange multiple mesh files on a build plate.
+#[allow(clippy::too_many_arguments)]
+fn cmd_arrange(
+    inputs: &[PathBuf],
+    config_path: Option<&std::path::Path>,
+    bed_shape_override: Option<&str>,
+    spacing: f64,
+    margin: f64,
+    rotation_step: f64,
+    no_auto_orient: bool,
+    sequential: bool,
+    apply: bool,
+    format: &str,
+) {
+    // Validate format.
+    if format != "json" && format != "3mf" {
+        eprintln!("Error: --format must be \"json\" or \"3mf\", got \"{format}\"");
+        process::exit(1);
+    }
+
+    // Load optional config.
+    let print_config = if let Some(cfg_path) = config_path {
+        match PrintConfig::from_file(cfg_path) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!(
+                    "Error: Failed to load config '{}': {}",
+                    cfg_path.display(),
+                    e
+                );
+                process::exit(1);
+            }
+        }
+    } else {
+        PrintConfig::default()
+    };
+
+    // Load meshes.
+    let mut meshes = Vec::new();
+    let mut parts = Vec::new();
+    for path in inputs {
+        let data = match std::fs::read(path) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("Error: Failed to read '{}': {}", path.display(), e);
+                process::exit(1);
+            }
+        };
+        let mesh = match load_mesh(&data) {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!("Error: Failed to parse mesh '{}': {}", path.display(), e);
+                process::exit(1);
+            }
+        };
+
+        let id = path
+            .file_stem()
+            .map_or_else(|| "input".into(), |s| s.to_string_lossy().into_owned());
+        let vertices = mesh.vertices().to_vec();
+        let z_min = vertices
+            .iter()
+            .map(|v| v.z)
+            .fold(f64::INFINITY, f64::min);
+        let z_max = vertices
+            .iter()
+            .map(|v| v.z)
+            .fold(f64::NEG_INFINITY, f64::max);
+        let mesh_height = z_max - z_min;
+
+        parts.push(slicecore_arrange::ArrangePart {
+            id,
+            vertices,
+            mesh_height,
+            ..Default::default()
+        });
+        meshes.push(mesh);
+    }
+
+    // Build ArrangeConfig from CLI flags + optional PrintConfig.
+    let arrange_config = slicecore_arrange::ArrangeConfig {
+        part_spacing: spacing,
+        bed_margin: margin,
+        rotation_step,
+        auto_orient: !no_auto_orient,
+        sequential_mode: sequential,
+        brim_width: print_config.brim_width,
+        skirt_distance: print_config.skirt_distance,
+        skirt_loops: print_config.skirt_loops,
+        nozzle_diameter: print_config.machine.nozzle_diameter(),
+        ..Default::default()
+    };
+
+    // Determine bed shape.
+    let bed_shape_str = bed_shape_override
+        .map(String::from)
+        .unwrap_or_else(|| print_config.machine.bed_shape.clone());
+    let bed_x = print_config.machine.bed_x;
+    let bed_y = print_config.machine.bed_y;
+
+    // Run arrangement.
+    let result = match slicecore_arrange::arrange(&parts, &arrange_config, &bed_shape_str, bed_x, bed_y) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Error: Arrangement failed: {e}");
+            process::exit(1);
+        }
+    };
+
+    // Warn about unplaced parts.
+    if !result.unplaced_parts.is_empty() {
+        eprintln!(
+            "Warning: {} part(s) could not be placed: {}",
+            result.unplaced_parts.len(),
+            result.unplaced_parts.join(", ")
+        );
+    }
+
+    // Output handling.
+    match format {
+        "3mf" => {
+            // Write a single 3MF file with all parts at their arranged positions.
+            let first_stem = inputs
+                .first()
+                .and_then(|p| p.file_stem())
+                .map_or_else(|| "arranged".into(), |s| s.to_string_lossy().into_owned());
+            let out_path = PathBuf::from(format!("{first_stem}_arranged.3mf"));
+
+            // Apply transforms and save the first plate's parts as a combined mesh.
+            // For 3MF, we write each mesh individually with transforms applied.
+            if let Some(plate) = result.plates.first() {
+                // Build a combined mesh from all placed parts with transforms applied.
+                let mut all_vertices = Vec::new();
+                let mut all_indices = Vec::new();
+
+                for placement in &plate.placements {
+                    // Find the corresponding loaded mesh by matching part_id to input filenames.
+                    let mesh_idx = inputs
+                        .iter()
+                        .position(|p| {
+                            p.file_stem()
+                                .is_some_and(|s| s.to_string_lossy() == placement.part_id)
+                        })
+                        .unwrap_or(0);
+
+                    let mesh = &meshes[mesh_idx];
+                    let offset = all_vertices.len();
+
+                    // Apply translation to vertices.
+                    let (tx, ty) = placement.position;
+                    for v in mesh.vertices() {
+                        all_vertices.push(slicecore_math::Point3::new(v.x + tx, v.y + ty, v.z));
+                    }
+                    for idx in mesh.indices() {
+                        all_indices.push([idx[0] + offset as u32, idx[1] + offset as u32, idx[2] + offset as u32]);
+                    }
+                }
+
+                let combined = match slicecore_mesh::TriangleMesh::new(all_vertices, all_indices) {
+                    Ok(m) => m,
+                    Err(e) => {
+                        eprintln!("Error: Failed to build combined mesh: {e}");
+                        process::exit(1);
+                    }
+                };
+                if let Err(e) = save_mesh(&combined, &out_path) {
+                    eprintln!("Error: Failed to write 3MF '{}': {}", out_path.display(), e);
+                    process::exit(1);
+                }
+                eprintln!("Wrote positioned 3MF: {}", out_path.display());
+            }
+
+            // Also print JSON plan to stdout.
+            let json = serde_json::to_string_pretty(&result).unwrap_or_default();
+            println!("{json}");
+        }
+        _ => {
+            // JSON format (default).
+            if apply {
+                // Apply transforms and write output files.
+                for plate in &result.plates {
+                    for placement in &plate.placements {
+                        let mesh_idx = inputs
+                            .iter()
+                            .position(|p| {
+                                p.file_stem()
+                                    .is_some_and(|s| s.to_string_lossy() == placement.part_id)
+                            })
+                            .unwrap_or(0);
+
+                        let mesh = &meshes[mesh_idx];
+                        let (tx, ty) = placement.position;
+
+                        // Apply translation to create a new transformed mesh.
+                        let transformed_vertices: Vec<slicecore_math::Point3> = mesh
+                            .vertices()
+                            .iter()
+                            .map(|v| slicecore_math::Point3::new(v.x + tx, v.y + ty, v.z))
+                            .collect();
+                        let transformed = match slicecore_mesh::TriangleMesh::new(
+                            transformed_vertices,
+                            mesh.indices().to_vec(),
+                        ) {
+                            Ok(m) => m,
+                            Err(e) => {
+                                eprintln!("Error: Failed to build transformed mesh: {e}");
+                                process::exit(1);
+                            }
+                        };
+
+                        // Output as {original_stem}_arranged.stl.
+                        let stem = inputs[mesh_idx]
+                            .file_stem()
+                            .map_or_else(|| "output".into(), |s| s.to_string_lossy().into_owned());
+                        let ext = inputs[mesh_idx]
+                            .extension()
+                            .map_or("stl", |e| {
+                                if e == "3mf" || e == "obj" {
+                                    e.to_str().unwrap_or("stl")
+                                } else {
+                                    "stl"
+                                }
+                            });
+                        let out_path = PathBuf::from(format!("{stem}_arranged.{ext}"));
+                        if let Err(e) = save_mesh(&transformed, &out_path) {
+                            eprintln!(
+                                "Error: Failed to write '{}': {}",
+                                out_path.display(),
+                                e
+                            );
+                            process::exit(1);
+                        }
+                        eprintln!("Wrote: {}", out_path.display());
+                    }
+                }
+            }
+
+            // Print JSON plan to stdout.
+            let json = serde_json::to_string_pretty(&result).unwrap_or_default();
+            println!("{json}");
+        }
     }
 }

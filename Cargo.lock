@@ -2876,6 +2876,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "slicecore-arrange"
+version = "0.1.0"
+dependencies = [
+ "approx",
+ "serde",
+ "serde_json",
+ "slicecore-geo",
+ "slicecore-math",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "slicecore-cli"
 version = "0.1.0"
 dependencies = [
@@ -2884,9 +2896,11 @@ dependencies = [
  "rmp-serde",
  "serde_json",
  "slicecore-ai",
+ "slicecore-arrange",
  "slicecore-engine",
  "slicecore-fileio",
  "slicecore-gcode-io",
+ "slicecore-math",
  "slicecore-mesh",
  "slicecore-plugin",
  "slicecore-render",

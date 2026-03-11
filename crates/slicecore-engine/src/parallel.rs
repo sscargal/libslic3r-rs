@@ -6,6 +6,7 @@
 //! (which cannot use rayon) while maximizing native performance.
 
 #[cfg(feature = "parallel")]
+#[allow(unused_imports, reason = "used by maybe_par_iter macro expansion")]
 use rayon::prelude::*;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -36,6 +37,7 @@ pub(crate) use maybe_par_iter;
 
 /// Dispatches to `par_iter_mut()` when the `parallel` feature is enabled,
 /// or `iter_mut()` when it is disabled.
+#[allow(unused_macros, reason = "utility macro available for future use")]
 macro_rules! maybe_par_iter_mut {
     ($slice:expr) => {{
         #[cfg(feature = "parallel")]
@@ -48,6 +50,7 @@ macro_rules! maybe_par_iter_mut {
         }
     }};
 }
+#[allow(unused_imports, reason = "utility macro available for future use")]
 pub(crate) use maybe_par_iter_mut;
 
 /// Initialize the global rayon thread pool with a specific thread count.
@@ -80,6 +83,7 @@ pub fn init_thread_pool(thread_count: Option<usize>) {
 /// Uses atomic operations so multiple threads can increment the counter
 /// concurrently without locks.
 #[derive(Debug, Clone)]
+#[allow(dead_code, reason = "utility struct; total and percent() used in tests and future parallel features")]
 pub struct AtomicProgress {
     current: Arc<AtomicUsize>,
     total: usize,
@@ -100,6 +104,7 @@ impl AtomicProgress {
     }
 
     /// Return the current progress as a percentage (0.0 to 100.0).
+    #[allow(dead_code, reason = "utility method; used in tests and future parallel features")]
     pub fn percent(&self) -> f64 {
         if self.total == 0 {
             return 100.0;

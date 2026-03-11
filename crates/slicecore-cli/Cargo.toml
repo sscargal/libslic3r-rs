@@ -21,6 +21,8 @@ slicecore-gcode-io = { path = "../slicecore-gcode-io" }
 slicecore-ai = { path = "../slicecore-ai" }
 slicecore-plugin = { path = "../slicecore-plugin" }
 slicecore-render = { path = "../slicecore-render" }
+slicecore-arrange = { path = "../slicecore-arrange" }
+slicecore-math = { path = "../slicecore-math" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -1204,7 +1204,7 @@ impl Engine {
             let mut final_toolpaths = Vec::with_capacity(layer_results.len());
 
             for (layer_idx, (tp, layer_seam)) in layer_results.into_iter().enumerate() {
-                if previous_seam.is_some() && layers[layer_idx].contours.is_empty() == false {
+                if previous_seam.is_some() && !layers[layer_idx].contours.is_empty() {
                     // Re-process this layer with the correct previous_seam
                     // to get bit-identical seam placement.
                     let (re_tp, re_seam) = process_single_layer(
