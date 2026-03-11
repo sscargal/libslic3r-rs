@@ -165,6 +165,10 @@ enum Commands {
         /// Sort order for feature statistics.
         #[arg(long, default_value = "default", value_parser = ["default", "time", "filament", "alpha"])]
         sort_stats: String,
+
+        /// Embed thumbnail images in output (3MF or G-code).
+        #[arg(long)]
+        thumbnails: bool,
     },
 
     /// Validate a G-code file
@@ -349,6 +353,31 @@ enum Commands {
         output: PathBuf,
     },
 
+    /// Generate thumbnail preview images from a mesh file.
+    Thumbnail {
+        /// Input mesh file (STL, 3MF, OBJ)
+        input: PathBuf,
+        /// Output directory or file path (default: input filename with .png extension)
+        #[arg(short, long)]
+        output: Option<String>,
+        /// Camera angles to render (comma-separated: front,back,left,right,top,isometric)
+        /// Default: isometric only
+        #[arg(long, default_value = "isometric")]
+        angles: String,
+        /// Resolution WxH (e.g., "300x300", "220x124", "640x480")
+        /// Default: 300x300
+        #[arg(long, default_value = "300x300")]
+        resolution: String,
+        /// Background color as hex (e.g., "transparent", "FFFFFF", "000000")
+        /// Default: transparent
+        #[arg(long, default_value = "transparent")]
+        background: String,
+        /// Model color as hex (e.g., "C8C8C8", "FF0000")
+        /// Default: C8C8C8 (light gray)
+        #[arg(long, default_value = "C8C8C8")]
+        color: String,
+    },
+
     /// Compare multiple G-code files (first file is baseline)
     CompareGcode {
         /// G-code files to compare (first is baseline, need at least 2)
@@ -393,6 +422,7 @@ fn main() {
             json_no_stats,
             time_precision,
             sort_stats,
+            thumbnails,
         } => cmd_slice(
             &input,
             config.as_deref(),
@@ -406,6 +436,7 @@ fn main() {
             json_no_stats,
             &time_precision,
             &sort_stats,
+            thumbnails,
         ),
         Commands::Validate { input } => cmd_validate(&input),
         Commands::Analyze { input } => cmd_analyze(&input),
@@ -461,6 +492,14 @@ fn main() {
             summary,
         } => cmd_analyze_gcode(&input, json, csv, no_color, density, diameter, filter, summary),
         Commands::Convert { input, output } => cmd_convert(&input, &output),
+        Commands::Thumbnail {
+            input,
+            output,
+            angles,
+            resolution,
+            background,
+            color,
+        } => cmd_thumbnail(&input, output.as_deref(), &angles, &resolution, &background, &color),
         Commands::CompareGcode {
             files,
             json,
@@ -487,6 +526,7 @@ fn cmd_slice(
     json_no_stats: bool,
     time_precision: &str,
     sort_stats: &str,
+    thumbnails: bool,
 ) {
     // 1. Read input file.
     let data = match std::fs::read(input) {
@@ -616,15 +656,38 @@ fn cmd_slice(
         }
     };
 
-    // 7. Determine output path.
+    // 7. Generate and embed thumbnails if requested.
+    let mut gcode_output = result.gcode.clone();
+    if thumbnails {
+        let thumb_config = slicecore_render::ThumbnailConfig {
+            width: print_config.thumbnail_resolution[0],
+            height: print_config.thumbnail_resolution[1],
+            angles: vec![slicecore_render::CameraAngle::Isometric],
+            ..slicecore_render::ThumbnailConfig::default()
+        };
+        let thumbs = slicecore_render::render_mesh(&repaired_mesh, &thumb_config);
+        if let Some(thumb) = thumbs.first() {
+            // Determine dialect name for thumbnail format selection
+            let dialect_name = format!("{:?}", print_config.gcode_dialect).to_lowercase();
+            if let Some(fmt) = slicecore_render::thumbnail_format_for_dialect(&dialect_name) {
+                let block = slicecore_render::format_gcode_thumbnail_block(thumb, fmt);
+                // Prepend thumbnail block to G-code output
+                let mut new_output = block.into_bytes();
+                new_output.extend_from_slice(&gcode_output);
+                gcode_output = new_output;
+            }
+        }
+    }
+
+    // 8. Determine output path.
     let out_path = if let Some(p) = output_path {
         p.to_path_buf()
     } else {
         input.with_extension("gcode")
     };
 
-    // 8. Write G-code output.
-    if let Err(e) = std::fs::write(&out_path, &result.gcode) {
+    // 9. Write G-code output.
+    if let Err(e) = std::fs::write(&out_path, &gcode_output) {
         eprintln!("Error: Failed to write output '{}': {}", out_path.display(), e);
         process::exit(1);
     }
@@ -1577,6 +1640,157 @@ fn cmd_convert(input: &std::path::Path, output: &std::path::Path) {
         mesh.triangle_count(),
         output.display()
     );
+}
+
+/// Generate thumbnail preview images from a mesh file.
+fn cmd_thumbnail(
+    input: &PathBuf,
+    output: Option<&str>,
+    angles_str: &str,
+    resolution_str: &str,
+    background_str: &str,
+    color_str: &str,
+) {
+    // Load mesh
+    let data = match std::fs::read(input) {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("Error: Failed to read '{}': {}", input.display(), e);
+            process::exit(1);
+        }
+    };
+    let mesh = match load_mesh(&data) {
+        Ok(m) => m,
+        Err(e) => {
+            eprintln!("Error: Failed to parse mesh from '{}': {}", input.display(), e);
+            process::exit(1);
+        }
+    };
+
+    // Parse resolution
+    let (width, height) = parse_resolution(resolution_str);
+
+    // Parse angles
+    let angles = parse_camera_angles(angles_str);
+
+    // Parse background color
+    let background = parse_background(background_str);
+
+    // Parse model color
+    let model_color = parse_hex_color(color_str);
+
+    // Build config and render
+    let config = slicecore_render::ThumbnailConfig {
+        width,
+        height,
+        angles: angles.clone(),
+        background,
+        model_color,
+    };
+    let thumbnails = slicecore_render::render_mesh(&mesh, &config);
+
+    // Write output
+    if thumbnails.len() == 1 {
+        let out_path = if let Some(out) = output {
+            PathBuf::from(out)
+        } else {
+            input.with_extension("png")
+        };
+        if let Err(e) = std::fs::write(&out_path, &thumbnails[0].png_data) {
+            eprintln!("Error: Failed to write '{}': {}", out_path.display(), e);
+            process::exit(1);
+        }
+        eprintln!("Thumbnail: {}", out_path.display());
+    } else {
+        let out_dir = if let Some(out) = output {
+            PathBuf::from(out)
+        } else {
+            PathBuf::from(".")
+        };
+        if !out_dir.exists() {
+            if let Err(e) = std::fs::create_dir_all(&out_dir) {
+                eprintln!("Error: Failed to create directory '{}': {}", out_dir.display(), e);
+                process::exit(1);
+            }
+        }
+        let stem = input.file_stem().unwrap_or_default().to_string_lossy();
+        for thumb in &thumbnails {
+            let angle_name = format!("{:?}", thumb.angle).to_lowercase();
+            let filename = format!("{}_{}.png", stem, angle_name);
+            let path = out_dir.join(&filename);
+            if let Err(e) = std::fs::write(&path, &thumb.png_data) {
+                eprintln!("Error: Failed to write '{}': {}", path.display(), e);
+                process::exit(1);
+            }
+            eprintln!("Thumbnail: {}", path.display());
+        }
+    }
+}
+
+fn parse_resolution(s: &str) -> (u32, u32) {
+    let parts: Vec<&str> = s.split('x').collect();
+    if parts.len() != 2 {
+        eprintln!("Error: Invalid resolution '{}'. Expected WxH (e.g., 300x300)", s);
+        process::exit(1);
+    }
+    let w: u32 = parts[0].parse().unwrap_or_else(|_| {
+        eprintln!("Error: Invalid width in resolution '{}'", s);
+        process::exit(1);
+    });
+    let h: u32 = parts[1].parse().unwrap_or_else(|_| {
+        eprintln!("Error: Invalid height in resolution '{}'", s);
+        process::exit(1);
+    });
+    (w, h)
+}
+
+fn parse_camera_angles(s: &str) -> Vec<slicecore_render::CameraAngle> {
+    if s.eq_ignore_ascii_case("all") {
+        return slicecore_render::CameraAngle::all();
+    }
+    s.split(',')
+        .map(|a| match a.trim().to_lowercase().as_str() {
+            "front" => slicecore_render::CameraAngle::Front,
+            "back" => slicecore_render::CameraAngle::Back,
+            "left" => slicecore_render::CameraAngle::Left,
+            "right" => slicecore_render::CameraAngle::Right,
+            "top" => slicecore_render::CameraAngle::Top,
+            "isometric" | "iso" => slicecore_render::CameraAngle::Isometric,
+            other => {
+                eprintln!("Error: Unknown camera angle '{}'. Valid: front, back, left, right, top, isometric", other);
+                process::exit(1);
+            }
+        })
+        .collect()
+}
+
+fn parse_background(s: &str) -> [u8; 4] {
+    if s.eq_ignore_ascii_case("transparent") {
+        return [0, 0, 0, 0];
+    }
+    let rgb = parse_hex_color(s);
+    [rgb[0], rgb[1], rgb[2], 255]
+}
+
+fn parse_hex_color(s: &str) -> [u8; 3] {
+    let s = s.trim_start_matches('#');
+    if s.len() != 6 {
+        eprintln!("Error: Invalid hex color '{}'. Expected 6-digit hex (e.g., C8C8C8)", s);
+        process::exit(1);
+    }
+    let r = u8::from_str_radix(&s[0..2], 16).unwrap_or_else(|_| {
+        eprintln!("Error: Invalid hex color '{}'", s);
+        process::exit(1);
+    });
+    let g = u8::from_str_radix(&s[2..4], 16).unwrap_or_else(|_| {
+        eprintln!("Error: Invalid hex color '{}'", s);
+        process::exit(1);
+    });
+    let b = u8::from_str_radix(&s[4..6], 16).unwrap_or_else(|_| {
+        eprintln!("Error: Invalid hex color '{}'", s);
+        process::exit(1);
+    });
+    [r, g, b]
 }
 
 fn cmd_compare_gcode(
