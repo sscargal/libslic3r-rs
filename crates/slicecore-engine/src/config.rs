@@ -309,6 +309,14 @@ pub struct MachineConfig {
     pub min_layer_height: f64,
     /// Maximum layer height (mm, 0 = auto from nozzle diameter).
     pub max_layer_height: f64,
+    /// Number of extruders/toolheads.
+    ///
+    /// Used to auto-detect multi-head printers for material grouping
+    /// decisions in the arrangement algorithm. Use
+    /// [`effective_extruder_count`](Self::effective_extruder_count) to get
+    /// the count that accounts for both this field and
+    /// [`nozzle_diameters`](Self::nozzle_diameters) length.
+    pub extruder_count: u32,
 }
 
 impl Default for MachineConfig {
@@ -341,6 +349,7 @@ impl Default for MachineConfig {
             bed_shape: String::new(),
             min_layer_height: 0.07,
             max_layer_height: 0.0,
+            extruder_count: 1,
         }
     }
 }
@@ -349,6 +358,19 @@ impl MachineConfig {
     /// Returns the primary nozzle diameter (first extruder), or 0.4 if empty.
     pub fn nozzle_diameter(&self) -> f64 {
         self.nozzle_diameters.first().copied().unwrap_or(0.4)
+    }
+
+    /// Returns the effective extruder count, accounting for both the explicit
+    /// [`extruder_count`](Self::extruder_count) field and the length of
+    /// [`nozzle_diameters`](Self::nozzle_diameters).
+    ///
+    /// This handles both explicit configuration (e.g., from a profile) and
+    /// inferred count (from the number of nozzle diameters). The returned
+    /// value is always at least 1.
+    #[must_use]
+    pub fn effective_extruder_count(&self) -> u32 {
+        let from_nozzles = u32::try_from(self.nozzle_diameters.len()).unwrap_or(u32::MAX);
+        self.extruder_count.max(from_nozzles).max(1)
     }
 
     /// Returns the primary X jerk value (first extruder), or 8.0 if empty.
@@ -1016,17 +1038,45 @@ impl Default for MultiMaterialConfig {
 /// In sequential mode, each object is printed completely before moving to
 /// the next. This requires collision detection to ensure the extruder
 /// clearance envelope does not hit previously printed objects.
+///
+/// # Gantry clearance models
+///
+/// The clearance zone around the nozzle is determined by one of three models,
+/// checked in priority order:
+///
+/// 1. **Custom polygon** -- If [`extruder_clearance_polygon`](Self::extruder_clearance_polygon)
+///    is non-empty, it defines an arbitrary polygon (points in mm relative to
+///    the nozzle center) used as the clearance zone.
+/// 2. **Rectangle** -- If [`gantry_width`](Self::gantry_width) > 0, a rectangular
+///    clearance zone of `gantry_width x gantry_depth` is used.
+/// 3. **Cylinder** -- Otherwise, a circular clearance zone with
+///    [`extruder_clearance_radius`](Self::extruder_clearance_radius) is used.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct SequentialConfig {
     /// Enable sequential (object-by-object) printing.
     pub enabled: bool,
     /// Extruder clearance radius in mm (XY distance from nozzle to widest
-    /// part of the print head assembly).
+    /// part of the print head assembly). Used for the cylinder gantry model.
     pub extruder_clearance_radius: f64,
     /// Extruder clearance height in mm (height above nozzle tip to the
     /// bottom of the X carriage / gantry).
     pub extruder_clearance_height: f64,
+    /// Width of gantry/carriage in mm (X direction).
+    ///
+    /// A value of 0.0 means the rectangular gantry model is not used and
+    /// the cylinder model with [`extruder_clearance_radius`](Self::extruder_clearance_radius)
+    /// is used instead.
+    pub gantry_width: f64,
+    /// Depth of gantry/carriage in mm (Y direction).
+    ///
+    /// Only used when [`gantry_width`](Self::gantry_width) > 0 (rectangular model).
+    pub gantry_depth: f64,
+    /// Custom polygon for the extruder clearance zone.
+    ///
+    /// Points are in mm relative to the nozzle center. When non-empty, this
+    /// takes priority over both the rectangular and cylinder models.
+    pub extruder_clearance_polygon: Vec<(f64, f64)>,
 }
 
 impl Default for SequentialConfig {
@@ -1035,6 +1085,9 @@ impl Default for SequentialConfig {
             enabled: false,
             extruder_clearance_radius: 35.0,
             extruder_clearance_height: 40.0,
+            gantry_width: 0.0,
+            gantry_depth: 0.0,
+            extruder_clearance_polygon: Vec::new(),
         }
     }
 }

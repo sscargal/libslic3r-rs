@@ -174,6 +174,7 @@ fn sc2_sequential_enabled_single_object_emits_warning() {
             enabled: true,
             extruder_clearance_radius: 35.0,
             extruder_clearance_height: 40.0,
+            ..Default::default()
         },
         ..Default::default()
     };
@@ -201,6 +202,7 @@ fn sc2_sequential_enabled_multi_object_validates_clearance() {
             enabled: true,
             extruder_clearance_radius: 35.0,
             extruder_clearance_height: 40.0,
+            ..Default::default()
         },
         ..Default::default()
     };
@@ -288,6 +290,7 @@ fn sc2_sequential_collision_returns_config_error() {
             enabled: true,
             extruder_clearance_radius: 35.0,
             extruder_clearance_height: 40.0,
+            ..Default::default()
         },
         ..Default::default()
     };

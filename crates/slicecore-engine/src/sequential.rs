@@ -362,6 +362,7 @@ extruder_clearance_height = 50.0
                 enabled: true,
                 extruder_clearance_radius: 35.0,
                 extruder_clearance_height: 40.0,
+                ..Default::default()
             },
             ..Default::default()
         };
@@ -387,6 +388,7 @@ extruder_clearance_height = 50.0
                 enabled: true,
                 extruder_clearance_radius: 35.0,
                 extruder_clearance_height: 40.0,
+                ..Default::default()
             },
             ..Default::default()
         };
