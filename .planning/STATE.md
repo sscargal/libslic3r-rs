@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 27-01-PLAN.md
-last_updated: "2026-03-11T20:36:44.000Z"
-last_activity: "2026-03-11 - Completed 27-01: Foundation types for build plate arrangement"
+stopped_at: Completed 27-04-PLAN.md
+last_updated: "2026-03-11T21:39:00.000Z"
+last_activity: "2026-03-11 - Completed 27-04: CLI and Engine Integration"
 progress:
   total_phases: 29
   completed_phases: 26
   total_plans: 110
-  completed_plans: 108
-  percent: 98
+  completed_plans: 110
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 27 of 29 (Build Plate Auto-Arrangement)
-Plan: 3 of 4 in current phase (3 complete)
+Plan: 4 of 4 in current phase (4 complete)
 Status: In Progress
-Last activity: 2026-03-11 - Completed 27-03: Core arrangement algorithms
+Last activity: 2026-03-11 - Completed 27-04: CLI and Engine Integration
 
-Progress: [█████████▉] 99% (109/110 overall)
+Progress: [██████████] 100% (110/110 overall)
 
 ## Performance Metrics
 
@@ -71,7 +71,7 @@ Progress: [█████████▉] 99% (109/110 overall)
 | 22    | 2     | 8min  | 4.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 25-02 (13min), 26-03 (5min), 27-01 (6min), 27-02 (6min), 27-03 (36min)
+- Last 5 plans: 26-03 (5min), 27-01 (6min), 27-02 (6min), 27-03 (36min), 27-04 (10min)
 - Trend: 5-36min/plan
 
 *Updated after each plan completion*
@@ -91,6 +91,7 @@ Progress: [█████████▉] 99% (109/110 overall)
 | Phase 27 P01 | 6min | 2 tasks | 7 files |
 | Phase 27 P02 | 6min | 2 tasks | 5 files |
 | Phase 27 P03 | 36min | 2 tasks | 6 files |
+| Phase 27 P04 | 10min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -518,6 +519,10 @@ Recent decisions affecting current work:
 - [27-03]: Gantry validation skipped when GantryModel::None to prevent false overlap from raw footprints
 - [27-03]: Auto-orient returns identity when ArrangePart lacks face normals (needs TriangleMesh)
 - [27-03]: PreparePartConfig struct bundles 9 parameters to satisfy clippy too-many-arguments
+- [27-04]: Engine arrange feature is optional (cfg-gated), not default
+- [27-04]: CLI arrange outputs JSON to stdout by default; --apply writes transformed files
+- [27-04]: 3MF output combines all placed parts into single mesh with position transforms applied
+- [27-04]: GantryModel derived from SequentialConfig: polygon > rectangle > cylinder > none
 - [27-01]: Polygon::validate() used for cross-crate polygon creation (from_raw_parts is pub(crate) in slicecore-geo)
 - [27-01]: Bounding box fallback (+/-1um) for degenerate single-point/collinear convex hull projections
 - [27-01]: Round join type for footprint expansion; bed_with_margin helper via Miter inward offset
@@ -559,6 +564,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-11T21:24:00.000Z
-Stopped at: Completed 27-03-PLAN.md
-Resume file: .planning/phases/27-build-plate-auto-arrangement/27-04-PLAN.md
+Last session: 2026-03-11T21:39:00.000Z
+Stopped at: Completed 27-04-PLAN.md
+Resume file: Phase 27 complete

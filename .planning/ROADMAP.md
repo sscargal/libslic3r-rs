@@ -563,7 +563,7 @@ Plans:
 **Goal:** Users can automatically position multiple parts on the build plate with optimal packing, auto-orientation for minimal support, material-aware grouping, multi-plate splitting, and sequential print collision avoidance
 **Requirements**: ADV-02
 **Depends on:** Phase 26
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 - [ ] 27-01-PLAN.md -- slicecore-arrange crate scaffold, types, bed parsing, footprint computation
