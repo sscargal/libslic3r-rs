@@ -293,6 +293,10 @@ pub fn prusaslicer_key_to_config_field(key: &str) -> Option<&'static str> {
         "min_layer_height" => Some("machine.min_layer_height"),
         "max_layer_height" => Some("machine.max_layer_height"),
 
+        // Sequential/gantry clearance fields.
+        "extruder_clearance_radius" => Some("sequential.extruder_clearance_radius"),
+        "extruder_clearance_height" => Some("sequential.extruder_clearance_height"),
+
         // Acceleration sub-config fields.
         "external_perimeter_acceleration" => Some("accel.outer_wall"),
         "perimeter_acceleration" => Some("accel.inner_wall"),
@@ -713,6 +717,16 @@ pub fn apply_prusaslicer_field_mapping(
             // May be comma-separated for multi-extruder; take first.
             let first = first_comma_value(value);
             parse_and_set_f64(first, &mut config.machine.max_layer_height)
+        }
+
+        // =====================================================================
+        // Sequential/gantry clearance fields (PrusaSlicer names)
+        // =====================================================================
+        "extruder_clearance_radius" => {
+            parse_and_set_f64(value, &mut config.sequential.extruder_clearance_radius)
+        }
+        "extruder_clearance_height" => {
+            parse_and_set_f64(value, &mut config.sequential.extruder_clearance_height)
         }
 
         // =====================================================================

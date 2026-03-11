@@ -468,6 +468,14 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "min_layer_height" => Some("machine.min_layer_height"),
         "max_layer_height" => Some("machine.max_layer_height"),
 
+        // --- Sequential/gantry clearance fields ---
+        "extruder_clearance_radius" | "extruder_clearance_max_radius" => {
+            Some("sequential.extruder_clearance_radius")
+        }
+        "extruder_clearance_height_to_rod" | "extruder_clearance_height_to_lid"
+        | "extruder_clearance_height" => Some("sequential.extruder_clearance_height"),
+        "gantry_width" => Some("sequential.gantry_width"),
+
         // --- Acceleration sub-config fields ---
         "outer_wall_acceleration" => Some("accel.outer_wall"),
         "inner_wall_acceleration" => Some("accel.inner_wall"),
@@ -829,6 +837,28 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         }
         "max_layer_height" => {
             parse_and_set_f64(value, &mut config.machine.max_layer_height)
+        }
+
+        // --- Sequential/gantry clearance fields ---
+        "extruder_clearance_radius" | "extruder_clearance_max_radius" => {
+            parse_and_set_f64(value, &mut config.sequential.extruder_clearance_radius)
+        }
+        "extruder_clearance_height_to_rod" | "extruder_clearance_height_to_lid" => {
+            // OrcaSlicer has two height fields; take the max of both.
+            if let Ok(v) = value.parse::<f64>() {
+                if v > config.sequential.extruder_clearance_height {
+                    config.sequential.extruder_clearance_height = v;
+                }
+                true
+            } else {
+                false
+            }
+        }
+        "extruder_clearance_height" => {
+            parse_and_set_f64(value, &mut config.sequential.extruder_clearance_height)
+        }
+        "gantry_width" => {
+            parse_and_set_f64(value, &mut config.sequential.gantry_width)
         }
 
         // --- Acceleration sub-config fields ---
