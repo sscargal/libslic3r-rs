@@ -690,6 +690,16 @@ pub struct PrintConfig {
     /// (rayon default: number of logical CPUs). Only effective when
     /// parallel_slicing is true and the `parallel` feature is enabled.
     pub thread_count: Option<usize>,
+
+    // --- Thumbnail ---
+    /// Thumbnail resolution as [width, height] in pixels.
+    /// Used when generating thumbnail images for 3MF or G-code embedding.
+    #[serde(default = "default_thumbnail_resolution")]
+    pub thumbnail_resolution: [u32; 2],
+}
+
+fn default_thumbnail_resolution() -> [u32; 2] {
+    [300, 300]
 }
 
 /// Scarf joint seam configuration.
@@ -839,6 +849,8 @@ impl Default for PrintConfig {
 
             parallel_slicing: true,
             thread_count: None,
+
+            thumbnail_resolution: default_thumbnail_resolution(),
         }
     }
 }
@@ -1832,5 +1844,22 @@ first_layer_bed_temperatures = [65.0, 75.0]
             restored.filament.first_layer_bed_temperatures,
             vec![65.0, 75.0]
         );
+    }
+
+    #[test]
+    fn thumbnail_resolution_defaults_to_300x300() {
+        let config = PrintConfig::default();
+        assert_eq!(config.thumbnail_resolution, [300, 300]);
+    }
+
+    #[test]
+    fn thumbnail_resolution_toml_roundtrip() {
+        let toml_str = "thumbnail_resolution = [220, 124]";
+        let config: PrintConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.thumbnail_resolution, [220, 124]);
+
+        let serialized = toml::to_string(&config).unwrap();
+        let restored: PrintConfig = toml::from_str(&serialized).unwrap();
+        assert_eq!(restored.thumbnail_resolution, [220, 124]);
     }
 }

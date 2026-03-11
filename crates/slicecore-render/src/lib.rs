@@ -32,6 +32,7 @@
 
 mod camera;
 mod framebuffer;
+pub mod gcode_embed;
 mod pipeline;
 mod png_encode;
 mod rasterizer;
@@ -40,6 +41,7 @@ mod shading;
 mod types;
 
 pub use camera::CameraAngle;
+pub use gcode_embed::{format_gcode_thumbnail_block, thumbnail_format_for_dialect, ThumbnailFormat};
 
 use slicecore_mesh::TriangleMesh;
 

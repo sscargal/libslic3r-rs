@@ -40,6 +40,7 @@ pub mod error;
 pub mod klipper;
 pub mod marlin;
 pub mod reprap;
+pub mod thumbnail;
 pub mod validate;
 pub mod writer;
 
@@ -52,4 +53,5 @@ pub use dialect::{
 pub use error::GcodeError;
 pub use validate::{validate_gcode, ValidationResult};
 pub use arc::fit_arcs;
+pub use thumbnail::write_thumbnail_comments;
 pub use writer::GcodeWriter;

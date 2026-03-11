@@ -10,6 +10,7 @@ description = "G-code command types, dialect-aware writer, and validator for the
 slicecore-math = { path = "../slicecore-math" }
 serde = { workspace = true }
 thiserror = { workspace = true }
+base64 = "0.22"
 
 [dev-dependencies]
 proptest = { workspace = true }
