@@ -13,3 +13,5 @@ png = "0.17"
 base64 = "0.22"
 
 [dev-dependencies]
+slicecore-fileio = { path = "../slicecore-fileio" }
+zip = "2"
