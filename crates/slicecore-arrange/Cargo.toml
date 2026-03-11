@@ -1,0 +1,21 @@
+[package]
+name = "slicecore-arrange"
+description = "Build plate auto-arrangement for the slicecore 3D slicing engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+slicecore-math = { path = "../slicecore-math" }
+slicecore-geo = { path = "../slicecore-geo" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
