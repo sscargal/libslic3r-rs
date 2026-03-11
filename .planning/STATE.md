@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 24 in progress -- Mesh Export (STL/3MF Write)
+**Current focus:** Phase 26 in progress -- Thumbnail/Preview Rasterization
 
 ## Current Position
 
-Phase: 25 of 29 (Parallel Slicing Pipeline - rayon)
-Plan: 4 of 4 in current phase (4 complete)
-Status: Phase Complete
-Last activity: 2026-03-10 - Completed 25-04: WASM CI build fix (gap closure)
+Phase: 26 of 29 (Thumbnail/Preview Rasterization)
+Plan: 1 of 3 in current phase (1 complete)
+Status: In Progress
+Last activity: 2026-03-10 - Completed 26-01: CPU software triangle rasterizer
 
-Progress: [██████████] 100% (103/103 overall)
+Progress: [██████████] 100% (104/106 overall)
 
 ## Performance Metrics
 
@@ -85,6 +85,7 @@ Progress: [██████████] 100% (103/103 overall)
 | Phase 25 P02 | 13min | 2 tasks | 4 files |
 | Phase 25 P03 | 2min | 1 tasks | 2 files |
 | Phase 25 P04 | 1 | 1 tasks | 1 files |
+| Phase 26 P01 | 8min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -496,6 +497,9 @@ Recent decisions affecting current work:
 - [Phase 25]: [25-02]: Plugin infill patterns force sequential mode (Engine not Sync due to PluginRegistry)
 - [Phase 25]: [25-03]: 40mm tall cube (200 layers) as benchmark mesh; three variants (sequential, parallel_auto, parallel_4_threads) for scaling visibility
 - [Phase 25]: [25-04]: Single --no-default-features flag sufficient for WASM CI since only slicecore-engine has problematic default feature (parallel/rayon)
+- [Phase 26]: [26-01]: png 0.17 (latest stable, plan specified 0.18 which is not yet published)
+- [Phase 26]: [26-01]: Internal f32 math types (Vec3f/Vec4f/Mat4f) separate from slicecore-math f64 for rasterizer performance
+- [Phase 26]: [26-01]: Edge function convention: (b-a)x(p-a) cross product for consistent CCW winding with area computation
 
 ### Roadmap Evolution
 
@@ -534,6 +538,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-10T23:22:16.896Z
-Stopped at: Phase 26 context gathered
-Resume file: .planning/phases/26-thumbnail-preview-rasterization/26-CONTEXT.md
+Last session: 2026-03-10T23:55:00Z
+Stopped at: Completed 26-01-PLAN.md
+Resume file: .planning/phases/26-thumbnail-preview-rasterization/26-02-PLAN.md
