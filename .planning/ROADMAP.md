@@ -560,14 +560,17 @@ Plans:
 
 ### Phase 27: Build Plate Auto-Arrangement
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Users can automatically position multiple parts on the build plate with optimal packing, auto-orientation for minimal support, material-aware grouping, multi-plate splitting, and sequential print collision avoidance
+**Requirements**: ADV-02
 **Depends on:** Phase 26
-**Plans:** 0 plans
+**Plans:** 5 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 27 to break down)
-
+- [ ] 27-01-PLAN.md -- slicecore-arrange crate scaffold, types, bed parsing, footprint computation
+- [ ] 27-02-PLAN.md -- Expand PrintConfig with gantry clearance and multi-head detection fields
+- [ ] 27-03-PLAN.md -- Auto-orient, bottom-left fill placer, multi-plate grouping, sequential support
+- [ ] 27-04-PLAN.md -- CLI arrange subcommand, --auto-arrange on slice, engine integration
+- [ ] 27-05-PLAN.md -- Integration tests for all arrangement features
 ### Phase 28: G-code Post-Processing Plugin Point
 
 **Goal:** [To be planned]
