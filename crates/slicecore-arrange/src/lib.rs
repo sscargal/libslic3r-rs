@@ -32,6 +32,8 @@ pub mod bed;
 pub mod config;
 pub mod error;
 pub mod footprint;
+pub mod orient;
+pub mod placer;
 pub mod result;
 
 pub use config::{ArrangeConfig, ArrangePart, GantryModel, OrientCriterion};
