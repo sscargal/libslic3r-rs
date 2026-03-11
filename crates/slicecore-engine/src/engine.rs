@@ -2458,6 +2458,75 @@ impl Engine {
 }
 
 // ---------------------------------------------------------------------------
+// Arrangement Integration (feature-gated)
+// ---------------------------------------------------------------------------
+
+/// Build plate arrangement integration, available when the `arrange` feature is enabled.
+///
+/// This impl block adds `arrange_parts` to the Engine, which delegates to
+/// `slicecore_arrange::arrange` with configuration derived from `PrintConfig`.
+#[cfg(feature = "arrange")]
+impl Engine {
+    /// Arrange parts on the build plate using the engine's print configuration.
+    ///
+    /// Builds an [`slicecore_arrange::ArrangeConfig`] from the engine's
+    /// [`PrintConfig`] (bed dimensions, brim, skirt, sequential settings)
+    /// and delegates to [`slicecore_arrange::arrange`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EngineError::ConfigError`] if the arrangement fails
+    /// (invalid bed shape, no parts, sequential overlap).
+    pub fn arrange_parts(
+        &self,
+        parts: &[slicecore_arrange::ArrangePart],
+    ) -> Result<slicecore_arrange::ArrangementResult, EngineError> {
+        let arrange_config = self.build_arrange_config();
+        let bed_shape = &self.config.machine.bed_shape;
+        let bed_x = self.config.machine.bed_x;
+        let bed_y = self.config.machine.bed_y;
+
+        slicecore_arrange::arrange(parts, &arrange_config, bed_shape, bed_x, bed_y)
+            .map_err(|e| EngineError::ConfigError(format!("Arrangement failed: {e}")))
+    }
+
+    /// Builds an [`slicecore_arrange::ArrangeConfig`] from the engine's [`PrintConfig`].
+    fn build_arrange_config(&self) -> slicecore_arrange::ArrangeConfig {
+        let seq = &self.config.sequential;
+        let gantry_model = if !seq.extruder_clearance_polygon.is_empty() {
+            slicecore_arrange::GantryModel::CustomPolygon {
+                vertices: seq.extruder_clearance_polygon.clone(),
+            }
+        } else if seq.gantry_width > 0.0 {
+            slicecore_arrange::GantryModel::Rectangular {
+                width: seq.gantry_width,
+                depth: seq.gantry_depth,
+            }
+        } else if seq.extruder_clearance_radius > 0.0 {
+            slicecore_arrange::GantryModel::Cylinder {
+                radius: seq.extruder_clearance_radius,
+            }
+        } else {
+            slicecore_arrange::GantryModel::None
+        };
+
+        slicecore_arrange::ArrangeConfig {
+            part_spacing: 2.0,
+            bed_margin: 5.0,
+            rotation_step: 45.0,
+            auto_orient: true,
+            sequential_mode: seq.enabled,
+            gantry_model,
+            brim_width: self.config.brim_width,
+            skirt_distance: self.config.skirt_distance,
+            skirt_loops: self.config.skirt_loops,
+            nozzle_diameter: self.config.machine.nozzle_diameter(),
+            ..Default::default()
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
