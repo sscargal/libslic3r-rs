@@ -10,8 +10,8 @@ progress:
   total_phases: 29
   completed_phases: 26
   total_plans: 110
-  completed_plans: 107
-  percent: 97
+  completed_plans: 108
+  percent: 98
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 27 of 29 (Build Plate Auto-Arrangement)
-Plan: 1 of 4 in current phase (1 complete)
+Plan: 2 of 4 in current phase (2 complete)
 Status: In Progress
-Last activity: 2026-03-11 - Completed 27-01: Foundation types for build plate arrangement
+Last activity: 2026-03-11 - Completed 27-02: PrintConfig expansion for gantry/clearance fields
 
-Progress: [█████████▊] 97% (107/110 overall)
+Progress: [█████████▊] 98% (108/110 overall)
 
 ## Performance Metrics
 
@@ -71,7 +71,7 @@ Progress: [█████████▊] 97% (107/110 overall)
 | 22    | 2     | 8min  | 4.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 24-02 (6min), 25-01 (3min), 25-02 (13min), 26-03 (5min), 27-01 (6min)
+- Last 5 plans: 25-01 (3min), 25-02 (13min), 26-03 (5min), 27-01 (6min), 27-02 (6min)
 - Trend: 3-13min/plan
 
 *Updated after each plan completion*
@@ -89,6 +89,7 @@ Progress: [█████████▊] 97% (107/110 overall)
 | Phase 26 P02 | 13min | 2 tasks | 11 files |
 | Phase 26 P03 | 5min | 1 tasks | 4 files |
 | Phase 27 P01 | 6min | 2 tasks | 7 files |
+| Phase 27 P02 | 6min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -509,6 +510,9 @@ Recent decisions affecting current work:
 - [Phase 26]: [26-01]: Internal f32 math types (Vec3f/Vec4f/Mat4f) separate from slicecore-math f64 for rasterizer performance
 - [Phase 26]: [26-01]: Edge function convention: (b-a)x(p-a) cross product for consistent CCW winding with area computation
 
+- [27-02]: Three gantry clearance models: custom polygon > rectangle (gantry_width > 0) > cylinder (extruder_clearance_radius)
+- [27-02]: effective_extruder_count = max(extruder_count, nozzle_diameters.len(), 1)
+- [27-02]: OrcaSlicer height_to_rod/lid mapped with max-of-both semantics
 - [27-01]: Polygon::validate() used for cross-crate polygon creation (from_raw_parts is pub(crate) in slicecore-geo)
 - [27-01]: Bounding box fallback (+/-1um) for degenerate single-point/collinear convex hull projections
 - [27-01]: Round join type for footprint expansion; bed_with_margin helper via Miter inward offset
@@ -550,6 +554,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-11T20:36:44.000Z
-Stopped at: Completed 27-01-PLAN.md
-Resume file: .planning/phases/27-build-plate-auto-arrangement/27-02-PLAN.md
+Last session: 2026-03-11T20:45:33.000Z
+Stopped at: Completed 27-02-PLAN.md
+Resume file: .planning/phases/27-build-plate-auto-arrangement/27-03-PLAN.md
