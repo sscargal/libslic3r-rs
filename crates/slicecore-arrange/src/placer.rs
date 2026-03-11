@@ -93,8 +93,12 @@ pub fn effective_spacing(config: &ArrangeConfig) -> f64 {
 )]
 pub fn prepare_part(cfg: &PreparePartConfig<'_>) -> PreparedPart {
     let base_footprint = compute_footprint(cfg.vertices);
-    let base_expanded =
-        expand_footprint(&base_footprint, cfg.spacing, cfg.brim_width, cfg.raft_margin);
+    let base_expanded = expand_footprint(
+        &base_footprint,
+        cfg.spacing,
+        cfg.brim_width,
+        cfg.raft_margin,
+    );
     let area = footprint_area(&base_expanded);
 
     let mut footprint_variants = Vec::new();
@@ -178,8 +182,9 @@ pub fn place_parts(
         return (Vec::new(), parts.iter().map(|p| p.id.clone()).collect());
     };
 
-    // Scanning resolution: use nozzle_diameter converted to coord
-    let scan_step = mm_to_coord(config.nozzle_diameter.max(0.5));
+    // Scanning resolution: use a practical step size.
+    // Too fine = extremely slow; 2mm gives good results for typical parts.
+    let scan_step = mm_to_coord(config.nozzle_diameter.max(2.0));
 
     let mut placed: Vec<PartPlacement> = Vec::new();
     let mut placed_footprints: Vec<Vec<IPoint2>> = Vec::new();
@@ -252,7 +257,10 @@ pub fn place_parts(
 ///
 /// Computes the bounding box of all placements, finds the offset needed
 /// to center it on the bed, and shifts all placement positions accordingly.
-#[allow(clippy::similar_names, reason = "min_x/max_x and min_y/max_y are standard bbox names")]
+#[allow(
+    clippy::similar_names,
+    reason = "min_x/max_x and min_y/max_y are standard bbox names"
+)]
 pub fn center_arrangement(placements: &mut [PartPlacement], bed: &[IPoint2]) {
     if placements.is_empty() || bed.is_empty() {
         return;
@@ -349,10 +357,7 @@ mod tests {
         config.nozzle_diameter = 1.2;
         config.part_spacing = 1.0;
         let spacing = effective_spacing(&config);
-        assert!(
-            (spacing - 1.8).abs() < 1e-10,
-            "Expected 1.8, got {spacing}"
-        );
+        assert!((spacing - 1.8).abs() < 1e-10, "Expected 1.8, got {spacing}");
     }
 
     #[test]
@@ -375,8 +380,12 @@ mod tests {
         let verts1 = cube_vertices(50.0);
         let verts2 = cube_vertices(50.0);
 
-        let p1 = prepare_part(&make_prepare_config("cube1", &verts1, 50.0, false, &config, spacing));
-        let p2 = prepare_part(&make_prepare_config("cube2", &verts2, 50.0, false, &config, spacing));
+        let p1 = prepare_part(&make_prepare_config(
+            "cube1", &verts1, 50.0, false, &config, spacing,
+        ));
+        let p2 = prepare_part(&make_prepare_config(
+            "cube2", &verts2, 50.0, false, &config, spacing,
+        ));
 
         let parts = vec![p1, p2];
         let (placed, unplaced) = place_parts(&parts, &bed, &config);
@@ -398,7 +407,9 @@ mod tests {
         let bed = crate::bed::bed_from_dimensions(220.0, 220.0);
         let verts = cube_vertices(250.0);
 
-        let p = prepare_part(&make_prepare_config("huge", &verts, 50.0, false, &config, spacing));
+        let p = prepare_part(&make_prepare_config(
+            "huge", &verts, 50.0, false, &config, spacing,
+        ));
 
         let (placed, unplaced) = place_parts(&[p], &bed, &config);
         assert!(placed.is_empty(), "Oversized part should not be placed");
@@ -412,7 +423,9 @@ mod tests {
         let spacing = effective_spacing(&config);
         let verts = cube_vertices(20.0);
 
-        let p = prepare_part(&make_prepare_config("locked", &verts, 20.0, true, &config, spacing));
+        let p = prepare_part(&make_prepare_config(
+            "locked", &verts, 20.0, true, &config, spacing,
+        ));
 
         assert_eq!(
             p.footprint_variants.len(),
@@ -433,8 +446,22 @@ mod tests {
         let small_verts = cube_vertices(20.0);
         let large_verts = cube_vertices(80.0);
 
-        let small = prepare_part(&make_prepare_config("small", &small_verts, 20.0, false, &config, spacing));
-        let large = prepare_part(&make_prepare_config("large", &large_verts, 80.0, false, &config, spacing));
+        let small = prepare_part(&make_prepare_config(
+            "small",
+            &small_verts,
+            20.0,
+            false,
+            &config,
+            spacing,
+        ));
+        let large = prepare_part(&make_prepare_config(
+            "large",
+            &large_verts,
+            80.0,
+            false,
+            &config,
+            spacing,
+        ));
 
         // Pass small first, but placer should process large first
         let parts = vec![small, large];

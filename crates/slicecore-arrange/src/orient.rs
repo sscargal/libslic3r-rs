@@ -9,7 +9,10 @@ use slicecore_math::Vec3;
 use crate::config::OrientCriterion;
 
 /// Rotates a normal vector by angles around X then Y axes (in radians).
-#[allow(clippy::similar_names, reason = "rx/ry are standard rotation axis names")]
+#[allow(
+    clippy::similar_names,
+    reason = "rx/ry are standard rotation axis names"
+)]
 fn rotate_normal(normal: &Vec3, angle_x: f64, angle_y: f64) -> Vec3 {
     // Rotation around X axis
     let (sin_x, cos_x) = angle_x.sin_cos();
@@ -29,7 +32,10 @@ fn rotate_normal(normal: &Vec3, angle_x: f64, angle_y: f64) -> Vec3 {
 ///
 /// Lower is better. Sums face areas where the rotated normal forms an angle
 /// greater than 45 degrees from vertical (Z-up).
-#[allow(clippy::similar_names, reason = "angle_x/angle_y are standard rotation names")]
+#[allow(
+    clippy::similar_names,
+    reason = "angle_x/angle_y are standard rotation names"
+)]
 fn overhang_score(normals: &[Vec3], face_areas: &[f64], angle_x: f64, angle_y: f64) -> f64 {
     let threshold_cos = std::f64::consts::FRAC_PI_4.cos(); // cos(45 degrees)
     let z_up = Vec3::new(0.0, 0.0, 1.0);
@@ -40,7 +46,11 @@ fn overhang_score(normals: &[Vec3], face_areas: &[f64], angle_x: f64, angle_y: f
         .map(|(normal, &area)| {
             let rotated = rotate_normal(normal, angle_x, angle_y);
             let dot = rotated.dot(z_up);
-            if dot < threshold_cos { area } else { 0.0 }
+            if dot < threshold_cos {
+                area
+            } else {
+                0.0
+            }
         })
         .sum()
 }
@@ -49,14 +59,21 @@ fn overhang_score(normals: &[Vec3], face_areas: &[f64], angle_x: f64, angle_y: f
 ///
 /// Higher is better. Sums face areas where the rotated normal points nearly
 /// straight down (z < -0.99), indicating a flat face on the bed.
-#[allow(clippy::similar_names, reason = "angle_x/angle_y are standard rotation names")]
+#[allow(
+    clippy::similar_names,
+    reason = "angle_x/angle_y are standard rotation names"
+)]
 fn contact_score(normals: &[Vec3], face_areas: &[f64], angle_x: f64, angle_y: f64) -> f64 {
     normals
         .iter()
         .zip(face_areas.iter())
         .map(|(normal, &area)| {
             let rotated = rotate_normal(normal, angle_x, angle_y);
-            if rotated.z < -0.99 { area } else { 0.0 }
+            if rotated.z < -0.99 {
+                area
+            } else {
+                0.0
+            }
         })
         .sum()
 }
@@ -98,7 +115,10 @@ fn contact_score(normals: &[Vec3], face_areas: &[f64], angle_x: f64, angle_y: f6
 /// assert!((rx.abs() + ry.abs() + rz.abs()) < 1.0, "Cube should stay near identity");
 /// ```
 #[must_use]
-#[allow(clippy::similar_names, reason = "angle_x/angle_y and best_ax/best_ay are domain names")]
+#[allow(
+    clippy::similar_names,
+    reason = "angle_x/angle_y and best_ax/best_ay are domain names"
+)]
 pub fn auto_orient(
     _vertices: &[slicecore_math::Point3],
     normals: &[Vec3],
@@ -184,10 +204,7 @@ mod tests {
             &OrientCriterion::MinimizeSupport,
         );
         // Cube has symmetric overhangs: identity (0,0,0) is among the best
-        assert!(
-            rz.abs() < f64::EPSILON,
-            "rz should always be 0, got {rz}"
-        );
+        assert!(rz.abs() < f64::EPSILON, "rz should always be 0, got {rz}");
     }
 
     #[test]
@@ -208,8 +225,7 @@ mod tests {
         );
         // Should find an orientation that reduces overhang of the large face
         let identity_overhang = overhang_score(&normals, &areas, 0.0, 0.0);
-        let best_overhang =
-            overhang_score(&normals, &areas, rx.to_radians(), ry.to_radians());
+        let best_overhang = overhang_score(&normals, &areas, rx.to_radians(), ry.to_radians());
         assert!(
             best_overhang <= identity_overhang,
             "Best ({best_overhang}) should be <= identity ({identity_overhang})"
@@ -241,12 +257,7 @@ mod tests {
     #[test]
     fn empty_normals_returns_identity() {
         let vertices = vec![Point3::new(0.0, 0.0, 0.0)];
-        let (rx, ry, rz) = auto_orient(
-            &vertices,
-            &[],
-            &[],
-            &OrientCriterion::MinimizeSupport,
-        );
+        let (rx, ry, rz) = auto_orient(&vertices, &[], &[], &OrientCriterion::MinimizeSupport);
         assert!((rx.abs() + ry.abs() + rz.abs()) < f64::EPSILON);
     }
 }

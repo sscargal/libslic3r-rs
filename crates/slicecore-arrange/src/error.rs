@@ -27,4 +27,13 @@ pub enum ArrangeError {
     /// An error occurred during footprint computation (convex hull or offset).
     #[error("footprint error: {0}")]
     FootprintError(String),
+
+    /// Sequential mode detected gantry clearance overlap between parts.
+    #[error("sequential mode overlap between parts '{part_a}' and '{part_b}'")]
+    SequentialOverlap {
+        /// First overlapping part identifier.
+        part_a: String,
+        /// Second overlapping part identifier.
+        part_b: String,
+    },
 }
