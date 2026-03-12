@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 28 of 29 (G-code Post-Processing Plugin Point)
-Plan: 1 of 3 in current phase (1 complete)
+Plan: 2 of 3 in current phase (2 complete)
 Status: In Progress
-Last activity: 2026-03-12 - Completed 28-01: Post-Processor Plugin Foundation
+Last activity: 2026-03-12 - Completed 28-02: Built-in Post-Processors and Pipeline Integration
 
-Progress: [██████████] 100% (112/114 overall)
+Progress: [██████████] 100% (113/114 overall)
 
 ## Performance Metrics
 
@@ -94,6 +94,7 @@ Progress: [██████████] 100% (112/114 overall)
 | Phase 27 P04 | 10min | 2 tasks | 6 files |
 | Phase 27 P05 | 10min | 1 tasks | 1 files |
 | Phase 28 P01 | 7min | 2 tasks | 9 files |
+| Phase 28 P02 | 9min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -526,6 +527,10 @@ Recent decisions affecting current work:
 - [27-04]: CLI arrange outputs JSON to stdout by default; --apply writes transformed files
 - [27-04]: 3MF output combines all placed parts into single mesh with position transforms applied
 - [27-04]: GantryModel derived from SequentialConfig: polygon > rectangle > cylinder > none
+- [28-02]: slicecore-plugin promoted from optional to required dependency (default-features=false) for PostProcessorPluginAdapter access
+- [28-02]: SpeedConfig.perimeter used as print_speed in FfiPrintConfigSnapshot (no generic 'print' speed field)
+- [28-02]: Post-processing runs at step 4d after arc fitting/purge tower, before time estimation
+- [28-02]: Built-in plugins self-skip via empty config check, not per-plugin enabled flag
 - [28-01]: FfiGcodeCommand has Raw (maps to GcodeCommand::Raw) and RawGcode (plugin-generated arbitrary codes) as separate variants
 - [28-01]: PostProcessorPluginAdapter includes priority() for pipeline ordering (lower number = earlier)
 - [28-01]: GcodePostProcessor capability manifests logged but not loaded (built-ins are v1 mechanism)
@@ -571,6 +576,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T17:21:42Z
-Stopped at: Completed 28-01-PLAN.md
-Resume file: .planning/phases/28-g-code-post-processing-plugin-point/28-02-PLAN.md
+Last session: 2026-03-12T17:34:10Z
+Stopped at: Completed 28-02-PLAN.md
+Resume file: .planning/phases/28-g-code-post-processing-plugin-point/28-03-PLAN.md
