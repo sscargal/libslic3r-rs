@@ -12,6 +12,8 @@
 //! - [`primitives`] -- Nine watertight mesh primitive generators
 
 pub mod error;
+pub mod intersect;
+pub mod perturb;
 pub mod primitives;
 pub mod report;
 pub mod types;
