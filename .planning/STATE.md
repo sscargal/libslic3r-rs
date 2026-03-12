@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 28 of 29 (G-code Post-Processing Plugin Point)
-Plan: 2 of 3 in current phase (2 complete)
-Status: In Progress
-Last activity: 2026-03-12 - Completed 28-02: Built-in Post-Processors and Pipeline Integration
+Plan: 3 of 3 in current phase (3 complete)
+Status: Phase 28 Complete
+Last activity: 2026-03-12 - Completed 28-03: CLI Post-Process Subcommand and Integration Tests
 
-Progress: [██████████] 100% (113/114 overall)
+Progress: [██████████] 100% (114/114 overall)
 
 ## Performance Metrics
 
@@ -95,6 +95,7 @@ Progress: [██████████] 100% (113/114 overall)
 | Phase 27 P05 | 10min | 1 tasks | 1 files |
 | Phase 28 P01 | 7min | 2 tasks | 9 files |
 | Phase 28 P02 | 9min | 2 tasks | 5 files |
+| Phase 28 P03 | 10min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -531,6 +532,9 @@ Recent decisions affecting current work:
 - [28-02]: SpeedConfig.perimeter used as print_speed in FfiPrintConfigSnapshot (no generic 'print' speed field)
 - [28-02]: Post-processing runs at step 4d after arc fitting/purge tower, before time estimation
 - [28-02]: Built-in plugins self-skip via empty config check, not per-plugin enabled flag
+- [28-03]: External G-code parsed as Comment/Raw commands for post-processor compatibility
+- [28-03]: CLI flags override config file values when both provided
+- [28-03]: Default FfiPrintConfigSnapshot with standard FDM values for standalone post-processing
 - [28-01]: FfiGcodeCommand has Raw (maps to GcodeCommand::Raw) and RawGcode (plugin-generated arbitrary codes) as separate variants
 - [28-01]: PostProcessorPluginAdapter includes priority() for pipeline ordering (lower number = earlier)
 - [28-01]: GcodePostProcessor capability manifests logged but not loaded (built-ins are v1 mechanism)
@@ -576,6 +580,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T17:34:10Z
-Stopped at: Completed 28-02-PLAN.md
-Resume file: .planning/phases/28-g-code-post-processing-plugin-point/28-03-PLAN.md
+Last session: 2026-03-12T17:47:27Z
+Stopped at: Completed 28-03-PLAN.md (Phase 28 complete)
+Resume file: Phase 29 next
