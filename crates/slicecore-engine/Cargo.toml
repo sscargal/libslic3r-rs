@@ -8,7 +8,7 @@ description = "Slicing pipeline orchestrator and print configuration for the sli
 
 [features]
 default = ["parallel"]
-plugins = ["dep:slicecore-plugin"]
+plugins = []
 ai = ["dep:slicecore-ai"]
 parallel = ["dep:rayon"]
 arrange = ["dep:slicecore-arrange"]
@@ -20,7 +20,8 @@ slicecore-geo = { path = "../slicecore-geo" }
 slicecore-slicer = { path = "../slicecore-slicer" }
 slicecore-fileio = { path = "../slicecore-fileio" }
 slicecore-gcode-io = { path = "../slicecore-gcode-io" }
-slicecore-plugin = { path = "../slicecore-plugin", optional = true }
+slicecore-plugin = { path = "../slicecore-plugin", default-features = false }
+slicecore-plugin-api = { path = "../slicecore-plugin-api" }
 slicecore-ai = { path = "../slicecore-ai", optional = true }
 slicecore-arrange = { path = "../slicecore-arrange", optional = true }
 serde = { workspace = true }

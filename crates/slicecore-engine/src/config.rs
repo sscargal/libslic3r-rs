@@ -718,10 +718,141 @@ pub struct PrintConfig {
     /// Used when generating thumbnail images for 3MF or G-code embedding.
     #[serde(default = "default_thumbnail_resolution")]
     pub thumbnail_resolution: [u32; 2],
+
+    // --- Post-Processing ---
+    /// Post-processing pipeline configuration.
+    /// Controls built-in post-processors (pause at layer, timelapse, fan override,
+    /// custom G-code injection) that run after G-code generation.
+    #[serde(default)]
+    pub post_process: PostProcessConfig,
 }
 
 fn default_thumbnail_resolution() -> [u32; 2] {
     [300, 300]
+}
+
+// ============================================================================
+// Post-Processing Configuration
+// ============================================================================
+
+/// Post-processing pipeline configuration.
+///
+/// Controls the built-in post-processors that run after G-code generation
+/// and arc fitting, but before time estimation. All features are disabled
+/// by default for backward compatibility.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PostProcessConfig {
+    /// Master switch for the post-processing pipeline.
+    pub enabled: bool,
+    /// Layer indices (zero-based) at which to insert a pause command.
+    pub pause_at_layers: Vec<usize>,
+    /// G-code command to insert for pause (typically "M0" or "M600").
+    pub pause_command: String,
+    /// Timelapse camera configuration.
+    pub timelapse: TimelapseConfig,
+    /// Fan speed override rules applied to specific layer ranges.
+    pub fan_overrides: Vec<FanOverrideRule>,
+    /// Custom G-code injection rules with various trigger types.
+    pub custom_gcode: Vec<CustomGcodeRule>,
+    /// Explicit plugin execution order by name.
+    /// When empty, plugins are sorted by priority.
+    pub plugin_order: Vec<String>,
+}
+
+impl Default for PostProcessConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            pause_at_layers: Vec::new(),
+            pause_command: "M0".to_string(),
+            timelapse: TimelapseConfig::default(),
+            fan_overrides: Vec::new(),
+            custom_gcode: Vec::new(),
+            plugin_order: Vec::new(),
+        }
+    }
+}
+
+/// Timelapse camera configuration for layer-change snapshots.
+///
+/// When enabled, the post-processor inserts a retract-park-dwell-unretract
+/// sequence at every layer change to allow a camera to capture a frame.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TimelapseConfig {
+    /// Enable timelapse camera support.
+    pub enabled: bool,
+    /// X position to park at for the snapshot (mm).
+    pub park_x: f64,
+    /// Y position to park at for the snapshot (mm).
+    pub park_y: f64,
+    /// Dwell time at park position for camera capture (ms).
+    pub dwell_ms: u32,
+    /// Retraction distance before moving to park position (mm).
+    pub retract_distance: f64,
+    /// Retraction speed (mm/min).
+    pub retract_speed: f64,
+}
+
+impl Default for TimelapseConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            park_x: 0.0,
+            park_y: 0.0,
+            dwell_ms: 500,
+            retract_distance: 1.0,
+            retract_speed: 2400.0,
+        }
+    }
+}
+
+/// A fan speed override rule applied to a range of layers.
+///
+/// When the post-processor encounters a `SetFanSpeed` command within
+/// the specified layer range, it replaces the fan speed with the
+/// configured value.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FanOverrideRule {
+    /// First layer (zero-based) where the override applies.
+    pub start_layer: usize,
+    /// Last layer (zero-based, inclusive) where the override applies.
+    /// `None` means the override applies until the end of the print.
+    pub end_layer: Option<usize>,
+    /// Fan speed to use (0-255).
+    pub fan_speed: u8,
+}
+
+/// Trigger condition for custom G-code injection.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum CustomGcodeTrigger {
+    /// Inject after every N layers.
+    EveryNLayers {
+        /// Injection interval in layers.
+        n: usize,
+    },
+    /// Inject at specific layer indices.
+    AtLayers {
+        /// Layer indices (zero-based) at which to inject.
+        layers: Vec<usize>,
+    },
+    /// Inject immediately before each retraction.
+    BeforeRetraction,
+    /// Inject immediately after each unretraction.
+    AfterRetraction,
+}
+
+/// A custom G-code injection rule.
+///
+/// Injects arbitrary G-code at the specified trigger points.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomGcodeRule {
+    /// When to inject the G-code.
+    pub trigger: CustomGcodeTrigger,
+    /// Raw G-code string to inject (may contain multiple lines).
+    pub gcode: String,
 }
 
 /// Scarf joint seam configuration.
@@ -873,6 +1004,8 @@ impl Default for PrintConfig {
             thread_count: None,
 
             thumbnail_resolution: default_thumbnail_resolution(),
+
+            post_process: PostProcessConfig::default(),
         }
     }
 }

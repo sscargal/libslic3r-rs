@@ -42,6 +42,7 @@ pub mod output;
 mod parallel;
 pub mod perimeter;
 pub mod planner;
+pub mod postprocess_builtin;
 pub mod polyhole;
 pub mod preview;
 pub mod profile_convert;
@@ -99,6 +100,7 @@ pub use scarf::apply_scarf_joint;
 pub use sequential::{
     detect_collision, order_objects, plan_sequential_print, ObjectBounds,
 };
+pub use postprocess_builtin::create_builtin_postprocessors;
 pub use support::config::SupportConfig;
 pub use support::{SupportRegion, SupportResult};
 pub use toolpath::{
