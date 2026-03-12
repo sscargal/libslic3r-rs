@@ -391,10 +391,8 @@ mod tests {
         let _int = FfiConfigParam::IntVal(42);
         let _float = FfiConfigParam::FloatVal(3.14);
         let _bool = FfiConfigParam::BoolVal(true);
-        let _list = FfiConfigParam::StringListVal(RVec::from(vec![
-            RString::from("a"),
-            RString::from("b"),
-        ]));
+        let _list =
+            FfiConfigParam::StringListVal(RVec::from(vec![RString::from("a"), RString::from("b")]));
     }
 
     #[test]

@@ -11,6 +11,7 @@ use slicecore_plugin_api::{InfillRequest, InfillResult, PluginManifest};
 
 use crate::discovery;
 use crate::error::PluginSystemError;
+use crate::postprocess::PostProcessorPluginAdapter;
 use crate::sandbox::SandboxConfig;
 
 /// The kind of plugin (loading mechanism).
@@ -81,6 +82,8 @@ pub trait InfillPluginAdapter: Send + Sync {
 pub struct PluginRegistry {
     /// Loaded infill plugins keyed by name.
     infill_plugins: HashMap<String, Box<dyn InfillPluginAdapter>>,
+    /// Loaded post-processor plugins keyed by name.
+    postprocessor_plugins: HashMap<String, Box<dyn PostProcessorPluginAdapter>>,
     /// Discovered manifests (for informational purposes).
     manifests: Vec<PluginManifest>,
     /// Default sandbox configuration for WASM plugins.
@@ -97,6 +100,7 @@ impl PluginRegistry {
     pub fn new() -> Self {
         Self {
             infill_plugins: HashMap::new(),
+            postprocessor_plugins: HashMap::new(),
             manifests: Vec::new(),
             sandbox_config: SandboxConfig::default(),
         }
@@ -172,6 +176,29 @@ impl PluginRegistry {
         plugin_dir: &Path,
         manifest: PluginManifest,
     ) -> Result<PluginInfo, PluginSystemError> {
+        // Check for GcodePostProcessor capability -- log unsupported for now
+        // since native post-processor loading is future work (built-ins are the v1 mechanism).
+        if manifest
+            .capabilities
+            .contains(&slicecore_plugin_api::PluginCapability::GcodePostProcessor)
+        {
+            eprintln!(
+                "Note: Plugin '{}' declares GcodePostProcessor capability; \
+                 native post-processor loading not yet supported, use built-in registration",
+                manifest.metadata.name
+            );
+            self.manifests.push(manifest.clone());
+            return Ok(PluginInfo {
+                name: manifest.metadata.name,
+                description: manifest.metadata.description,
+                plugin_kind: match manifest.plugin_type {
+                    slicecore_plugin_api::PluginType::Native => PluginKind::Native,
+                    slicecore_plugin_api::PluginType::Wasm => PluginKind::Wasm,
+                },
+                version: manifest.metadata.version,
+            });
+        }
+
         match manifest.plugin_type {
             slicecore_plugin_api::PluginType::Native => {
                 let plugin = crate::native::load_native_plugin(plugin_dir, &manifest)?;
@@ -186,9 +213,7 @@ impl PluginRegistry {
                     .insert(info.name.clone(), Box::new(plugin));
                 Ok(info)
             }
-            slicecore_plugin_api::PluginType::Wasm => {
-                self.load_wasm_plugin(plugin_dir, manifest)
-            }
+            slicecore_plugin_api::PluginType::Wasm => self.load_wasm_plugin(plugin_dir, manifest),
         }
     }
 
@@ -283,6 +308,40 @@ impl PluginRegistry {
     /// Returns the number of registered infill plugins.
     pub fn infill_plugin_count(&self) -> usize {
         self.infill_plugins.len()
+    }
+
+    /// Manually registers a post-processor plugin.
+    ///
+    /// Useful for built-in post-processors or test fixtures. If a plugin
+    /// with the same name is already registered, it is replaced.
+    pub fn register_postprocessor(&mut self, plugin: Box<dyn PostProcessorPluginAdapter>) {
+        let name = plugin.name();
+        self.postprocessor_plugins.insert(name, plugin);
+    }
+
+    /// Looks up a post-processor plugin by name.
+    ///
+    /// Returns `None` if no plugin with the given name is registered.
+    pub fn get_postprocessor(&self, name: &str) -> Option<&dyn PostProcessorPluginAdapter> {
+        self.postprocessor_plugins.get(name).map(|p| p.as_ref())
+    }
+
+    /// Returns the names of all registered post-processor plugins.
+    pub fn postprocessor_names(&self) -> Vec<String> {
+        self.postprocessor_plugins.keys().cloned().collect()
+    }
+
+    /// Returns information about all registered post-processor plugins.
+    pub fn postprocessor_infos(&self) -> Vec<PluginInfo> {
+        self.postprocessor_plugins
+            .values()
+            .map(|plugin| PluginInfo {
+                name: plugin.name(),
+                description: plugin.description(),
+                plugin_kind: plugin.plugin_type(),
+                version: String::new(),
+            })
+            .collect()
     }
 
     /// Returns the discovered manifests.

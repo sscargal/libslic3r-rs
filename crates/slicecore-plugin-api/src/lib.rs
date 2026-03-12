@@ -85,9 +85,7 @@ pub mod types;
 
 // Re-export primary types for convenience
 pub use error::PluginError;
-pub use metadata::{
-    PluginCapability, PluginManifest, PluginMetadata, PluginType, ResourceLimits,
-};
+pub use metadata::{PluginCapability, PluginManifest, PluginMetadata, PluginType, ResourceLimits};
 pub use postprocess_traits::{
     GcodePostProcessorPlugin, GcodePostProcessorPlugin_TO, PostProcessorPluginMod,
     PostProcessorPluginMod_Ref,
@@ -96,5 +94,7 @@ pub use postprocess_types::{
     FfiConfigParam, FfiGcodeCommand, FfiPrintConfigSnapshot, LayerPostProcessRequest,
     PostProcessRequest, PostProcessResult, ProcessingMode,
 };
-pub use traits::{InfillPatternPlugin, InfillPatternPlugin_TO, InfillPluginMod, InfillPluginMod_Ref};
+pub use traits::{
+    InfillPatternPlugin, InfillPatternPlugin_TO, InfillPluginMod, InfillPluginMod_Ref,
+};
 pub use types::{FfiInfillLine, InfillRequest, InfillResult};

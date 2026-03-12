@@ -69,6 +69,8 @@ pub mod discovery;
 pub mod error;
 #[cfg(not(target_family = "wasm"))]
 pub mod native;
+pub mod postprocess;
+pub mod postprocess_convert;
 pub mod registry;
 pub mod sandbox;
 #[cfg(feature = "wasm-plugins")]
@@ -77,6 +79,7 @@ pub mod wasm;
 // Re-export primary types
 pub use convert::{ffi_result_to_lines, regions_to_request, ConvertedInfillLine};
 pub use error::PluginSystemError;
+pub use postprocess::{run_post_processors, PostProcessorPluginAdapter};
 pub use registry::{InfillPluginAdapter, PluginInfo, PluginKind, PluginRegistry};
 pub use sandbox::SandboxConfig;
 

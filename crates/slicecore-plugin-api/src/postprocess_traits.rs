@@ -134,10 +134,7 @@ mod tests {
             "A test post-processor for unit tests".into()
         }
 
-        fn process_all(
-            &self,
-            request: &PostProcessRequest,
-        ) -> RResult<PostProcessResult, RString> {
+        fn process_all(&self, request: &PostProcessRequest) -> RResult<PostProcessResult, RString> {
             ROk(PostProcessResult {
                 commands: request.commands.clone(),
             })
@@ -160,10 +157,8 @@ mod tests {
     #[test]
     fn test_postprocessor_trait_object_creation() {
         let plugin = TestPostProcessor;
-        let trait_obj = GcodePostProcessorPlugin_TO::from_value(
-            plugin,
-            abi_stable::sabi_trait::TD_Opaque,
-        );
+        let trait_obj =
+            GcodePostProcessorPlugin_TO::from_value(plugin, abi_stable::sabi_trait::TD_Opaque);
         assert_eq!(trait_obj.name().as_str(), "test-postprocessor");
         assert_eq!(
             trait_obj.description().as_str(),
@@ -175,10 +170,8 @@ mod tests {
     #[test]
     fn test_postprocessor_process_all() {
         let plugin = TestPostProcessor;
-        let trait_obj = GcodePostProcessorPlugin_TO::from_value(
-            plugin,
-            abi_stable::sabi_trait::TD_Opaque,
-        );
+        let trait_obj =
+            GcodePostProcessorPlugin_TO::from_value(plugin, abi_stable::sabi_trait::TD_Opaque);
 
         let config = crate::postprocess_types::FfiPrintConfigSnapshot {
             nozzle_diameter: 0.4,
@@ -197,9 +190,9 @@ mod tests {
         };
 
         let request = PostProcessRequest {
-            commands: RVec::from(vec![
-                crate::postprocess_types::FfiGcodeCommand::Comment(RString::from("test")),
-            ]),
+            commands: RVec::from(vec![crate::postprocess_types::FfiGcodeCommand::Comment(
+                RString::from("test"),
+            )]),
             config,
             params: RVec::new(),
         };
