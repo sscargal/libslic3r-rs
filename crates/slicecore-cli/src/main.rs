@@ -13,6 +13,7 @@
 //! - `analyze-gcode`: Analyze a G-code file with structured metrics output
 //! - `compare-gcode`: Compare multiple G-code files with deltas
 //! - `arrange`: Arrange multiple mesh files on a build plate
+//! - `post-process`: Post-process an existing G-code file
 
 mod analysis_display;
 mod stats_display;
@@ -25,7 +26,8 @@ use clap::{Parser, Subcommand};
 
 use slicecore_ai::AiConfig;
 use slicecore_engine::{
-    batch_convert_profiles, batch_convert_prusaslicer_profiles, load_index, write_merged_index,
+    batch_convert_profiles, batch_convert_prusaslicer_profiles,
+    config::PostProcessConfig, create_builtin_postprocessors, load_index, write_merged_index,
     Engine, PrintConfig, ProfileIndexEntry,
 };
 use slicecore_fileio::{load_mesh, save_mesh};
@@ -454,6 +456,54 @@ enum Commands {
         #[arg(long, default_value = "json")]
         format: String,
     },
+
+    /// Post-process an existing G-code file.
+    ///
+    /// Reads a G-code file, applies configured post-processors (pause-at-layer,
+    /// timelapse, fan override, custom G-code injection), and writes the result.
+    /// Works with G-code from any slicer, not just slicecore.
+    PostProcess {
+        /// Input G-code file path
+        input: PathBuf,
+
+        /// Output file path (default: stdout)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Path to TOML config file with [post_process] section
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+
+        /// Insert pause at layer N (repeatable)
+        #[arg(long = "pause-at-layer", value_name = "LAYER")]
+        pause_at_layers: Vec<usize>,
+
+        /// Pause command (default: "M0", alternative: "M600")
+        #[arg(long = "pause-command", default_value = "M0")]
+        pause_command: String,
+
+        /// Enable timelapse mode
+        #[arg(long)]
+        timelapse: bool,
+
+        /// Park X position for timelapse
+        #[arg(long = "timelapse-park-x", default_value = "0.0")]
+        timelapse_park_x: f64,
+
+        /// Park Y position for timelapse
+        #[arg(long = "timelapse-park-y", default_value = "200.0")]
+        timelapse_park_y: f64,
+
+        /// Fan speed override rule (repeatable, format "start_layer:end_layer:speed",
+        /// use "*" for end_layer to mean until end)
+        #[arg(long = "fan-override", value_name = "START:END:SPEED")]
+        fan_overrides: Vec<String>,
+
+        /// Custom G-code injection (repeatable, format "trigger:gcode" where trigger
+        /// is "every_N", "at_N", "before_retract", or "after_retract")
+        #[arg(long = "inject-gcode", value_name = "TRIGGER:GCODE")]
+        inject_gcode: Vec<String>,
+    },
 }
 
 fn main() {
@@ -583,6 +633,29 @@ fn main() {
             sequential,
             apply,
             &format,
+        ),
+        Commands::PostProcess {
+            input,
+            output,
+            config,
+            pause_at_layers,
+            pause_command,
+            timelapse,
+            timelapse_park_x,
+            timelapse_park_y,
+            fan_overrides,
+            inject_gcode,
+        } => cmd_post_process(
+            &input,
+            output.as_deref(),
+            config.as_deref(),
+            &pause_at_layers,
+            &pause_command,
+            timelapse,
+            timelapse_park_x,
+            timelapse_park_y,
+            &fan_overrides,
+            &inject_gcode,
         ),
     }
 }
@@ -908,6 +981,236 @@ fn cmd_slice(
         eprintln!("Output: {}", out_path.display());
     } else if !quiet {
         println!("\nOutput: {}", out_path.display());
+    }
+}
+
+/// Post-process an existing G-code file.
+#[allow(clippy::too_many_arguments)]
+fn cmd_post_process(
+    input: &PathBuf,
+    output_path: Option<&std::path::Path>,
+    config_path: Option<&std::path::Path>,
+    pause_at_layers: &[usize],
+    pause_command: &str,
+    timelapse: bool,
+    timelapse_park_x: f64,
+    timelapse_park_y: f64,
+    fan_override_strs: &[String],
+    inject_gcode_strs: &[String],
+) {
+    use slicecore_engine::config::{
+        CustomGcodeRule, CustomGcodeTrigger, FanOverrideRule, TimelapseConfig,
+    };
+    use slicecore_gcode_io::{GcodeCommand, GcodeDialect, GcodeWriter};
+    use slicecore_plugin::postprocess::run_post_processors;
+    use slicecore_plugin_api::FfiPrintConfigSnapshot;
+
+    // 1. Read input G-code file.
+    let gcode_text = match std::fs::read_to_string(input) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Error: Failed to read '{}': {}", input.display(), e);
+            process::exit(1);
+        }
+    };
+
+    // 2. Parse G-code lines into Vec<GcodeCommand>.
+    //    Wrap each line as Raw -- post-processors pattern-match layer comments
+    //    and specific commands regardless of typed vs raw representation.
+    let commands: Vec<GcodeCommand> = gcode_text
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            let trimmed = line.trim();
+            // Detect comment lines for layer tracking.
+            if let Some(comment_text) = trimmed.strip_prefix(';') {
+                GcodeCommand::Comment(comment_text.trim().to_string())
+            } else {
+                GcodeCommand::Raw(trimmed.to_string())
+            }
+        })
+        .collect();
+
+    // 3. Build PostProcessConfig from config file and CLI flags.
+    let mut pp_config = if let Some(cfg_path) = config_path {
+        match PrintConfig::from_file(cfg_path) {
+            Ok(c) => c.post_process,
+            Err(e) => {
+                eprintln!(
+                    "Error: Failed to load config '{}': {}",
+                    cfg_path.display(),
+                    e
+                );
+                process::exit(1);
+            }
+        }
+    } else {
+        PostProcessConfig::default()
+    };
+
+    // CLI flags override config file values.
+    if !pause_at_layers.is_empty() {
+        pp_config.pause_at_layers = pause_at_layers.to_vec();
+    }
+    if pause_command != "M0" || pp_config.pause_command == "M0" {
+        pp_config.pause_command = pause_command.to_string();
+    }
+    if timelapse {
+        pp_config.timelapse = TimelapseConfig {
+            enabled: true,
+            park_x: timelapse_park_x,
+            park_y: timelapse_park_y,
+            ..TimelapseConfig::default()
+        };
+    }
+
+    // Parse --fan-override flags: "start:end:speed" (end = "*" means None).
+    for spec in fan_override_strs {
+        let parts: Vec<&str> = spec.split(':').collect();
+        if parts.len() != 3 {
+            eprintln!("Error: Invalid fan-override format '{}'. Expected start_layer:end_layer:speed", spec);
+            process::exit(1);
+        }
+        let start_layer = match parts[0].parse::<usize>() {
+            Ok(v) => v,
+            Err(_) => {
+                eprintln!("Error: Invalid start_layer in fan-override '{}'", spec);
+                process::exit(1);
+            }
+        };
+        let end_layer = if parts[1] == "*" {
+            None
+        } else {
+            match parts[1].parse::<usize>() {
+                Ok(v) => Some(v),
+                Err(_) => {
+                    eprintln!("Error: Invalid end_layer in fan-override '{}'", spec);
+                    process::exit(1);
+                }
+            }
+        };
+        let fan_speed = match parts[2].parse::<u8>() {
+            Ok(v) => v,
+            Err(_) => {
+                eprintln!("Error: Invalid speed in fan-override '{}'", spec);
+                process::exit(1);
+            }
+        };
+        pp_config.fan_overrides.push(FanOverrideRule {
+            start_layer,
+            end_layer,
+            fan_speed,
+        });
+    }
+
+    // Parse --inject-gcode flags: "trigger:gcode".
+    for spec in inject_gcode_strs {
+        let (trigger_str, gcode) = match spec.split_once(':') {
+            Some((t, g)) => (t, g.to_string()),
+            None => {
+                eprintln!(
+                    "Error: Invalid inject-gcode format '{}'. Expected trigger:gcode",
+                    spec
+                );
+                process::exit(1);
+            }
+        };
+        let trigger = if trigger_str == "before_retract" {
+            CustomGcodeTrigger::BeforeRetraction
+        } else if trigger_str == "after_retract" {
+            CustomGcodeTrigger::AfterRetraction
+        } else if let Some(n_str) = trigger_str.strip_prefix("every_") {
+            match n_str.parse::<usize>() {
+                Ok(n) => CustomGcodeTrigger::EveryNLayers { n },
+                Err(_) => {
+                    eprintln!("Error: Invalid trigger '{}' in inject-gcode", trigger_str);
+                    process::exit(1);
+                }
+            }
+        } else if let Some(n_str) = trigger_str.strip_prefix("at_") {
+            match n_str.parse::<usize>() {
+                Ok(n) => CustomGcodeTrigger::AtLayers { layers: vec![n] },
+                Err(_) => {
+                    eprintln!("Error: Invalid trigger '{}' in inject-gcode", trigger_str);
+                    process::exit(1);
+                }
+            }
+        } else {
+            eprintln!(
+                "Error: Unknown trigger '{}'. Use every_N, at_N, before_retract, or after_retract",
+                trigger_str
+            );
+            process::exit(1);
+        };
+        pp_config
+            .custom_gcode
+            .push(CustomGcodeRule { trigger, gcode });
+    }
+
+    pp_config.enabled = true;
+
+    // 4. Create built-in post-processors.
+    let plugins = create_builtin_postprocessors(&pp_config);
+    if plugins.is_empty() {
+        eprintln!("Warning: No post-processors are configured. Output will be unchanged.");
+    }
+
+    // 5. Build a default FfiPrintConfigSnapshot.
+    let config_snapshot = FfiPrintConfigSnapshot {
+        nozzle_diameter: 0.4,
+        layer_height: 0.2,
+        first_layer_height: 0.3,
+        bed_x: 220.0,
+        bed_y: 220.0,
+        print_speed: 60.0,
+        travel_speed: 120.0,
+        retract_length: 0.8,
+        retract_speed: 45.0,
+        nozzle_temp: 200.0,
+        bed_temp: 60.0,
+        fan_speed: 255,
+        total_layers: 100,
+    };
+
+    // 6. Run post-processors.
+    let plugin_refs: Vec<&dyn slicecore_plugin::postprocess::PostProcessorPluginAdapter> =
+        plugins.iter().map(|p| p.as_ref()).collect();
+    let processed = match run_post_processors(commands, &plugin_refs, &config_snapshot) {
+        Ok(cmds) => cmds,
+        Err(e) => {
+            eprintln!("Error: Post-processing failed: {}", e);
+            process::exit(1);
+        }
+    };
+
+    // 7. Write output.
+    if let Some(out_path) = output_path {
+        let file = match std::fs::File::create(out_path) {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!(
+                    "Error: Failed to create output file '{}': {}",
+                    out_path.display(),
+                    e
+                );
+                process::exit(1);
+            }
+        };
+        let mut writer = GcodeWriter::new(file, GcodeDialect::Marlin);
+        if let Err(e) = writer.write_commands(&processed) {
+            eprintln!("Error: Failed to write output: {}", e);
+            process::exit(1);
+        }
+    } else {
+        // Write to stdout.
+        let mut buf = Vec::new();
+        let mut writer = GcodeWriter::new(&mut buf, GcodeDialect::Marlin);
+        if let Err(e) = writer.write_commands(&processed) {
+            eprintln!("Error: Failed to format output: {}", e);
+            process::exit(1);
+        }
+        let output_str = String::from_utf8_lossy(&buf);
+        print!("{output_str}");
     }
 }
 
