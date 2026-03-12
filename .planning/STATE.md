@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 27 in progress -- Build Plate Auto-Arrangement
+**Current focus:** Phase 28 in progress -- G-code Post-Processing Plugin Point
 
 ## Current Position
 
-Phase: 27 of 29 (Build Plate Auto-Arrangement)
-Plan: 5 of 5 in current phase (5 complete)
+Phase: 28 of 29 (G-code Post-Processing Plugin Point)
+Plan: 1 of 3 in current phase (1 complete)
 Status: In Progress
-Last activity: 2026-03-11 - Completed 27-05: Integration Tests
+Last activity: 2026-03-12 - Completed 28-01: Post-Processor Plugin Foundation
 
-Progress: [██████████] 100% (111/111 overall)
+Progress: [██████████] 100% (112/114 overall)
 
 ## Performance Metrics
 
@@ -71,7 +71,7 @@ Progress: [██████████] 100% (111/111 overall)
 | 22    | 2     | 8min  | 4.0min   |
 
 **Recent Trend:**
-- Last 5 plans: 27-01 (6min), 27-02 (6min), 27-03 (36min), 27-04 (10min), 27-05 (10min)
+- Last 5 plans: 27-02 (6min), 27-03 (36min), 27-04 (10min), 27-05 (10min), 28-01 (7min)
 - Trend: 6-36min/plan
 
 *Updated after each plan completion*
@@ -93,6 +93,7 @@ Progress: [██████████] 100% (111/111 overall)
 | Phase 27 P03 | 36min | 2 tasks | 6 files |
 | Phase 27 P04 | 10min | 2 tasks | 6 files |
 | Phase 27 P05 | 10min | 1 tasks | 1 files |
+| Phase 28 P01 | 7min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -525,6 +526,10 @@ Recent decisions affecting current work:
 - [27-04]: CLI arrange outputs JSON to stdout by default; --apply writes transformed files
 - [27-04]: 3MF output combines all placed parts into single mesh with position transforms applied
 - [27-04]: GantryModel derived from SequentialConfig: polygon > rectangle > cylinder > none
+- [28-01]: FfiGcodeCommand has Raw (maps to GcodeCommand::Raw) and RawGcode (plugin-generated arbitrary codes) as separate variants
+- [28-01]: PostProcessorPluginAdapter includes priority() for pipeline ordering (lower number = earlier)
+- [28-01]: GcodePostProcessor capability manifests logged but not loaded (built-ins are v1 mechanism)
+- [28-01]: Pipeline runner uses stable sort by (priority, name) for deterministic execution order
 - [27-01]: Polygon::validate() used for cross-crate polygon creation (from_raw_parts is pub(crate) in slicecore-geo)
 - [27-01]: Bounding box fallback (+/-1um) for degenerate single-point/collinear convex hull projections
 - [27-01]: Round join type for footprint expansion; bed_with_margin helper via Miter inward offset
@@ -566,6 +571,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T16:55:29.826Z
-Stopped at: Phase 28 context gathered
-Resume file: .planning/phases/28-g-code-post-processing-plugin-point/28-CONTEXT.md
+Last session: 2026-03-12T17:21:42Z
+Stopped at: Completed 28-01-PLAN.md
+Resume file: .planning/phases/28-g-code-post-processing-plugin-point/28-02-PLAN.md

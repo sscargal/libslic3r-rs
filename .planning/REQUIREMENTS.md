@@ -91,8 +91,8 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 
 ### Plugin System (PLUGIN)
 
-- [ ] **PLUGIN-01**: Plugin trait API defined (extension points for infill, supports, etc.)
-- [ ] **PLUGIN-02**: PluginRegistry for discovery and registration
+- [x] **PLUGIN-01**: Plugin trait API defined (extension points for infill, supports, etc.)
+- [x] **PLUGIN-02**: PluginRegistry for discovery and registration
 - [ ] **PLUGIN-03**: Native plugin loading via abi_stable
 - [ ] **PLUGIN-04**: WASM plugin loading via Component Model
 - [ ] **PLUGIN-05**: Example custom infill pattern plugin (loadable without modifying core)
@@ -251,8 +251,8 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | ADV-08 | Phase 6 | Pending |
 | INFILL-09 | Phase 6 | Pending |
 | INFILL-10 | Phase 6 | Pending |
-| PLUGIN-01 | Phase 7 | Pending |
-| PLUGIN-02 | Phase 7 | Pending |
+| PLUGIN-01 | Phase 7 | Complete |
+| PLUGIN-02 | Phase 7 | Complete |
 | PLUGIN-03 | Phase 7 | Pending |
 | PLUGIN-04 | Phase 7 | Pending |
 | PLUGIN-05 | Phase 7 | Pending |

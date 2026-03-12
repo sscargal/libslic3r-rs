@@ -583,7 +583,7 @@ Plans:
   4. Post-processing runs after arc fitting and purge tower, before time estimation -- time/filament stats always reflect post-processed output
   5. Standalone `slicecore post-process` CLI subcommand reads existing G-code, applies plugins, writes output
   6. Integration tests verify all 4 built-ins in full pipeline, backward compatibility (disabled by default), and time estimation accuracy
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 28-01-PLAN.md -- FFI-safe types/trait in plugin-api, conversion/adapter/registry in plugin crate
