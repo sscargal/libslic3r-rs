@@ -9,7 +9,9 @@ description = "Triangle mesh data structures with BVH spatial indexing for the s
 [dependencies]
 slicecore-math = { path = "../slicecore-math" }
 serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
+robust = "1.1"
 
 [dev-dependencies]
 proptest = { workspace = true }
