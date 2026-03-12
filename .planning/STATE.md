@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 28 context gathered
-last_updated: "2026-03-12T16:55:29.856Z"
-last_activity: "2026-03-11 - Completed 27-05: Integration Tests"
+status: completed
+stopped_at: Completed 28-03-PLAN.md (Phase 28 complete)
+last_updated: "2026-03-12T17:53:03.676Z"
+last_activity: "2026-03-12 - Completed 28-03: CLI Post-Process Subcommand and Integration Tests"
 progress:
   total_phases: 29
-  completed_phases: 27
-  total_plans: 111
-  completed_plans: 111
+  completed_phases: 28
+  total_plans: 114
+  completed_plans: 114
   percent: 100
 ---
 
