@@ -26,9 +26,9 @@ use clap::{Parser, Subcommand};
 
 use slicecore_ai::AiConfig;
 use slicecore_engine::{
-    batch_convert_profiles, batch_convert_prusaslicer_profiles,
-    config::PostProcessConfig, create_builtin_postprocessors, load_index, write_merged_index,
-    Engine, PrintConfig, ProfileIndexEntry,
+    batch_convert_profiles, batch_convert_prusaslicer_profiles, config::PostProcessConfig,
+    create_builtin_postprocessors, load_index, write_merged_index, Engine, PrintConfig,
+    ProfileIndexEntry,
 };
 use slicecore_fileio::{load_mesh, save_mesh};
 use slicecore_gcode_io::validate_gcode;
@@ -593,7 +593,9 @@ fn main() {
             diameter,
             filter,
             summary,
-        } => cmd_analyze_gcode(&input, json, csv, no_color, density, diameter, filter, summary),
+        } => cmd_analyze_gcode(
+            &input, json, csv, no_color, density, diameter, filter, summary,
+        ),
         Commands::Convert { input, output } => cmd_convert(&input, &output),
         Commands::Thumbnail {
             input,
@@ -602,7 +604,14 @@ fn main() {
             resolution,
             background,
             color,
-        } => cmd_thumbnail(&input, output.as_deref(), &angles, &resolution, &background, &color),
+        } => cmd_thumbnail(
+            &input,
+            output.as_deref(),
+            &angles,
+            &resolution,
+            &background,
+            &color,
+        ),
         Commands::CompareGcode {
             files,
             json,
@@ -682,7 +691,11 @@ fn cmd_slice(
     let data = match std::fs::read(input) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("Error: Failed to read input file '{}': {}", input.display(), e);
+            eprintln!(
+                "Error: Failed to read input file '{}': {}",
+                input.display(),
+                e
+            );
             process::exit(1);
         }
     };
@@ -691,7 +704,11 @@ fn cmd_slice(
     let mesh = match load_mesh(&data) {
         Ok(m) => m,
         Err(e) => {
-            eprintln!("Error: Failed to parse mesh from '{}': {}", input.display(), e);
+            eprintln!(
+                "Error: Failed to parse mesh from '{}': {}",
+                input.display(),
+                e
+            );
             process::exit(1);
         }
     };
@@ -722,7 +739,11 @@ fn cmd_slice(
         match PrintConfig::from_file(cfg_path) {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("Error: Failed to load config '{}': {}", cfg_path.display(), e);
+                eprintln!(
+                    "Error: Failed to load config '{}': {}",
+                    cfg_path.display(),
+                    e
+                );
                 process::exit(1);
             }
         }
@@ -745,9 +766,7 @@ fn cmd_slice(
         eprintln!(
             "Error: infill_pattern is set to a plugin pattern, but no plugin directory is configured."
         );
-        eprintln!(
-            "Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line."
-        );
+        eprintln!("Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line.");
         process::exit(1);
     }
 
@@ -874,7 +893,11 @@ fn cmd_slice(
 
     // 9. Write G-code output.
     if let Err(e) = std::fs::write(&out_path, &gcode_output) {
-        eprintln!("Error: Failed to write output '{}': {}", out_path.display(), e);
+        eprintln!(
+            "Error: Failed to write output '{}': {}",
+            out_path.display(),
+            e
+        );
         process::exit(1);
     }
 
@@ -885,8 +908,7 @@ fn cmd_slice(
                 if !json_no_stats {
                     if let Some(ref statistics) = result.statistics {
                         // Parse base JSON, inject statistics, re-serialize.
-                        if let Ok(mut value) =
-                            serde_json::from_str::<serde_json::Value>(&json_str)
+                        if let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&json_str)
                         {
                             if let Ok(stats_val) = serde_json::to_value(statistics) {
                                 value["statistics"] = stats_val;
@@ -936,7 +958,9 @@ fn cmd_slice(
             let stats_output = match stats_format {
                 "csv" => stats_display::format_csv(statistics, &sort_order),
                 "json" => stats_display::format_json(statistics),
-                _ => stats_display::format_ascii_table(statistics, &time_precision_enum, &sort_order),
+                _ => {
+                    stats_display::format_ascii_table(statistics, &time_precision_enum, &sort_order)
+                }
             };
 
             // When structured output (--json/--msgpack) is active, stats go to stderr.
@@ -952,7 +976,9 @@ fn cmd_slice(
             let stats_output = match stats_format {
                 "csv" => stats_display::format_csv(statistics, &sort_order),
                 "json" => stats_display::format_json(statistics),
-                _ => stats_display::format_ascii_table(statistics, &time_precision_enum, &sort_order),
+                _ => {
+                    stats_display::format_ascii_table(statistics, &time_precision_enum, &sort_order)
+                }
             };
             if let Err(e) = std::fs::write(file_path, &stats_output) {
                 eprintln!(
@@ -1068,7 +1094,10 @@ fn cmd_post_process(
     for spec in fan_override_strs {
         let parts: Vec<&str> = spec.split(':').collect();
         if parts.len() != 3 {
-            eprintln!("Error: Invalid fan-override format '{}'. Expected start_layer:end_layer:speed", spec);
+            eprintln!(
+                "Error: Invalid fan-override format '{}'. Expected start_layer:end_layer:speed",
+                spec
+            );
             process::exit(1);
         }
         let start_layer = match parts[0].parse::<usize>() {
@@ -1263,7 +1292,11 @@ fn cmd_analyze(input: &PathBuf) {
     let mesh = match load_mesh(&data) {
         Ok(m) => m,
         Err(e) => {
-            eprintln!("Error: Failed to parse mesh from '{}': {}", input.display(), e);
+            eprintln!(
+                "Error: Failed to parse mesh from '{}': {}",
+                input.display(),
+                e
+            );
             process::exit(1);
         }
     };
@@ -1275,16 +1308,30 @@ fn cmd_analyze(input: &PathBuf) {
     println!("  Triangles: {}", stats.triangle_count);
     println!(
         "  Bounding box: ({:.3}, {:.3}, {:.3}) - ({:.3}, {:.3}, {:.3})",
-        stats.aabb.min.x, stats.aabb.min.y, stats.aabb.min.z,
-        stats.aabb.max.x, stats.aabb.max.y, stats.aabb.max.z,
+        stats.aabb.min.x,
+        stats.aabb.min.y,
+        stats.aabb.min.z,
+        stats.aabb.max.x,
+        stats.aabb.max.y,
+        stats.aabb.max.z,
     );
     println!("  Volume: {:.3} mm^3", stats.volume);
     println!("  Surface area: {:.3} mm^2", stats.surface_area);
-    println!("  Manifold: {}", if stats.is_manifold { "yes" } else { "no" });
-    println!("  Watertight: {}", if stats.is_watertight { "yes" } else { "no" });
+    println!(
+        "  Manifold: {}",
+        if stats.is_manifold { "yes" } else { "no" }
+    );
+    println!(
+        "  Watertight: {}",
+        if stats.is_watertight { "yes" } else { "no" }
+    );
     println!(
         "  Consistent winding: {}",
-        if stats.has_consistent_winding { "yes" } else { "no" }
+        if stats.has_consistent_winding {
+            "yes"
+        } else {
+            "no"
+        }
     );
     if stats.degenerate_count > 0 {
         println!("  Degenerate triangles: {}", stats.degenerate_count);
@@ -1292,11 +1339,7 @@ fn cmd_analyze(input: &PathBuf) {
 }
 
 /// Convert OrcaSlicer/BambuStudio JSON profiles to native TOML format.
-fn cmd_convert_profile(
-    input: &[PathBuf],
-    output_path: Option<&std::path::Path>,
-    verbose: bool,
-) {
+fn cmd_convert_profile(input: &[PathBuf], output_path: Option<&std::path::Path>, verbose: bool) {
     let mut results: Vec<slicecore_engine::ImportResult> = Vec::new();
 
     for path in input {
@@ -1304,11 +1347,7 @@ fn cmd_convert_profile(
         let contents = match std::fs::read_to_string(path) {
             Ok(s) => s,
             Err(e) => {
-                eprintln!(
-                    "Error: Failed to read '{}': {}",
-                    path.display(),
-                    e
-                );
+                eprintln!("Error: Failed to read '{}': {}", path.display(), e);
                 process::exit(1);
             }
         };
@@ -1327,18 +1366,17 @@ fn cmd_convert_profile(
         };
 
         // Import the upstream profile.
-        let result =
-            match slicecore_engine::profile_import::import_upstream_profile(&value) {
-                Ok(r) => r,
-                Err(e) => {
-                    eprintln!(
-                        "Error: Failed to import profile from '{}': {}",
-                        path.display(),
-                        e
-                    );
-                    process::exit(1);
-                }
-            };
+        let result = match slicecore_engine::profile_import::import_upstream_profile(&value) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!(
+                    "Error: Failed to import profile from '{}': {}",
+                    path.display(),
+                    e
+                );
+                process::exit(1);
+            }
+        };
 
         if verbose {
             eprintln!(
@@ -1541,7 +1579,9 @@ fn cmd_list_profiles(
         Some(d) => d,
         None => {
             eprintln!("Error: Could not find profiles directory.");
-            eprintln!("Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root.");
+            eprintln!(
+                "Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root."
+            );
             process::exit(1);
         }
     };
@@ -1556,11 +1596,7 @@ fn cmd_list_profiles(
 
     if vendors_only {
         // Collect unique vendor names, sorted.
-        let mut vendors: Vec<String> = index
-            .profiles
-            .iter()
-            .map(|p| p.vendor.clone())
-            .collect();
+        let mut vendors: Vec<String> = index.profiles.iter().map(|p| p.vendor.clone()).collect();
         vendors.sort();
         vendors.dedup();
 
@@ -1646,7 +1682,9 @@ fn cmd_search_profiles(
         Some(d) => d,
         None => {
             eprintln!("Error: Could not find profiles directory.");
-            eprintln!("Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root.");
+            eprintln!(
+                "Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root."
+            );
             process::exit(1);
         }
     };
@@ -1660,10 +1698,7 @@ fn cmd_search_profiles(
     };
 
     // Split query into whitespace-separated terms (lowercase).
-    let terms: Vec<String> = query
-        .split_whitespace()
-        .map(|s| s.to_lowercase())
-        .collect();
+    let terms: Vec<String> = query.split_whitespace().map(|s| s.to_lowercase()).collect();
 
     // Filter profiles where ALL terms match at least one field.
     let matching: Vec<&ProfileIndexEntry> = index
@@ -1673,24 +1708,15 @@ fn cmd_search_profiles(
             let fields = [
                 p.name.to_lowercase(),
                 p.vendor.to_lowercase(),
-                p.material
-                    .as_deref()
-                    .unwrap_or("")
-                    .to_lowercase(),
-                p.printer_model
-                    .as_deref()
-                    .unwrap_or("")
-                    .to_lowercase(),
+                p.material.as_deref().unwrap_or("").to_lowercase(),
+                p.printer_model.as_deref().unwrap_or("").to_lowercase(),
                 p.profile_type.to_lowercase(),
-                p.quality
-                    .as_deref()
-                    .unwrap_or("")
-                    .to_lowercase(),
+                p.quality.as_deref().unwrap_or("").to_lowercase(),
             ];
 
-            terms.iter().all(|term| {
-                fields.iter().any(|f| f.contains(term.as_str()))
-            })
+            terms
+                .iter()
+                .all(|term| fields.iter().any(|f| f.contains(term.as_str())))
         })
         .take(limit)
         .collect();
@@ -1717,25 +1743,19 @@ fn cmd_search_profiles(
                 p.material.as_deref().unwrap_or("-"),
             );
         }
-        eprintln!(
-            "{} result(s) (showing up to {})",
-            matching.len(),
-            limit
-        );
+        eprintln!("{} result(s) (showing up to {})", matching.len(), limit);
     }
 }
 
 /// Show details of a specific profile.
-fn cmd_show_profile(
-    id: &str,
-    raw: bool,
-    profiles_dir_override: Option<&std::path::Path>,
-) {
+fn cmd_show_profile(id: &str, raw: bool, profiles_dir_override: Option<&std::path::Path>) {
     let profiles_dir = match find_profiles_dir(profiles_dir_override) {
         Some(d) => d,
         None => {
             eprintln!("Error: Could not find profiles directory.");
-            eprintln!("Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root.");
+            eprintln!(
+                "Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root."
+            );
             process::exit(1);
         }
     };
@@ -1832,11 +1852,7 @@ fn truncate_str(s: &str, max_len: usize) -> String {
 // ---------------------------------------------------------------------------
 
 /// Suggest print settings for a mesh using AI.
-fn cmd_ai_suggest(
-    input: &PathBuf,
-    ai_config_path: Option<&std::path::Path>,
-    format: &str,
-) {
+fn cmd_ai_suggest(input: &PathBuf, ai_config_path: Option<&std::path::Path>, format: &str) {
     // 1. Read input file.
     let data = match std::fs::read(input) {
         Ok(d) => d,
@@ -1929,10 +1945,7 @@ fn cmd_ai_suggest(
                         suggestion.support_overhang_angle
                     );
                 }
-                println!(
-                    "  Perimeter speed:  {:.0} mm/s",
-                    suggestion.perimeter_speed
-                );
+                println!("  Perimeter speed:  {:.0} mm/s", suggestion.perimeter_speed);
                 println!("  Infill speed:     {:.0} mm/s", suggestion.infill_speed);
                 println!("  Nozzle temp:      {:.0} C", suggestion.nozzle_temp);
                 println!("  Bed temp:         {:.0} C", suggestion.bed_temp);
@@ -2078,7 +2091,11 @@ fn cmd_thumbnail(
     let mesh = match load_mesh(&data) {
         Ok(m) => m,
         Err(e) => {
-            eprintln!("Error: Failed to parse mesh from '{}': {}", input.display(), e);
+            eprintln!(
+                "Error: Failed to parse mesh from '{}': {}",
+                input.display(),
+                e
+            );
             process::exit(1);
         }
     };
@@ -2125,7 +2142,11 @@ fn cmd_thumbnail(
         };
         if !out_dir.exists() {
             if let Err(e) = std::fs::create_dir_all(&out_dir) {
-                eprintln!("Error: Failed to create directory '{}': {}", out_dir.display(), e);
+                eprintln!(
+                    "Error: Failed to create directory '{}': {}",
+                    out_dir.display(),
+                    e
+                );
                 process::exit(1);
             }
         }
@@ -2146,7 +2167,10 @@ fn cmd_thumbnail(
 fn parse_resolution(s: &str) -> (u32, u32) {
     let parts: Vec<&str> = s.split('x').collect();
     if parts.len() != 2 {
-        eprintln!("Error: Invalid resolution '{}'. Expected WxH (e.g., 300x300)", s);
+        eprintln!(
+            "Error: Invalid resolution '{}'. Expected WxH (e.g., 300x300)",
+            s
+        );
         process::exit(1);
     }
     let w: u32 = parts[0].parse().unwrap_or_else(|_| {
@@ -2191,7 +2215,10 @@ fn parse_background(s: &str) -> [u8; 4] {
 fn parse_hex_color(s: &str) -> [u8; 3] {
     let s = s.trim_start_matches('#');
     if s.len() != 6 {
-        eprintln!("Error: Invalid hex color '{}'. Expected 6-digit hex (e.g., C8C8C8)", s);
+        eprintln!(
+            "Error: Invalid hex color '{}'. Expected 6-digit hex (e.g., C8C8C8)",
+            s
+        );
         process::exit(1);
     }
     let r = u8::from_str_radix(&s[0..2], 16).unwrap_or_else(|_| {
@@ -2320,10 +2347,7 @@ fn cmd_arrange(
             .file_stem()
             .map_or_else(|| "input".into(), |s| s.to_string_lossy().into_owned());
         let vertices = mesh.vertices().to_vec();
-        let z_min = vertices
-            .iter()
-            .map(|v| v.z)
-            .fold(f64::INFINITY, f64::min);
+        let z_min = vertices.iter().map(|v| v.z).fold(f64::INFINITY, f64::min);
         let z_max = vertices
             .iter()
             .map(|v| v.z)
@@ -2361,13 +2385,14 @@ fn cmd_arrange(
     let bed_y = print_config.machine.bed_y;
 
     // Run arrangement.
-    let result = match slicecore_arrange::arrange(&parts, &arrange_config, &bed_shape_str, bed_x, bed_y) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("Error: Arrangement failed: {e}");
-            process::exit(1);
-        }
-    };
+    let result =
+        match slicecore_arrange::arrange(&parts, &arrange_config, &bed_shape_str, bed_x, bed_y) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("Error: Arrangement failed: {e}");
+                process::exit(1);
+            }
+        };
 
     // Warn about unplaced parts.
     if !result.unplaced_parts.is_empty() {
@@ -2414,7 +2439,11 @@ fn cmd_arrange(
                         all_vertices.push(slicecore_math::Point3::new(v.x + tx, v.y + ty, v.z));
                     }
                     for idx in mesh.indices() {
-                        all_indices.push([idx[0] + offset as u32, idx[1] + offset as u32, idx[2] + offset as u32]);
+                        all_indices.push([
+                            idx[0] + offset as u32,
+                            idx[1] + offset as u32,
+                            idx[2] + offset as u32,
+                        ]);
                     }
                 }
 
@@ -2474,22 +2503,16 @@ fn cmd_arrange(
                         let stem = inputs[mesh_idx]
                             .file_stem()
                             .map_or_else(|| "output".into(), |s| s.to_string_lossy().into_owned());
-                        let ext = inputs[mesh_idx]
-                            .extension()
-                            .map_or("stl", |e| {
-                                if e == "3mf" || e == "obj" {
-                                    e.to_str().unwrap_or("stl")
-                                } else {
-                                    "stl"
-                                }
-                            });
+                        let ext = inputs[mesh_idx].extension().map_or("stl", |e| {
+                            if e == "3mf" || e == "obj" {
+                                e.to_str().unwrap_or("stl")
+                            } else {
+                                "stl"
+                            }
+                        });
                         let out_path = PathBuf::from(format!("{stem}_arranged.{ext}"));
                         if let Err(e) = save_mesh(&transformed, &out_path) {
-                            eprintln!(
-                                "Error: Failed to write '{}': {}",
-                                out_path.display(),
-                                e
-                            );
+                            eprintln!("Error: Failed to write '{}': {}", out_path.display(), e);
                             process::exit(1);
                         }
                         eprintln!("Wrote: {}", out_path.display());
