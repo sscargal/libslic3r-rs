@@ -573,13 +573,22 @@ Plans:
 - [ ] 27-05-PLAN.md -- Integration tests for all arrangement features
 ### Phase 28: G-code Post-Processing Plugin Point
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Extend the plugin system with G-code post-processing capabilities -- FFI-safe post-processor trait, bidirectional GcodeCommand conversion, 4 built-in post-processors (pause at layer, timelapse camera, fan speed override, custom G-code injection), engine pipeline integration with progress/cancellation, and standalone CLI post-process subcommand for re-processing G-code without re-slicing
+**Requirements**: ADV-04, PLUGIN-01, PLUGIN-02
 **Depends on:** Phase 27
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. GcodePostProcessorPlugin sabi_trait defined with process_all and process_layer modes, FfiGcodeCommand mirrors all GcodeCommand variants
+  2. PluginRegistry manages post-processor plugins alongside infill plugins with register/get/discover
+  3. Four built-in post-processors (pause-at-layer, timelapse-camera, fan-speed-override, custom-gcode-injection) self-skip when unconfigured
+  4. Post-processing runs after arc fitting and purge tower, before time estimation -- time/filament stats always reflect post-processed output
+  5. Standalone `slicecore post-process` CLI subcommand reads existing G-code, applies plugins, writes output
+  6. Integration tests verify all 4 built-ins in full pipeline, backward compatibility (disabled by default), and time estimation accuracy
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 28 to break down)
+- [ ] 28-01-PLAN.md -- FFI-safe types/trait in plugin-api, conversion/adapter/registry in plugin crate
+- [ ] 28-02-PLAN.md -- PostProcessConfig, 4 built-in post-processors, engine pipeline integration
+- [ ] 28-03-PLAN.md -- CLI post-process subcommand, integration tests
 
 ### Phase 29: Mesh Boolean Operations (CSG)
 
