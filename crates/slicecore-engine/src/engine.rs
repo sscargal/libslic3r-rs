@@ -812,6 +812,99 @@ impl Engine {
         })
     }
 
+    /// Runs the post-processing pipeline on G-code commands.
+    ///
+    /// Creates built-in post-processors from config, optionally gathers
+    /// registered post-processors from the plugin registry, sorts by priority,
+    /// and runs them in sequence. Emits progress events and checks cancellation
+    /// between plugins.
+    ///
+    /// Returns the original commands unchanged when post-processing is disabled
+    /// or no post-processors are configured.
+    fn run_post_processing_pipeline(
+        &self,
+        gcode_commands: Vec<slicecore_gcode_io::GcodeCommand>,
+        layer_toolpaths: &[LayerToolpath],
+        event_bus: Option<&crate::event::EventBus>,
+        cancel: Option<&CancellationToken>,
+    ) -> Result<Vec<slicecore_gcode_io::GcodeCommand>, EngineError> {
+        use crate::postprocess_builtin::create_builtin_postprocessors;
+        use slicecore_plugin::postprocess::{run_post_processors, PostProcessorPluginAdapter};
+
+        if !self.config.post_process.enabled {
+            return Ok(gcode_commands);
+        }
+
+        // Create built-in post-processors from config.
+        let builtins = create_builtin_postprocessors(&self.config.post_process);
+
+        // Gather all post-processors (built-ins + registered plugins).
+        let mut all_plugins: Vec<&dyn PostProcessorPluginAdapter> =
+            builtins.iter().map(|p| p.as_ref()).collect();
+
+        // When the plugins feature is enabled, also gather registered post-processors.
+        #[cfg(feature = "plugins")]
+        {
+            if let Some(ref registry) = self.plugin_registry {
+                for name in registry.postprocessor_names() {
+                    if let Some(plugin) = registry.get_postprocessor(&name) {
+                        all_plugins.push(plugin);
+                    }
+                }
+            }
+        }
+
+        if all_plugins.is_empty() {
+            return Ok(gcode_commands);
+        }
+
+        // Emit post-processing stage event.
+        if let Some(bus) = event_bus {
+            bus.emit(&crate::event::SliceEvent::StageChanged {
+                stage: "post_processing".to_string(),
+                progress: 0.91,
+            });
+        }
+
+        // Build config snapshot for plugins.
+        let config_snapshot = slicecore_plugin_api::FfiPrintConfigSnapshot {
+            nozzle_diameter: self.config.machine.nozzle_diameter(),
+            layer_height: self.config.layer_height,
+            first_layer_height: self.config.first_layer_height,
+            bed_x: self.config.machine.bed_x,
+            bed_y: self.config.machine.bed_y,
+            print_speed: self.config.speeds.perimeter,
+            travel_speed: self.config.speeds.travel,
+            retract_length: self.config.retraction.length,
+            retract_speed: self.config.retraction.speed,
+            nozzle_temp: self.config.filament.first_layer_nozzle_temp(),
+            bed_temp: self.config.filament.first_layer_bed_temp(),
+            fan_speed: self.config.cooling.fan_speed,
+            total_layers: layer_toolpaths.len() as u64,
+        };
+
+        // Check cancellation before running post-processors.
+        if let Some(token) = cancel {
+            if token.is_cancelled() {
+                return Err(EngineError::Cancelled);
+            }
+        }
+
+        // Run the pipeline.
+        let result = run_post_processors(gcode_commands, &all_plugins, &config_snapshot)
+            .map_err(|e| EngineError::ConfigError(format!("Post-processing error: {e}")))?;
+
+        // Emit progress update after post-processing completes.
+        if let Some(bus) = event_bus {
+            bus.emit(&crate::event::SliceEvent::StageChanged {
+                stage: "post_processing".to_string(),
+                progress: 0.915,
+            });
+        }
+
+        Ok(result)
+    }
+
     /// Slices a mesh and returns the complete G-code output.
     ///
     /// This is the main entry point. It runs the full pipeline:
@@ -1744,6 +1837,15 @@ impl Engine {
             gcode_commands
         };
 
+        // 4d. Post-processing pipeline (after arc fitting and purge tower,
+        //     before time estimation so estimates reflect post-processed output).
+        let gcode_commands = self.run_post_processing_pipeline(
+            gcode_commands,
+            &layer_toolpaths,
+            event_bus,
+            cancel.as_ref(),
+        )?;
+
         // 5. Compute estimated time using trapezoid motion model.
         let time_estimate = estimate_print_time(
             &gcode_commands,
@@ -2360,6 +2462,10 @@ impl Engine {
         } else {
             gcode_commands
         };
+
+        // 4d. Post-processing pipeline.
+        let gcode_commands =
+            self.run_post_processing_pipeline(gcode_commands, &layer_toolpaths, None, None)?;
 
         // 5. Compute estimated time using trapezoid motion model.
         let time_estimate = estimate_print_time(
