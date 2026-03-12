@@ -68,6 +68,8 @@
 //! - [`error`] -- FFI-safe error types ([`PluginError`])
 //! - [`metadata`] -- Plugin metadata and manifest (serde-serializable, not FFI)
 //! - [`traits`] -- FFI-safe plugin traits ([`InfillPatternPlugin`]) and root module ([`InfillPluginMod`])
+//! - [`postprocess_types`] -- FFI-safe post-processor types ([`FfiGcodeCommand`], [`PostProcessRequest`], [`PostProcessResult`])
+//! - [`postprocess_traits`] -- FFI-safe post-processor trait ([`GcodePostProcessorPlugin`]) and root module ([`PostProcessorPluginMod`])
 
 // The abi_stable sabi_trait macro generates non-local impl blocks that trigger
 // this lint on newer Rust compilers. Suppressed at crate level since the macro
@@ -76,6 +78,8 @@
 
 pub mod error;
 pub mod metadata;
+pub mod postprocess_traits;
+pub mod postprocess_types;
 pub mod traits;
 pub mod types;
 
@@ -83,6 +87,14 @@ pub mod types;
 pub use error::PluginError;
 pub use metadata::{
     PluginCapability, PluginManifest, PluginMetadata, PluginType, ResourceLimits,
+};
+pub use postprocess_traits::{
+    GcodePostProcessorPlugin, GcodePostProcessorPlugin_TO, PostProcessorPluginMod,
+    PostProcessorPluginMod_Ref,
+};
+pub use postprocess_types::{
+    FfiConfigParam, FfiGcodeCommand, FfiPrintConfigSnapshot, LayerPostProcessRequest,
+    PostProcessRequest, PostProcessResult, ProcessingMode,
 };
 pub use traits::{InfillPatternPlugin, InfillPatternPlugin_TO, InfillPluginMod, InfillPluginMod_Ref};
 pub use types::{FfiInfillLine, InfillRequest, InfillResult};

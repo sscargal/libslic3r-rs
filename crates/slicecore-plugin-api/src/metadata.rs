@@ -40,6 +40,8 @@ pub struct PluginMetadata {
 pub enum PluginCapability {
     /// The plugin provides a custom infill pattern.
     InfillPattern,
+    /// The plugin provides G-code post-processing.
+    GcodePostProcessor,
 }
 
 /// Plugin type indicating the loading mechanism.
