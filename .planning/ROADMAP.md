@@ -592,17 +592,16 @@ Plans:
 
 ### Phase 29: Mesh Boolean Operations (CSG)
 
-**Goal:** True 3D mesh boolean operations (union, difference, intersection, XOR) plus primitives, plane splitting, hollowing, lattice generation, mesh offset, CLI subcommand, plugin API, and benchmarks -- enabling multi-part assembly merging, modifier mesh cutting, and model splitting
+**Goal:** True 3D mesh boolean operations (union, difference, intersection, XOR) plus 9 mesh primitives, plane splitting, hollowing, mesh offset, CLI subcommand, plugin API, benchmarks, and fuzz targets -- enabling multi-part assembly merging, modifier mesh cutting, and model splitting
 **Requirements**: CSG-01 through CSG-13
 **Depends on:** Phase 28
-**Plans:** 8 plans
+**Plans:** 7 plans
 
 Plans:
-- [ ] 29-01-PLAN.md -- CSG module foundation: types, error, report, per-triangle attributes, mesh primitives
+- [ ] 29-01-PLAN.md -- CSG module foundation: types, error, report, per-triangle attributes, 9 mesh primitives
 - [ ] 29-02-PLAN.md -- Core CSG algorithm: intersection curves, retriangulation, classification, symbolic perturbation
 - [ ] 29-03-PLAN.md -- Public boolean API: mesh_union, mesh_difference, mesh_intersection, mesh_xor, mesh_union_many
 - [ ] 29-04-PLAN.md -- Plane split, mesh offset, and hollow mesh operations
-- [ ] 29-05-PLAN.md -- Lattice generation: cubic and gyroid patterns
-- [ ] 29-06-PLAN.md -- CancellationToken support, rayon parallelism, plugin API traits
-- [ ] 29-07-PLAN.md -- CLI csg subcommand and integration tests
-- [ ] 29-08-PLAN.md -- Criterion benchmarks, fuzz target, full workspace verification
+- [ ] 29-05-PLAN.md -- CancellationToken support, rayon parallelism, plugin API traits
+- [ ] 29-06-PLAN.md -- CLI csg subcommand with info command and integration tests
+- [ ] 29-07-PLAN.md -- Criterion benchmarks, fuzz target, full workspace verification
