@@ -6,11 +6,14 @@
 //!
 //! # Module Structure
 //!
+//! - [`boolean`] -- Public boolean API: union, difference, intersection, xor
+//! - [`volume`] -- Signed volume and surface area computation
 //! - [`error`] -- Error types for CSG operations
 //! - [`report`] -- Diagnostic report for operation results
 //! - [`types`] -- Core types: [`BooleanOp`], [`CsgOptions`], [`TriangleAttributes`]
 //! - [`primitives`] -- Nine watertight mesh primitive generators
 
+pub mod boolean;
 pub mod classify;
 pub mod error;
 pub mod intersect;
@@ -19,8 +22,13 @@ pub mod primitives;
 pub mod report;
 pub mod retriangulate;
 pub mod types;
+pub mod volume;
 
 // Re-export key types at module level.
+pub use boolean::{
+    mesh_difference, mesh_difference_with, mesh_intersection, mesh_intersection_with, mesh_union,
+    mesh_union_many, mesh_union_with, mesh_xor, mesh_xor_with,
+};
 pub use error::CsgError;
 pub use primitives::{
     primitive_box, primitive_cone, primitive_cylinder, primitive_ngon_prism, primitive_plane,
