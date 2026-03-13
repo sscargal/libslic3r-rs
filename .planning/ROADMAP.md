@@ -595,7 +595,7 @@ Plans:
 **Goal:** True 3D mesh boolean operations (union, difference, intersection, XOR) plus 9 mesh primitives, plane splitting, hollowing, mesh offset, CLI subcommand, plugin API, benchmarks, and fuzz targets -- enabling multi-part assembly merging, modifier mesh cutting, and model splitting
 **Requirements**: CSG-01 through CSG-13
 **Depends on:** Phase 28
-**Plans:** 5/7 plans executed
+**Plans:** 6/7 plans executed
 
 Plans:
 - [ ] 29-01-PLAN.md -- CSG module foundation: types, error, report, per-triangle attributes, 9 mesh primitives
