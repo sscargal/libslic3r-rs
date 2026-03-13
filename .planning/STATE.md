@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 29-05-PLAN.md
-last_updated: "2026-03-13T00:19:00.000Z"
+stopped_at: Completed 29-04-PLAN.md
+last_updated: "2026-03-13T00:35:49.634Z"
 last_activity: "2026-03-13 - Completed 29-05: Production Readiness (cancellation, parallel, plugin API)"
 progress:
   total_phases: 29
@@ -99,6 +99,7 @@ Progress: [██████████] 100% (119/122 overall)
 | Phase 29 P02 | 9min | 2 tasks | 5 files |
 | Phase 29 P03 | 5min | 2 tasks | 4 files |
 | Phase 29 P05 | 6min | 2 tasks | 9 files |
+| Phase 29 P04 | 11min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -552,6 +553,8 @@ Recent decisions affecting current work:
 - [29-05]: CsgCancellationToken in slicecore-mesh (not slicecore-engine CancellationToken) avoids circular dependency
 - [29-05]: Refactored intersect.rs: separate raw hit collection from point canonicalization for rayon par_iter
 - [29-05]: CsgMeshData with RVec<[f64;3]> for FFI-safe mesh exchange in plugin API
+- [Phase 29]: Topology-based boundary detection for cap generation in plane split
+- [Phase 29]: Ear-clipping triangulation for cap polygons on arbitrary cut planes
 
 ### Roadmap Evolution
 
@@ -590,6 +593,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:19:00.000Z
-Stopped at: Completed 29-05-PLAN.md
+Last session: 2026-03-13T00:35:37.166Z
+Stopped at: Completed 29-04-PLAN.md
 Resume file: None
