@@ -19,7 +19,7 @@ use abi_stable::sabi_types::version::VersionStrings;
 use abi_stable::std_types::{RBox, RResult, RString};
 use abi_stable::StableAbi;
 
-use crate::types::{InfillRequest, InfillResult};
+use crate::types::{CsgMeshData, CsgPrimitiveParams, InfillRequest, InfillResult};
 
 /// FFI-safe plugin trait for infill pattern generation.
 ///
@@ -111,11 +111,124 @@ impl RootModule for InfillPluginMod_Ref {
     const VERSION_STRINGS: VersionStrings = package_version_strings!();
 }
 
+// ---------------------------------------------------------------------------
+// CSG Operation Plugin
+// ---------------------------------------------------------------------------
+
+/// FFI-safe plugin trait for custom CSG (boolean) operations.
+///
+/// Plugins implementing this trait can create custom mesh primitives and apply
+/// boolean operations via the plugin system. The host converts between its
+/// internal `TriangleMesh` and [`CsgMeshData`] at the plugin boundary.
+///
+/// All geometry uses plain `[f64; 3]` vertices and `[u32; 3]` indices for
+/// simplicity and FFI safety.
+///
+/// # Generated Types
+///
+/// The `#[sabi_trait]` macro generates `CsgOperationPlugin_TO` (trait object
+/// wrapper) which can be used as: `CsgOperationPlugin_TO<'static, RBox<()>>`
+///
+/// # Example
+///
+/// ```ignore
+/// use slicecore_plugin_api::traits::*;
+/// use slicecore_plugin_api::{CsgMeshData, CsgPrimitiveParams};
+/// use abi_stable::std_types::{RResult, ROk, RString, RVec};
+///
+/// #[derive(Debug)]
+/// struct MyCsgPlugin;
+///
+/// impl CsgOperationPlugin for MyCsgPlugin {
+///     fn name(&self) -> RString { "my-csg".into() }
+///
+///     fn create_primitive(
+///         &self,
+///         params: &CsgPrimitiveParams,
+///     ) -> RResult<CsgMeshData, RString> {
+///         ROk(CsgMeshData {
+///             vertices: RVec::new(),
+///             indices: RVec::new(),
+///         })
+///     }
+///
+///     fn apply_boolean(
+///         &self,
+///         mesh_a: &CsgMeshData,
+///         mesh_b: &CsgMeshData,
+///         operation: &RString,
+///     ) -> RResult<CsgMeshData, RString> {
+///         ROk(CsgMeshData {
+///             vertices: mesh_a.vertices.clone(),
+///             indices: mesh_a.indices.clone(),
+///         })
+///     }
+/// }
+/// ```
+#[sabi_trait]
+pub trait CsgOperationPlugin: Send + Sync + Debug {
+    /// Returns the unique name of this CSG plugin (e.g., `"custom-boolean"`).
+    fn name(&self) -> RString;
+
+    /// Creates a custom mesh primitive from the given parameters.
+    ///
+    /// The returned [`CsgMeshData`] should contain a valid, watertight triangle
+    /// mesh. The host may repair minor defects, but degenerate meshes will
+    /// cause boolean operations to fail.
+    ///
+    /// # Errors
+    ///
+    /// Returns `RErr(RString)` if the primitive type is unsupported or
+    /// the parameters are invalid.
+    fn create_primitive(
+        &self,
+        params: &CsgPrimitiveParams,
+    ) -> RResult<CsgMeshData, RString>;
+
+    /// Applies a custom boolean operation to two meshes.
+    ///
+    /// The `operation` string identifies the operation type (e.g., `"union"`,
+    /// `"difference"`, `"intersection"`, `"xor"`, or a plugin-defined operation).
+    ///
+    /// # Errors
+    ///
+    /// Returns `RErr(RString)` if the operation is unsupported or fails.
+    #[sabi(last_prefix_field)]
+    fn apply_boolean(
+        &self,
+        mesh_a: &CsgMeshData,
+        mesh_b: &CsgMeshData,
+        operation: &RString,
+    ) -> RResult<CsgMeshData, RString>;
+}
+
+/// The root module entry point for native CSG plugins.
+///
+/// Each native CSG plugin crate exports an instance of this struct via
+/// `#[export_root_module]`. The host calls the `new` function to create
+/// plugin instances.
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(kind(Prefix))]
+pub struct CsgPluginMod {
+    /// Factory function to create a new CSG plugin instance.
+    #[sabi(last_prefix_field)]
+    pub new: extern "C" fn() -> CsgOperationPlugin_TO<'static, RBox<()>>,
+}
+
+impl RootModule for CsgPluginMod_Ref {
+    abi_stable::declare_root_module_statics! { CsgPluginMod_Ref }
+
+    const BASE_NAME: &'static str = "slicecore_csg_plugin";
+    const NAME: &'static str = "slicecore_csg_plugin";
+    const VERSION_STRINGS: VersionStrings = package_version_strings!();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use abi_stable::std_types::{RResult, ROk, RVec};
     use crate::types::InfillResult;
+    use abi_stable::std_types::{ROk, RResult, RVec};
 
     /// A test implementation of InfillPatternPlugin.
     #[derive(Debug)]
@@ -131,16 +244,15 @@ mod tests {
         }
 
         fn generate(&self, _request: &InfillRequest) -> RResult<InfillResult, RString> {
-            ROk(InfillResult {
-                lines: RVec::new(),
-            })
+            ROk(InfillResult { lines: RVec::new() })
         }
     }
 
     #[test]
     fn test_plugin_trait_object_creation() {
         let plugin = TestInfillPlugin;
-        let trait_obj = InfillPatternPlugin_TO::from_value(plugin, abi_stable::sabi_trait::TD_Opaque);
+        let trait_obj =
+            InfillPatternPlugin_TO::from_value(plugin, abi_stable::sabi_trait::TD_Opaque);
         assert_eq!(trait_obj.name().as_str(), "test-pattern");
         assert_eq!(
             trait_obj.description().as_str(),
@@ -151,7 +263,8 @@ mod tests {
     #[test]
     fn test_plugin_generate_empty_result() {
         let plugin = TestInfillPlugin;
-        let trait_obj = InfillPatternPlugin_TO::from_value(plugin, abi_stable::sabi_trait::TD_Opaque);
+        let trait_obj =
+            InfillPatternPlugin_TO::from_value(plugin, abi_stable::sabi_trait::TD_Opaque);
 
         let request = InfillRequest {
             boundary_points: RVec::from(vec![0i64, 0, 100, 0, 100, 100, 0, 100]),
@@ -165,6 +278,94 @@ mod tests {
         match trait_obj.generate(&request) {
             ROk(result) => assert_eq!(result.lines.len(), 0),
             abi_stable::std_types::RErr(e) => panic!("unexpected error: {}", e),
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // CSG plugin tests
+    // -----------------------------------------------------------------------
+
+    /// A test implementation of CsgOperationPlugin.
+    #[derive(Debug)]
+    struct TestCsgPlugin;
+
+    impl CsgOperationPlugin for TestCsgPlugin {
+        fn name(&self) -> RString {
+            "test-csg".into()
+        }
+
+        fn create_primitive(
+            &self,
+            _params: &CsgPrimitiveParams,
+        ) -> RResult<CsgMeshData, RString> {
+            ROk(CsgMeshData {
+                vertices: RVec::from(vec![
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ]),
+                indices: RVec::from(vec![[0u32, 1, 2]]),
+            })
+        }
+
+        fn apply_boolean(
+            &self,
+            mesh_a: &CsgMeshData,
+            _mesh_b: &CsgMeshData,
+            _operation: &RString,
+        ) -> RResult<CsgMeshData, RString> {
+            // Trivial: return mesh_a unchanged.
+            ROk(CsgMeshData {
+                vertices: mesh_a.vertices.clone(),
+                indices: mesh_a.indices.clone(),
+            })
+        }
+    }
+
+    #[test]
+    fn test_csg_plugin_trait_object_creation() {
+        let plugin = TestCsgPlugin;
+        let trait_obj =
+            CsgOperationPlugin_TO::from_value(plugin, abi_stable::sabi_trait::TD_Opaque);
+        assert_eq!(trait_obj.name().as_str(), "test-csg");
+    }
+
+    #[test]
+    fn test_csg_plugin_create_primitive() {
+        let plugin = TestCsgPlugin;
+        let trait_obj =
+            CsgOperationPlugin_TO::from_value(plugin, abi_stable::sabi_trait::TD_Opaque);
+
+        let params = CsgPrimitiveParams {
+            primitive_type: "box".into(),
+            dimensions: RVec::from(vec![1.0_f64, 1.0, 1.0]),
+            segments: 1,
+        };
+
+        match trait_obj.create_primitive(&params) {
+            ROk(mesh) => {
+                assert_eq!(mesh.vertices.len(), 3);
+                assert_eq!(mesh.indices.len(), 1);
+            }
+            abi_stable::std_types::RErr(e) => panic!("unexpected error: {e}"),
+        }
+    }
+
+    #[test]
+    fn test_csg_plugin_apply_boolean() {
+        let plugin = TestCsgPlugin;
+        let trait_obj =
+            CsgOperationPlugin_TO::from_value(plugin, abi_stable::sabi_trait::TD_Opaque);
+
+        let mesh = CsgMeshData {
+            vertices: RVec::from(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),
+            indices: RVec::from(vec![[0u32, 1, 2]]),
+        };
+
+        let op: RString = "union".into();
+        match trait_obj.apply_boolean(&mesh, &mesh, &op) {
+            ROk(result) => assert_eq!(result.vertices.len(), 3),
+            abi_stable::std_types::RErr(e) => panic!("unexpected error: {e}"),
         }
     }
 }
