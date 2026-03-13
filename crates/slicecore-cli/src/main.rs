@@ -14,8 +14,11 @@
 //! - `compare-gcode`: Compare multiple G-code files with deltas
 //! - `arrange`: Arrange multiple mesh files on a build plate
 //! - `post-process`: Post-process an existing G-code file
+//! - `csg`: CSG boolean operations, splitting, hollowing, primitives, and mesh info
 
 mod analysis_display;
+mod csg_command;
+mod csg_info;
 mod stats_display;
 
 use std::io::{BufReader, IsTerminal, Read as _};
@@ -457,6 +460,13 @@ enum Commands {
         format: String,
     },
 
+    /// CSG (Constructive Solid Geometry) operations on meshes.
+    ///
+    /// Boolean operations (union, difference, intersection, xor), plane splitting,
+    /// hollowing, primitive generation, and mesh information display.
+    #[command(subcommand)]
+    Csg(csg_command::CsgCommand),
+
     /// Post-process an existing G-code file.
     ///
     /// Reads a G-code file, applies configured post-processors (pause-at-layer,
@@ -643,6 +653,12 @@ fn main() {
             apply,
             &format,
         ),
+        Commands::Csg(csg_cmd) => {
+            if let Err(e) = csg_command::run_csg(csg_cmd) {
+                eprintln!("Error: {e}");
+                process::exit(1);
+            }
+        }
         Commands::PostProcess {
             input,
             output,
