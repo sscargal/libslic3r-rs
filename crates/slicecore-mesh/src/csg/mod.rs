@@ -11,11 +11,13 @@
 //! - [`types`] -- Core types: [`BooleanOp`], [`CsgOptions`], [`TriangleAttributes`]
 //! - [`primitives`] -- Nine watertight mesh primitive generators
 
+pub mod classify;
 pub mod error;
 pub mod intersect;
 pub mod perturb;
 pub mod primitives;
 pub mod report;
+pub mod retriangulate;
 pub mod types;
 
 // Re-export key types at module level.

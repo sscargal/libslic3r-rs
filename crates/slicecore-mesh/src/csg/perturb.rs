@@ -73,12 +73,7 @@ pub fn perturbed_orient3d(
 
     // The sign is determined by the parity of the permutation that maps
     // the original order (a,b,c,d) = (0,1,2,3) to the sorted order.
-    let perm: [u8; 4] = [
-        indexed[0].1,
-        indexed[1].1,
-        indexed[2].1,
-        indexed[3].1,
-    ];
+    let perm: [u8; 4] = [indexed[0].1, indexed[1].1, indexed[2].1, indexed[3].1];
 
     let parity = permutation_parity(&perm);
 
@@ -119,7 +114,10 @@ mod tests {
         let expected = robust::orient3d(to_coord(pa), to_coord(pb), to_coord(pc), to_coord(pd));
         let result = perturbed_orient3d(pa, pb, pc, pd, 0, 1, 2, 3);
 
-        assert_eq!(result, expected, "non-coplanar points should match robust::orient3d");
+        assert_eq!(
+            result, expected,
+            "non-coplanar points should match robust::orient3d"
+        );
     }
 
     #[test]
@@ -131,7 +129,10 @@ mod tests {
         let pd = [0.5, 0.5, 0.0];
 
         let result = perturbed_orient3d(pa, pb, pc, pd, 0, 1, 2, 3);
-        assert!(result != 0.0, "coplanar points should produce non-zero result");
+        assert!(
+            result != 0.0,
+            "coplanar points should produce non-zero result"
+        );
     }
 
     #[test]
@@ -168,6 +169,9 @@ mod tests {
         // All four points are identical (maximally degenerate).
         let p = [1.0, 2.0, 3.0];
         let result = perturbed_orient3d(p, p, p, p, 5, 10, 15, 20);
-        assert!(result != 0.0, "even identical points should get a non-zero result");
+        assert!(
+            result != 0.0,
+            "even identical points should get a non-zero result"
+        );
     }
 }

@@ -2,7 +2,7 @@
 //!
 //! Finds all triangle-triangle intersection segments between mesh A and mesh B
 //! using BVH-accelerated broad-phase and exact geometric predicates via
-//! [`perturbed_orient3d`](super::perturb::perturbed_orient3d) for narrow-phase.
+//! [`perturbed_orient3d`] for narrow-phase.
 //!
 //! Intersection points are canonicalized through a point registry to prevent
 //! T-junctions from inconsistent floating-point computation.
@@ -248,22 +248,16 @@ fn intersect_triangles(
     idx_b1: usize,
     idx_b2: usize,
 ) -> Option<(Point3, Point3, f64, f64)> {
-    let pa = [
-        [a0.x, a0.y, a0.z],
-        [a1.x, a1.y, a1.z],
-        [a2.x, a2.y, a2.z],
-    ];
-    let pb = [
-        [b0.x, b0.y, b0.z],
-        [b1.x, b1.y, b1.z],
-        [b2.x, b2.y, b2.z],
-    ];
+    let pa = [[a0.x, a0.y, a0.z], [a1.x, a1.y, a1.z], [a2.x, a2.y, a2.z]];
+    let pb = [[b0.x, b0.y, b0.z], [b1.x, b1.y, b1.z], [b2.x, b2.y, b2.z]];
     let idx_a = [idx_a0, idx_a1, idx_a2];
     let idx_b = [idx_b0, idx_b1, idx_b2];
 
     // Classify vertices of tri_a against plane of tri_b.
     let da: [f64; 3] = std::array::from_fn(|i| {
-        perturbed_orient3d(pb[0], pb[1], pb[2], pa[i], idx_b[0], idx_b[1], idx_b[2], idx_a[i])
+        perturbed_orient3d(
+            pb[0], pb[1], pb[2], pa[i], idx_b[0], idx_b[1], idx_b[2], idx_a[i],
+        )
     });
 
     // If all vertices of tri_a are on the same side of tri_b's plane, no intersection.
@@ -273,7 +267,9 @@ fn intersect_triangles(
 
     // Classify vertices of tri_b against plane of tri_a.
     let db: [f64; 3] = std::array::from_fn(|i| {
-        perturbed_orient3d(pa[0], pa[1], pa[2], pb[i], idx_a[0], idx_a[1], idx_a[2], idx_b[i])
+        perturbed_orient3d(
+            pa[0], pa[1], pa[2], pb[i], idx_a[0], idx_a[1], idx_a[2], idx_b[i],
+        )
     });
 
     // If all vertices of tri_b are on the same side of tri_a's plane, no intersection.
@@ -456,12 +452,18 @@ mod tests {
         ];
 
         let indices = vec![
-            [4, 5, 6], [4, 6, 7], // Front
-            [1, 0, 3], [1, 3, 2], // Back
-            [1, 2, 6], [1, 6, 5], // Right
-            [0, 4, 7], [0, 7, 3], // Left
-            [3, 7, 6], [3, 6, 2], // Top
-            [0, 1, 5], [0, 5, 4], // Bottom
+            [4, 5, 6],
+            [4, 6, 7], // Front
+            [1, 0, 3],
+            [1, 3, 2], // Back
+            [1, 2, 6],
+            [1, 6, 5], // Right
+            [0, 4, 7],
+            [0, 7, 3], // Left
+            [3, 7, 6],
+            [3, 6, 2], // Top
+            [0, 1, 5],
+            [0, 5, 4], // Bottom
         ];
 
         TriangleMesh::new(vertices, indices).unwrap()
