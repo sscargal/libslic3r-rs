@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 29-06-PLAN.md
-last_updated: "2026-03-13T01:04:58.550Z"
-last_activity: "2026-03-13 - Completed quick task 3: End-to-end CLI QA test script"
+stopped_at: Completed quick task 4
+last_updated: "2026-03-13T21:08:33Z"
+last_activity: "2026-03-13 - Completed quick task 4: Config parity audit and phase planning"
 progress:
   total_phases: 29
   completed_phases: 29
@@ -564,6 +564,8 @@ Recent decisions affecting current work:
 
 - Phase 13 added: JSON Profile Support
 - Phase 14 added: Profile Conversion Tool (JSON to TOML)
+- Phase 30 added: CLI profile composition and slice workflow (--printer/--filament/--process flags with ID and path support)
+- Phase 31 added: CLI utility commands — calibrate (PA calibration prints) and estimate (standalone time/filament from gcode)
 - Phase 15 added: Printer and Filament Profile Library
 - Phase 16 added: PrusaSlicer Profile Migration
 - Phase 17 added: BambuStudio Profile Migration. Find and convert the printer/machine and filament/material profiles in /home/steve/slicer-analysis/BambuStudio to profiles/ in this project like we did in the previous phase.
