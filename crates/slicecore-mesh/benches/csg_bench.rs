@@ -15,6 +15,13 @@ use slicecore_mesh::csg::{
 use slicecore_mesh::TriangleMesh;
 
 // ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/// Factory function that produces a pair of overlapping meshes.
+type MeshPairFactory = fn() -> (TriangleMesh, TriangleMesh);
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -57,8 +64,8 @@ fn two_spheres(segments: u32) -> (TriangleMesh, TriangleMesh) {
 fn bench_boolean_ops(c: &mut Criterion) {
     let mut group = c.benchmark_group("boolean_ops");
 
-    let sizes: &[(&str, fn() -> (TriangleMesh, TriangleMesh))] = &[
-        ("small_box_12tri", two_boxes as fn() -> _),
+    let sizes: &[(&str, MeshPairFactory)] = &[
+        ("small_box_12tri", two_boxes as MeshPairFactory),
         ("medium_sphere_16seg", || two_spheres(16)),
         ("large_sphere_32seg", || two_spheres(32)),
         ("xl_sphere_64seg", || two_spheres(64)),
@@ -114,14 +121,7 @@ fn bench_primitives(c: &mut Criterion) {
     });
 
     group.bench_function("torus_32x16", |b| {
-        b.iter(|| {
-            primitive_torus(
-                black_box(2.0),
-                black_box(0.5),
-                black_box(32),
-                black_box(16),
-            )
-        });
+        b.iter(|| primitive_torus(black_box(2.0), black_box(0.5), black_box(32), black_box(16)));
     });
 
     group.finish();
@@ -189,9 +189,12 @@ fn bench_bvh(c: &mut Criterion) {
         let verts = sphere.vertices().to_vec();
         let idxs = sphere.indices().to_vec();
 
-        group.bench_function(BenchmarkId::new("build", format!("{segments}seg")), |bench| {
-            bench.iter(|| BVH::build(black_box(&verts), black_box(&idxs)));
-        });
+        group.bench_function(
+            BenchmarkId::new("build", format!("{segments}seg")),
+            |bench| {
+                bench.iter(|| BVH::build(black_box(&verts), black_box(&idxs)));
+            },
+        );
     }
 
     group.finish();

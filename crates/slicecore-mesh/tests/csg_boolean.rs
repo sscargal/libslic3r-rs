@@ -59,10 +59,7 @@ fn assert_manifold(mesh: &TriangleMesh) {
             *edge_counts.entry(edge).or_insert(0) += 1;
         }
     }
-    let non_manifold: Vec<_> = edge_counts
-        .iter()
-        .filter(|(_, &c)| c != 2)
-        .collect();
+    let non_manifold: Vec<_> = edge_counts.iter().filter(|(_, &c)| c != 2).collect();
     // Allow some non-manifold edges from floating-point CSG artifacts
     // but warn if count is excessive.
     if !non_manifold.is_empty() {
@@ -211,7 +208,7 @@ fn test_difference_no_overlap() {
 fn test_intersection_overlapping_boxes() {
     let a = make_box_at(0.0, 0.0, 0.0, 2.0, 2.0, 2.0); // [-1, 1]
     let b = make_box_at(1.0, 0.0, 0.0, 2.0, 2.0, 2.0); // [0, 2]
-    // Overlap region: [0, 1] x [-1, 1] x [-1, 1] = volume 4
+                                                       // Overlap region: [0, 1] x [-1, 1] x [-1, 1] = volume 4
 
     let (result, report) = mesh_intersection(&a, &b).expect("intersection should succeed");
 
@@ -267,7 +264,7 @@ fn test_xor_overlapping_boxes() {
 
 #[test]
 fn test_union_many_four_boxes() {
-    let boxes = vec![
+    let boxes = [
         make_box_at(0.0, 0.0, 0.0, 1.5, 1.5, 1.5),
         make_box_at(1.0, 0.0, 0.0, 1.5, 1.5, 1.5),
         make_box_at(0.0, 1.0, 0.0, 1.5, 1.5, 1.5),
@@ -327,20 +324,20 @@ fn test_boolean_report_fields() {
 
     let (_result, report) = mesh_union(&a, &b).expect("report test union");
 
-    assert_eq!(report.input_triangles_a, 12, "input_triangles_a should be 12");
-    assert_eq!(report.input_triangles_b, 12, "input_triangles_b should be 12");
+    assert_eq!(
+        report.input_triangles_a, 12,
+        "input_triangles_a should be 12"
+    );
+    assert_eq!(
+        report.input_triangles_b, 12,
+        "input_triangles_b should be 12"
+    );
     assert!(
         report.output_triangles > 0,
         "output_triangles should be > 0"
     );
-    assert!(
-        report.volume.is_some(),
-        "volume should be computed"
-    );
-    assert!(
-        report.volume.unwrap() > 0.0,
-        "volume should be positive"
-    );
+    assert!(report.volume.is_some(), "volume should be computed");
+    assert!(report.volume.unwrap() > 0.0, "volume should be positive");
     assert!(
         report.surface_area.is_some(),
         "surface_area should be computed"
@@ -350,10 +347,7 @@ fn test_boolean_report_fields() {
         "surface_area should be positive"
     );
     // Duration may be 0 on very fast machines, but should not be enormous.
-    assert!(
-        report.duration_ms < 30_000,
-        "duration should be reasonable"
-    );
+    assert!(report.duration_ms < 30_000, "duration should be reasonable");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
