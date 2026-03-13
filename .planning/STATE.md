@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 29-01-PLAN.md
-last_updated: "2026-03-12T23:52:54.335Z"
-last_activity: "2026-03-12 - Completed 29-01: CSG Foundation Types and Primitives"
+stopped_at: Completed 29-02-PLAN.md
+last_updated: "2026-03-13T00:04:04.407Z"
+last_activity: "2026-03-13 - Completed 29-02: CSG Algorithm Internals"
 progress:
   total_phases: 29
   completed_phases: 28
   total_plans: 121
-  completed_plans: 115
+  completed_plans: 116
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 29 of 29 (Mesh Boolean Operations (CSG))
-Plan: 1 of 7 in current phase (1 complete)
+Plan: 2 of 7 in current phase (2 complete)
 Status: Phase 29 In Progress
-Last activity: 2026-03-12 - Completed 29-01: CSG Foundation Types and Primitives
+Last activity: 2026-03-13 - Completed 29-02: CSG Algorithm Internals
 
-Progress: [██████████] 100% (115/122 overall)
+Progress: [██████████] 100% (116/122 overall)
 
 ## Performance Metrics
 
@@ -96,6 +96,7 @@ Progress: [██████████] 100% (115/122 overall)
 | Phase 28 P01 | 7min | 2 tasks | 9 files |
 | Phase 28 P02 | 9min | 2 tasks | 5 files |
 | Phase 28 P03 | 10min | 2 tasks | 3 files |
+| Phase 29 P02 | 9min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -543,6 +544,8 @@ Recent decisions affecting current work:
 - [27-01]: Bounding box fallback (+/-1um) for degenerate single-point/collinear convex hull projections
 - [27-01]: Round join type for footprint expansion; bed_with_margin helper via Miter inward offset
 - [Phase 29]: Used NonManifold MeshError for attribute count validation; serde_json as runtime dep for CsgReport; ResultConstruction spelling preserved from RESEARCH.md
+- [Phase 29]: SoS perturbation with permutation parity for coplanar tie-breaking
+- [Phase 29]: Point registry with spatial hashing prevents T-junctions in intersection curves
 
 ### Roadmap Evolution
 
@@ -581,6 +584,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-12T23:52:54.332Z
-Stopped at: Completed 29-01-PLAN.md
+Last session: 2026-03-13T00:03:55.967Z
+Stopped at: Completed 29-02-PLAN.md
 Resume file: None
