@@ -153,13 +153,15 @@ impl PointRegistry {
 /// let result = compute_intersection_curves(&box_a, &box_b);
 /// // Result depends on perturbation tie-breaking
 /// ```
+///
+/// # Feature `parallel`
+///
+/// When the `parallel` feature is enabled, the outer triangle loop runs
+/// via rayon `par_iter()` for improved throughput on large meshes.
 pub fn compute_intersection_curves(
     mesh_a: &TriangleMesh,
     mesh_b: &TriangleMesh,
 ) -> IntersectionResult {
-    let mut registry = PointRegistry::new();
-    let mut segments = Vec::new();
-
     // Build BVH for mesh B.
     let bvh_b = BVH::build(mesh_b.vertices(), mesh_b.indices());
 
@@ -168,56 +170,24 @@ pub fn compute_intersection_curves(
     let verts_b = mesh_b.vertices();
     let indices_b = mesh_b.indices();
 
-    // For each triangle in mesh A, find overlapping triangles in mesh B.
-    for (tri_a_idx, tri_a) in indices_a.iter().enumerate() {
-        let a0 = verts_a[tri_a[0] as usize];
-        let a1 = verts_a[tri_a[1] as usize];
-        let a2 = verts_a[tri_a[2] as usize];
+    // Collect raw intersection hits (parallelizable).
+    let raw_hits = collect_raw_hits(verts_a, indices_a, verts_b, indices_b, &bvh_b);
 
-        let aabb_a = match BBox3::from_points(&[a0, a1, a2]) {
-            Some(bb) => bb,
-            None => continue,
-        };
+    // Canonicalize points through the registry (sequential).
+    let mut registry = PointRegistry::new();
+    let mut segments = Vec::new();
 
-        let candidates = bvh_b.query_aabb_overlaps(&aabb_a);
+    for hit in raw_hits {
+        let start = registry.register(hit.p0, hit.tri_a, hit.tri_b, hit.t0);
+        let end = registry.register(hit.p1, hit.tri_a, hit.tri_b, hit.t1);
 
-        for tri_b_idx in candidates {
-            let tri_b = &indices_b[tri_b_idx];
-            let b0 = verts_b[tri_b[0] as usize];
-            let b1 = verts_b[tri_b[1] as usize];
-            let b2 = verts_b[tri_b[2] as usize];
-
-            if let Some((p0, p1, t0, t1)) = intersect_triangles(
-                &a0,
-                &a1,
-                &a2,
-                &b0,
-                &b1,
-                &b2,
-                tri_a[0] as usize,
-                tri_a[1] as usize,
-                tri_a[2] as usize,
-                tri_b[0] as usize,
-                tri_b[1] as usize,
-                tri_b[2] as usize,
-            ) {
-                // Skip degenerate segments (both endpoints identical).
-                if distance_sq(&p0, &p1) < MERGE_TOL * MERGE_TOL {
-                    continue;
-                }
-
-                let start = registry.register(p0, tri_a_idx, tri_b_idx, t0);
-                let end = registry.register(p1, tri_a_idx, tri_b_idx, t1);
-
-                if start != end {
-                    segments.push(IntersectionSegment {
-                        start,
-                        end,
-                        tri_a: tri_a_idx,
-                        tri_b: tri_b_idx,
-                    });
-                }
-            }
+        if start != end {
+            segments.push(IntersectionSegment {
+                start,
+                end,
+                tri_a: hit.tri_a,
+                tri_b: hit.tri_b,
+            });
         }
     }
 
@@ -225,6 +195,117 @@ pub fn compute_intersection_curves(
         points: registry.points,
         segments,
     }
+}
+
+/// A raw intersection hit before canonicalization.
+struct RawHit {
+    p0: Point3,
+    p1: Point3,
+    t0: f64,
+    t1: f64,
+    tri_a: usize,
+    tri_b: usize,
+}
+
+/// Finds all raw triangle-triangle intersection hits between the two meshes.
+///
+/// When the `parallel` feature is enabled, runs the outer triangle loop via
+/// rayon `par_iter` for improved throughput on large meshes.
+#[cfg(feature = "parallel")]
+fn collect_raw_hits(
+    verts_a: &[Point3],
+    indices_a: &[[u32; 3]],
+    verts_b: &[Point3],
+    indices_b: &[[u32; 3]],
+    bvh_b: &BVH,
+) -> Vec<RawHit> {
+    use rayon::prelude::*;
+
+    indices_a
+        .par_iter()
+        .enumerate()
+        .flat_map(|(tri_a_idx, tri_a)| {
+            find_hits_for_triangle(tri_a_idx, tri_a, verts_a, verts_b, indices_b, bvh_b)
+        })
+        .collect()
+}
+
+/// Sequential version without rayon.
+#[cfg(not(feature = "parallel"))]
+fn collect_raw_hits(
+    verts_a: &[Point3],
+    indices_a: &[[u32; 3]],
+    verts_b: &[Point3],
+    indices_b: &[[u32; 3]],
+    bvh_b: &BVH,
+) -> Vec<RawHit> {
+    indices_a
+        .iter()
+        .enumerate()
+        .flat_map(|(tri_a_idx, tri_a)| {
+            find_hits_for_triangle(tri_a_idx, tri_a, verts_a, verts_b, indices_b, bvh_b)
+        })
+        .collect()
+}
+
+/// Finds raw intersection hits for a single triangle in mesh A against mesh B.
+fn find_hits_for_triangle(
+    tri_a_idx: usize,
+    tri_a: &[u32; 3],
+    verts_a: &[Point3],
+    verts_b: &[Point3],
+    indices_b: &[[u32; 3]],
+    bvh_b: &BVH,
+) -> Vec<RawHit> {
+    let a0 = verts_a[tri_a[0] as usize];
+    let a1 = verts_a[tri_a[1] as usize];
+    let a2 = verts_a[tri_a[2] as usize];
+
+    let aabb_a = match BBox3::from_points(&[a0, a1, a2]) {
+        Some(bb) => bb,
+        None => return Vec::new(),
+    };
+
+    let candidates = bvh_b.query_aabb_overlaps(&aabb_a);
+    let mut hits = Vec::new();
+
+    for tri_b_idx in candidates {
+        let tri_b = &indices_b[tri_b_idx];
+        let b0 = verts_b[tri_b[0] as usize];
+        let b1 = verts_b[tri_b[1] as usize];
+        let b2 = verts_b[tri_b[2] as usize];
+
+        if let Some((p0, p1, t0, t1)) = intersect_triangles(
+            &a0,
+            &a1,
+            &a2,
+            &b0,
+            &b1,
+            &b2,
+            tri_a[0] as usize,
+            tri_a[1] as usize,
+            tri_a[2] as usize,
+            tri_b[0] as usize,
+            tri_b[1] as usize,
+            tri_b[2] as usize,
+        ) {
+            // Skip degenerate segments (both endpoints identical).
+            if distance_sq(&p0, &p1) < MERGE_TOL * MERGE_TOL {
+                continue;
+            }
+
+            hits.push(RawHit {
+                p0,
+                p1,
+                t0,
+                t1,
+                tri_a: tri_a_idx,
+                tri_b: tri_b_idx,
+            });
+        }
+    }
+
+    hits
 }
 
 /// Computes the intersection segment between two triangles, if any.

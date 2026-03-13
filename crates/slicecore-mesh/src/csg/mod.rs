@@ -35,4 +35,4 @@ pub use primitives::{
     primitive_rounded_box, primitive_sphere, primitive_torus, primitive_wedge,
 };
 pub use report::CsgReport;
-pub use types::{BooleanOp, CsgOptions, TriangleAttributes};
+pub use types::{BooleanOp, CsgCancellationToken, CsgOptions, TriangleAttributes};

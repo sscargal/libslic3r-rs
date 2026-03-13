@@ -61,6 +61,18 @@ fn mesh_boolean(
         ..CsgReport::default()
     };
 
+    /// Checks cancellation and returns `CsgError::Cancelled` if triggered.
+    fn check_cancelled(options: &CsgOptions) -> Result<(), CsgError> {
+        if let Some(ref token) = options.cancellation_token {
+            if token.is_cancelled() {
+                return Err(CsgError::Cancelled);
+            }
+        }
+        Ok(())
+    }
+
+    check_cancelled(options)?;
+
     // Step (b): Auto-repair both inputs.
     let (repaired_a, repair_a) = repair::repair(a.vertices().to_vec(), a.indices().to_vec())
         .map_err(CsgError::RepairFailedA)?;
@@ -77,9 +89,13 @@ fn mesh_boolean(
         + repair_b.normals_fixed;
     report.repairs_performed = a_repairs + b_repairs;
 
+    check_cancelled(options)?;
+
     // Step (c): Compute intersection curves.
     let intersection = compute_intersection_curves(&repaired_a, &repaired_b);
     report.intersection_curves = intersection.segments.len();
+
+    check_cancelled(options)?;
 
     // Step (d): Retriangulate both meshes along intersection curves.
     let intersection_points: Vec<Point3> =
@@ -104,6 +120,8 @@ fn mesh_boolean(
     // Step (e): Classify all triangles.
     let class_a = classify_triangles(&verts_a, &idx_a, &repaired_b, &origins_a, &intersection);
     let class_b = classify_triangles(&verts_b, &idx_b, &repaired_a, &origins_b, &intersection);
+
+    check_cancelled(options)?;
 
     // Step (f): Select triangles based on operation.
     let mut selected_verts: Vec<Point3> = Vec::new();
