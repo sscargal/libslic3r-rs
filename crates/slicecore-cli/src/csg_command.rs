@@ -10,6 +10,7 @@ use std::time::Instant;
 use clap::{Subcommand, ValueEnum};
 
 use slicecore_fileio::{load_mesh, save_mesh};
+use slicecore_math::Point3;
 use slicecore_math::Vec3;
 use slicecore_mesh::csg::{
     hollow_mesh, mesh_difference, mesh_intersection, mesh_split_at_plane, mesh_union, mesh_xor,
@@ -17,7 +18,6 @@ use slicecore_mesh::csg::{
     primitive_rounded_box, primitive_sphere, primitive_torus, primitive_wedge, CsgReport,
     DrainHole, HollowOptions, SplitOptions, SplitPlane,
 };
-use slicecore_math::Point3;
 
 /// CSG subcommands for mesh boolean operations, splitting, hollowing,
 /// primitive generation, and mesh information.
@@ -265,28 +265,27 @@ pub fn run_csg(cmd: CsgCommand) -> Result<(), Box<dyn std::error::Error>> {
             output,
             verbose,
         } => run_primitive(shape, &dims, segments, &output, verbose),
-        CsgCommand::Info { input, json } => {
-            crate::csg_info::run_info(&input, json)
-        }
+        CsgCommand::Info { input, json } => crate::csg_info::run_info(&input, json),
     }
 }
 
 /// Loads a mesh from a file path, reading the bytes and auto-detecting format.
-fn load_mesh_file(path: &std::path::Path) -> Result<slicecore_mesh::TriangleMesh, Box<dyn std::error::Error>> {
-    let data = std::fs::read(path).map_err(|e| {
-        format!("failed to read '{}': {e}", path.display())
-    })?;
-    let mesh = load_mesh(&data).map_err(|e| {
-        format!("failed to parse mesh from '{}': {e}", path.display())
-    })?;
+fn load_mesh_file(
+    path: &std::path::Path,
+) -> Result<slicecore_mesh::TriangleMesh, Box<dyn std::error::Error>> {
+    let data =
+        std::fs::read(path).map_err(|e| format!("failed to read '{}': {e}", path.display()))?;
+    let mesh = load_mesh(&data)
+        .map_err(|e| format!("failed to parse mesh from '{}': {e}", path.display()))?;
     Ok(mesh)
 }
 
 /// Function pointer type for binary boolean CSG operations.
-type BooleanOpFn = fn(
-    &slicecore_mesh::TriangleMesh,
-    &slicecore_mesh::TriangleMesh,
-) -> Result<(slicecore_mesh::TriangleMesh, CsgReport), slicecore_mesh::csg::CsgError>;
+type BooleanOpFn =
+    fn(
+        &slicecore_mesh::TriangleMesh,
+        &slicecore_mesh::TriangleMesh,
+    ) -> Result<(slicecore_mesh::TriangleMesh, CsgReport), slicecore_mesh::csg::CsgError>;
 
 /// Runs a binary boolean operation (union, difference, intersection, xor).
 fn run_boolean(
@@ -570,11 +569,7 @@ fn get_dims_3(dims: &[f64], usage: &str) -> Result<(f64, f64, f64), Box<dyn std:
 }
 
 /// Extracts exactly N dimensions from a slice.
-fn get_dims_n(
-    dims: &[f64],
-    n: usize,
-    usage: &str,
-) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
+fn get_dims_n(dims: &[f64], n: usize, usage: &str) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
     if dims.len() < n {
         return Err(format!("expected {n} dimensions for {usage}").into());
     }

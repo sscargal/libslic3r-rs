@@ -4,8 +4,8 @@ use std::path::Path;
 
 use serde::Serialize;
 use slicecore_fileio::load_mesh;
-use slicecore_mesh::TriangleMesh;
 use slicecore_mesh::stats::compute_stats;
+use slicecore_mesh::TriangleMesh;
 
 /// Comprehensive information about a mesh file.
 #[derive(Clone, Debug, Serialize)]
@@ -44,10 +44,7 @@ pub struct MeshInfo {
 }
 
 /// Computes comprehensive mesh information from a loaded mesh.
-pub fn compute_mesh_info(
-    mesh: &TriangleMesh,
-    file_size: u64,
-) -> MeshInfo {
+pub fn compute_mesh_info(mesh: &TriangleMesh, file_size: u64) -> MeshInfo {
     let stats = compute_stats(mesh);
 
     let bbox_dims = [
@@ -76,10 +73,13 @@ pub fn compute_mesh_info(
         ));
     }
     if stats.volume < 0.0 {
-        suggestions.push("Negative volume indicates inverted normals; consider flipping winding".to_string());
+        suggestions.push(
+            "Negative volume indicates inverted normals; consider flipping winding".to_string(),
+        );
     }
     if !stats.has_consistent_winding {
-        suggestions.push("Inconsistent triangle winding detected; normals may need fixing".to_string());
+        suggestions
+            .push("Inconsistent triangle winding detected; normals may need fixing".to_string());
     }
 
     MeshInfo {
@@ -136,8 +136,8 @@ pub fn display_mesh_info(info: &MeshInfo) {
 
 /// Runs the info subcommand.
 pub fn run_info(input: &Path, json: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let data = std::fs::read(input)
-        .map_err(|e| format!("failed to read '{}': {e}", input.display()))?;
+    let data =
+        std::fs::read(input).map_err(|e| format!("failed to read '{}': {e}", input.display()))?;
     let file_size = data.len() as u64;
     let mesh = load_mesh(&data)
         .map_err(|e| format!("failed to parse mesh from '{}': {e}", input.display()))?;
