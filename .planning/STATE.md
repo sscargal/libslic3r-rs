@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 29-02-PLAN.md
-last_updated: "2026-03-13T00:04:04.407Z"
-last_activity: "2026-03-13 - Completed 29-02: CSG Algorithm Internals"
+stopped_at: Completed 29-03-PLAN.md
+last_updated: "2026-03-13T00:11:53.237Z"
+last_activity: "2026-03-13 - Completed 29-03: Boolean Operations API"
 progress:
   total_phases: 29
   completed_phases: 28
   total_plans: 121
-  completed_plans: 116
+  completed_plans: 117
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 29 of 29 (Mesh Boolean Operations (CSG))
-Plan: 2 of 7 in current phase (2 complete)
+Plan: 3 of 7 in current phase (3 complete)
 Status: Phase 29 In Progress
-Last activity: 2026-03-13 - Completed 29-02: CSG Algorithm Internals
+Last activity: 2026-03-13 - Completed 29-03: Boolean Operations API
 
-Progress: [██████████] 100% (116/122 overall)
+Progress: [██████████] 100% (117/122 overall)
 
 ## Performance Metrics
 
@@ -97,6 +97,7 @@ Progress: [██████████] 100% (116/122 overall)
 | Phase 28 P02 | 9min | 2 tasks | 5 files |
 | Phase 28 P03 | 10min | 2 tasks | 3 files |
 | Phase 29 P02 | 9min | 2 tasks | 5 files |
+| Phase 29 P03 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -546,6 +547,7 @@ Recent decisions affecting current work:
 - [Phase 29]: Used NonManifold MeshError for attribute count validation; serde_json as runtime dep for CsgReport; ResultConstruction spelling preserved from RESEARCH.md
 - [Phase 29]: SoS perturbation with permutation parity for coplanar tie-breaking
 - [Phase 29]: Point registry with spatial hashing prevents T-junctions in intersection curves
+- [Phase 29]: Non-manifold edges treated as warnings in CSG output (floating-point artifacts)
 
 ### Roadmap Evolution
 
@@ -584,6 +586,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:03:55.967Z
-Stopped at: Completed 29-02-PLAN.md
+Last session: 2026-03-13T00:11:53.234Z
+Stopped at: Completed 29-03-PLAN.md
 Resume file: None
