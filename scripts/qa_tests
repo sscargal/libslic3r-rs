@@ -1,0 +1,860 @@
+#!/usr/bin/env bash
+# =============================================================================
+# slicecore CLI QA Test Script
+# =============================================================================
+#
+# Comprehensive end-to-end QA test suite that exercises every slicecore
+# CLI subcommand, runs build gates, and reports coverage gaps.
+#
+# Usage:
+#   scripts/qa_tests [OPTIONS]
+#
+# Options:
+#   --group GROUP   Run only named group(s), comma-separated
+#   --skip GROUP    Skip named group(s), comma-separated
+#   --list-groups   Print available groups and exit
+#   --no-color      Disable ANSI color output
+#   --verbose       Show stdout/stderr from commands (default: suppress on pass)
+#   --help          Show this help message
+#
+# Groups:
+#   build       Build gates (cargo build, fmt, clippy, test)
+#   mesh        Mesh analysis commands
+#   slice       Slicing operations
+#   gcode       G-code analysis and comparison
+#   csg         CSG boolean operations and primitives
+#   convert     File format conversion
+#   thumbnail   Thumbnail preview generation
+#   arrange     Build plate arrangement
+#   profile     Profile listing and search
+#   postprocess Post-processing operations
+#   ai          AI suggestion commands
+#   plugin      Plugin commands
+#   errors      Error handling / edge cases
+#   coverage    Coverage gap report
+#
+# Environment:
+#   SLICECORE_BIN   Path to pre-built slicecore binary (skips build)
+#
+# =============================================================================
+
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Globals
+# ---------------------------------------------------------------------------
+PASS_COUNT=0
+FAIL_COUNT=0
+WARN_COUNT=0
+INFO_COUNT=0
+
+ONLY_GROUPS=""
+SKIP_GROUPS=""
+NO_COLOR=false
+VERBOSE=false
+TMPDIR_QA=""
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Default: use debug binary after build
+SLICECORE="${SLICECORE_BIN:-}"
+
+ALL_GROUPS="build mesh slice gcode csg convert thumbnail arrange profile postprocess ai plugin errors coverage"
+
+# ---------------------------------------------------------------------------
+# Color helpers
+# ---------------------------------------------------------------------------
+_color() {
+    if $NO_COLOR; then
+        printf '%s' "$2"
+    else
+        printf '%s%s%s' "$1" "$2" $'\033[0m'
+    fi
+}
+
+green()  { _color $'\033[32m' "$1"; }
+red()    { _color $'\033[31m' "$1"; }
+yellow() { _color $'\033[33m' "$1"; }
+cyan()   { _color $'\033[36m' "$1"; }
+bold()   { _color $'\033[1m'  "$1"; }
+
+# ---------------------------------------------------------------------------
+# Result reporters
+# ---------------------------------------------------------------------------
+pass() {
+    PASS_COUNT=$((PASS_COUNT + 1))
+    printf '  [%s] %s\n' "$(green "PASS")" "$1"
+}
+
+fail() {
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+    printf '  [%s] %s\n' "$(red "FAIL")" "$1"
+    if [[ -n "${2:-}" ]]; then
+        printf '         %s\n' "$2"
+    fi
+}
+
+warn() {
+    WARN_COUNT=$((WARN_COUNT + 1))
+    printf '  [%s] %s\n' "$(yellow "WARN")" "$1"
+}
+
+info() {
+    INFO_COUNT=$((INFO_COUNT + 1))
+    printf '  [%s] %s\n' "$(cyan "INFO")" "$1"
+}
+
+# ---------------------------------------------------------------------------
+# Test runners
+# ---------------------------------------------------------------------------
+
+# run_test "description" command [args...]
+# Expects command to succeed (exit 0).
+run_test() {
+    local desc="$1"; shift
+    local output exit_code
+    output=$("$@" 2>&1) && exit_code=0 || exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        pass "$desc"
+        if $VERBOSE; then
+            printf '%s\n' "$output" | sed 's/^/         /'
+        fi
+    else
+        fail "$desc" "exit code $exit_code"
+        printf '%s\n' "$output" | tail -10 | sed 's/^/         /'
+    fi
+    return 0
+}
+
+# run_test_expect_fail "description" command [args...]
+# Expects command to fail (non-zero exit).
+run_test_expect_fail() {
+    local desc="$1"; shift
+    local output exit_code
+    output=$("$@" 2>&1) && exit_code=0 || exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        pass "$desc (expected failure, got exit $exit_code)"
+    else
+        fail "$desc" "expected non-zero exit, got 0"
+        if $VERBOSE; then
+            printf '%s\n' "$output" | tail -5 | sed 's/^/         /'
+        fi
+    fi
+    return 0
+}
+
+# run_test_json "description" command [args...]
+# Expects command to succeed and produce valid JSON on stdout.
+# Note: captures stdout separately from stderr so progress/log messages
+# don't pollute the JSON stream.
+run_test_json() {
+    local desc="$1"; shift
+    local stdout_file stderr_file exit_code
+    stdout_file="$TMPDIR_QA/_json_stdout.tmp"
+    stderr_file="$TMPDIR_QA/_json_stderr.tmp"
+    "$@" >"$stdout_file" 2>"$stderr_file" && exit_code=0 || exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        fail "$desc" "exit code $exit_code"
+        cat "$stderr_file" 2>/dev/null | tail -5 | sed 's/^/         /'
+        return 0
+    fi
+    if is_json_valid < "$stdout_file"; then
+        pass "$desc"
+        if $VERBOSE; then
+            head -5 "$stdout_file" | sed 's/^/         /'
+        fi
+    else
+        fail "$desc" "output is not valid JSON"
+        head -5 "$stdout_file" | sed 's/^/         /'
+    fi
+    return 0
+}
+
+# run_test_output_contains "description" "substring" command [args...]
+# Expects command to succeed and stdout to contain substring.
+run_test_output_contains() {
+    local desc="$1"; shift
+    local substring="$1"; shift
+    local output exit_code
+    output=$("$@" 2>&1) && exit_code=0 || exit_code=$?
+    if [[ $exit_code -ne 0 ]]; then
+        fail "$desc" "exit code $exit_code"
+        printf '%s\n' "$output" | tail -5 | sed 's/^/         /'
+        return 0
+    fi
+    if echo "$output" | grep -qi "$substring"; then
+        pass "$desc"
+    else
+        fail "$desc" "output does not contain '$substring'"
+        printf '%s\n' "$output" | head -10 | sed 's/^/         /'
+    fi
+    return 0
+}
+
+# run_test_file_exists "description" filepath
+run_test_file_exists() {
+    local desc="$1"
+    local filepath="$2"
+    if [[ -f "$filepath" && -s "$filepath" ]]; then
+        pass "$desc"
+    else
+        fail "$desc" "file missing or empty: $filepath"
+    fi
+    return 0
+}
+
+# is_json_valid - reads stdin, validates JSON
+is_json_valid() {
+    if command -v jq &>/dev/null; then
+        jq . >/dev/null 2>&1
+    elif command -v python3 &>/dev/null; then
+        python3 -m json.tool >/dev/null 2>&1
+    else
+        # No JSON validator available; assume valid
+        cat >/dev/null
+        return 0
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Group helpers
+# ---------------------------------------------------------------------------
+group_header() {
+    printf '\n%s\n' "$(bold "=== $1 ===")"
+}
+
+should_run_group() {
+    local name="$1"
+    # If --group specified, only run those groups
+    if [[ -n "$ONLY_GROUPS" ]]; then
+        if ! echo ",$ONLY_GROUPS," | grep -q ",$name,"; then
+            return 1
+        fi
+    fi
+    # If --skip specified, exclude those groups
+    if [[ -n "$SKIP_GROUPS" ]]; then
+        if echo ",$SKIP_GROUPS," | grep -q ",$name,"; then
+            return 1
+        fi
+    fi
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --group)
+                ONLY_GROUPS="$2"; shift 2 ;;
+            --skip)
+                SKIP_GROUPS="$2"; shift 2 ;;
+            --list-groups)
+                echo "Available test groups:"
+                for g in $ALL_GROUPS; do
+                    echo "  $g"
+                done
+                exit 0 ;;
+            --no-color)
+                NO_COLOR=true; shift ;;
+            --verbose)
+                VERBOSE=true; shift ;;
+            --help|-h)
+                head -38 "${BASH_SOURCE[0]}" | tail -35
+                exit 0 ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 2 ;;
+        esac
+    done
+}
+
+# ---------------------------------------------------------------------------
+# Setup & teardown
+# ---------------------------------------------------------------------------
+setup() {
+    TMPDIR_QA=$(mktemp -d "${TMPDIR:-/tmp}/slicecore-qa.XXXXXX")
+    trap cleanup EXIT
+    printf '%s\n' "$(bold "slicecore CLI QA Tests")"
+    printf 'Temp dir: %s\n' "$TMPDIR_QA"
+    printf 'Project:  %s\n' "$PROJECT_ROOT"
+}
+
+cleanup() {
+    if [[ -n "$TMPDIR_QA" && -d "$TMPDIR_QA" ]]; then
+        rm -rf "$TMPDIR_QA"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# Ensure slicecore binary
+# ---------------------------------------------------------------------------
+ensure_binary() {
+    if [[ -n "$SLICECORE" && -x "$SLICECORE" ]]; then
+        info "Using pre-set SLICECORE_BIN: $SLICECORE"
+        return 0
+    fi
+
+    # After build group, use debug binary
+    local debug_bin="$PROJECT_ROOT/target/debug/slicecore"
+    local release_bin="$PROJECT_ROOT/target/release/slicecore"
+
+    if [[ -x "$release_bin" ]]; then
+        SLICECORE="$release_bin"
+    elif [[ -x "$debug_bin" ]]; then
+        SLICECORE="$debug_bin"
+    else
+        fail "No slicecore binary found. Run with --group build or set SLICECORE_BIN"
+        return 1
+    fi
+    info "Using binary: $SLICECORE"
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# Fixture generation
+# ---------------------------------------------------------------------------
+generate_fixtures() {
+    group_header "Fixture Generation"
+
+    if ! ensure_binary; then
+        fail "Cannot generate fixtures without binary"
+        return 1
+    fi
+
+    # Generate primitives
+    run_test "Generate cube.stl primitive" \
+        "$SLICECORE" csg primitive box --dims 20 20 20 -o "$TMPDIR_QA/cube.stl"
+
+    run_test "Generate sphere.stl primitive" \
+        "$SLICECORE" csg primitive sphere --dims 10 -o "$TMPDIR_QA/sphere.stl"
+
+    run_test "Generate cylinder.stl primitive" \
+        "$SLICECORE" csg primitive cylinder --dims 5 20 -o "$TMPDIR_QA/cylinder.stl"
+
+    # Convert to other formats
+    run_test "Convert cube.stl -> cube.3mf" \
+        "$SLICECORE" convert "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/cube.3mf"
+
+    run_test "Convert cube.stl -> cube.obj" \
+        "$SLICECORE" convert "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/cube.obj"
+
+    # Slice to get gcode fixtures
+    run_test "Slice cube.stl -> cube.gcode" \
+        "$SLICECORE" slice "$TMPDIR_QA/cube.stl" -o "$TMPDIR_QA/cube.gcode"
+
+    run_test "Slice sphere.stl -> sphere.gcode" \
+        "$SLICECORE" slice "$TMPDIR_QA/sphere.stl" -o "$TMPDIR_QA/sphere.gcode"
+
+    # Verify key fixtures exist
+    for f in cube.stl sphere.stl cylinder.stl cube.3mf cube.obj cube.gcode sphere.gcode; do
+        if [[ ! -f "$TMPDIR_QA/$f" ]]; then
+            fail "Fixture $f not generated"
+            return 1
+        fi
+    done
+    info "All fixtures generated successfully"
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: build
+# ---------------------------------------------------------------------------
+group_build() {
+    should_run_group "build" || return 0
+    group_header "Build Gates"
+
+    cd "$PROJECT_ROOT"
+
+    run_test "cargo build --workspace" \
+        cargo build --workspace
+
+    # Set binary path after successful build
+    if [[ -z "$SLICECORE" ]]; then
+        SLICECORE="$PROJECT_ROOT/target/debug/slicecore"
+    fi
+
+    run_test "cargo fmt --all -- --check" \
+        cargo fmt --all -- --check
+
+    run_test "cargo clippy --all-features -- -D warnings" \
+        cargo clippy --all-features -- -D warnings
+
+    run_test "cargo test --all-features --workspace" \
+        cargo test --all-features --workspace
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: mesh
+# ---------------------------------------------------------------------------
+group_mesh() {
+    should_run_group "mesh" || return 0
+    group_header "Mesh Analysis"
+
+    run_test_output_contains "analyze cube.stl" "triangles\|vertices\|Triangles\|Vertices" \
+        "$SLICECORE" analyze "$TMPDIR_QA/cube.stl"
+
+    run_test "analyze cube.3mf" \
+        "$SLICECORE" analyze "$TMPDIR_QA/cube.3mf"
+
+    run_test "analyze cube.obj" \
+        "$SLICECORE" analyze "$TMPDIR_QA/cube.obj"
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: slice
+# ---------------------------------------------------------------------------
+group_slice() {
+    should_run_group "slice" || return 0
+    group_header "Slicing"
+
+    run_test "slice cube.stl to gcode" \
+        "$SLICECORE" slice "$TMPDIR_QA/cube.stl" -o "$TMPDIR_QA/test_slice.gcode"
+    run_test_file_exists "slice output file exists" "$TMPDIR_QA/test_slice.gcode"
+
+    run_test_json "slice cube.stl --json" \
+        "$SLICECORE" slice "$TMPDIR_QA/cube.stl" --json -o "$TMPDIR_QA/json_out.gcode"
+
+    run_test "slice cube.3mf to gcode" \
+        "$SLICECORE" slice "$TMPDIR_QA/cube.3mf" -o "$TMPDIR_QA/test_3mf.gcode"
+
+    run_test "slice with --stats-format csv --quiet" \
+        "$SLICECORE" slice "$TMPDIR_QA/cube.stl" --stats-format csv --quiet -o "$TMPDIR_QA/csv_test.gcode"
+
+    run_test "slice with --stats-format json --quiet" \
+        "$SLICECORE" slice "$TMPDIR_QA/cube.stl" --stats-format json --quiet -o "$TMPDIR_QA/json_test.gcode"
+
+    run_test "slice with --thumbnails" \
+        "$SLICECORE" slice "$TMPDIR_QA/cube.stl" --thumbnails -o "$TMPDIR_QA/thumb_slice.gcode"
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: gcode
+# ---------------------------------------------------------------------------
+group_gcode() {
+    should_run_group "gcode" || return 0
+    group_header "G-code Operations"
+
+    run_test "validate cube.gcode" \
+        "$SLICECORE" validate "$TMPDIR_QA/cube.gcode"
+
+    run_test "analyze-gcode cube.gcode" \
+        "$SLICECORE" analyze-gcode "$TMPDIR_QA/cube.gcode"
+
+    run_test_json "analyze-gcode --json" \
+        "$SLICECORE" analyze-gcode "$TMPDIR_QA/cube.gcode" --json
+
+    run_test "analyze-gcode --csv" \
+        "$SLICECORE" analyze-gcode "$TMPDIR_QA/cube.gcode" --csv
+
+    run_test "analyze-gcode --summary" \
+        "$SLICECORE" analyze-gcode "$TMPDIR_QA/cube.gcode" --summary
+
+    run_test "analyze-gcode --no-color" \
+        "$SLICECORE" analyze-gcode "$TMPDIR_QA/cube.gcode" --no-color
+
+    run_test "compare-gcode cube vs sphere" \
+        "$SLICECORE" compare-gcode "$TMPDIR_QA/cube.gcode" "$TMPDIR_QA/sphere.gcode"
+
+    run_test_json "compare-gcode --json" \
+        "$SLICECORE" compare-gcode "$TMPDIR_QA/cube.gcode" "$TMPDIR_QA/sphere.gcode" --json
+
+    run_test "compare-gcode --csv" \
+        "$SLICECORE" compare-gcode "$TMPDIR_QA/cube.gcode" "$TMPDIR_QA/sphere.gcode" --csv
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: csg
+# ---------------------------------------------------------------------------
+group_csg() {
+    should_run_group "csg" || return 0
+    group_header "CSG Operations"
+
+    # Boolean operations
+    run_test "csg union" \
+        "$SLICECORE" csg union "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" -o "$TMPDIR_QA/union.stl"
+
+    run_test "csg difference" \
+        "$SLICECORE" csg difference "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" -o "$TMPDIR_QA/diff.stl"
+
+    run_test "csg intersection" \
+        "$SLICECORE" csg intersection "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" -o "$TMPDIR_QA/inter.stl"
+
+    run_test "csg xor" \
+        "$SLICECORE" csg xor "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" -o "$TMPDIR_QA/xor.stl"
+
+    # Split
+    run_test "csg split" \
+        "$SLICECORE" csg split "$TMPDIR_QA/cube.stl" --plane "0,0,1,10" \
+        -o "$TMPDIR_QA/above.stl" "$TMPDIR_QA/below.stl"
+
+    # Hollow
+    run_test "csg hollow" \
+        "$SLICECORE" csg hollow "$TMPDIR_QA/cube.stl" --wall 2.0 -o "$TMPDIR_QA/hollow.stl"
+
+    run_test "csg hollow with drain" \
+        "$SLICECORE" csg hollow "$TMPDIR_QA/cube.stl" --wall 2.0 --drain-diameter 5.0 \
+        -o "$TMPDIR_QA/hollow_drain.stl"
+
+    # Info
+    run_test "csg info" \
+        "$SLICECORE" csg info "$TMPDIR_QA/cube.stl"
+
+    run_test_json "csg info --json" \
+        "$SLICECORE" csg info "$TMPDIR_QA/cube.stl" --json
+
+    # Boolean ops with --json
+    run_test_json "csg union --json" \
+        "$SLICECORE" csg union "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" \
+        -o "$TMPDIR_QA/union_j.stl" --json
+
+    run_test_json "csg difference --json" \
+        "$SLICECORE" csg difference "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" \
+        -o "$TMPDIR_QA/diff_j.stl" --json
+
+    run_test_json "csg intersection --json" \
+        "$SLICECORE" csg intersection "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" \
+        -o "$TMPDIR_QA/inter_j.stl" --json
+
+    run_test_json "csg xor --json" \
+        "$SLICECORE" csg xor "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" \
+        -o "$TMPDIR_QA/xor_j.stl" --json
+
+    # Boolean ops with --verbose
+    run_test "csg union --verbose" \
+        "$SLICECORE" csg union "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" \
+        -o "$TMPDIR_QA/union_v.stl" --verbose
+
+    run_test "csg difference --verbose" \
+        "$SLICECORE" csg difference "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" \
+        -o "$TMPDIR_QA/diff_v.stl" --verbose
+
+    run_test "csg intersection --verbose" \
+        "$SLICECORE" csg intersection "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" \
+        -o "$TMPDIR_QA/inter_v.stl" --verbose
+
+    run_test "csg xor --verbose" \
+        "$SLICECORE" csg xor "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" \
+        -o "$TMPDIR_QA/xor_v.stl" --verbose
+
+    # Primitive generation (all shapes)
+    local -a shapes=("box" "sphere" "cylinder" "cone" "torus" "wedge" "ngon-prism")
+    local -a dims=("10 10 10" "8" "5 15" "5 15" "8 3" "10 10 10" "6 5 15")
+
+    for i in "${!shapes[@]}"; do
+        local shape="${shapes[$i]}"
+        local dim="${dims[$i]}"
+        # shellcheck disable=SC2086
+        run_test "csg primitive $shape" \
+            "$SLICECORE" csg primitive "$shape" --dims $dim -o "$TMPDIR_QA/prim_${shape}.stl"
+    done
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: convert
+# ---------------------------------------------------------------------------
+group_convert() {
+    should_run_group "convert" || return 0
+    group_header "File Conversion"
+
+    run_test "STL -> 3MF" \
+        "$SLICECORE" convert "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/conv.3mf"
+
+    run_test "STL -> OBJ" \
+        "$SLICECORE" convert "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/conv.obj"
+
+    run_test "3MF -> STL" \
+        "$SLICECORE" convert "$TMPDIR_QA/cube.3mf" "$TMPDIR_QA/conv2.stl"
+
+    run_test "OBJ -> STL" \
+        "$SLICECORE" convert "$TMPDIR_QA/cube.obj" "$TMPDIR_QA/conv3.stl"
+
+    # Verify outputs are non-empty
+    for f in conv.3mf conv.obj conv2.stl conv3.stl; do
+        run_test_file_exists "converted $f is non-empty" "$TMPDIR_QA/$f"
+    done
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: thumbnail
+# ---------------------------------------------------------------------------
+group_thumbnail() {
+    should_run_group "thumbnail" || return 0
+    group_header "Thumbnail Generation"
+
+    run_test "thumbnail default" \
+        "$SLICECORE" thumbnail "$TMPDIR_QA/cube.stl" -o "$TMPDIR_QA/thumb.png"
+    run_test_file_exists "thumb.png exists" "$TMPDIR_QA/thumb.png"
+
+    mkdir -p "$TMPDIR_QA/thumb_dir"
+    run_test "thumbnail with angles" \
+        "$SLICECORE" thumbnail "$TMPDIR_QA/cube.stl" --angles front,isometric \
+        -o "$TMPDIR_QA/thumb_dir/"
+
+    run_test "thumbnail with resolution" \
+        "$SLICECORE" thumbnail "$TMPDIR_QA/cube.stl" --resolution 640x480 \
+        -o "$TMPDIR_QA/thumb_hires.png"
+
+    run_test "thumbnail with colors" \
+        "$SLICECORE" thumbnail "$TMPDIR_QA/cube.stl" --background FF0000 --color 00FF00 \
+        -o "$TMPDIR_QA/thumb_color.png"
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: arrange
+# ---------------------------------------------------------------------------
+group_arrange() {
+    should_run_group "arrange" || return 0
+    group_header "Build Plate Arrangement"
+
+    run_test "arrange two meshes" \
+        "$SLICECORE" arrange "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl"
+
+    run_test_json "arrange --format json" \
+        "$SLICECORE" arrange "$TMPDIR_QA/cube.stl" "$TMPDIR_QA/sphere.stl" --format json
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: profile
+# ---------------------------------------------------------------------------
+group_profile() {
+    should_run_group "profile" || return 0
+    group_header "Profile Commands"
+
+    # These may fail if no profiles directory is configured
+    local output exit_code
+
+    output=$("$SLICECORE" list-profiles --vendors 2>&1) && exit_code=0 || exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        pass "list-profiles --vendors"
+    else
+        warn "list-profiles --vendors (no profiles directory or other issue)"
+    fi
+
+    output=$("$SLICECORE" list-profiles 2>&1) && exit_code=0 || exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        pass "list-profiles"
+    else
+        warn "list-profiles (no profiles directory or other issue)"
+    fi
+
+    output=$("$SLICECORE" search-profiles "PLA" 2>&1) && exit_code=0 || exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        pass "search-profiles PLA"
+    else
+        warn "search-profiles PLA (no profiles directory or other issue)"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: postprocess
+# ---------------------------------------------------------------------------
+group_postprocess() {
+    should_run_group "postprocess" || return 0
+    group_header "Post-processing"
+
+    run_test "post-process basic" \
+        "$SLICECORE" post-process "$TMPDIR_QA/cube.gcode" -o "$TMPDIR_QA/pp.gcode"
+
+    run_test "post-process --timelapse" \
+        "$SLICECORE" post-process "$TMPDIR_QA/cube.gcode" --timelapse -o "$TMPDIR_QA/pp_tl.gcode"
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: ai
+# ---------------------------------------------------------------------------
+group_ai() {
+    should_run_group "ai" || return 0
+    group_header "AI Commands"
+
+    local output exit_code
+    output=$("$SLICECORE" ai-suggest "$TMPDIR_QA/cube.stl" 2>&1) && exit_code=0 || exit_code=$?
+    if [[ $exit_code -eq 0 ]]; then
+        pass "ai-suggest cube.stl"
+    else
+        warn "ai-suggest cube.stl (AI provider not available -- expected in CI)"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: plugin
+# ---------------------------------------------------------------------------
+group_plugin() {
+    should_run_group "plugin" || return 0
+    group_header "Plugin Commands"
+
+    info "Plugin testing requires compiled WASM plugins -- skipped in automated QA"
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: errors
+# ---------------------------------------------------------------------------
+group_errors() {
+    should_run_group "errors" || return 0
+    group_header "Error Handling"
+
+    run_test_expect_fail "slice nonexistent file" \
+        "$SLICECORE" slice nonexistent.stl
+
+    run_test_expect_fail "validate nonexistent file" \
+        "$SLICECORE" validate nonexistent.gcode
+
+    run_test_expect_fail "convert nonexistent file" \
+        "$SLICECORE" convert nonexistent.stl out.3mf
+
+    run_test_expect_fail "csg union with no args" \
+        "$SLICECORE" csg union
+
+    run_test_expect_fail "analyze nonexistent file" \
+        "$SLICECORE" analyze nonexistent.stl
+
+    run_test_expect_fail "csg primitive box (no --dims, no -o)" \
+        "$SLICECORE" csg primitive box
+
+    run_test_expect_fail "csg split with invalid plane" \
+        "$SLICECORE" csg split "$TMPDIR_QA/cube.stl" --plane invalid
+
+    # slicecore with no subcommand -- should print help, may exit 0 or 2
+    local output exit_code
+    output=$("$SLICECORE" 2>&1) && exit_code=0 || exit_code=$?
+    if echo "$output" | grep -qi "usage\|commands\|help"; then
+        pass "no subcommand prints help (exit $exit_code)"
+    else
+        fail "no subcommand did not print help" "exit $exit_code"
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: coverage
+# ---------------------------------------------------------------------------
+group_coverage() {
+    should_run_group "coverage" || return 0
+    group_header "Coverage Gap Report"
+
+    # Map crates to CLI subcommands
+    declare -A CRATE_MAP
+    CRATE_MAP["slicecore-engine"]="slice, analyze"
+    CRATE_MAP["slicecore-fileio"]="convert, analyze"
+    CRATE_MAP["slicecore-gcode-io"]="validate, analyze-gcode, compare-gcode"
+    CRATE_MAP["slicecore-mesh"]="csg"
+    CRATE_MAP["slicecore-ai"]="ai-suggest"
+    CRATE_MAP["slicecore-plugin"]="(plugin system, no direct subcommand)"
+    CRATE_MAP["slicecore-render"]="thumbnail"
+    CRATE_MAP["slicecore-slicer"]="slice (internal)"
+    CRATE_MAP["slicecore-cli"]="(the CLI itself)"
+    CRATE_MAP["slicecore-arrange"]="arrange"
+    CRATE_MAP["slicecore-plugin-api"]="(plugin API, no direct subcommand)"
+    CRATE_MAP["slicecore-geo"]="(geometry primitives, no direct subcommand)"
+    CRATE_MAP["slicecore-math"]="(math utilities, no direct subcommand)"
+
+    # Get list of crates
+    local crates_dir="$PROJECT_ROOT/crates"
+    local crates
+    crates=$(ls -1 "$crates_dir" 2>/dev/null || echo "")
+
+    # Get CLI subcommands
+    local subcommands
+    subcommands=$("$SLICECORE" --help 2>&1 | sed -n '/^Commands:/,/^$/p' | tail -n +2 | awk '{print $1}' | grep -v '^$' || true)
+
+    printf '\n  %-25s %-45s %s\n' "Crate" "CLI Exposure" "Status"
+    printf '  %-25s %-45s %s\n' "-------------------------" "---------------------------------------------" "--------"
+
+    local no_exposure_count=0
+    for crate in $crates; do
+        local exposure="${CRATE_MAP[$crate]:-unknown}"
+        local status
+
+        if [[ "$exposure" == *"no direct subcommand"* ]] || [[ "$exposure" == *"the CLI itself"* ]] || [[ "$exposure" == *"internal"* ]]; then
+            status="INTERNAL"
+            no_exposure_count=$((no_exposure_count + 1))
+        elif [[ "$exposure" == "unknown" ]]; then
+            status="UNMAPPED"
+            no_exposure_count=$((no_exposure_count + 1))
+        else
+            status="EXPOSED"
+        fi
+        printf '  %-25s %-45s %s\n' "$crate" "$exposure" "$status"
+    done
+
+    # Count public modules per crate
+    printf '\n  %-25s %s\n' "Crate" "Public Modules"
+    printf '  %-25s %s\n' "-------------------------" "--------------"
+    for crate in $crates; do
+        local lib_rs="$crates_dir/$crate/src/lib.rs"
+        if [[ -f "$lib_rs" ]]; then
+            local pub_mod_count
+            pub_mod_count=$(grep -c 'pub mod' "$lib_rs" 2>/dev/null || echo "0")
+            printf '  %-25s %s\n' "$crate" "$pub_mod_count"
+        fi
+    done
+
+    info "Crates without direct CLI subcommand exposure: $no_exposure_count"
+    info "Coverage report complete -- see table above"
+}
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+print_summary() {
+    local total=$((PASS_COUNT + FAIL_COUNT + WARN_COUNT + INFO_COUNT))
+    printf '\n%s\n' "$(bold "=== QA Test Summary ===")"
+    printf '%s: %d\n' "$(green "PASS")" "$PASS_COUNT"
+    printf '%s: %d\n' "$(red "FAIL")" "$FAIL_COUNT"
+    printf '%s: %d\n' "$(yellow "WARN")" "$WARN_COUNT"
+    printf '%s: %d\n' "$(cyan "INFO")" "$INFO_COUNT"
+    printf 'Total: %d\n' "$total"
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+main() {
+    parse_args "$@"
+    setup
+
+    # Determine if we need fixtures
+    local needs_fixtures=false
+    for g in mesh slice gcode csg convert thumbnail arrange postprocess errors; do
+        if should_run_group "$g"; then
+            needs_fixtures=true
+            break
+        fi
+    done
+
+    # Build group first (if requested)
+    group_build
+
+    # Ensure binary is available
+    ensure_binary || { print_summary; exit 1; }
+
+    # Generate fixtures if needed
+    if $needs_fixtures; then
+        generate_fixtures || { print_summary; exit 1; }
+    fi
+
+    # Run test groups
+    group_mesh
+    group_slice
+    group_gcode
+    group_csg
+    group_convert
+    group_thumbnail
+    group_arrange
+    group_profile
+    group_postprocess
+    group_ai
+    group_plugin
+    group_errors
+    group_coverage
+
+    # Summary
+    print_summary
+
+    if [[ $FAIL_COUNT -gt 0 ]]; then
+        exit 1
+    fi
+    exit 0
+}
+
+main "$@"
