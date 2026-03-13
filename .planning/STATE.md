@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 29-03-PLAN.md
-last_updated: "2026-03-13T00:11:53.237Z"
-last_activity: "2026-03-13 - Completed 29-03: Boolean Operations API"
+stopped_at: Completed 29-05-PLAN.md
+last_updated: "2026-03-13T00:19:00.000Z"
+last_activity: "2026-03-13 - Completed 29-05: Production Readiness (cancellation, parallel, plugin API)"
 progress:
   total_phases: 29
   completed_phases: 28
   total_plans: 121
-  completed_plans: 117
+  completed_plans: 119
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 29 of 29 (Mesh Boolean Operations (CSG))
-Plan: 3 of 7 in current phase (3 complete)
+Plan: 5 of 7 in current phase (5 complete)
 Status: Phase 29 In Progress
-Last activity: 2026-03-13 - Completed 29-03: Boolean Operations API
+Last activity: 2026-03-13 - Completed 29-05: Production Readiness (cancellation, parallel, plugin API)
 
-Progress: [██████████] 100% (117/122 overall)
+Progress: [██████████] 100% (119/122 overall)
 
 ## Performance Metrics
 
@@ -98,6 +98,7 @@ Progress: [██████████] 100% (117/122 overall)
 | Phase 28 P03 | 10min | 2 tasks | 3 files |
 | Phase 29 P02 | 9min | 2 tasks | 5 files |
 | Phase 29 P03 | 5min | 2 tasks | 4 files |
+| Phase 29 P05 | 6min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -548,6 +549,9 @@ Recent decisions affecting current work:
 - [Phase 29]: SoS perturbation with permutation parity for coplanar tie-breaking
 - [Phase 29]: Point registry with spatial hashing prevents T-junctions in intersection curves
 - [Phase 29]: Non-manifold edges treated as warnings in CSG output (floating-point artifacts)
+- [29-05]: CsgCancellationToken in slicecore-mesh (not slicecore-engine CancellationToken) avoids circular dependency
+- [29-05]: Refactored intersect.rs: separate raw hit collection from point canonicalization for rayon par_iter
+- [29-05]: CsgMeshData with RVec<[f64;3]> for FFI-safe mesh exchange in plugin API
 
 ### Roadmap Evolution
 
@@ -586,6 +590,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:11:53.234Z
-Stopped at: Completed 29-03-PLAN.md
+Last session: 2026-03-13T00:19:00.000Z
+Stopped at: Completed 29-05-PLAN.md
 Resume file: None
