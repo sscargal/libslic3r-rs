@@ -14,10 +14,12 @@
 //! - [`primitives`] -- Nine watertight mesh primitive generators
 //! - [`split`] -- Plane splitting of triangle meshes
 //! - [`offset`] -- Vertex-normal mesh offset operations
+//! - [`hollow`] -- Mesh hollowing via offset and CSG difference
 
 pub mod boolean;
 pub mod classify;
 pub mod error;
+pub mod hollow;
 pub mod intersect;
 pub mod offset;
 pub mod perturb;
@@ -39,6 +41,7 @@ pub use primitives::{
     primitive_rounded_box, primitive_sphere, primitive_torus, primitive_wedge,
 };
 pub use report::CsgReport;
+pub use hollow::{hollow_mesh, DrainHole, HollowOptions};
 pub use offset::mesh_offset;
 pub use split::{mesh_split_at_plane, SplitOptions, SplitPlane, SplitResult};
 pub use types::{BooleanOp, CsgCancellationToken, CsgOptions, TriangleAttributes};
