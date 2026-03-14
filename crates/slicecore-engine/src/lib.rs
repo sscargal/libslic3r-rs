@@ -63,6 +63,10 @@ pub mod toolpath;
 
 // Re-export primary types at crate root.
 pub use arachne::{generate_arachne_perimeters, ArachnePerimeter, ArachneResult};
+pub use builtin_profiles::{get_builtin_profile, list_builtin_profiles, BuiltinProfile};
+pub use config_validate::{
+    resolve_template_variables, validate_config, ValidationIssue, ValidationSeverity,
+};
 pub use calibration::{generate_pa_calibration, generate_pa_calibration_gcode};
 pub use config::{
     MultiMaterialConfig, PaCalibrationConfig, PrintConfig, ScarfJointConfig, ScarfJointType,
