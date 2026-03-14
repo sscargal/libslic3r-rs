@@ -19,6 +19,7 @@
 mod analysis_display;
 mod csg_command;
 mod csg_info;
+mod slice_workflow;
 mod stats_display;
 
 use std::io::{BufReader, IsTerminal, Read as _};
@@ -128,8 +129,60 @@ enum Commands {
         input: PathBuf,
 
         /// Print config file (TOML or JSON, auto-detected; optional -- uses defaults if not provided)
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with_all = ["machine", "filament", "process"])]
         config: Option<PathBuf>,
+
+        /// Machine profile name or path
+        #[arg(short, long, conflicts_with = "config")]
+        machine: Option<String>,
+
+        /// Filament profile name or path
+        #[arg(short, long, conflicts_with = "config")]
+        filament: Option<String>,
+
+        /// Process profile name or path
+        #[arg(short, long, conflicts_with = "config")]
+        process: Option<String>,
+
+        /// TOML/JSON override file (applied after profiles)
+        #[arg(long, conflicts_with = "config")]
+        overrides: Option<PathBuf>,
+
+        /// Override a config key (repeatable, format: key=value)
+        #[arg(long = "set", conflicts_with = "config")]
+        set_overrides: Vec<String>,
+
+        /// Resolve profiles and validate config without slicing
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Save merged config to a TOML file
+        #[arg(long, value_name = "FILE")]
+        save_config: Option<PathBuf>,
+
+        /// Print merged config with source annotations
+        #[arg(long)]
+        show_config: bool,
+
+        /// Allow slicing without profiles (dev/testing only)
+        #[arg(long)]
+        unsafe_defaults: bool,
+
+        /// Override safety validation errors
+        #[arg(long)]
+        force: bool,
+
+        /// Suppress log file creation
+        #[arg(long)]
+        no_log: bool,
+
+        /// Custom log file path
+        #[arg(long, value_name = "FILE")]
+        log_file: Option<PathBuf>,
+
+        /// Profile library directory override
+        #[arg(long, value_name = "DIR")]
+        profiles_dir: Option<PathBuf>,
 
         /// Output G-code file path (default: input with .gcode extension)
         #[arg(short, long)]
@@ -523,6 +576,19 @@ fn main() {
         Commands::Slice {
             input,
             config,
+            machine,
+            filament,
+            process,
+            overrides,
+            set_overrides,
+            dry_run,
+            save_config,
+            show_config,
+            unsafe_defaults,
+            force,
+            no_log,
+            log_file,
+            profiles_dir,
             output,
             json,
             msgpack,
@@ -538,6 +604,19 @@ fn main() {
         } => cmd_slice(
             &input,
             config.as_deref(),
+            machine.as_deref(),
+            filament.as_deref(),
+            process.as_deref(),
+            overrides.as_deref(),
+            &set_overrides,
+            dry_run,
+            save_config.as_deref(),
+            show_config,
+            unsafe_defaults,
+            force,
+            no_log,
+            log_file.as_deref(),
+            profiles_dir.as_deref(),
             output.as_deref(),
             json,
             msgpack,
@@ -686,10 +765,23 @@ fn main() {
 }
 
 /// Slice an STL/mesh file to G-code.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
 fn cmd_slice(
     input: &PathBuf,
     config_path: Option<&std::path::Path>,
+    machine: Option<&str>,
+    filament: Option<&str>,
+    process: Option<&str>,
+    overrides_file: Option<&std::path::Path>,
+    set_overrides: &[String],
+    dry_run: bool,
+    save_config: Option<&std::path::Path>,
+    show_config: bool,
+    unsafe_defaults: bool,
+    force: bool,
+    no_log: bool,
+    log_file: Option<&std::path::Path>,
+    profiles_dir: Option<&std::path::Path>,
     output_path: Option<&std::path::Path>,
     json_output: bool,
     msgpack_output: bool,
@@ -703,6 +795,17 @@ fn cmd_slice(
     thumbnails: bool,
     auto_arrange: bool,
 ) {
+    // Determine if we're using the new profile-based workflow or legacy --config path.
+    let use_profile_workflow = machine.is_some()
+        || filament.is_some()
+        || process.is_some()
+        || !set_overrides.is_empty()
+        || overrides_file.is_some()
+        || dry_run
+        || save_config.is_some()
+        || show_config
+        || unsafe_defaults;
+
     // 1. Read input file.
     let data = match std::fs::read(input) {
         Ok(d) => d,
@@ -750,10 +853,39 @@ fn cmd_slice(
         );
     }
 
-    // 4. Load config.
-    let print_config = if let Some(cfg_path) = config_path {
+    // 4. Load config -- route through profile workflow or legacy path.
+    let (print_config, gcode_header_opt) = if use_profile_workflow {
+        let workflow_options = slice_workflow::SliceWorkflowOptions {
+            machine: machine.map(String::from),
+            filament: filament.map(String::from),
+            process: process.map(String::from),
+            overrides_file: overrides_file.map(PathBuf::from),
+            set_overrides: set_overrides.to_vec(),
+            dry_run,
+            save_config: save_config.map(PathBuf::from),
+            show_config,
+            unsafe_defaults,
+            force,
+            no_log,
+            log_file: log_file.map(PathBuf::from),
+            profiles_dir: profiles_dir.map(PathBuf::from),
+            input_path: input.clone(),
+            json_output,
+        };
+
+        match slice_workflow::run_slice_workflow(&workflow_options) {
+            Ok(result) => {
+                let header = slice_workflow::generate_gcode_header(
+                    &result.composed,
+                    &workflow_options,
+                );
+                (result.composed.config, Some(header))
+            }
+            Err(code) => process::exit(code),
+        }
+    } else if let Some(cfg_path) = config_path {
         match PrintConfig::from_file(cfg_path) {
-            Ok(c) => c,
+            Ok(c) => (c, None),
             Err(e) => {
                 eprintln!(
                     "Error: Failed to load config '{}': {}",
@@ -764,7 +896,7 @@ fn cmd_slice(
             }
         }
     } else {
-        PrintConfig::default()
+        (PrintConfig::default(), None)
     };
 
     // 5. Load plugins (if applicable).
@@ -900,6 +1032,13 @@ fn cmd_slice(
         }
     }
 
+    // 7b. Prepend profile composition header if available.
+    if let Some(ref header) = gcode_header_opt {
+        let mut new_output = header.as_bytes().to_vec();
+        new_output.extend_from_slice(&gcode_output);
+        gcode_output = new_output;
+    }
+
     // 8. Determine output path.
     let out_path = if let Some(p) = output_path {
         p.to_path_buf()
@@ -1023,6 +1162,44 @@ fn cmd_slice(
         eprintln!("Output: {}", out_path.display());
     } else if !quiet {
         println!("\nOutput: {}", out_path.display());
+    }
+
+    // Summary line for profile-based workflow.
+    if use_profile_workflow {
+        let filament_m = result.statistics.as_ref().map_or(0.0, |s| {
+            s.summary.total_filament_m
+        });
+        let time_min = result.estimated_time_seconds / 60.0;
+        eprintln!(
+            "Sliced {} -> {} ({} layers, {:.1}m filament, est. {:.1}min)",
+            input.display(),
+            out_path.display(),
+            result.layer_count,
+            filament_m,
+            time_min,
+        );
+    }
+
+    // Log file creation (profile workflow only, unless --no-log).
+    if use_profile_workflow && !no_log {
+        let log_path = if let Some(lf) = log_file {
+            lf.to_path_buf()
+        } else {
+            out_path.with_extension("log")
+        };
+        let log_content = format!(
+            "SliceCore Slice Log\nInput: {}\nOutput: {}\nLayers: {}\nEstimated time: {:.1}s\n",
+            input.display(),
+            out_path.display(),
+            result.layer_count,
+            result.estimated_time_seconds,
+        );
+        if let Err(e) = std::fs::write(&log_path, &log_content) {
+            eprintln!(
+                "Warning: Failed to create log file '{}': {e}",
+                log_path.display()
+            );
+        }
     }
 }
 
