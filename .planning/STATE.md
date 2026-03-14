@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 30-03-PLAN.md
-last_updated: "2026-03-14T01:45:51.814Z"
-last_activity: "2026-03-14 - Completed plan 30-03: Built-in profiles and config validation"
+stopped_at: Completed 30-04-PLAN.md
+last_updated: "2026-03-14T01:57:11.738Z"
+last_activity: "2026-03-14 - Completed plan 30-04: CLI slice workflow and profile flags"
 progress:
   total_phases: 35
   completed_phases: 29
   total_plans: 127
-  completed_plans: 124
+  completed_plans: 125
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 30 of 35 (CLI Profile Composition and Slice Workflow)
-Plan: 3 of 3 in current phase (3 complete)
-Status: Plan 30-03 Complete
-Last activity: 2026-03-14 - Completed plan 30-03: Built-in profiles and config validation
+Plan: 4 of 4 in current phase (4 complete)
+Status: Plan 30-04 Complete
+Last activity: 2026-03-14 - Completed plan 30-04: CLI slice workflow and profile flags
 
-Progress: [██████████] 100% (123/123 overall)
+Progress: [██████████] 100% (124/124 overall)
 
 ## Performance Metrics
 
@@ -104,6 +104,7 @@ Progress: [██████████] 100% (123/123 overall)
 | Phase 29 P07 | 11min | 2 tasks | 7 files |
 | Phase 30 P02 | 4min | 1 tasks | 2 files |
 | Phase 30 P03 | 3min | 1 tasks | 3 files |
+| Phase 30 P04 | 8min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -565,6 +566,7 @@ Recent decisions affecting current work:
 - [Phase 29]: Used iter_batched with rebuild() helper for CSG benchmarks since TriangleMesh lacks Clone
 - [Phase 30]: Used HOME/USERPROFILE env vars instead of dirs crate for home dir - WASM-safe
 - [Phase 30]: Built-in profiles use inline TOML const strings for self-contained binary; safety limits at 350C nozzle, 150C bed
+- [Phase 30]: Profile workflow opt-in: -m/-f/-p triggers new path, --config uses legacy
 
 ### Roadmap Evolution
 
@@ -610,6 +612,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-14T01:45:51.810Z
-Stopped at: Completed 30-03-PLAN.md
+Last session: 2026-03-14T01:57:11.734Z
+Stopped at: Completed 30-04-PLAN.md
 Resume file: None
