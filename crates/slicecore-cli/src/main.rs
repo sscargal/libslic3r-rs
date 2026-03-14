@@ -35,6 +35,7 @@ use slicecore_engine::{
     create_builtin_postprocessors, load_index, write_merged_index, Engine, PrintConfig,
     ProfileIndexEntry,
 };
+use slicecore_engine::profile_resolve::{ProfileResolver, ProfileSource};
 use slicecore_fileio::{load_mesh, save_mesh};
 use slicecore_gcode_io::validate_gcode;
 use slicecore_mesh::{compute_stats, repair};
@@ -1753,6 +1754,7 @@ fn cmd_import_profiles(
 /// 2. `SLICECORE_PROFILES_DIR` environment variable
 /// 3. Relative to binary (installed location, or cargo target dir)
 /// 4. Current working directory `./profiles`
+#[deprecated(note = "Use ProfileResolver instead for consistent profile discovery")]
 fn find_profiles_dir(cli_override: Option<&std::path::Path>) -> Option<PathBuf> {
     // 1. CLI flag override.
     if let Some(dir) = cli_override {
@@ -1793,7 +1795,7 @@ fn find_profiles_dir(cli_override: Option<&std::path::Path>) -> Option<PathBuf> 
     None
 }
 
-/// List profiles from the profile library.
+/// List profiles from the profile library using `ProfileResolver`.
 fn cmd_list_profiles(
     vendor: Option<&str>,
     profile_type: Option<&str>,
@@ -1802,28 +1804,121 @@ fn cmd_list_profiles(
     profiles_dir_override: Option<&std::path::Path>,
     json_output: bool,
 ) {
-    let profiles_dir = match find_profiles_dir(profiles_dir_override) {
-        Some(d) => d,
-        None => {
-            eprintln!("Error: Could not find profiles directory.");
-            eprintln!(
-                "Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root."
+    let resolver = ProfileResolver::new(profiles_dir_override);
+
+    // Use resolver search with empty query to get all profiles.
+    let all_profiles = resolver.search("", profile_type, usize::MAX);
+
+    if all_profiles.is_empty() {
+        // Fall back to index-based listing for vendor/material filtering.
+        #[allow(deprecated)]
+        let profiles_dir = match find_profiles_dir(profiles_dir_override) {
+            Some(d) => d,
+            None => {
+                eprintln!("Error: Could not find profiles directory.");
+                eprintln!(
+                    "Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root."
+                );
+                process::exit(1);
+            }
+        };
+
+        let index = match load_index(&profiles_dir) {
+            Ok(idx) => idx,
+            Err(e) => {
+                eprintln!("Error: Failed to load profile index: {}", e);
+                process::exit(1);
+            }
+        };
+
+        if vendors_only {
+            let mut vendors: Vec<String> =
+                index.profiles.iter().map(|p| p.vendor.clone()).collect();
+            vendors.sort();
+            vendors.dedup();
+
+            if json_output {
+                let json = serde_json::to_string_pretty(&vendors).unwrap_or_else(|e| {
+                    eprintln!("Error: Failed to serialize JSON: {}", e);
+                    process::exit(1);
+                });
+                println!("{}", json);
+            } else {
+                for v in &vendors {
+                    println!("{}", v);
+                }
+                eprintln!("{} vendor(s) found", vendors.len());
+            }
+            return;
+        }
+
+        // Filter profiles from index.
+        let filtered: Vec<&ProfileIndexEntry> = index
+            .profiles
+            .iter()
+            .filter(|p| {
+                if let Some(v) = vendor {
+                    if !p.vendor.to_lowercase().contains(&v.to_lowercase()) {
+                        return false;
+                    }
+                }
+                if let Some(t) = profile_type {
+                    if p.profile_type != t {
+                        return false;
+                    }
+                }
+                if let Some(m) = material {
+                    match &p.material {
+                        Some(mat) => {
+                            if !mat.to_lowercase().contains(&m.to_lowercase()) {
+                                return false;
+                            }
+                        }
+                        None => return false,
+                    }
+                }
+                true
+            })
+            .collect();
+
+        if json_output {
+            let json = serde_json::to_string_pretty(&filtered).unwrap_or_else(|e| {
+                eprintln!("Error: Failed to serialize JSON: {}", e);
+                process::exit(1);
+            });
+            println!("{}", json);
+        } else {
+            println!(
+                "{:<10} {:<12} {:<50} {:<10} {:<15}",
+                "TYPE", "VENDOR", "NAME", "MATERIAL", "SOURCE"
             );
-            process::exit(1);
-        }
-    };
+            println!("{}", "-".repeat(101));
 
-    let index = match load_index(&profiles_dir) {
-        Ok(idx) => idx,
-        Err(e) => {
-            eprintln!("Error: Failed to load profile index: {}", e);
-            process::exit(1);
+            for p in &filtered {
+                println!(
+                    "{:<10} {:<12} {:<50} {:<10} {:<15}",
+                    p.profile_type,
+                    p.vendor,
+                    truncate_str(&p.name, 48),
+                    p.material.as_deref().unwrap_or("-"),
+                    format!("library/{}", p.vendor),
+                );
+            }
+            eprintln!("{} profile(s) found", filtered.len());
         }
-    };
+        return;
+    }
 
+    // We have resolver results -- use them.
     if vendors_only {
-        // Collect unique vendor names, sorted.
-        let mut vendors: Vec<String> = index.profiles.iter().map(|p| p.vendor.clone()).collect();
+        // Extract unique vendors from resolved profiles.
+        let mut vendors: Vec<String> = all_profiles
+            .iter()
+            .filter_map(|p| match &p.source {
+                ProfileSource::Library { vendor } => Some(vendor.clone()),
+                _ => None,
+            })
+            .collect();
         vendors.sort();
         vendors.dedup();
 
@@ -1842,29 +1937,22 @@ fn cmd_list_profiles(
         return;
     }
 
-    // Filter profiles.
-    let filtered: Vec<&ProfileIndexEntry> = index
-        .profiles
+    // Apply vendor and material filters on resolved profiles.
+    let filtered: Vec<_> = all_profiles
         .iter()
         .filter(|p| {
             if let Some(v) = vendor {
-                if !p.vendor.to_lowercase().contains(&v.to_lowercase()) {
-                    return false;
-                }
-            }
-            if let Some(t) = profile_type {
-                if p.profile_type != t {
+                let vendor_name = match &p.source {
+                    ProfileSource::Library { vendor } => vendor.to_lowercase(),
+                    _ => String::new(),
+                };
+                if !vendor_name.contains(&v.to_lowercase()) {
                     return false;
                 }
             }
             if let Some(m) = material {
-                match &p.material {
-                    Some(mat) => {
-                        if !mat.to_lowercase().contains(&m.to_lowercase()) {
-                            return false;
-                        }
-                    }
-                    None => return false,
+                if !p.name.to_lowercase().contains(&m.to_lowercase()) {
+                    return false;
                 }
             }
             true
@@ -1872,167 +1960,229 @@ fn cmd_list_profiles(
         .collect();
 
     if json_output {
-        let json = serde_json::to_string_pretty(&filtered).unwrap_or_else(|e| {
+        // Build JSON with source field.
+        let entries: Vec<serde_json::Value> = filtered
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "name": p.name,
+                    "profile_type": p.profile_type,
+                    "source": p.source.to_string(),
+                    "path": p.path.display().to_string(),
+                })
+            })
+            .collect();
+        let json = serde_json::to_string_pretty(&entries).unwrap_or_else(|e| {
             eprintln!("Error: Failed to serialize JSON: {}", e);
             process::exit(1);
         });
         println!("{}", json);
     } else {
-        // Print header.
         println!(
-            "{:<10} {:<12} {:<50} {:<10}",
-            "TYPE", "VENDOR", "NAME", "MATERIAL"
+            "{:<10} {:<12} {:<50} {:<15}",
+            "TYPE", "VENDOR", "NAME", "SOURCE"
         );
-        println!("{}", "-".repeat(86));
+        println!("{}", "-".repeat(91));
 
         for p in &filtered {
+            let vendor_name = match &p.source {
+                ProfileSource::Library { vendor } => vendor.as_str(),
+                ProfileSource::User => "-",
+                ProfileSource::BuiltIn => "-",
+            };
             println!(
-                "{:<10} {:<12} {:<50} {:<10}",
+                "{:<10} {:<12} {:<50} {:<15}",
                 p.profile_type,
-                p.vendor,
+                vendor_name,
                 truncate_str(&p.name, 48),
-                p.material.as_deref().unwrap_or("-"),
+                p.source,
             );
         }
         eprintln!("{} profile(s) found", filtered.len());
     }
 }
 
-/// Search profiles by keyword.
+/// Search profiles by keyword using `ProfileResolver`.
 fn cmd_search_profiles(
     query: &str,
     limit: usize,
     profiles_dir_override: Option<&std::path::Path>,
     json_output: bool,
 ) {
-    let profiles_dir = match find_profiles_dir(profiles_dir_override) {
-        Some(d) => d,
-        None => {
-            eprintln!("Error: Could not find profiles directory.");
+    let resolver = ProfileResolver::new(profiles_dir_override);
+
+    // Use resolver search with the query.
+    let matching = resolver.search(query, None, limit);
+
+    if matching.is_empty() {
+        // Try to provide "did you mean?" suggestions.
+        // Attempt to resolve as each type to trigger NotFound suggestions.
+        let mut suggestions = Vec::new();
+        for profile_type in &["machine", "filament", "process"] {
+            if let Err(slicecore_engine::profile_resolve::ProfileError::NotFound {
+                suggestions: s, ..
+            }) = resolver.resolve(query, profile_type)
+            {
+                for sug in s {
+                    if !suggestions.contains(&sug) {
+                        suggestions.push(sug);
+                    }
+                }
+            }
+        }
+
+        if suggestions.is_empty() {
+            eprintln!("No profiles found matching '{}'.", query);
+            eprintln!("Use 'list-profiles' to see all available profiles.");
+        } else {
+            eprintln!("No profiles found matching '{}'.", query);
             eprintln!(
-                "Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root."
+                "Did you mean: {}?",
+                suggestions.into_iter().take(5).collect::<Vec<_>>().join(", ")
             );
-            process::exit(1);
         }
-    };
-
-    let index = match load_index(&profiles_dir) {
-        Ok(idx) => idx,
-        Err(e) => {
-            eprintln!("Error: Failed to load profile index: {}", e);
-            process::exit(1);
-        }
-    };
-
-    // Split query into whitespace-separated terms (lowercase).
-    let terms: Vec<String> = query.split_whitespace().map(|s| s.to_lowercase()).collect();
-
-    // Filter profiles where ALL terms match at least one field.
-    let matching: Vec<&ProfileIndexEntry> = index
-        .profiles
-        .iter()
-        .filter(|p| {
-            let fields = [
-                p.name.to_lowercase(),
-                p.vendor.to_lowercase(),
-                p.material.as_deref().unwrap_or("").to_lowercase(),
-                p.printer_model.as_deref().unwrap_or("").to_lowercase(),
-                p.profile_type.to_lowercase(),
-                p.quality.as_deref().unwrap_or("").to_lowercase(),
-            ];
-
-            terms
-                .iter()
-                .all(|term| fields.iter().any(|f| f.contains(term.as_str())))
-        })
-        .take(limit)
-        .collect();
+        return;
+    }
 
     if json_output {
-        let json = serde_json::to_string_pretty(&matching).unwrap_or_else(|e| {
+        let entries: Vec<serde_json::Value> = matching
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "name": p.name,
+                    "profile_type": p.profile_type,
+                    "source": p.source.to_string(),
+                    "path": p.path.display().to_string(),
+                })
+            })
+            .collect();
+        let json = serde_json::to_string_pretty(&entries).unwrap_or_else(|e| {
             eprintln!("Error: Failed to serialize JSON: {}", e);
             process::exit(1);
         });
         println!("{}", json);
     } else {
         println!(
-            "{:<10} {:<12} {:<50} {:<10}",
-            "TYPE", "VENDOR", "NAME", "MATERIAL"
+            "{:<10} {:<12} {:<50} {:<15}",
+            "TYPE", "VENDOR", "NAME", "SOURCE"
         );
-        println!("{}", "-".repeat(86));
+        println!("{}", "-".repeat(91));
 
         for p in &matching {
+            let vendor_name = match &p.source {
+                ProfileSource::Library { vendor } => vendor.as_str(),
+                ProfileSource::User => "-",
+                ProfileSource::BuiltIn => "-",
+            };
             println!(
-                "{:<10} {:<12} {:<50} {:<10}",
+                "{:<10} {:<12} {:<50} {:<15}",
                 p.profile_type,
-                p.vendor,
+                vendor_name,
                 truncate_str(&p.name, 48),
-                p.material.as_deref().unwrap_or("-"),
+                p.source,
             );
         }
         eprintln!("{} result(s) (showing up to {})", matching.len(), limit);
     }
 }
 
-/// Show details of a specific profile.
+/// Show details of a specific profile using `ProfileResolver`.
 fn cmd_show_profile(id: &str, raw: bool, profiles_dir_override: Option<&std::path::Path>) {
-    let profiles_dir = match find_profiles_dir(profiles_dir_override) {
-        Some(d) => d,
-        None => {
-            eprintln!("Error: Could not find profiles directory.");
-            eprintln!(
-                "Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root."
-            );
-            process::exit(1);
-        }
+    let resolver = ProfileResolver::new(profiles_dir_override);
+
+    // Try to resolve using ProfileResolver -- accept any type.
+    // First try file-path style (with /), then each type.
+    let resolved = if id.contains('/') || id.ends_with(".toml") {
+        resolver.resolve(id, "machine").or_else(|_| resolver.resolve(id, "filament")).or_else(|_| resolver.resolve(id, "process"))
+    } else {
+        // Try each type.
+        resolver
+            .resolve(id, "machine")
+            .or_else(|_| resolver.resolve(id, "filament"))
+            .or_else(|_| resolver.resolve(id, "process"))
     };
 
-    let index = match load_index(&profiles_dir) {
-        Ok(idx) => idx,
+    let resolved = match resolved {
+        Ok(r) => r,
         Err(e) => {
-            eprintln!("Error: Failed to load profile index: {}", e);
-            process::exit(1);
-        }
-    };
+            // Fall back to index-based lookup for backward compatibility.
+            #[allow(deprecated)]
+            let profiles_dir = match find_profiles_dir(profiles_dir_override) {
+                Some(d) => d,
+                None => {
+                    eprintln!("Error: {e}");
+                    process::exit(1);
+                }
+            };
 
-    // Find entry: exact match on id, or path without .toml extension.
-    let entry = index
-        .profiles
-        .iter()
-        .find(|e| e.id == id || e.path.trim_end_matches(".toml") == id);
+            let index = match load_index(&profiles_dir) {
+                Ok(idx) => idx,
+                Err(_) => {
+                    eprintln!("Error: {e}");
+                    process::exit(1);
+                }
+            };
 
-    let entry = match entry {
-        Some(e) => e,
-        None => {
-            // Try case-insensitive match for suggestion.
-            let id_lower = id.to_lowercase();
-            let suggestion = index.profiles.iter().find(|e| {
-                e.id.to_lowercase() == id_lower
-                    || e.path.trim_end_matches(".toml").to_lowercase() == id_lower
-            });
+            // Find entry by id in the index.
+            let entry = index
+                .profiles
+                .iter()
+                .find(|entry| entry.id == id || entry.path.trim_end_matches(".toml") == id);
 
-            if let Some(s) = suggestion {
-                eprintln!(
-                    "Error: Profile '{}' not found. Did you mean '{}'?",
-                    id, s.id
-                );
-            } else {
-                eprintln!("Error: Profile '{}' not found.", id);
-                eprintln!("Use 'list-profiles' or 'search-profiles' to find available profiles.");
+            if let Some(entry) = entry {
+                if raw {
+                    let toml_path = profiles_dir.join(&entry.path);
+                    let contents = match std::fs::read_to_string(&toml_path) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            eprintln!(
+                                "Error: Failed to read profile file '{}': {}",
+                                toml_path.display(),
+                                e
+                            );
+                            process::exit(1);
+                        }
+                    };
+                    print!("{}", contents);
+                } else {
+                    println!("Profile: {}", entry.name);
+                    println!("Source:  library/{}", entry.vendor);
+                    println!("Vendor:  {}", entry.vendor);
+                    println!("Type:    {}", entry.profile_type);
+                    if let Some(ref mat) = entry.material {
+                        println!("Material: {}", mat);
+                    }
+                    if let Some(ref model) = entry.printer_model {
+                        println!("Printer: {}", model);
+                    }
+                    if let Some(height) = entry.layer_height {
+                        println!("Layer height: {:.2}mm", height);
+                    }
+                    if let Some(nozzle) = entry.nozzle_size {
+                        println!("Nozzle: {:.1}mm", nozzle);
+                    }
+                    if let Some(ref quality) = entry.quality {
+                        println!("Quality: {}", quality);
+                    }
+                    println!("ID:      {}", entry.id);
+                    println!("Path:    {}", entry.path);
+                }
+                return;
             }
+
+            eprintln!("Error: {e}");
             process::exit(1);
         }
     };
 
     if raw {
         // Read and print the TOML file.
-        let toml_path = profiles_dir.join(&entry.path);
-        let contents = match std::fs::read_to_string(&toml_path) {
+        let contents = match std::fs::read_to_string(&resolved.path) {
             Ok(s) => s,
             Err(e) => {
                 eprintln!(
                     "Error: Failed to read profile file '{}': {}",
-                    toml_path.display(),
+                    resolved.path.display(),
                     e
                 );
                 process::exit(1);
@@ -2041,27 +2191,21 @@ fn cmd_show_profile(id: &str, raw: bool, profiles_dir_override: Option<&std::pat
         print!("{}", contents);
     } else {
         // Print structured metadata summary.
-        println!("Profile: {}", entry.name);
-        println!("Source:  {}", entry.source);
-        println!("Vendor:  {}", entry.vendor);
-        println!("Type:    {}", entry.profile_type);
-        if let Some(ref mat) = entry.material {
-            println!("Material: {}", mat);
+        println!("Profile: {}", resolved.name);
+        println!("Source:  {}", resolved.source);
+        println!("Type:    {}", resolved.profile_type);
+
+        // Show inheritance chain if available.
+        match resolver.resolve_inheritance(&resolved.path) {
+            Ok(chain) if chain.len() > 1 => {
+                let names: Vec<_> = chain.iter().map(|p| p.name.as_str()).collect();
+                println!("Inherits: {}", names.join(" -> "));
+            }
+            _ => {}
         }
-        if let Some(ref model) = entry.printer_model {
-            println!("Printer: {}", model);
-        }
-        if let Some(height) = entry.layer_height {
-            println!("Layer height: {:.2}mm", height);
-        }
-        if let Some(nozzle) = entry.nozzle_size {
-            println!("Nozzle: {:.1}mm", nozzle);
-        }
-        if let Some(ref quality) = entry.quality {
-            println!("Quality: {}", quality);
-        }
-        println!("ID:      {}", entry.id);
-        println!("Path:    {}", entry.path);
+
+        println!("Checksum: {}", resolved.checksum);
+        println!("Path:    {}", resolved.path.display());
     }
 }
 
