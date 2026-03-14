@@ -19,6 +19,7 @@
 mod analysis_display;
 mod csg_command;
 mod csg_info;
+pub mod progress;
 mod slice_workflow;
 mod stats_display;
 
@@ -1000,7 +1001,24 @@ fn cmd_slice(
         }
     }
 
+    // 5c. Create progress bar (unless --quiet).
+    let progress = if !quiet {
+        let pb = progress::create_progress(7);
+        pb.set_phase("Loading mesh");
+        pb.inc(1); // mesh already loaded
+        pb.set_phase("Repairing mesh");
+        pb.inc(1); // mesh already repaired
+        pb.set_phase("Configuring engine");
+        pb.inc(1); // config loaded
+        Some(pb)
+    } else {
+        None
+    };
+
     // 6. Slice.
+    if let Some(ref pb) = progress {
+        pb.set_phase("Slicing layers");
+    }
     let result = match engine.slice(&repaired_mesh, None) {
         Ok(r) => r,
         Err(e) => {
@@ -1008,6 +1026,11 @@ fn cmd_slice(
             process::exit(1);
         }
     };
+
+    if let Some(ref pb) = progress {
+        pb.inc(1);
+        pb.set_phase("Generating G-code");
+    }
 
     // 7. Generate and embed thumbnails if requested.
     let mut gcode_output = result.gcode.clone();
@@ -1039,6 +1062,11 @@ fn cmd_slice(
         gcode_output = new_output;
     }
 
+    if let Some(ref pb) = progress {
+        pb.inc(1);
+        pb.set_phase("Writing output");
+    }
+
     // 8. Determine output path.
     let out_path = if let Some(p) = output_path {
         p.to_path_buf()
@@ -1054,6 +1082,12 @@ fn cmd_slice(
             e
         );
         process::exit(1);
+    }
+
+    if let Some(ref pb) = progress {
+        pb.inc(1);
+        pb.inc(1);
+        pb.finish();
     }
 
     // 9. Structured output (JSON or MessagePack to stdout).
