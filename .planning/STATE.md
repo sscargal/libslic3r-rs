@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 30-02-PLAN.md
-last_updated: "2026-03-14T01:40:16.910Z"
-last_activity: "2026-03-14 - Completed plan 30-02: Profile resolver"
+stopped_at: Completed 30-03-PLAN.md
+last_updated: "2026-03-14T01:45:51.814Z"
+last_activity: "2026-03-14 - Completed plan 30-03: Built-in profiles and config validation"
 progress:
   total_phases: 35
   completed_phases: 29
   total_plans: 127
-  completed_plans: 123
+  completed_plans: 124
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 30 of 35 (CLI Profile Composition and Slice Workflow)
-Plan: 2 of 2 in current phase (2 complete)
-Status: Plan 30-02 Complete
-Last activity: 2026-03-14 - Completed plan 30-02: Profile resolver
+Plan: 3 of 3 in current phase (3 complete)
+Status: Plan 30-03 Complete
+Last activity: 2026-03-14 - Completed plan 30-03: Built-in profiles and config validation
 
-Progress: [██████████] 100% (122/122 overall)
+Progress: [██████████] 100% (123/123 overall)
 
 ## Performance Metrics
 
@@ -103,6 +103,7 @@ Progress: [██████████] 100% (122/122 overall)
 | Phase 29 P06 | 5min | 2 tasks | 5 files |
 | Phase 29 P07 | 11min | 2 tasks | 7 files |
 | Phase 30 P02 | 4min | 1 tasks | 2 files |
+| Phase 30 P03 | 3min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -563,6 +564,7 @@ Recent decisions affecting current work:
 - [Phase 29]: Used fn pointer type alias BooleanOpFn to share logic across union/difference/intersection/xor CLI handlers
 - [Phase 29]: Used iter_batched with rebuild() helper for CSG benchmarks since TriangleMesh lacks Clone
 - [Phase 30]: Used HOME/USERPROFILE env vars instead of dirs crate for home dir - WASM-safe
+- [Phase 30]: Built-in profiles use inline TOML const strings for self-contained binary; safety limits at 350C nozzle, 150C bed
 
 ### Roadmap Evolution
 
@@ -608,6 +610,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-14T01:40:16.906Z
-Stopped at: Completed 30-02-PLAN.md
+Last session: 2026-03-14T01:45:51.810Z
+Stopped at: Completed 30-03-PLAN.md
 Resume file: None
