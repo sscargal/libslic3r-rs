@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 30 context gathered
-last_updated: "2026-03-14T00:01:15.159Z"
-last_activity: "2026-03-13 - Completed quick task 3: End-to-end CLI QA test script"
+status: in-progress
+stopped_at: Completed 30-01-PLAN.md
+last_updated: "2026-03-14T01:32:21.000Z"
+last_activity: "2026-03-14 - Completed plan 30-01: Profile compose core"
 progress:
   total_phases: 35
   completed_phases: 29
-  total_plans: 121
-  completed_plans: 121
+  total_plans: 122
+  completed_plans: 122
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 29 complete -- Mesh Boolean Operations (CSG)
+**Current focus:** Phase 30 in progress -- CLI Profile Composition and Slice Workflow
 
 ## Current Position
 
-Phase: 29 of 29 (Mesh Boolean Operations (CSG))
-Plan: 7 of 7 in current phase (7 complete)
-Status: Phase 29 Complete
-Last activity: 2026-03-13 - Completed quick task 3: End-to-end CLI QA test script
+Phase: 30 of 35 (CLI Profile Composition and Slice Workflow)
+Plan: 1 of 1 in current phase (1 complete)
+Status: Plan 30-01 Complete
+Last activity: 2026-03-14 - Completed plan 30-01: Profile compose core
 
 Progress: [██████████] 100% (122/122 overall)
 
@@ -555,6 +555,8 @@ Recent decisions affecting current work:
 - [29-05]: CsgCancellationToken in slicecore-mesh (not slicecore-engine CancellationToken) avoids circular dependency
 - [29-05]: Refactored intersect.rs: separate raw hit collection from point canonicalization for rayon par_iter
 - [29-05]: CsgMeshData with RVec<[f64;3]> for FFI-safe mesh exchange in plugin API
+- [30-01]: Operate on toml::Value trees not PrintConfig structs to preserve not-set vs default distinction
+- [30-01]: Provenance uses Box<FieldSource> for override chain (recursive linked list of prior sources)
 - [Phase 29]: Topology-based boundary detection for cap generation in plane split
 - [Phase 29]: Ear-clipping triangulation for cap polygons on arbitrary cut planes
 - [Phase 29]: Used fn pointer type alias BooleanOpFn to share logic across union/difference/intersection/xor CLI handlers
