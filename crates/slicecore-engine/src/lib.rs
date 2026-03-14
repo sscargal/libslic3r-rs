@@ -21,8 +21,10 @@
 //! unspecified fields use sensible FDM defaults.
 
 pub mod arachne;
+pub mod builtin_profiles;
 pub mod calibration;
 pub mod config;
+pub mod config_validate;
 pub mod custom_gcode;
 pub mod engine;
 pub mod error;
