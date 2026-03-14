@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed quick task 4
-last_updated: "2026-03-13T21:08:33Z"
-last_activity: "2026-03-13 - Completed quick task 4: Config parity audit and phase planning"
+stopped_at: Phase 30 context gathered
+last_updated: "2026-03-14T00:01:15.159Z"
+last_activity: "2026-03-13 - Completed quick task 3: End-to-end CLI QA test script"
 progress:
-  total_phases: 29
+  total_phases: 35
   completed_phases: 29
   total_plans: 121
   completed_plans: 121
@@ -581,6 +581,10 @@ Recent decisions affecting current work:
 - Phase 27 added: Build Plate Auto-Arrangement
 - Phase 28 added: G-code Post-Processing Plugin Point
 - Phase 29 added: Mesh Boolean Operations (CSG)
+- Phase 32 added: P0 config gap closure — ~15 critical missing fields (chamber temp, xy compensation, bridge speed, z offset, etc.)
+- Phase 33 added: P1 config gap closure — ~30 profile fidelity fields (input shaping, fuzzy skin, advanced fan, brim types, etc.)
+- Phase 34 added: Support config and advanced feature profile import mapping (SupportConfig, scarf joint, multi-material, custom gcode hooks)
+- Phase 35 added: ConfigSchema system — SettingDefinition metadata with tiers, JSON Schema generation, validation (from PRD Section 7)
 
 ### Pending Todos
 
@@ -600,6 +604,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-13T00:44:05.023Z
-Stopped at: Completed 29-06-PLAN.md
-Resume file: None
+Last session: 2026-03-14T00:01:15.155Z
+Stopped at: Phase 30 context gathered
+Resume file: .planning/phases/30-cli-profile-composition-and-slice-workflow/30-CONTEXT.md
