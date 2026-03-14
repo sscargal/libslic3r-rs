@@ -605,3 +605,77 @@ Plans:
 - [ ] 29-05-PLAN.md -- CancellationToken support, rayon parallelism, plugin API traits
 - [ ] 29-06-PLAN.md -- CLI csg subcommand with info command and integration tests
 - [ ] 29-07-PLAN.md -- Criterion benchmarks, fuzz target, full workspace verification
+
+### Phase 30: CLI profile composition and slice workflow
+
+**Goal:** CLI users can compose multiple profile layers (machine + filament + process) into a final PrintConfig with provenance tracking, use the enhanced slice command with real-world multi-profile workflow, and get progress feedback, log files, and embedded config in G-code output
+**Requirements**: N/A-01, N/A-02, N/A-03, N/A-04, N/A-05, N/A-06, N/A-07, N/A-08, N/A-09, N/A-10, N/A-11, N/A-12
+**Depends on:** Phase 29
+**Plans:** 6 plans
+
+Plans:
+- [ ] 30-01-PLAN.md -- ProfileComposer core: TOML value tree merge with provenance tracking
+- [ ] 30-02-PLAN.md -- ProfileResolver: name-to-path resolution with type-constrained search
+- [ ] 30-03-PLAN.md -- Built-in profiles and config validation with severity levels
+- [ ] 30-04-PLAN.md -- CLI flags and slice workflow orchestrator (resolve->compose->validate->slice)
+- [ ] 30-05-PLAN.md -- Progress bar module and existing profile command migration to ProfileResolver
+- [ ] 30-06-PLAN.md -- E2E integration tests for profile composition slice workflow
+
+
+
+
+
+
+
+
+
+
+### Phase 31: CLI utility commands calibrate and estimate
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 30
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 31 to break down)
+
+### Phase 32: P0 config gap closure - critical missing fields
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 31
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 32 to break down)
+
+### Phase 33: P1 config gap closure - profile fidelity fields
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 32
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 33 to break down)
+
+### Phase 34: Support config and advanced feature profile import mapping
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 33
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 34 to break down)
+
+### Phase 35: ConfigSchema system with setting metadata and JSON Schema generation
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 34
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 35 to break down)
