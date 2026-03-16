@@ -2,7 +2,7 @@
 phase: 31
 slug: cli-utility-commands-calibrate-and-estimate
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-03-16
 ---
