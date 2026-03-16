@@ -612,7 +612,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-16 pending — /gsd:check-todos to review
+17 pending — /gsd:check-todos to review
 
 ### Blockers/Concerns
 
