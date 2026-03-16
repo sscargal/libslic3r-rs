@@ -349,3 +349,442 @@ fn test_calibrate_help() {
         "Help should mention subcommands, got:\n{stdout}"
     );
 }
+
+// ===========================================================================
+// E2E Calibrate Command Tests (Plan 31-06)
+// ===========================================================================
+
+#[test]
+fn test_calibrate_temp_tower_generates_gcode() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_path = dir.path().join("tower.gcode");
+
+    let output = Command::new(cli_binary())
+        .args([
+            "calibrate",
+            "temp-tower",
+            "--start-temp",
+            "190",
+            "--end-temp",
+            "220",
+            "--step",
+            "10",
+            "-o",
+            output_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run slicecore CLI");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "CLI failed: {stderr}"
+    );
+    assert!(output_path.exists(), "G-code file should exist at {}", output_path.display());
+
+    let gcode = std::fs::read_to_string(&output_path).unwrap();
+    assert!(
+        gcode.contains("M104") || gcode.contains("TEMPERATURE CHANGE"),
+        "G-code should contain temperature commands, got:\n{}",
+        &gcode[..gcode.len().min(500)]
+    );
+}
+
+#[test]
+fn test_calibrate_temp_tower_dry_run() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_path = dir.path().join("tower.gcode");
+
+    let output = Command::new(cli_binary())
+        .args([
+            "calibrate",
+            "temp-tower",
+            "--start-temp",
+            "190",
+            "--end-temp",
+            "220",
+            "--step",
+            "10",
+            "--dry-run",
+            "-o",
+            output_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run slicecore CLI");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "CLI failed: {stderr}"
+    );
+
+    // Dry run should output model dimensions and temperature range to stderr
+    assert!(
+        stderr.contains("Dry Run") || stderr.contains("dimensions") || stderr.contains("190"),
+        "Dry run should show model info on stderr, got:\n{stderr}"
+    );
+
+    // No G-code file should be created during dry run
+    assert!(
+        !output_path.exists(),
+        "Dry run should not create G-code file"
+    );
+}
+
+#[test]
+fn test_calibrate_temp_tower_save_model() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_path = dir.path().join("tower.gcode");
+    let model_path = dir.path().join("tower.stl");
+
+    let output = Command::new(cli_binary())
+        .args([
+            "calibrate",
+            "temp-tower",
+            "--start-temp",
+            "190",
+            "--end-temp",
+            "220",
+            "--step",
+            "10",
+            "-o",
+            output_path.to_str().unwrap(),
+            "--save-model",
+            model_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run slicecore CLI");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "CLI failed: {stderr}"
+    );
+    assert!(
+        model_path.exists(),
+        "STL model file should exist at {}",
+        model_path.display()
+    );
+    // STL file should have non-trivial size (at least a valid header + triangles)
+    let metadata = std::fs::metadata(&model_path).unwrap();
+    assert!(
+        metadata.len() > 84,
+        "STL file should be larger than header-only (got {} bytes)",
+        metadata.len()
+    );
+}
+
+#[test]
+fn test_calibrate_temp_tower_instructions() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_path = dir.path().join("tower.gcode");
+
+    let output = Command::new(cli_binary())
+        .args([
+            "calibrate",
+            "temp-tower",
+            "--start-temp",
+            "190",
+            "--end-temp",
+            "220",
+            "--step",
+            "10",
+            "-o",
+            output_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run slicecore CLI");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "CLI failed: {stderr}"
+    );
+
+    let instructions_path = output_path.with_extension("instructions.md");
+    assert!(
+        instructions_path.exists(),
+        "Instructions file should be created at {}",
+        instructions_path.display()
+    );
+
+    let instructions = std::fs::read_to_string(&instructions_path).unwrap();
+    assert!(
+        instructions.contains("Temperature Tower"),
+        "Instructions should mention temperature tower"
+    );
+}
+
+#[test]
+fn test_calibrate_retraction_generates_gcode() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_path = dir.path().join("retraction.gcode");
+
+    let output = Command::new(cli_binary())
+        .args([
+            "calibrate",
+            "retraction",
+            "-o",
+            output_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run slicecore CLI");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "CLI failed: {stderr}"
+    );
+    assert!(output_path.exists(), "G-code file should exist");
+
+    let gcode = std::fs::read_to_string(&output_path).unwrap();
+    assert!(
+        gcode.contains("RETRACTION SECTION") || gcode.contains("G1"),
+        "G-code should contain retraction section comments or moves"
+    );
+}
+
+#[test]
+fn test_calibrate_flow_generates_gcode() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_path = dir.path().join("flow.gcode");
+
+    let output = Command::new(cli_binary())
+        .args([
+            "calibrate",
+            "flow",
+            "-o",
+            output_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run slicecore CLI");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "CLI failed: {stderr}"
+    );
+    assert!(output_path.exists(), "G-code file should exist");
+
+    let gcode = std::fs::read_to_string(&output_path).unwrap();
+    assert!(
+        gcode.contains("M221") || gcode.contains("FLOW RATE"),
+        "G-code should contain M221 flow commands or flow rate comments"
+    );
+}
+
+#[test]
+fn test_calibrate_first_layer_generates_gcode() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_path = dir.path().join("first_layer.gcode");
+
+    let output = Command::new(cli_binary())
+        .args([
+            "calibrate",
+            "first-layer",
+            "-o",
+            output_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run slicecore CLI");
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "CLI failed: {stderr}"
+    );
+    assert!(output_path.exists(), "G-code file should exist");
+
+    let gcode = std::fs::read_to_string(&output_path).unwrap();
+    // First layer test produces very few layers; verify it has G-code moves
+    assert!(
+        gcode.contains("G1") || gcode.contains("G0"),
+        "G-code should contain movement commands"
+    );
+}
+
+#[test]
+fn test_calibrate_list_shows_all() {
+    let output = Command::new(cli_binary())
+        .args(["calibrate", "list"])
+        .output()
+        .expect("failed to run slicecore CLI");
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "CLI failed: {stderr}\nstdout: {stdout}"
+    );
+
+    // Should list all 4 calibration test names
+    for name in &["temp-tower", "retraction", "flow", "first-layer"] {
+        assert!(
+            stdout.contains(name),
+            "List output should contain '{name}', got:\n{stdout}"
+        );
+    }
+}
+
+// ===========================================================================
+// Analyze-gcode cost output format tests (Plan 31-06)
+// ===========================================================================
+
+#[test]
+fn test_analyze_gcode_cost_all_formats() {
+    let dir = tempfile::tempdir().unwrap();
+    let gcode_path = dir.path().join("test.gcode");
+    write_minimal_gcode(&gcode_path);
+
+    // Test JSON format
+    let json_out = Command::new(cli_binary())
+        .args([
+            "analyze-gcode",
+            gcode_path.to_str().unwrap(),
+            "--filament-price",
+            "25.0",
+            "--json",
+        ])
+        .output()
+        .expect("failed to run CLI");
+    let json_stdout = String::from_utf8(json_out.stdout).unwrap();
+    assert!(json_out.status.success(), "JSON mode failed");
+    let _: serde_json::Value = serde_json::from_str(&json_stdout)
+        .unwrap_or_else(|e| panic!("Invalid JSON output: {e}\n{json_stdout}"));
+
+    // Test CSV format
+    let csv_out = Command::new(cli_binary())
+        .args([
+            "analyze-gcode",
+            gcode_path.to_str().unwrap(),
+            "--filament-price",
+            "25.0",
+            "--csv",
+            "--summary",
+        ])
+        .output()
+        .expect("failed to run CLI");
+    let csv_stdout = String::from_utf8(csv_out.stdout).unwrap();
+    assert!(csv_out.status.success(), "CSV mode failed");
+    assert!(csv_stdout.contains("component,"), "CSV should have header");
+
+    // Test Markdown format
+    let md_out = Command::new(cli_binary())
+        .args([
+            "analyze-gcode",
+            gcode_path.to_str().unwrap(),
+            "--filament-price",
+            "25.0",
+            "--markdown",
+        ])
+        .output()
+        .expect("failed to run CLI");
+    let md_stdout = String::from_utf8(md_out.stdout).unwrap();
+    assert!(md_out.status.success(), "Markdown mode failed");
+    assert!(
+        md_stdout.contains("##") || md_stdout.contains("|"),
+        "Markdown should contain headings or tables"
+    );
+}
+
+#[test]
+fn test_analyze_gcode_model_rough_estimate() {
+    let dir = tempfile::tempdir().unwrap();
+    let stl_path = dir.path().join("cube.stl");
+    write_cube_stl(&stl_path);
+
+    let output = Command::new(cli_binary())
+        .args([
+            "analyze-gcode",
+            stl_path.to_str().unwrap(),
+            "--model",
+            "--filament-price",
+            "25.0",
+            "--no-color",
+        ])
+        .output()
+        .expect("failed to run slicecore CLI");
+
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        output.status.success(),
+        "CLI failed: {stderr}\nstdout: {stdout}"
+    );
+
+    // Should contain rough estimate with disclaimer
+    assert!(
+        stdout.contains("Rough Estimate") || stdout.contains("Volume"),
+        "Should show rough estimate section, got:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("accuracy") || stdout.contains("Disclaimer"),
+        "Should show accuracy disclaimer, got:\n{stdout}"
+    );
+}
+
+// ===========================================================================
+// Error handling tests (Plan 31-06)
+// ===========================================================================
+
+#[test]
+fn test_calibrate_bad_temp_range() {
+    let dir = tempfile::tempdir().unwrap();
+    let output_path = dir.path().join("bad.gcode");
+
+    // start > end with positive step -- may produce 0 or 1 blocks but should not crash
+    let output = Command::new(cli_binary())
+        .args([
+            "calibrate",
+            "temp-tower",
+            "--start-temp",
+            "250",
+            "--end-temp",
+            "190",
+            "--step",
+            "10",
+            "-o",
+            output_path.to_str().unwrap(),
+        ])
+        .output()
+        .expect("failed to run slicecore CLI");
+
+    // Either succeeds with degenerate output or fails gracefully -- should not panic
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    // The key assertion: the process should not crash with a panic/signal
+    assert!(
+        !stderr.contains("panicked"),
+        "Should not panic on bad temp range. stderr: {stderr}\nstdout: {stdout}"
+    );
+}
+
+#[test]
+fn test_calibrate_invalid_output_dir() {
+    let output = Command::new(cli_binary())
+        .args([
+            "calibrate",
+            "temp-tower",
+            "--start-temp",
+            "190",
+            "--end-temp",
+            "220",
+            "--step",
+            "10",
+            "-o",
+            "/nonexistent/directory/tower.gcode",
+        ])
+        .output()
+        .expect("failed to run slicecore CLI");
+
+    // Should fail with a meaningful error, not a panic
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success() || stderr.contains("error") || stderr.contains("Error"),
+        "Should fail or report error for nonexistent output directory"
+    );
+    assert!(
+        !stderr.contains("panicked"),
+        "Should not panic on invalid output dir. stderr: {stderr}"
+    );
+}
