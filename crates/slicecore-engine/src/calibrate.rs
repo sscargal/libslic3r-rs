@@ -476,6 +476,184 @@ pub fn inject_retraction_comments(
     result
 }
 
+/// Generates a flow rate schedule mapping Z heights to flow percentages.
+///
+/// Returns `(z_height, flow_percent)` pairs. The base plate occupies
+/// Z=0..1, then each block starts at Z = 1.0 + i * 5.0 (5mm per block).
+/// Flow percentages are centered on the baseline multiplier.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::calibrate::{FlowParams, flow_schedule};
+///
+/// let params = FlowParams { baseline_multiplier: 1.0, step: 0.02, steps: 5 };
+/// let schedule = flow_schedule(&params);
+/// assert_eq!(schedule.len(), 5);
+/// // First section should be lowest multiplier
+/// assert!((schedule[0].1 - 92.0).abs() < 0.1);
+/// ```
+#[must_use]
+pub fn flow_schedule(params: &FlowParams) -> Vec<(f64, f64)> {
+    let block_height = 5.0;
+    let mut schedule = Vec::new();
+    let half = params.steps / 2;
+    for i in 0..params.steps {
+        let z = 1.0 + i as f64 * block_height;
+        let offset = i as f64 - half as f64;
+        let multiplier = params.baseline_multiplier + offset * params.step;
+        let flow_percent = multiplier * 100.0;
+        schedule.push((z, flow_percent));
+    }
+    schedule
+}
+
+/// Generates a flow calibration tower mesh.
+///
+/// Creates a stacked-box tower where each 5mm-tall block represents a
+/// different flow rate section. The tower has 30mm x 30mm base with a
+/// 1mm base plate, followed by `params.steps` blocks.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::calibrate::{FlowParams, generate_flow_mesh};
+///
+/// let params = FlowParams { baseline_multiplier: 1.0, step: 0.02, steps: 5 };
+/// let mesh = generate_flow_mesh(&params);
+/// assert!(mesh.triangle_count() > 0);
+/// ```
+#[must_use]
+pub fn generate_flow_mesh(params: &FlowParams) -> TriangleMesh {
+    let block_height = 5.0;
+    let base_width = 30.0;
+    let base_depth = 30.0;
+    let total_height = 1.0 + params.steps as f64 * block_height;
+    build_stacked_tower(base_width, base_depth, block_height, params.steps, total_height)
+}
+
+/// Injects M221 flow rate override commands into G-code text at Z boundaries.
+///
+/// At each Z boundary in the schedule, inserts an `M221 S{percent}` command
+/// to change the flow rate percentage and a comment labelling the section.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::calibrate::inject_flow_changes_text;
+///
+/// let gcode = "G1 Z2.0 E1.0\nG1 X10 Y10\nG1 Z7.0 E2.0\n";
+/// let schedule = vec![(1.0, 95.0), (6.0, 100.0)];
+/// let result = inject_flow_changes_text(gcode, &schedule, "");
+/// assert!(result.contains("M221 S95"));
+/// assert!(result.contains("M221 S100"));
+/// ```
+pub fn inject_flow_changes_text(gcode: &str, schedule: &[(f64, f64)], header: &str) -> String {
+    let mut output = String::with_capacity(gcode.len() + header.len() + schedule.len() * 80);
+    output.push_str(header);
+    if !header.is_empty() {
+        output.push('\n');
+    }
+
+    let mut current_z = 0.0_f64;
+    let mut next_idx = 0_usize;
+
+    for line in gcode.lines() {
+        if let Some(z) = extract_z_from_gcode_line(line) {
+            if z > current_z {
+                while next_idx < schedule.len() && schedule[next_idx].0 <= z + f64::EPSILON {
+                    let (sched_z, flow_pct) = schedule[next_idx];
+                    let multiplier = flow_pct / 100.0;
+                    output.push_str(&format!(
+                        "; === FLOW RATE: {flow_pct:.0}% (multiplier: {multiplier:.2}) at Z={sched_z:.1}mm ===\n"
+                    ));
+                    output.push_str(&format!("M221 S{flow_pct:.0} ; set flow rate\n"));
+                    next_idx += 1;
+                }
+                current_z = z;
+            }
+        }
+        output.push_str(line);
+        output.push('\n');
+    }
+
+    output
+}
+
+/// Generates a first layer calibration mesh as a flat plate.
+///
+/// Creates a thin box covering `coverage_percent` of the bed area, centered
+/// on the bed. The plate height is set to `first_layer_height` (0.3mm) so
+/// the slicer produces exactly one layer.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::calibrate::{FirstLayerParams, FirstLayerPattern, generate_first_layer_mesh};
+///
+/// let params = FirstLayerParams { pattern: FirstLayerPattern::Grid, coverage_percent: 80.0 };
+/// let mesh = generate_first_layer_mesh(&params, 220.0, 220.0);
+/// assert!(mesh.triangle_count() > 0);
+/// let aabb = mesh.aabb();
+/// let height = aabb.max.z - aabb.min.z;
+/// assert!((height - 0.3).abs() < 0.01);
+/// ```
+#[must_use]
+pub fn generate_first_layer_mesh(params: &FirstLayerParams, bed_x: f64, bed_y: f64) -> TriangleMesh {
+    use slicecore_math::Point3;
+
+    let coverage = params.coverage_percent / 100.0;
+    let plate_x = bed_x * coverage;
+    let plate_y = bed_y * coverage;
+    let plate_z = 0.3; // single layer height
+
+    let hx = plate_x / 2.0;
+    let hy = plate_y / 2.0;
+
+    let vertices = vec![
+        Point3::new(-hx, -hy, 0.0),
+        Point3::new(hx, -hy, 0.0),
+        Point3::new(hx, hy, 0.0),
+        Point3::new(-hx, hy, 0.0),
+        Point3::new(-hx, -hy, plate_z),
+        Point3::new(hx, -hy, plate_z),
+        Point3::new(hx, hy, plate_z),
+        Point3::new(-hx, hy, plate_z),
+    ];
+
+    let indices = vec![
+        // Front (z=plate_z)
+        [4_u32, 5, 6], [4, 6, 7],
+        // Back (z=0)
+        [1, 0, 3], [1, 3, 2],
+        // Right (x=hx)
+        [5, 1, 2], [5, 2, 6],
+        // Left (x=-hx)
+        [0, 4, 7], [0, 7, 3],
+        // Top (y=hy)
+        [3, 7, 6], [3, 6, 2],
+        // Bottom (y=-hy)
+        [4, 0, 1], [4, 1, 5],
+    ];
+
+    TriangleMesh::new(vertices, indices)
+        .expect("first layer plate mesh should be valid")
+}
+
+/// Extracts Z value from a G0/G1 G-code line.
+fn extract_z_from_gcode_line(line: &str) -> Option<f64> {
+    let trimmed = line.trim();
+    if !trimmed.starts_with("G0 ") && !trimmed.starts_with("G1 ") {
+        return None;
+    }
+    for token in trimmed.split_whitespace() {
+        if let Some(z_str) = token.strip_prefix('Z') {
+            return z_str.parse::<f64>().ok();
+        }
+    }
+    None
+}
+
 /// Builds a stacked tower mesh (base plate + N blocks) directly from geometry.
 ///
 /// Creates a single watertight mesh consisting of a 1mm base plate and
@@ -730,5 +908,64 @@ mod tests {
         // Should insert 2 comments (one at z>=1.0, one at z>=9.0)
         let comments: Vec<_> = result.iter().filter(|c| matches!(c, GcodeCommand::Comment(_))).collect();
         assert_eq!(comments.len(), 2, "should insert 2 retraction comments");
+    }
+
+    #[test]
+    fn test_generate_flow_mesh() {
+        let params = FlowParams {
+            baseline_multiplier: 1.0,
+            step: 0.02,
+            steps: 5,
+        };
+        let mesh = generate_flow_mesh(&params);
+        assert!(mesh.triangle_count() > 0, "mesh should have triangles");
+        // 5 blocks + 1 base = 6 boxes * 12 = 72 triangles
+        assert_eq!(mesh.triangle_count(), 72);
+        let aabb = mesh.aabb();
+        let height = aabb.max.z - aabb.min.z;
+        // 1mm base + 5 * 5mm = 26mm
+        assert!((height - 26.0).abs() < 0.1, "height should be ~26mm, got {height}");
+    }
+
+    #[test]
+    fn test_flow_schedule() {
+        let params = FlowParams {
+            baseline_multiplier: 1.0,
+            step: 0.02,
+            steps: 5,
+        };
+        let schedule = flow_schedule(&params);
+        assert_eq!(schedule.len(), 5);
+        // With half=2, offsets are -2, -1, 0, 1, 2
+        // flow_pct: 96, 98, 100, 102, 104
+        assert!((schedule[0].1 - 96.0).abs() < 0.1, "first should be 96%, got {}", schedule[0].1);
+        assert!((schedule[2].1 - 100.0).abs() < 0.1, "middle should be 100%, got {}", schedule[2].1);
+        assert!((schedule[4].1 - 104.0).abs() < 0.1, "last should be 104%, got {}", schedule[4].1);
+    }
+
+    #[test]
+    fn test_inject_flow_changes_text() {
+        let gcode = "G1 Z2.0 E1.0\nG1 X10 Y10\nG1 Z7.0 E2.0\n";
+        let schedule = vec![(1.0, 95.0), (6.0, 100.0)];
+        let result = inject_flow_changes_text(gcode, &schedule, "");
+        assert!(result.contains("M221 S95"), "should contain M221 S95: {result}");
+        assert!(result.contains("M221 S100"), "should contain M221 S100: {result}");
+        assert!(result.contains("FLOW RATE"), "should contain flow rate comment: {result}");
+    }
+
+    #[test]
+    fn test_generate_first_layer_mesh() {
+        let params = FirstLayerParams {
+            pattern: FirstLayerPattern::Grid,
+            coverage_percent: 80.0,
+        };
+        let mesh = generate_first_layer_mesh(&params, 220.0, 220.0);
+        assert!(mesh.triangle_count() > 0, "mesh should have triangles");
+        assert_eq!(mesh.triangle_count(), 12, "single box = 12 triangles");
+        let aabb = mesh.aabb();
+        let height = aabb.max.z - aabb.min.z;
+        assert!((height - 0.3).abs() < 0.01, "height should be ~0.3mm, got {height}");
+        let width = aabb.max.x - aabb.min.x;
+        assert!((width - 176.0).abs() < 0.1, "width should be ~176mm (80% of 220), got {width}");
     }
 }

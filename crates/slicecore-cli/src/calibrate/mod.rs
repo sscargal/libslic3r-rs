@@ -14,6 +14,7 @@
 
 #[allow(dead_code)]
 pub mod common;
+pub mod flow;
 pub mod retraction;
 pub mod temp_tower;
 
@@ -233,10 +234,31 @@ pub fn run_calibrate(cmd: CalibrateCommand) -> Result<(), Box<dyn std::error::Er
             end_distance,
             step,
         }),
-        CalibrateCommand::Flow { .. } => {
-            eprintln!("flow: not yet implemented");
-            Ok(())
-        }
+        CalibrateCommand::Flow {
+            machine,
+            filament,
+            process,
+            profiles_dir,
+            output,
+            json,
+            dry_run,
+            save_model,
+            baseline,
+            step,
+            steps,
+        } => flow::cmd_flow(flow::FlowArgs {
+            machine,
+            filament,
+            process,
+            profiles_dir,
+            output,
+            json,
+            dry_run,
+            save_model,
+            baseline,
+            step,
+            steps,
+        }),
         CalibrateCommand::FirstLayer { .. } => {
             eprintln!("first-layer: not yet implemented");
             Ok(())
