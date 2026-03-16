@@ -10,7 +10,10 @@ use std::path::PathBuf;
 use slicecore_engine::calibrate::{generate_first_layer_mesh, FirstLayerParams, FirstLayerPattern};
 use slicecore_engine::engine::Engine;
 
-use super::common::{format_calibration_header, resolve_calibration_config, write_instructions};
+use super::common::{
+    display_dry_run, format_calibration_header, resolve_calibration_config,
+    save_calibration_model, write_instructions,
+};
 
 /// Arguments for the first layer calibration command, extracted from CLI.
 pub struct FirstLayerArgs {
@@ -71,18 +74,23 @@ pub fn cmd_first_layer(args: FirstLayerArgs) -> Result<(), Box<dyn std::error::E
     let plate_width = bed_x * params.coverage_percent / 100.0;
     let plate_depth = bed_y * params.coverage_percent / 100.0;
 
-    // Dry run: just print params
+    let plate_height = config.first_layer_height;
+
+    // Dry run: show model info and parameters without slicing
     if args.dry_run {
-        if args.json {
-            println!("{}", serde_json::to_string_pretty(&params)?);
-        } else {
-            eprintln!(
-                "First layer test: {plate_width:.0}mm x {plate_depth:.0}mm ({:.0}% bed coverage)",
-                params.coverage_percent,
-            );
-            eprintln!("Pattern: {pattern:?}");
-            eprintln!("Bed size: {bed_x:.0}mm x {bed_y:.0}mm");
-        }
+        let dry_params: Vec<(&str, String)> = vec![
+            ("Pattern", format!("{pattern:?}")),
+            ("Coverage", format!("{:.0}%", params.coverage_percent)),
+            ("Plate Size", format!("{plate_width:.0}mm x {plate_depth:.0}mm")),
+            ("Layer Height", format!("{plate_height:.2}mm")),
+        ];
+        display_dry_run(
+            "First Layer Test",
+            &dry_params,
+            (plate_width, plate_depth, plate_height),
+            (bed_x, bed_y),
+            args.json,
+        );
         return Ok(());
     }
 
@@ -91,8 +99,7 @@ pub fn cmd_first_layer(args: FirstLayerArgs) -> Result<(), Box<dyn std::error::E
 
     // 4. Optionally save mesh
     if let Some(ref model_path) = args.save_model {
-        slicecore_fileio::export::save_mesh(&mesh, model_path)?;
-        eprintln!("Saved mesh to {}", model_path.display());
+        save_calibration_model(&mesh, model_path)?;
     }
 
     // 5. Override config for solid first layer

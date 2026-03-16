@@ -12,7 +12,6 @@
 //! - `first-layer`: Generate a first layer adhesion test
 //! - `list`: Show available calibration tests
 
-#[allow(dead_code)]
 pub mod common;
 pub mod first_layer;
 pub mod flow;

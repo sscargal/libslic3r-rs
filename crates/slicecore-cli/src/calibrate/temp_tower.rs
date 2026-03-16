@@ -11,7 +11,10 @@ use slicecore_engine::calibrate::{
 };
 use slicecore_engine::engine::Engine;
 
-use super::common::{format_calibration_header, resolve_calibration_config, write_instructions};
+use super::common::{
+    display_dry_run, format_calibration_header, resolve_calibration_config,
+    save_calibration_model, write_instructions,
+};
 
 /// Arguments for the temperature tower command, extracted from CLI.
 pub struct TempTowerArgs {
@@ -73,19 +76,27 @@ pub fn cmd_temp_tower(args: TempTowerArgs) -> Result<(), Box<dyn std::error::Err
     let schedule = temp_schedule(&params);
     let num_blocks = schedule.len();
 
-    // Dry run: just print params
+    let tower_height = 1.0 + num_blocks as f64 * params.block_height;
+
+    // Dry run: show model info and parameters without slicing
     if args.dry_run {
-        if args.json {
-            println!("{}", serde_json::to_string_pretty(&params)?);
-        } else {
-            eprintln!(
-                "Temperature tower: {:.0}C to {:.0}C in {:.0}C steps ({num_blocks} blocks)",
-                params.start_temp, params.end_temp, params.step,
-            );
-            for (z, temp) in &schedule {
-                eprintln!("  Z={z:.1}mm: {temp:.0}C");
-            }
+        let mut dry_params: Vec<(&str, String)> = vec![
+            ("Start Temperature", format!("{:.0}C", params.start_temp)),
+            ("End Temperature", format!("{:.0}C", params.end_temp)),
+            ("Step", format!("{:.0}C", params.step)),
+            ("Block Height", format!("{:.1}mm", params.block_height)),
+            ("Blocks", format!("{num_blocks}")),
+        ];
+        for (z, temp) in &schedule {
+            dry_params.push(("Schedule", format!("Z={z:.1}mm: {temp:.0}C")));
         }
+        display_dry_run(
+            "Temperature Tower",
+            &dry_params,
+            (params.base_width, params.base_depth, tower_height),
+            (config.machine.bed_x, config.machine.bed_y),
+            args.json,
+        );
         return Ok(());
     }
 
@@ -93,7 +104,6 @@ pub fn cmd_temp_tower(args: TempTowerArgs) -> Result<(), Box<dyn std::error::Err
     let mesh = generate_temp_tower_mesh(&params);
 
     // 4. Validate bed fit
-    let tower_height = 1.0 + num_blocks as f64 * params.block_height;
     validate_bed_fit(
         params.base_width,
         params.base_depth,
@@ -104,8 +114,7 @@ pub fn cmd_temp_tower(args: TempTowerArgs) -> Result<(), Box<dyn std::error::Err
 
     // 5. Optionally save mesh
     if let Some(ref model_path) = args.save_model {
-        slicecore_fileio::export::save_mesh(&mesh, model_path)?;
-        eprintln!("Saved mesh to {}", model_path.display());
+        save_calibration_model(&mesh, model_path)?;
     }
 
     // 6. Slice through engine

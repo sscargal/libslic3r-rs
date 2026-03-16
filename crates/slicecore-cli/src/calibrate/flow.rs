@@ -12,7 +12,10 @@ use slicecore_engine::calibrate::{
 };
 use slicecore_engine::engine::Engine;
 
-use super::common::{format_calibration_header, resolve_calibration_config, write_instructions};
+use super::common::{
+    display_dry_run, format_calibration_header, resolve_calibration_config,
+    save_calibration_model, write_instructions,
+};
 
 /// Arguments for the flow rate calibration command, extracted from CLI.
 pub struct FlowArgs {
@@ -81,19 +84,27 @@ pub fn cmd_flow(args: FlowArgs) -> Result<(), Box<dyn std::error::Error>> {
     let start_pct = schedule.first().map_or(100.0, |s| s.1);
     let end_pct = schedule.last().map_or(100.0, |s| s.1);
 
-    // Dry run: just print params
+    let tower_height = 1.0 + num_sections as f64 * block_height;
+
+    // Dry run: show model info and parameters without slicing
     if args.dry_run {
-        if args.json {
-            println!("{}", serde_json::to_string_pretty(&params)?);
-        } else {
-            eprintln!(
-                "Flow calibration: {start_pct:.0}% to {end_pct:.0}% in {:.0}% steps ({num_sections} sections)",
-                params.step * 100.0,
-            );
-            for (z, pct) in &schedule {
-                eprintln!("  Z={z:.1}mm: {pct:.0}% flow");
-            }
+        let mut dry_params: Vec<(&str, String)> = vec![
+            ("Baseline Multiplier", format!("{:.2}", params.baseline_multiplier)),
+            ("Step", format!("{:.0}%", params.step * 100.0)),
+            ("Start Flow", format!("{start_pct:.0}%")),
+            ("End Flow", format!("{end_pct:.0}%")),
+            ("Sections", format!("{num_sections}")),
+        ];
+        for (z, pct) in &schedule {
+            dry_params.push(("Schedule", format!("Z={z:.1}mm: {pct:.0}% flow")));
         }
+        display_dry_run(
+            "Flow Rate Test",
+            &dry_params,
+            (base_width, base_depth, tower_height),
+            (config.machine.bed_x, config.machine.bed_y),
+            args.json,
+        );
         return Ok(());
     }
 
@@ -101,14 +112,12 @@ pub fn cmd_flow(args: FlowArgs) -> Result<(), Box<dyn std::error::Error>> {
     let mesh = generate_flow_mesh(&params);
 
     // 4. Validate bed fit
-    let tower_height = 1.0 + num_sections as f64 * block_height;
     validate_bed_fit(base_width, base_depth, tower_height, &config.machine)
         .map_err(|e| format!("Bed fit validation failed: {e}"))?;
 
     // 5. Optionally save mesh
     if let Some(ref model_path) = args.save_model {
-        slicecore_fileio::export::save_mesh(&mesh, model_path)?;
-        eprintln!("Saved mesh to {}", model_path.display());
+        save_calibration_model(&mesh, model_path)?;
     }
 
     // 6. Slice through engine

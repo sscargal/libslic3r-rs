@@ -13,7 +13,10 @@ use slicecore_engine::calibrate::{
 };
 use slicecore_engine::engine::Engine;
 
-use super::common::{format_calibration_header, resolve_calibration_config, write_instructions};
+use super::common::{
+    display_dry_run, format_calibration_header, resolve_calibration_config,
+    save_calibration_model, write_instructions,
+};
 
 /// Arguments for the retraction test command, extracted from CLI.
 pub struct RetractionArgs {
@@ -84,20 +87,27 @@ pub fn cmd_retraction(args: RetractionArgs) -> Result<(), Box<dyn std::error::Er
         .filament_retraction_length
         .unwrap_or(1.0);
 
-    // Dry run: just print params
+    let tower_height = 1.0 + num_sections as f64 * block_height;
+
+    // Dry run: show model info and parameters without slicing
     if args.dry_run {
-        if args.json {
-            println!("{}", serde_json::to_string_pretty(&params)?);
-        } else {
-            eprintln!(
-                "Retraction test: {:.1}mm to {:.1}mm in {:.1}mm steps ({num_sections} sections, one reprint per section)",
-                params.start_distance, params.end_distance, params.step,
-            );
-            eprintln!("Profile retraction: {profile_retraction:.1}mm");
-            for (z, dist) in &schedule {
-                eprintln!("  Z={z:.1}mm: {dist:.1}mm retraction");
-            }
+        let mut dry_params: Vec<(&str, String)> = vec![
+            ("Start Distance", format!("{:.1}mm", params.start_distance)),
+            ("End Distance", format!("{:.1}mm", params.end_distance)),
+            ("Step", format!("{:.1}mm", params.step)),
+            ("Sections", format!("{num_sections}")),
+            ("Profile Retraction", format!("{profile_retraction:.1}mm")),
+        ];
+        for (z, dist) in &schedule {
+            dry_params.push(("Schedule", format!("Z={z:.1}mm: {dist:.1}mm retraction")));
         }
+        display_dry_run(
+            "Retraction Test",
+            &dry_params,
+            (base_width, base_depth, tower_height),
+            (config.machine.bed_x, config.machine.bed_y),
+            args.json,
+        );
         return Ok(());
     }
 
@@ -105,14 +115,12 @@ pub fn cmd_retraction(args: RetractionArgs) -> Result<(), Box<dyn std::error::Er
     let mesh = generate_retraction_mesh(&params);
 
     // 4. Validate bed fit
-    let tower_height = 1.0 + num_sections as f64 * block_height;
     validate_bed_fit(base_width, base_depth, tower_height, &config.machine)
         .map_err(|e| format!("Bed fit validation failed: {e}"))?;
 
     // 5. Optionally save mesh
     if let Some(ref model_path) = args.save_model {
-        slicecore_fileio::export::save_mesh(&mesh, model_path)?;
-        eprintln!("Saved mesh to {}", model_path.display());
+        save_calibration_model(&mesh, model_path)?;
     }
 
     // 6. Slice through engine (using profile's retraction setting throughout)

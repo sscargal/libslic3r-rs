@@ -1,12 +1,13 @@
 //! Shared calibration CLI utilities.
 //!
 //! Helper functions used by all calibration subcommands: profile resolution,
-//! instruction file generation, and G-code header formatting.
-//!
-//! These functions are scaffolded now and will be called by calibration
-//! subcommand implementations in subsequent plans.
+//! instruction file generation, G-code header formatting, dry-run display,
+//! and model export.
 
 use std::path::{Path, PathBuf};
+
+use comfy_table::{ContentArrangement, Table};
+use serde::Serialize;
 
 use slicecore_engine::config::PrintConfig;
 use slicecore_engine::profile_resolve::ProfileResolver;
@@ -111,4 +112,96 @@ fn chrono_lite_date() -> String {
     // Use a simple approach -- just return a placeholder since we don't
     // want to add a chrono dependency for this.
     "see file timestamp".to_string()
+}
+
+/// Information displayed during a dry run.
+#[derive(Debug, Clone, Serialize)]
+pub struct DryRunInfo {
+    /// Name of the calibration test.
+    pub test_name: String,
+    /// Model dimensions (width, depth, height) in mm.
+    pub dimensions: (f64, f64, f64),
+    /// Bed dimensions (x, y) in mm.
+    pub bed: (f64, f64),
+    /// Whether the model fits on the bed.
+    pub fits: bool,
+    /// Parameter key-value pairs.
+    pub parameters: Vec<(String, String)>,
+}
+
+/// Displays dry-run information for a calibration test.
+///
+/// Shows test name, model dimensions, bed fit status, and parameter table.
+/// When `json` is true, serializes a `DryRunInfo` struct instead of a table.
+pub fn display_dry_run(
+    test_name: &str,
+    params: &[(&str, String)],
+    dimensions: (f64, f64, f64),
+    bed: (f64, f64),
+    json: bool,
+) {
+    let (w, d, h) = dimensions;
+    let (bx, by) = bed;
+    let fits = w <= bx && d <= by;
+
+    if json {
+        let info = DryRunInfo {
+            test_name: test_name.to_string(),
+            dimensions,
+            bed,
+            fits,
+            parameters: params
+                .iter()
+                .map(|(k, v)| ((*k).to_string(), v.clone()))
+                .collect(),
+        };
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&info)
+                .unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}"))
+        );
+        return;
+    }
+
+    eprintln!("=== Dry Run: {} ===", test_name);
+    eprintln!();
+    eprintln!(
+        "Model dimensions: {w:.1}mm x {d:.1}mm x {h:.1}mm (W x D x H)"
+    );
+    eprintln!("Bed size:         {bx:.0}mm x {by:.0}mm");
+
+    let fit_status = if !fits {
+        "ERROR: model exceeds bed dimensions"
+    } else if w > bx * 0.9 || d > by * 0.9 {
+        "WARNING: tight fit (>90% of bed)"
+    } else {
+        "OK"
+    };
+    eprintln!("Fit status:       {fit_status}");
+    eprintln!();
+
+    let mut table = Table::new();
+    table.set_content_arrangement(ContentArrangement::Dynamic);
+    table.set_header(vec!["Parameter", "Value"]);
+    for (key, value) in params {
+        table.add_row(vec![key.to_string(), value.clone()]);
+    }
+    eprintln!("{table}");
+}
+
+/// Saves a calibration mesh to the specified path.
+///
+/// Determines the export format from the file extension (.stl or .3mf)
+/// and uses `slicecore_fileio` export functions.
+///
+/// # Errors
+///
+/// Returns an error if the export fails.
+pub fn save_calibration_model(
+    mesh: &slicecore_mesh::TriangleMesh,
+    path: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    slicecore_fileio::export::save_mesh(mesh, path)?;
+    eprintln!("Saved calibration model to {}", path.display());
+    Ok(())
 }
