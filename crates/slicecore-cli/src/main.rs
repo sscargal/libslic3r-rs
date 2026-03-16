@@ -406,6 +406,42 @@ enum Commands {
         /// Summary only (no per-layer detail)
         #[arg(long)]
         summary: bool,
+
+        /// Filament price per kg (currency units)
+        #[arg(long)]
+        filament_price: Option<f64>,
+
+        /// Printer power consumption in watts
+        #[arg(long)]
+        printer_watts: Option<f64>,
+
+        /// Electricity rate per kWh (currency units)
+        #[arg(long)]
+        electricity_rate: Option<f64>,
+
+        /// Printer purchase cost (currency units)
+        #[arg(long)]
+        printer_cost: Option<f64>,
+
+        /// Expected printer lifetime in hours
+        #[arg(long)]
+        expected_hours: Option<f64>,
+
+        /// Labor hourly rate (currency units)
+        #[arg(long)]
+        labor_rate: Option<f64>,
+
+        /// Setup/post-processing time in minutes
+        #[arg(long, default_value = "5.0")]
+        setup_time: f64,
+
+        /// Output as markdown table
+        #[arg(long)]
+        markdown: bool,
+
+        /// Treat input as model file (STL/3MF) for rough volume-based estimation
+        #[arg(long)]
+        model: bool,
     },
 
     /// Convert a mesh file between formats (STL, 3MF, OBJ).
@@ -692,8 +728,33 @@ fn main() {
             diameter,
             filter,
             summary,
+            filament_price,
+            printer_watts,
+            electricity_rate,
+            printer_cost,
+            expected_hours,
+            labor_rate,
+            setup_time,
+            markdown,
+            model,
         } => cmd_analyze_gcode(
-            &input, json, csv, no_color, density, diameter, filter, summary,
+            &input,
+            json,
+            csv,
+            no_color,
+            density,
+            diameter,
+            filter,
+            summary,
+            filament_price,
+            printer_watts,
+            electricity_rate,
+            printer_cost,
+            expected_hours,
+            labor_rate,
+            setup_time,
+            markdown,
+            model,
         ),
         Commands::Convert { input, output } => cmd_convert(&input, &output),
         Commands::Thumbnail {
@@ -2384,7 +2445,84 @@ fn cmd_analyze_gcode(
     diameter: f64,
     filter: Option<String>,
     summary_only: bool,
+    filament_price: Option<f64>,
+    printer_watts: Option<f64>,
+    electricity_rate: Option<f64>,
+    printer_cost: Option<f64>,
+    expected_hours: Option<f64>,
+    labor_rate: Option<f64>,
+    setup_time: f64,
+    markdown: bool,
+    model: bool,
 ) {
+    use slicecore_engine::cost_model::{self, CostInputs};
+
+    let has_cost_flags = filament_price.is_some()
+        || printer_watts.is_some()
+        || electricity_rate.is_some()
+        || printer_cost.is_some()
+        || expected_hours.is_some()
+        || labor_rate.is_some();
+
+    if model {
+        // Treat input as a mesh file for rough volume-based estimation
+        let data = match std::fs::read(input) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("Error: Failed to read '{}': {}", input, e);
+                process::exit(1);
+            }
+        };
+        let mesh = match slicecore_fileio::load_mesh(&data) {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!("Error: Failed to parse mesh '{}': {}", input, e);
+                process::exit(1);
+            }
+        };
+        let stats = slicecore_mesh::compute_stats(&mesh);
+        let vol_est = cost_model::volume_estimate(stats.volume, diameter, density);
+
+        // Build cost inputs from volume estimate
+        let cost_inputs = CostInputs {
+            filament_weight_g: vol_est.filament_weight_g,
+            print_time_seconds: vol_est.rough_time_seconds,
+            filament_price_per_kg: filament_price,
+            electricity_rate,
+            printer_watts,
+            printer_cost,
+            expected_hours,
+            labor_rate,
+            setup_time_minutes: Some(setup_time),
+        };
+        let cost_est = cost_model::compute_cost(&cost_inputs);
+
+        // Display
+        let use_color = !no_color && std::io::stdout().is_terminal();
+        if json {
+            let combined = serde_json::json!({
+                "volume_estimate": vol_est,
+                "cost_estimate": cost_est,
+            });
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&combined).unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}")),
+            );
+        } else if csv {
+            analysis_display::display_volume_estimate_csv(&vol_est);
+            analysis_display::display_cost_csv(&cost_est);
+        } else if markdown {
+            analysis_display::display_volume_estimate_markdown(&vol_est);
+            analysis_display::display_cost_markdown(&cost_est);
+        } else {
+            analysis_display::display_volume_estimate(&vol_est, use_color);
+            if has_cost_flags {
+                analysis_display::display_cost_table(&cost_est, use_color);
+            }
+        }
+        return;
+    }
+
     // Read input: stdin or file.
     let (contents, filename) = if input == "-" {
         let mut buf = String::new();
@@ -2416,14 +2554,56 @@ fn cmd_analyze_gcode(
             .collect()
     });
 
+    // Build cost estimate if any cost flags provided
+    let cost_est = if has_cost_flags {
+        let cost_inputs = CostInputs {
+            filament_weight_g: analysis.total_filament_weight_g,
+            print_time_seconds: analysis.total_time_estimate_s,
+            filament_price_per_kg: filament_price,
+            electricity_rate,
+            printer_watts,
+            printer_cost,
+            expected_hours,
+            labor_rate,
+            setup_time_minutes: Some(setup_time),
+        };
+        Some(cost_model::compute_cost(&cost_inputs))
+    } else {
+        None
+    };
+
     // Dispatch to output format.
     if json {
-        analysis_display::display_analysis_json(&analysis);
+        if let Some(ref cost) = cost_est {
+            let combined = serde_json::json!({
+                "analysis": analysis,
+                "cost_estimate": cost,
+            });
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&combined).unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}")),
+            );
+        } else {
+            analysis_display::display_analysis_json(&analysis);
+        }
     } else if csv {
         analysis_display::display_analysis_csv(&analysis, summary_only);
+        if let Some(ref cost) = cost_est {
+            analysis_display::display_cost_csv(cost);
+        }
+    } else if markdown {
+        let use_color = false;
+        analysis_display::display_analysis_table(&analysis, use_color, summary_only, &filter_list);
+        if let Some(ref cost) = cost_est {
+            analysis_display::display_cost_markdown(cost);
+        }
     } else {
         let use_color = !no_color && std::io::stdout().is_terminal();
         analysis_display::display_analysis_table(&analysis, use_color, summary_only, &filter_list);
+        if let Some(ref cost) = cost_est {
+            println!();
+            analysis_display::display_cost_table(cost, use_color);
+        }
     }
 }
 
