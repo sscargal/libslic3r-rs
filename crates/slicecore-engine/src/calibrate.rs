@@ -16,6 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 use slicecore_gcode_io::GcodeCommand;
+use slicecore_mesh::TriangleMesh;
 
 use crate::config::{FilamentPropsConfig, MachineConfig, PrintConfig};
 
@@ -331,6 +332,216 @@ pub fn inject_temp_changes(
     result
 }
 
+/// Generates a temperature tower mesh as stacked boxes.
+///
+/// Creates a 1mm base plate at the full width/depth, then stacks N blocks
+/// (one per temperature step) on top. The number of blocks is determined by
+/// the temperature range and step size.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::calibrate::{TempTowerParams, generate_temp_tower_mesh};
+///
+/// let params = TempTowerParams {
+///     start_temp: 190.0, end_temp: 220.0, step: 10.0,
+///     block_height: 10.0, base_width: 30.0, base_depth: 30.0,
+/// };
+/// let mesh = generate_temp_tower_mesh(&params);
+/// assert!(mesh.triangle_count() > 0);
+/// ```
+#[must_use]
+pub fn generate_temp_tower_mesh(params: &TempTowerParams) -> TriangleMesh {
+    let num_blocks = ((params.end_temp - params.start_temp) / params.step).abs() as usize + 1;
+    let total_height = 1.0 + num_blocks as f64 * params.block_height;
+    build_stacked_tower(params.base_width, params.base_depth, params.block_height, num_blocks, total_height)
+}
+
+/// Generates a retraction test mesh as stacked boxes.
+///
+/// Uses the same stacked-box structure as the temperature tower. Each block
+/// corresponds to a retraction distance step, with fixed 8mm block height
+/// and 30mm x 30mm base plus 1mm base plate.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::calibrate::{RetractionParams, generate_retraction_mesh};
+///
+/// let params = RetractionParams {
+///     start_distance: 0.5, end_distance: 3.0, step: 0.5,
+///     start_speed: 25.0, end_speed: 60.0,
+/// };
+/// let mesh = generate_retraction_mesh(&params);
+/// assert!(mesh.triangle_count() > 0);
+/// ```
+#[must_use]
+pub fn generate_retraction_mesh(params: &RetractionParams) -> TriangleMesh {
+    let num_blocks = ((params.end_distance - params.start_distance) / params.step).abs() as usize + 1;
+    let block_height = 8.0;
+    let base_width = 30.0;
+    let base_depth = 30.0;
+    let total_height = 1.0 + num_blocks as f64 * block_height;
+    build_stacked_tower(base_width, base_depth, block_height, num_blocks, total_height)
+}
+
+/// Generates a retraction distance schedule mapping Z heights to retraction values.
+///
+/// Returns `(z_height, retraction_distance)` pairs. The base plate occupies
+/// Z=0..1, then each block starts at Z = 1.0 + i * 8.0.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::calibrate::{RetractionParams, retraction_schedule};
+///
+/// let params = RetractionParams {
+///     start_distance: 0.5, end_distance: 2.0, step: 0.5,
+///     start_speed: 25.0, end_speed: 60.0,
+/// };
+/// let schedule = retraction_schedule(&params);
+/// assert_eq!(schedule.len(), 4);
+/// ```
+#[must_use]
+pub fn retraction_schedule(params: &RetractionParams) -> Vec<(f64, f64)> {
+    let block_height = 8.0;
+    let mut schedule = Vec::new();
+    let mut dist = params.start_distance;
+    let mut z = 1.0_f64; // after base plate
+    while dist <= params.end_distance + f64::EPSILON {
+        schedule.push((z, dist));
+        dist += params.step;
+        z += block_height;
+    }
+    schedule
+}
+
+/// Injects retraction distance comments at Z height boundaries.
+///
+/// At each Z boundary in the schedule, inserts a G-code comment indicating
+/// the retraction distance that section documents. Does NOT modify actual
+/// retraction settings -- the entire tower is sliced with the profile's
+/// single retraction setting.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_gcode_io::GcodeCommand;
+/// use slicecore_engine::calibrate::inject_retraction_comments;
+///
+/// let commands = vec![
+///     GcodeCommand::LinearMove { x: Some(10.0), y: None, z: Some(2.0), e: None, f: Some(600.0) },
+///     GcodeCommand::LinearMove { x: Some(20.0), y: None, z: Some(10.0), e: None, f: Some(600.0) },
+/// ];
+/// let schedule = vec![(1.0, 1.0), (9.0, 1.5)];
+/// let result = inject_retraction_comments(commands, &schedule);
+/// assert!(result.len() > 2);
+/// ```
+pub fn inject_retraction_comments(
+    commands: Vec<GcodeCommand>,
+    schedule: &[(f64, f64)],
+) -> Vec<GcodeCommand> {
+    if schedule.is_empty() {
+        return commands;
+    }
+
+    let mut result = Vec::with_capacity(commands.len() + schedule.len());
+    let mut current_z = 0.0_f64;
+    // Start before the first entry so it can be triggered
+    let mut next_idx = 0_usize;
+
+    for cmd in commands {
+        let new_z = match &cmd {
+            GcodeCommand::LinearMove { z: Some(z), .. }
+            | GcodeCommand::RapidMove { z: Some(z), .. } => Some(*z),
+            _ => None,
+        };
+
+        if let Some(z) = new_z {
+            if z > current_z {
+                while next_idx < schedule.len() && schedule[next_idx].0 <= z + f64::EPSILON {
+                    let dist = schedule[next_idx].1;
+                    result.push(GcodeCommand::Comment(format!(
+                        "=== RETRACTION SECTION: {dist:.1}mm (print this block, evaluate stringing, adjust, reprint) ==="
+                    )));
+                    next_idx += 1;
+                }
+                current_z = z;
+            }
+        }
+
+        result.push(cmd);
+    }
+
+    result
+}
+
+/// Builds a stacked tower mesh (base plate + N blocks) directly from geometry.
+///
+/// Creates a single watertight mesh consisting of a 1mm base plate and
+/// `num_blocks` stacked boxes of `block_height` each. Each box is added
+/// as a separate set of vertices and triangles (the slicer handles
+/// coincident faces correctly).
+fn build_stacked_tower(
+    width: f64,
+    depth: f64,
+    block_height: f64,
+    num_blocks: usize,
+    _total_height: f64,
+) -> TriangleMesh {
+    use slicecore_math::Point3;
+
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
+
+    // Helper: add an axis-aligned box from (x0,y0,z0) to (x1,y1,z1)
+    let mut add_box = |x0: f64, y0: f64, z0: f64, x1: f64, y1: f64, z1: f64| {
+        let base_idx = vertices.len() as u32;
+        vertices.extend_from_slice(&[
+            Point3::new(x0, y0, z0), // 0: left-bottom-back
+            Point3::new(x1, y0, z0), // 1: right-bottom-back
+            Point3::new(x1, y1, z0), // 2: right-top-back
+            Point3::new(x0, y1, z0), // 3: left-top-back
+            Point3::new(x0, y0, z1), // 4: left-bottom-front
+            Point3::new(x1, y0, z1), // 5: right-bottom-front
+            Point3::new(x1, y1, z1), // 6: right-top-front
+            Point3::new(x0, y1, z1), // 7: left-top-front
+        ]);
+        // 12 triangles, CCW winding from outside
+        let b = base_idx;
+        indices.extend_from_slice(&[
+            // Front (z=z1)
+            [b + 4, b + 5, b + 6], [b + 4, b + 6, b + 7],
+            // Back (z=z0)
+            [b + 1, b + 0, b + 3], [b + 1, b + 3, b + 2],
+            // Right (x=x1)
+            [b + 5, b + 1, b + 2], [b + 5, b + 2, b + 6],
+            // Left (x=x0)
+            [b + 0, b + 4, b + 7], [b + 0, b + 7, b + 3],
+            // Top (y=y1)
+            [b + 3, b + 7, b + 6], [b + 3, b + 6, b + 2],
+            // Bottom (y=y0)
+            [b + 4, b + 0, b + 1], [b + 4, b + 1, b + 5],
+        ]);
+    };
+
+    let hw = width / 2.0;
+    let hd = depth / 2.0;
+
+    // Base plate: 1mm tall
+    add_box(-hw, -hd, 0.0, hw, hd, 1.0);
+
+    // Stacked blocks
+    for i in 0..num_blocks {
+        let z_bottom = 1.0 + i as f64 * block_height;
+        let z_top = z_bottom + block_height;
+        add_box(-hw, -hd, z_bottom, hw, hd, z_top);
+    }
+
+    TriangleMesh::new(vertices, indices)
+        .expect("stacked tower mesh should be valid")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -448,5 +659,76 @@ mod tests {
         let params = FlowParams::from_config(&config);
         assert!(params.steps > 0);
         assert!((params.baseline_multiplier - config.extrusion_multiplier).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_generate_temp_tower_mesh() {
+        let params = TempTowerParams {
+            start_temp: 190.0,
+            end_temp: 220.0,
+            step: 10.0,
+            block_height: 10.0,
+            base_width: 30.0,
+            base_depth: 30.0,
+        };
+        let mesh = generate_temp_tower_mesh(&params);
+        assert!(mesh.triangle_count() > 0, "mesh should have triangles");
+        assert!(mesh.vertex_count() > 0, "mesh should have vertices");
+        // 4 blocks + 1 base = 5 boxes * 12 triangles = 60
+        assert_eq!(mesh.triangle_count(), 60);
+        // Check approximate height: 1mm base + 4 * 10mm = 41mm
+        let aabb = mesh.aabb();
+        let height = aabb.max.z - aabb.min.z;
+        assert!((height - 41.0).abs() < 0.1, "height should be ~41mm, got {height}");
+    }
+
+    #[test]
+    fn test_generate_retraction_mesh() {
+        let params = RetractionParams {
+            start_distance: 0.5,
+            end_distance: 3.0,
+            step: 0.5,
+            start_speed: 25.0,
+            end_speed: 60.0,
+        };
+        let mesh = generate_retraction_mesh(&params);
+        assert!(mesh.triangle_count() > 0, "mesh should have triangles");
+        assert!(mesh.vertex_count() > 0, "mesh should have vertices");
+        // 6 blocks + 1 base = 7 boxes * 12 = 84 triangles
+        assert_eq!(mesh.triangle_count(), 84);
+    }
+
+    #[test]
+    fn test_retraction_schedule() {
+        let params = RetractionParams {
+            start_distance: 0.5,
+            end_distance: 2.0,
+            step: 0.5,
+            start_speed: 25.0,
+            end_speed: 60.0,
+        };
+        let schedule = retraction_schedule(&params);
+        assert_eq!(schedule.len(), 4);
+        assert!((schedule[0].0 - 1.0).abs() < f64::EPSILON, "first section at Z=1.0");
+        assert!((schedule[0].1 - 0.5).abs() < f64::EPSILON);
+        assert!((schedule[1].0 - 9.0).abs() < f64::EPSILON, "second section at Z=9.0");
+        assert!((schedule[1].1 - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_inject_retraction_comments() {
+        let commands = vec![
+            GcodeCommand::LinearMove {
+                x: Some(10.0), y: None, z: Some(2.0), e: None, f: Some(600.0),
+            },
+            GcodeCommand::LinearMove {
+                x: Some(20.0), y: None, z: Some(10.0), e: None, f: Some(600.0),
+            },
+        ];
+        let schedule = vec![(1.0, 1.0), (9.0, 1.5)];
+        let result = inject_retraction_comments(commands, &schedule);
+        // Should insert 2 comments (one at z>=1.0, one at z>=9.0)
+        let comments: Vec<_> = result.iter().filter(|c| matches!(c, GcodeCommand::Comment(_))).collect();
+        assert_eq!(comments.len(), 2, "should insert 2 retraction comments");
     }
 }

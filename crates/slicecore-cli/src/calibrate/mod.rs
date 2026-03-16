@@ -14,6 +14,7 @@
 
 #[allow(dead_code)]
 pub mod common;
+pub mod temp_tower;
 
 use std::path::PathBuf;
 
@@ -181,10 +182,31 @@ pub enum CalibrateCommand {
 #[allow(clippy::too_many_lines)]
 pub fn run_calibrate(cmd: CalibrateCommand) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
-        CalibrateCommand::TempTower { .. } => {
-            eprintln!("temp-tower: not yet implemented");
-            Ok(())
-        }
+        CalibrateCommand::TempTower {
+            machine,
+            filament,
+            process,
+            profiles_dir,
+            output,
+            json,
+            dry_run,
+            save_model,
+            start_temp,
+            end_temp,
+            step,
+        } => temp_tower::cmd_temp_tower(temp_tower::TempTowerArgs {
+            machine,
+            filament,
+            process,
+            profiles_dir,
+            output,
+            json,
+            dry_run,
+            save_model,
+            start_temp,
+            end_temp,
+            step,
+        }),
         CalibrateCommand::Retraction { .. } => {
             eprintln!("retraction: not yet implemented");
             Ok(())
