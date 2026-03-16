@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 31-03-PLAN.md
-last_updated: "2026-03-16T17:13:52.442Z"
-last_activity: "2026-03-16 - Completed plan 31-03: Temperature Tower and Retraction Calibration"
+stopped_at: Completed 31-04-PLAN.md
+last_updated: "2026-03-16T17:20:41.559Z"
+last_activity: "2026-03-16 - Completed plan 31-04: Flow Rate and First Layer Calibration"
 progress:
   total_phases: 35
   completed_phases: 30
   total_plans: 133
-  completed_plans: 130
+  completed_plans: 131
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 31 of 35 (CLI Utility Commands - Calibrate and Estimate)
-Plan: 3 of 3 in current phase (3 complete)
+Plan: 4 of 4 in current phase (4 complete)
 Status: Phase 31 Complete
-Last activity: 2026-03-16 - Completed plan 31-03: Temperature Tower and Retraction Calibration
+Last activity: 2026-03-16 - Completed plan 31-04: Flow Rate and First Layer Calibration
 
 Progress: [██████████] 100% (130/130 overall)
 
@@ -109,6 +109,7 @@ Progress: [██████████] 100% (130/130 overall)
 | Phase 30 P06 | 5min | 1 tasks | 1 files |
 | Phase 31 P02 | 3min | 2 tasks | 3 files |
 | Phase 31 P03 | 7 | 2 tasks | 4 files |
+| Phase 31 P04 | 4min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -576,6 +577,7 @@ Recent decisions affecting current work:
 - [Phase 31]: Progressive disclosure cost model: each component computed independently with hints for missing inputs
 - [Phase 31]: Cost table only shown when cost flags provided; JSON combines analysis+cost in single object
 - [Phase 31]: Built stacked tower mesh directly from vertices/indices instead of CSG boolean unions
+- [Phase 31]: Flow tower uses M221 flow rate override injection at Z boundaries for per-section control
 
 ### Roadmap Evolution
 
@@ -621,6 +623,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T17:13:52.438Z
-Stopped at: Completed 31-03-PLAN.md
+Last session: 2026-03-16T17:20:36.782Z
+Stopped at: Completed 31-04-PLAN.md
 Resume file: None
