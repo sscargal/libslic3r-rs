@@ -635,7 +635,7 @@ Plans:
 **Goal:** CLI users can generate printer-specific calibration G-code (temperature tower, retraction test, flow rate, first layer) and get cost estimation breakdowns from G-code analysis, with multi-config comparison and volume-based rough estimation for model files
 **Requirements**: TBD
 **Depends on:** Phase 30
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 - [ ] 31-01-PLAN.md -- Infrastructure: calibrate CLI skeleton, cost model, config additions

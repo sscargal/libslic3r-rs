@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 31-05-PLAN.md
-last_updated: "2026-03-16T17:28:38.657Z"
-last_activity: "2026-03-16 - Completed plan 31-05: Multi-Config Comparison, Dry-Run, Save-Model"
+status: completed
+stopped_at: Completed 31-06-PLAN.md
+last_updated: "2026-03-16T17:33:51.302Z"
+last_activity: "2026-03-16 - Completed plan 31-06: Integration Tests for Calibrate and Estimate"
 progress:
   total_phases: 35
-  completed_phases: 30
+  completed_phases: 31
   total_plans: 133
-  completed_plans: 132
+  completed_plans: 133
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 31 of 35 (CLI Utility Commands - Calibrate and Estimate)
-Plan: 6 of 6 in current phase (5 complete)
-Status: In Progress
-Last activity: 2026-03-16 - Completed plan 31-05: Multi-Config Comparison, Dry-Run, Save-Model
+Plan: 6 of 6 in current phase (6 complete)
+Status: Phase Complete
+Last activity: 2026-03-16 - Completed plan 31-06: Integration Tests for Calibrate and Estimate
 
-Progress: [██████████] 100% (131/133 overall)
+Progress: [██████████] 100% (133/133 overall)
 
 ## Performance Metrics
 
@@ -111,6 +111,7 @@ Progress: [██████████] 100% (131/133 overall)
 | Phase 31 P03 | 7 | 2 tasks | 4 files |
 | Phase 31 P04 | 4min | 2 tasks | 4 files |
 | Phase 31 P05 | 5min | 2 tasks | 8 files |
+| Phase 31 P06 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -581,6 +582,7 @@ Recent decisions affecting current work:
 - [Phase 31]: Flow tower uses M221 flow rate override injection at Z boundaries for per-section control
 - [Phase 31]: Multi-config comparison reuses same GcodeAnalysis, re-estimates per filament profile
 - [Phase 31]: Common display_dry_run shows dimensions and bed fit status for all calibrate commands
+- [Phase 31]: Used 40mm bed for small-bed validation test since 30mm model fits exactly on 50mm bed with 10mm margins
 
 ### Roadmap Evolution
 
@@ -626,6 +628,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T17:28:38.652Z
-Stopped at: Completed 31-05-PLAN.md
+Last session: 2026-03-16T17:33:51.298Z
+Stopped at: Completed 31-06-PLAN.md
 Resume file: None
