@@ -317,6 +317,8 @@ pub struct MachineConfig {
     /// the count that accounts for both this field and
     /// [`nozzle_diameters`](Self::nozzle_diameters) length.
     pub extruder_count: u32,
+    /// Printer power consumption in watts (for cost estimation, 0 = not set).
+    pub watts: f64,
 }
 
 impl Default for MachineConfig {
@@ -350,6 +352,7 @@ impl Default for MachineConfig {
             min_layer_height: 0.07,
             max_layer_height: 0.0,
             extruder_count: 1,
+            watts: 0.0,
         }
     }
 }
@@ -1570,7 +1573,10 @@ after_layer_change = "M117 Layer {layer_num}"
 custom_gcode_per_z = [[5.0, "M600"]]
 "#;
         let config = PrintConfig::from_toml(toml).unwrap();
-        assert_eq!(config.custom_gcode.after_layer_change, "M117 Layer {layer_num}");
+        assert_eq!(
+            config.custom_gcode.after_layer_change,
+            "M117 Layer {layer_num}"
+        );
         assert_eq!(config.custom_gcode.custom_gcode_per_z.len(), 1);
     }
 
