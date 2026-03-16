@@ -14,6 +14,7 @@
 
 #[allow(dead_code)]
 pub mod common;
+pub mod first_layer;
 pub mod flow;
 pub mod retraction;
 pub mod temp_tower;
@@ -259,10 +260,27 @@ pub fn run_calibrate(cmd: CalibrateCommand) -> Result<(), Box<dyn std::error::Er
             step,
             steps,
         }),
-        CalibrateCommand::FirstLayer { .. } => {
-            eprintln!("first-layer: not yet implemented");
-            Ok(())
-        }
+        CalibrateCommand::FirstLayer {
+            machine,
+            filament,
+            process,
+            profiles_dir,
+            output,
+            json,
+            dry_run,
+            save_model,
+            pattern,
+        } => first_layer::cmd_first_layer(first_layer::FirstLayerArgs {
+            machine,
+            filament,
+            process,
+            profiles_dir,
+            output,
+            json,
+            dry_run,
+            save_model,
+            pattern,
+        }),
         CalibrateCommand::List => {
             let mut table = Table::new();
             table.load_preset(UTF8_FULL);
