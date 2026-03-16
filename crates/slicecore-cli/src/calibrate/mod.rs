@@ -14,6 +14,7 @@
 
 #[allow(dead_code)]
 pub mod common;
+pub mod retraction;
 pub mod temp_tower;
 
 use std::path::PathBuf;
@@ -207,10 +208,31 @@ pub fn run_calibrate(cmd: CalibrateCommand) -> Result<(), Box<dyn std::error::Er
             end_temp,
             step,
         }),
-        CalibrateCommand::Retraction { .. } => {
-            eprintln!("retraction: not yet implemented");
-            Ok(())
-        }
+        CalibrateCommand::Retraction {
+            machine,
+            filament,
+            process,
+            profiles_dir,
+            output,
+            json,
+            dry_run,
+            save_model,
+            start_distance,
+            end_distance,
+            step,
+        } => retraction::cmd_retraction(retraction::RetractionArgs {
+            machine,
+            filament,
+            process,
+            profiles_dir,
+            output,
+            json,
+            dry_run,
+            save_model,
+            start_distance,
+            end_distance,
+            step,
+        }),
         CalibrateCommand::Flow { .. } => {
             eprintln!("flow: not yet implemented");
             Ok(())
