@@ -1,15 +1,234 @@
 //! Display formatting for G-code analysis and comparison output.
 //!
-//! Provides ASCII table, CSV, and JSON output formats for [`GcodeAnalysis`]
+//! Provides ASCII table, CSV, JSON, and markdown output formats for [`GcodeAnalysis`]
 //! and [`ComparisonResult`]. The ASCII table uses `comfy-table` for auto-sizing
 //! columns, with ANSI color support for comparison deltas.
+//!
+//! Also provides multi-config comparison display for side-by-side filament
+//! cost/time comparison across different material profiles.
+
+use std::io::IsTerminal;
 
 use comfy_table::{ContentArrangement, Table};
+use serde::Serialize;
 
 use slicecore_engine::cost_model::{CostEstimate, VolumeEstimate};
 use slicecore_engine::{ComparisonResult, GcodeAnalysis, TimePrecision};
 
 use crate::stats_display::{format_length, format_time};
+
+// ---------------------------------------------------------------------------
+// Output format enum
+// ---------------------------------------------------------------------------
+
+/// Output format for CLI display commands.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputFormat {
+    /// ASCII table using comfy-table.
+    Table,
+    /// Pretty-printed JSON.
+    Json,
+    /// Comma-separated values.
+    Csv,
+    /// Markdown table.
+    Markdown,
+}
+
+/// Determines the output format from boolean flags.
+///
+/// Defaults to `Table` when no flags are set. Only one should be set at a time;
+/// priority is JSON > CSV > Markdown > Table.
+#[must_use]
+pub fn determine_output_format(json: bool, csv: bool, markdown: bool) -> OutputFormat {
+    if json {
+        OutputFormat::Json
+    } else if csv {
+        OutputFormat::Csv
+    } else if markdown {
+        OutputFormat::Markdown
+    } else {
+        OutputFormat::Table
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Multi-config comparison types and display
+// ---------------------------------------------------------------------------
+
+/// A row in the multi-config comparison table.
+#[derive(Debug, Clone, Serialize)]
+pub struct ComparisonRow {
+    /// Config/filament name.
+    pub name: String,
+    /// Estimated print time in seconds.
+    pub time_seconds: f64,
+    /// Filament weight in grams.
+    pub filament_weight_g: f64,
+    /// Filament material cost (if computable).
+    pub filament_cost: Option<f64>,
+    /// Total estimated cost (if computable).
+    pub total_cost: Option<f64>,
+}
+
+/// Display a multi-config comparison table.
+///
+/// The first row is treated as the baseline. Subsequent rows show deltas
+/// from that baseline for each numeric column.
+pub fn display_config_comparison(
+    rows: &[ComparisonRow],
+    format: OutputFormat,
+    no_color: bool,
+) {
+    match format {
+        OutputFormat::Table => display_config_comparison_table(rows, no_color),
+        OutputFormat::Json => display_config_comparison_json(rows),
+        OutputFormat::Csv => display_config_comparison_csv(rows),
+        OutputFormat::Markdown => display_config_comparison_markdown(rows),
+    }
+}
+
+/// Display multi-config comparison as ASCII table with deltas.
+fn display_config_comparison_table(rows: &[ComparisonRow], no_color: bool) {
+    let use_color = !no_color && std::io::stdout().is_terminal();
+
+    println!("{}", bold("=== Multi-Config Comparison ===", use_color));
+    println!();
+
+    let mut table = Table::new();
+    table.set_content_arrangement(ContentArrangement::Dynamic);
+    table.set_header(vec![
+        "Config",
+        "Time",
+        "Delta Time",
+        "Weight (g)",
+        "Delta Weight",
+        "Filament Cost",
+        "Delta Cost",
+        "Total Cost",
+        "Delta Total",
+    ]);
+
+    let baseline_time = rows.first().map_or(0.0, |r| r.time_seconds);
+    let baseline_weight = rows.first().map_or(0.0, |r| r.filament_weight_g);
+    let baseline_fcost = rows.first().and_then(|r| r.filament_cost);
+    let baseline_tcost = rows.first().and_then(|r| r.total_cost);
+    let prec = TimePrecision::Seconds;
+
+    for (i, row) in rows.iter().enumerate() {
+        let time_str = format_time(row.time_seconds, &prec);
+        let weight_str = format!("{:.1}", row.filament_weight_g);
+        let fcost_str = row
+            .filament_cost
+            .map_or("N/A".to_string(), |c| format!("${c:.2}"));
+        let tcost_str = row
+            .total_cost
+            .map_or("N/A".to_string(), |c| format!("${c:.2}"));
+
+        if i == 0 {
+            table.add_row(vec![
+                row.name.clone(),
+                time_str,
+                dim("(baseline)", use_color),
+                weight_str,
+                dim("(baseline)", use_color),
+                fcost_str,
+                dim("(baseline)", use_color),
+                tcost_str,
+                dim("(baseline)", use_color),
+            ]);
+        } else {
+            let dt = row.time_seconds - baseline_time;
+            let dt_pct = if baseline_time.abs() > 1e-12 {
+                (dt / baseline_time) * 100.0
+            } else {
+                0.0
+            };
+            let dw = row.filament_weight_g - baseline_weight;
+            let dw_pct = if baseline_weight.abs() > 1e-12 {
+                (dw / baseline_weight) * 100.0
+            } else {
+                0.0
+            };
+            let dfc = match (row.filament_cost, baseline_fcost) {
+                (Some(c), Some(b)) => {
+                    let d = c - b;
+                    let sign = if d > 0.0 { "+" } else { "" };
+                    format!("{sign}${d:.2}")
+                }
+                _ => "-".to_string(),
+            };
+            let dtc = match (row.total_cost, baseline_tcost) {
+                (Some(c), Some(b)) => {
+                    let d = c - b;
+                    let sign = if d > 0.0 { "+" } else { "" };
+                    format!("{sign}${d:.2}")
+                }
+                _ => "-".to_string(),
+            };
+
+            table.add_row(vec![
+                row.name.clone(),
+                time_str,
+                color_delta(dt, dt_pct, "s", use_color),
+                weight_str,
+                color_delta(dw, dw_pct, "g", use_color),
+                fcost_str,
+                dfc,
+                tcost_str,
+                dtc,
+            ]);
+        }
+    }
+
+    println!("{table}");
+}
+
+/// Display multi-config comparison as JSON.
+fn display_config_comparison_json(rows: &[ComparisonRow]) {
+    println!(
+        "{}",
+        serde_json::to_string_pretty(rows)
+            .unwrap_or_else(|e| format!("{{\"error\": \"Failed to serialize: {e}\"}}"))
+    );
+}
+
+/// Display multi-config comparison as CSV.
+fn display_config_comparison_csv(rows: &[ComparisonRow]) {
+    println!("config,time_s,weight_g,filament_cost,total_cost");
+    for row in rows {
+        let fc = row
+            .filament_cost
+            .map_or(String::new(), |c| format!("{c:.2}"));
+        let tc = row.total_cost.map_or(String::new(), |c| format!("{c:.2}"));
+        println!(
+            "{},{:.1},{:.1},{},{}",
+            row.name, row.time_seconds, row.filament_weight_g, fc, tc
+        );
+    }
+}
+
+/// Display multi-config comparison as markdown table.
+fn display_config_comparison_markdown(rows: &[ComparisonRow]) {
+    println!("## Multi-Config Comparison");
+    println!();
+    println!("| Config | Time | Weight (g) | Filament Cost | Total Cost |");
+    println!("|--------|------|------------|---------------|------------|");
+    let prec = TimePrecision::Seconds;
+    for row in rows {
+        let fc = row
+            .filament_cost
+            .map_or("N/A".to_string(), |c| format!("${c:.2}"));
+        let tc = row.total_cost.map_or("N/A".to_string(), |c| format!("${c:.2}"));
+        println!(
+            "| {} | {} | {:.1} | {} | {} |",
+            row.name,
+            format_time(row.time_seconds, &prec),
+            row.filament_weight_g,
+            fc,
+            tc
+        );
+    }
+}
 
 // ---------------------------------------------------------------------------
 // ANSI color helpers

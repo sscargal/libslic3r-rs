@@ -442,6 +442,14 @@ enum Commands {
         /// Treat input as model file (STL/3MF) for rough volume-based estimation
         #[arg(long)]
         model: bool,
+
+        /// Compare with additional filament profiles (side-by-side cost/time table)
+        #[arg(long = "compare-filament", num_args = 1..)]
+        compare_filament: Vec<String>,
+
+        /// Profile library directory for resolving filament profile names
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
     },
 
     /// Convert a mesh file between formats (STL, 3MF, OBJ).
@@ -737,6 +745,8 @@ fn main() {
             setup_time,
             markdown,
             model,
+            compare_filament,
+            profiles_dir,
         } => cmd_analyze_gcode(
             &input,
             json,
@@ -755,6 +765,8 @@ fn main() {
             setup_time,
             markdown,
             model,
+            &compare_filament,
+            profiles_dir.as_deref(),
         ),
         Commands::Convert { input, output } => cmd_convert(&input, &output),
         Commands::Thumbnail {
@@ -2454,6 +2466,8 @@ fn cmd_analyze_gcode(
     setup_time: f64,
     markdown: bool,
     model: bool,
+    compare_filament: &[String],
+    profiles_dir: Option<&std::path::Path>,
 ) {
     use slicecore_engine::cost_model::{self, CostInputs};
 
@@ -2604,6 +2618,94 @@ fn cmd_analyze_gcode(
             println!();
             analysis_display::display_cost_table(cost, use_color);
         }
+    }
+
+    // Multi-config comparison: re-estimate with different filament profiles
+    if !compare_filament.is_empty() {
+        let format = analysis_display::determine_output_format(json, csv, markdown);
+
+        let resolver = ProfileResolver::new(profiles_dir);
+
+        // Build baseline row
+        let baseline_cost_inputs = cost_model::CostInputs {
+            filament_weight_g: analysis.total_filament_weight_g,
+            print_time_seconds: analysis.total_time_estimate_s,
+            filament_price_per_kg: filament_price,
+            electricity_rate,
+            printer_watts,
+            printer_cost,
+            expected_hours,
+            labor_rate,
+            setup_time_minutes: Some(setup_time),
+        };
+        let baseline_cost = cost_model::compute_cost(&baseline_cost_inputs);
+        let mut rows = vec![analysis_display::ComparisonRow {
+            name: "baseline".to_string(),
+            time_seconds: analysis.total_time_estimate_s,
+            filament_weight_g: analysis.total_filament_weight_g,
+            filament_cost: baseline_cost.filament_cost,
+            total_cost: baseline_cost.total_cost,
+        }];
+
+        // Build comparison rows for each filament profile
+        for fil_name in compare_filament {
+            // Try to resolve filament profile and extract density/price
+            let (comp_density, comp_price) = match resolver.resolve(fil_name, "filament") {
+                Ok(resolved) => {
+                    match std::fs::read_to_string(&resolved.path) {
+                        Ok(toml_str) => {
+                            let partial: PrintConfig = toml::from_str(&toml_str).unwrap_or_default();
+                            let d = partial.filament.density;
+                            let p = if partial.filament.cost_per_kg > 0.0 {
+                                Some(partial.filament.cost_per_kg)
+                            } else {
+                                filament_price
+                            };
+                            (d, p)
+                        }
+                        Err(e) => {
+                            eprintln!("Warning: Could not read filament profile '{fil_name}': {e}");
+                            (density, filament_price)
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Warning: Could not resolve filament profile '{fil_name}': {e}");
+                    (density, filament_price)
+                }
+            };
+
+            // Recompute weight using the comparison density
+            let comp_weight = if comp_density != density && density > 0.0 {
+                analysis.total_filament_weight_g * (comp_density / density)
+            } else {
+                analysis.total_filament_weight_g
+            };
+
+            let comp_cost_inputs = cost_model::CostInputs {
+                filament_weight_g: comp_weight,
+                print_time_seconds: analysis.total_time_estimate_s,
+                filament_price_per_kg: comp_price,
+                electricity_rate,
+                printer_watts,
+                printer_cost,
+                expected_hours,
+                labor_rate,
+                setup_time_minutes: Some(setup_time),
+            };
+            let comp_cost = cost_model::compute_cost(&comp_cost_inputs);
+
+            rows.push(analysis_display::ComparisonRow {
+                name: fil_name.clone(),
+                time_seconds: analysis.total_time_estimate_s,
+                filament_weight_g: comp_weight,
+                filament_cost: comp_cost.filament_cost,
+                total_cost: comp_cost.total_cost,
+            });
+        }
+
+        println!();
+        analysis_display::display_config_comparison(&rows, format, no_color);
     }
 }
 
