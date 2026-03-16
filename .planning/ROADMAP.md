@@ -647,13 +647,16 @@ Plans:
 
 ### Phase 32: P0 config gap closure - critical missing fields
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Add ~16 critical config fields (dimensional compensation, surface patterns, bed types, chamber temperature, z offset, etc.) with full profile import mapping, template variables, validation, and G-code integration -- config-only, no engine behavior changes
+**Requirements**: P32-01, P32-02, P32-03, P32-04, P32-05, P32-06, P32-07, P32-08, P32-09, P32-10
 **Depends on:** Phase 31
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 32 to break down)
+- [ ] 32-01-PLAN.md -- New enums, sub-structs, and all P0 fields in config.rs
+- [ ] 32-02-PLAN.md -- OrcaSlicer JSON and PrusaSlicer INI profile import mappings
+- [ ] 32-03-PLAN.md -- Template variables, validation rules, G-code comments and M-codes
+- [ ] 32-04-PLAN.md -- Tests and profile re-conversion
 
 ### Phase 33: P1 config gap closure - profile fidelity fields
 
