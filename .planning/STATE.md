@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 31 context gathered
-last_updated: "2026-03-16T16:26:28.645Z"
-last_activity: "2026-03-14 - Completed plan 30-06: E2E profile composition tests"
+status: in-progress
+stopped_at: Completed 31-01-PLAN.md
+last_updated: "2026-03-16T16:57:35.629Z"
+last_activity: "2026-03-16 - Completed plan 31-01: Calibrate/Estimate Foundation"
 progress:
   total_phases: 35
   completed_phases: 30
-  total_plans: 127
-  completed_plans: 127
-  percent: 100
+  total_plans: 133
+  completed_plans: 128
+  percent: 99
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 30 in progress -- CLI Profile Composition and Slice Workflow
+**Current focus:** Phase 31 in progress -- CLI Utility Commands (Calibrate and Estimate)
 
 ## Current Position
 
-Phase: 30 of 35 (CLI Profile Composition and Slice Workflow)
-Plan: 6 of 6 in current phase (6 complete)
-Status: Plan 30-06 Complete
-Last activity: 2026-03-14 - Completed plan 30-06: E2E profile composition tests
+Phase: 31 of 35 (CLI Utility Commands - Calibrate and Estimate)
+Plan: 1 of 2 in current phase (1 complete)
+Status: Plan 31-01 Complete
+Last activity: 2026-03-16 - Completed plan 31-01: Calibrate/Estimate Foundation
 
-Progress: [██████████] 100% (127/129 overall)
+Progress: [█████████░] 99% (128/129 overall)
 
 ## Performance Metrics
 
@@ -571,6 +571,7 @@ Recent decisions affecting current work:
 - [Phase 30]: Built-in profiles use inline TOML const strings for self-contained binary; safety limits at 350C nozzle, 150C bed
 - [Phase 30]: Profile workflow opt-in: -m/-f/-p triggers new path, --config uses legacy
 - [Phase 30]: Used overrides file for safety validation testing instead of --set with array values
+- [Phase 31]: Progressive disclosure cost model: each component computed independently with hints for missing inputs
 
 ### Roadmap Evolution
 
@@ -616,6 +617,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-16T16:26:28.641Z
-Stopped at: Phase 31 context gathered
-Resume file: .planning/phases/31-cli-utility-commands-calibrate-and-estimate/31-CONTEXT.md
+Last session: 2026-03-16T16:57:35.625Z
+Stopped at: Completed 31-01-PLAN.md
+Resume file: None
