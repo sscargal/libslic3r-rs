@@ -632,13 +632,18 @@ Plans:
 
 ### Phase 31: CLI utility commands calibrate and estimate
 
-**Goal:** [To be planned]
+**Goal:** CLI users can generate printer-specific calibration G-code (temperature tower, retraction test, flow rate, first layer) and get cost estimation breakdowns from G-code analysis, with multi-config comparison and volume-based rough estimation for model files
 **Requirements**: TBD
 **Depends on:** Phase 30
-**Plans:** 0 plans
+**Plans:** 6 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 31 to break down)
+- [ ] 31-01-PLAN.md -- Infrastructure: calibrate CLI skeleton, cost model, config additions
+- [ ] 31-02-PLAN.md -- Extend analyze-gcode with cost estimation and volume-based rough estimation
+- [ ] 31-03-PLAN.md -- Temperature tower and retraction test calibration commands
+- [ ] 31-04-PLAN.md -- Flow rate and first layer calibration commands
+- [ ] 31-05-PLAN.md -- Multi-config comparison, dry-run, save-model, output formats
+- [ ] 31-06-PLAN.md -- E2E integration tests for all calibrate and estimate features
 
 ### Phase 32: P0 config gap closure - critical missing fields
 
