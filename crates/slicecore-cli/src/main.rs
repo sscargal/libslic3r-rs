@@ -17,6 +17,7 @@
 //! - `csg`: CSG boolean operations, splitting, hollowing, primitives, and mesh info
 
 mod analysis_display;
+mod calibrate;
 mod csg_command;
 mod csg_info;
 pub mod progress;
@@ -515,6 +516,13 @@ enum Commands {
         format: String,
     },
 
+    /// Calibration test print generation.
+    ///
+    /// Generate G-code for temperature tower, retraction, flow rate, and
+    /// first layer adhesion calibration tests.
+    #[command(subcommand)]
+    Calibrate(calibrate::CalibrateCommand),
+
     /// CSG (Constructive Solid Geometry) operations on meshes.
     ///
     /// Boolean operations (union, difference, intersection, xor), plane splitting,
@@ -734,6 +742,12 @@ fn main() {
             apply,
             &format,
         ),
+        Commands::Calibrate(cal_cmd) => {
+            if let Err(e) = calibrate::run_calibrate(cal_cmd) {
+                eprintln!("Error: {e}");
+                process::exit(1);
+            }
+        }
         Commands::Csg(csg_cmd) => {
             if let Err(e) = csg_command::run_csg(csg_cmd) {
                 eprintln!("Error: {e}");
