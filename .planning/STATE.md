@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 32-03-PLAN.md
-last_updated: "2026-03-17T00:29:37.566Z"
-last_activity: "2026-03-17 - Completed plan 32-03: Template Variables, Validation & G-code Emission"
+status: completed
+stopped_at: Completed 32-04-PLAN.md
+last_updated: "2026-03-17T00:40:34.444Z"
+last_activity: "2026-03-17 - Completed plan 32-04: Test Coverage & Profile Re-conversion"
 progress:
   total_phases: 35
-  completed_phases: 31
+  completed_phases: 32
   total_plans: 137
-  completed_plans: 136
-  percent: 99
+  completed_plans: 137
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 32 of 35 (P0 Config Gap Closure - Critical Missing Fields)
-Plan: 3 of 4 in current phase (3 complete)
-Status: In Progress
-Last activity: 2026-03-17 - Completed plan 32-03: Template Variables, Validation & G-code Emission
+Plan: 4 of 4 in current phase (4 complete)
+Status: Phase Complete
+Last activity: 2026-03-17 - Completed plan 32-04: Test Coverage & Profile Re-conversion
 
-Progress: [██████████] 99% (136/137 overall)
+Progress: [██████████] 100% (137/137 overall)
 
 ## Performance Metrics
 
@@ -115,6 +115,7 @@ Progress: [██████████] 99% (136/137 overall)
 | Phase 32 P01 | 5 | 2 tasks | 4 files |
 | Phase 32 P02 | 3 | 2 tasks | 2 files |
 | Phase 32 P03 | 3min | 2 tasks | 3 files |
+| Phase 32 P04 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -590,6 +591,7 @@ Recent decisions affecting current work:
 - [Phase 32]: Enum mapper functions (map_surface_pattern, map_bed_type, map_internal_bridge_mode) made pub(crate) for cross-module sharing between profile_import and profile_import_ini
 - [Phase 32]: Combined z_offset template variable sums global + per-filament offset
 - [Phase 32]: M141 emitted in plan_temperatures at layer 0 alongside M104/M140
+- [Phase 32]: P0 test coverage: 15 new tests for field defaults, TOML round-trip, enum round-trip, bed type temperature resolution, elephant foot migration, OrcaSlicer JSON import
 
 ### Roadmap Evolution
 
@@ -635,6 +637,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T00:29:37.562Z
-Stopped at: Completed 32-03-PLAN.md
+Last session: 2026-03-17T00:40:34.440Z
+Stopped at: Completed 32-04-PLAN.md
 Resume file: None

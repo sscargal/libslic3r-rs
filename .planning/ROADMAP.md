@@ -650,7 +650,7 @@ Plans:
 **Goal:** Add ~16 critical config fields (dimensional compensation, surface patterns, bed types, chamber temperature, z offset, etc.) with full profile import mapping, template variables, validation, and G-code integration -- config-only, no engine behavior changes
 **Requirements**: P32-01, P32-02, P32-03, P32-04, P32-05, P32-06, P32-07, P32-08, P32-09, P32-10
 **Depends on:** Phase 31
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 32-01-PLAN.md -- New enums, sub-structs, and all P0 fields in config.rs
