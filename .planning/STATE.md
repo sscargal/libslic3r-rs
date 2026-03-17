@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 32-01-PLAN.md
-last_updated: "2026-03-17T00:19:21.017Z"
-last_activity: "2026-03-17 - Completed plan 32-01: P0 Config Fields"
+stopped_at: Completed 32-02-PLAN.md
+last_updated: "2026-03-17T00:24:30.456Z"
+last_activity: "2026-03-17 - Completed plan 32-02: Profile Import Field Mappings"
 progress:
   total_phases: 35
   completed_phases: 31
   total_plans: 137
-  completed_plans: 134
+  completed_plans: 135
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 32 of 35 (P0 Config Gap Closure - Critical Missing Fields)
-Plan: 1 of 4 in current phase (1 complete)
+Plan: 2 of 4 in current phase (2 complete)
 Status: In Progress
-Last activity: 2026-03-17 - Completed plan 32-01: P0 Config Fields
+Last activity: 2026-03-17 - Completed plan 32-02: Profile Import Field Mappings
 
 Progress: [██████████] 100% (134/137 overall)
 
@@ -113,6 +113,7 @@ Progress: [██████████] 100% (134/137 overall)
 | Phase 31 P05 | 5min | 2 tasks | 8 files |
 | Phase 31 P06 | 3 | 2 tasks | 2 files |
 | Phase 32 P01 | 5 | 2 tasks | 4 files |
+| Phase 32 P02 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -585,6 +586,7 @@ Recent decisions affecting current work:
 - [Phase 31]: Common display_dry_run shows dimensions and bed fit status for all calibrate commands
 - [Phase 31]: Used 40mm bed for small-bed validation test since 30mm model fits exactly on 50mm bed with 10mm margins
 - [Phase 32]: Used serde alias for elefant_foot_compensation backward compat during migration to DimensionalCompensationConfig
+- [Phase 32]: Enum mapper functions (map_surface_pattern, map_bed_type, map_internal_bridge_mode) made pub(crate) for cross-module sharing between profile_import and profile_import_ini
 
 ### Roadmap Evolution
 
@@ -630,6 +632,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T00:19:14.524Z
-Stopped at: Completed 32-01-PLAN.md
+Last session: 2026-03-17T00:24:30.418Z
+Stopped at: Completed 32-02-PLAN.md
 Resume file: None
