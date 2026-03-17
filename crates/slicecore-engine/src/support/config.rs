@@ -44,6 +44,10 @@ pub enum SupportPattern {
     Line,
     /// Alternating-angle rectilinear fill.
     Rectilinear,
+    /// Honeycomb pattern for high strength-to-weight ratio.
+    Honeycomb,
+    /// Lightning pattern for minimal material usage.
+    Lightning,
 }
 
 /// Fill pattern for support interface layers (contact surfaces).
@@ -136,6 +140,18 @@ pub struct BridgeConfig {
     pub acceleration: f64,
     /// Line width ratio relative to standard extrusion width.
     pub line_width_ratio: f64,
+    /// Bridge angle in degrees (0 = auto-detect).
+    /// OrcaSlicer: `bridge_angle`. Default: 0.0.
+    pub angle: f64,
+    /// Bridge density as a fraction (0.0 - 1.0).
+    /// OrcaSlicer: `bridge_density`. Default: 1.0.
+    pub density: f64,
+    /// Use thick bridges for stronger bridging.
+    /// OrcaSlicer: `thick_bridges`. Default: false.
+    pub thick_bridges: bool,
+    /// Disable support under bridge areas.
+    /// OrcaSlicer: `bridge_no_support`. Default: false.
+    pub no_support: bool,
 }
 
 impl Default for BridgeConfig {
@@ -146,6 +162,10 @@ impl Default for BridgeConfig {
             flow_ratio: 0.85,
             acceleration: 500.0,
             line_width_ratio: 1.0,
+            angle: 0.0,
+            density: 1.0,
+            thick_bridges: false,
+            no_support: false,
         }
     }
 }
@@ -171,6 +191,33 @@ pub struct TreeSupportConfig {
     pub merge_distance_factor: f64,
     /// Tip diameter at contact points in mm.
     pub tip_diameter: f64,
+    /// Distance between tree branches in mm.
+    /// OrcaSlicer: `tree_support_branch_distance`. Default: 5.0.
+    pub branch_distance: f64,
+    /// Angle at which branch diameter increases (degrees).
+    /// OrcaSlicer: `tree_support_branch_diameter_angle`. Default: 5.0.
+    pub branch_diameter_angle: f64,
+    /// Number of walls around tree support branches.
+    /// OrcaSlicer: `tree_support_wall_count`. Default: 0.
+    pub wall_count: u32,
+    /// Auto-generate brim around tree support base.
+    /// OrcaSlicer: `tree_support_auto_brim`. Default: true.
+    pub auto_brim: bool,
+    /// Brim width around tree support base in mm.
+    /// OrcaSlicer: `tree_support_brim_width`. Default: 3.0.
+    pub brim_width: f64,
+    /// Enable adaptive layer height for tree support.
+    /// OrcaSlicer: `tree_support_adaptive_layer_height`. Default: true.
+    pub adaptive_layer_height: bool,
+    /// Slow branch angle in degrees (for gradual angle changes).
+    /// OrcaSlicer: `tree_support_angle_slow`. Default: 25.0.
+    pub angle_slow: f64,
+    /// Top contact rate for tree support branches.
+    /// OrcaSlicer: `tree_support_top_rate`. Default: 0.3.
+    pub top_rate: f64,
+    /// Fill tree support interior with infill.
+    /// OrcaSlicer: `tree_support_with_infill`. Default: false.
+    pub with_infill: bool,
 }
 
 impl Default for TreeSupportConfig {
@@ -183,6 +230,15 @@ impl Default for TreeSupportConfig {
             max_trunk_diameter: 10.0,
             merge_distance_factor: 3.0,
             tip_diameter: 0.8,
+            branch_distance: 5.0,
+            branch_diameter_angle: 5.0,
+            wall_count: 0,
+            auto_brim: true,
+            brim_width: 3.0,
+            adaptive_layer_height: true,
+            angle_slow: 25.0,
+            top_rate: 0.3,
+            with_infill: false,
         }
     }
 }
@@ -243,6 +299,39 @@ pub struct SupportConfig {
     /// Number of dense interface layers at the bottom of support (support floor).
     /// OrcaSlicer: `support_bottom_interface_layers`. Range: 0-10. Default: 0.
     pub support_bottom_interface_layers: u32,
+    /// Horizontal expansion distance for support regions in mm.
+    /// OrcaSlicer: `support_expansion`. Default: 0.0.
+    pub expansion: f64,
+    /// Number of raft layers below the model.
+    /// OrcaSlicer/PrusaSlicer: `raft_layers`. Default: 0.
+    pub raft_layers: u32,
+    /// Raft first layer expansion in mm.
+    /// OrcaSlicer: `raft_first_layer_expansion`. Default: 0.0.
+    pub raft_expansion: f64,
+    /// Only generate support for critical overhang regions.
+    /// OrcaSlicer: `support_critical_regions_only`. Default: false.
+    pub critical_regions_only: bool,
+    /// Remove small overhang areas from support generation.
+    /// OrcaSlicer: `support_remove_small_overhang`. Default: true.
+    pub remove_small_overhang: bool,
+    /// Flow ratio for support extrusion (0.0 - 2.0).
+    /// OrcaSlicer: `support_flow_ratio`. Default: 1.0.
+    pub flow_ratio: f64,
+    /// Flow ratio for support interface extrusion (0.0 - 2.0).
+    /// OrcaSlicer: `support_interface_flow_ratio`. Default: 1.0.
+    pub interface_flow_ratio: f64,
+    /// Synchronize support layers with object layers.
+    /// PrusaSlicer/OrcaSlicer: `support_material_synchronize_layers`. Default: false.
+    pub synchronize_layers: bool,
+    /// Minimum number of layers to enforce support generation.
+    /// PrusaSlicer: `support_material_enforce_layers`. Default: 0.
+    pub enforce_layers: u32,
+    /// Closing radius for support area generation in mm.
+    /// PrusaSlicer: `support_material_closing_radius`. Default: 2.0.
+    pub closing_radius: f64,
+    /// Bottom Z gap distance in mm (gap between support floor and model).
+    /// OrcaSlicer: `support_bottom_z_distance`. Defaults to z_gap value.
+    pub bottom_z_gap: Option<f64>,
 }
 
 impl Default for SupportConfig {
@@ -266,6 +355,17 @@ impl Default for SupportConfig {
             quality_preset: None,
             conflict_resolution: ConflictResolution::WarnOnConflict,
             support_bottom_interface_layers: 0,
+            expansion: 0.0,
+            raft_layers: 0,
+            raft_expansion: 0.0,
+            critical_regions_only: false,
+            remove_small_overhang: true,
+            flow_ratio: 1.0,
+            interface_flow_ratio: 1.0,
+            synchronize_layers: false,
+            enforce_layers: 0,
+            closing_radius: 2.0,
+            bottom_z_gap: None,
         }
     }
 }
@@ -399,6 +499,8 @@ mod tests {
             SupportPattern::Grid,
             SupportPattern::Line,
             SupportPattern::Rectilinear,
+            SupportPattern::Honeycomb,
+            SupportPattern::Lightning,
         ];
         for p in &patterns {
             let json = serde_json::to_string(p).unwrap();

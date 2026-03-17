@@ -39,6 +39,7 @@ use crate::config::{BedType, BrimType, InternalBridgeMode, PrintConfig, SurfaceP
 use crate::error::EngineError;
 use crate::infill::InfillPattern;
 use crate::seam::SeamPosition;
+use crate::support::config::{InterfacePattern, SupportPattern, SupportType};
 
 /// Detected configuration file format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -625,6 +626,77 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "min_bead_width" => Some("min_bead_width"),
         "min_feature_size" => Some("min_feature_size"),
         "support_bottom_interface_layers" => Some("support.support_bottom_interface_layers"),
+
+        // --- Support config fields ---
+        "enable_support" | "support_material" => Some("support.enabled"),
+        "support_type" | "support_material_type" | "support_style"
+        | "support_material_style" => Some("support.support_type"),
+        "support_threshold_angle" | "support_angle"
+        | "support_material_threshold" => Some("support.overhang_angle"),
+        "support_base_pattern" | "support_material_pattern" => Some("support.support_pattern"),
+        "support_on_build_plate_only" | "support_material_buildplate_only" => {
+            Some("support.build_plate_only")
+        }
+        "support_top_z_distance" | "support_material_contact_distance" => Some("support.z_gap"),
+        "support_bottom_z_distance" | "support_material_bottom_contact_distance" => {
+            Some("support.bottom_z_gap")
+        }
+        "support_object_xy_distance" | "support_material_xy_spacing" => Some("support.xy_gap"),
+        "support_interface_top_layers" | "support_material_interface_layers" => {
+            Some("support.interface_layers")
+        }
+        "support_interface_bottom_layers"
+        | "support_material_bottom_interface_layers" => {
+            Some("support.support_bottom_interface_layers")
+        }
+        "support_interface_pattern" | "support_material_interface_pattern" => {
+            Some("support.interface_pattern")
+        }
+        "support_base_pattern_spacing" | "support_material_spacing" => {
+            Some("support.support_density")
+        }
+        "support_interface_spacing" | "support_material_interface_spacing" => {
+            Some("support.interface_density")
+        }
+        "support_expansion" => Some("support.expansion"),
+        "support_critical_regions_only" => Some("support.critical_regions_only"),
+        "support_remove_small_overhang" => Some("support.remove_small_overhang"),
+        "support_flow_ratio" | "support_material_flow" => Some("support.flow_ratio"),
+        "support_interface_flow_ratio" | "support_material_interface_flow" => {
+            Some("support.interface_flow_ratio")
+        }
+        "support_material_synchronize_layers" => Some("support.synchronize_layers"),
+        "enforce_support_layers" | "support_material_enforce_layers" => {
+            Some("support.enforce_layers")
+        }
+        "support_closing_radius" | "support_material_closing_radius" => {
+            Some("support.closing_radius")
+        }
+        "support_material_auto" => Some("support.support_type"),
+        "raft_first_layer_expansion" => Some("support.raft_expansion"),
+        "bridge_angle" => Some("support.bridge.angle"),
+        "bridge_density" => Some("support.bridge.density"),
+        "thick_bridges" => Some("support.bridge.thick_bridges"),
+        "bridge_no_support" => Some("support.bridge.no_support"),
+        "bridge_fan_speed" => Some("support.bridge.fan_speed"),
+        "tree_support_branch_angle" | "support_tree_angle" => {
+            Some("support.tree.branch_angle")
+        }
+        "tree_support_branch_diameter" | "support_tree_branch_diameter" => {
+            Some("support.tree.max_trunk_diameter")
+        }
+        "tree_support_tip_diameter" => Some("support.tree.tip_diameter"),
+        "tree_support_branch_distance" | "support_tree_top_rate" => {
+            Some("support.tree.branch_distance")
+        }
+        "tree_support_branch_diameter_angle" => Some("support.tree.branch_diameter_angle"),
+        "tree_support_wall_count" => Some("support.tree.wall_count"),
+        "tree_support_auto_brim" => Some("support.tree.auto_brim"),
+        "tree_support_brim_width" => Some("support.tree.brim_width"),
+        "tree_support_adaptive_layer_height" => Some("support.tree.adaptive_layer_height"),
+        "tree_support_angle_slow" => Some("support.tree.angle_slow"),
+        "tree_support_top_rate" => Some("support.tree.top_rate"),
+        "tree_support_with_infill" => Some("support.tree.with_infill"),
 
         // Ironing sub-fields don't map to simple top-level fields.
         _ => None,
@@ -1283,6 +1355,227 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             parse_and_set_u32(value, &mut config.support.support_bottom_interface_layers)
         }
 
+        // --- Support config fields (OrcaSlicer + shared keys) ---
+        "enable_support" | "support_material" => {
+            config.support.enabled =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "support_type" | "support_material_type" | "support_style"
+        | "support_material_style" => {
+            if let Some(st) = map_support_type(value) {
+                config.support.support_type = st;
+                true
+            } else {
+                false
+            }
+        }
+        "support_threshold_angle" | "support_angle"
+        | "support_material_threshold" => {
+            parse_and_set_f64(value, &mut config.support.overhang_angle)
+        }
+        "support_base_pattern" | "support_material_pattern" => {
+            if let Some(p) = map_support_pattern(value) {
+                config.support.support_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "support_on_build_plate_only" | "support_material_buildplate_only" => {
+            config.support.build_plate_only =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "support_top_z_distance" | "support_material_contact_distance" => {
+            parse_and_set_f64(value, &mut config.support.z_gap)
+        }
+        "support_bottom_z_distance" | "support_material_bottom_contact_distance" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.support.bottom_z_gap = Some(v);
+                true
+            } else {
+                false
+            }
+        }
+        "support_object_xy_distance" | "support_material_xy_spacing" => {
+            parse_and_set_f64(value, &mut config.support.xy_gap)
+        }
+        "support_interface_top_layers" | "support_material_interface_layers" => {
+            parse_and_set_u32(value, &mut config.support.interface_layers)
+        }
+        "support_interface_bottom_layers"
+        | "support_material_bottom_interface_layers" => {
+            parse_and_set_u32(
+                value,
+                &mut config.support.support_bottom_interface_layers,
+            )
+        }
+        "support_interface_pattern" | "support_material_interface_pattern" => {
+            if let Some(p) = map_interface_pattern(value) {
+                config.support.interface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "support_base_pattern_spacing" | "support_material_spacing" => {
+            // Convert spacing to density: density = line_width / spacing.
+            if let Ok(spacing) = value.parse::<f64>() {
+                if spacing > 0.0 {
+                    let line_width = config
+                        .passthrough
+                        .get("line_width")
+                        .or_else(|| config.passthrough.get("extrusion_width"))
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .unwrap_or(0.4);
+                    config.support.support_density =
+                        (line_width / spacing).clamp(0.0, 1.0);
+                }
+                true
+            } else {
+                false
+            }
+        }
+        "support_interface_spacing" | "support_material_interface_spacing" => {
+            // Convert spacing to density: density = line_width / spacing.
+            if let Ok(spacing) = value.parse::<f64>() {
+                if spacing > 0.0 {
+                    let line_width = config
+                        .passthrough
+                        .get("line_width")
+                        .or_else(|| config.passthrough.get("extrusion_width"))
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .unwrap_or(0.4);
+                    config.support.interface_density =
+                        (line_width / spacing).clamp(0.0, 1.0);
+                } else {
+                    // spacing == 0 means 100% density.
+                    config.support.interface_density = 1.0;
+                }
+                true
+            } else {
+                false
+            }
+        }
+        "support_expansion" => {
+            parse_and_set_f64(value, &mut config.support.expansion)
+        }
+        "support_critical_regions_only" => {
+            config.support.critical_regions_only =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "support_remove_small_overhang" => {
+            config.support.remove_small_overhang =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "support_flow_ratio" | "support_material_flow" => {
+            parse_and_set_f64(value, &mut config.support.flow_ratio)
+        }
+        "support_interface_flow_ratio" | "support_material_interface_flow" => {
+            parse_and_set_f64(value, &mut config.support.interface_flow_ratio)
+        }
+        "support_material_synchronize_layers" => {
+            config.support.synchronize_layers =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "enforce_support_layers" | "support_material_enforce_layers" => {
+            parse_and_set_u32(value, &mut config.support.enforce_layers)
+        }
+        "support_closing_radius" | "support_material_closing_radius" => {
+            parse_and_set_f64(value, &mut config.support.closing_radius)
+        }
+        "support_material_auto" => {
+            // PrusaSlicer: "1" means auto-detect support type.
+            if value == "1" || value.eq_ignore_ascii_case("true") {
+                config.support.support_type = SupportType::Auto;
+            }
+            true
+        }
+        "raft_first_layer_expansion" => {
+            parse_and_set_f64(value, &mut config.support.raft_expansion)
+        }
+        "support_material_with_sheath" => {
+            // Store as passthrough (no direct equivalent field needed).
+            config
+                .passthrough
+                .insert(key.to_string(), value.to_string());
+            true
+        }
+
+        // --- Bridge config fields (support sub-struct) ---
+        "bridge_angle" => {
+            parse_and_set_f64(value, &mut config.support.bridge.angle)
+        }
+        "bridge_density" => {
+            parse_and_set_f64(value, &mut config.support.bridge.density)
+        }
+        "thick_bridges" => {
+            config.support.bridge.thick_bridges =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "bridge_no_support" => {
+            config.support.bridge.no_support =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "bridge_fan_speed" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.support.bridge.fan_speed = (v.clamp(0.0, 255.0)) as u8;
+                true
+            } else {
+                false
+            }
+        }
+
+        // --- Tree support fields ---
+        "tree_support_branch_angle" | "support_tree_angle" => {
+            parse_and_set_f64(value, &mut config.support.tree.branch_angle)
+        }
+        "tree_support_branch_diameter" | "support_tree_branch_diameter" => {
+            parse_and_set_f64(value, &mut config.support.tree.max_trunk_diameter)
+        }
+        "tree_support_tip_diameter" => {
+            parse_and_set_f64(value, &mut config.support.tree.tip_diameter)
+        }
+        "tree_support_branch_distance" | "support_tree_top_rate" => {
+            parse_and_set_f64(value, &mut config.support.tree.branch_distance)
+        }
+        "tree_support_branch_diameter_angle" => {
+            parse_and_set_f64(value, &mut config.support.tree.branch_diameter_angle)
+        }
+        "tree_support_wall_count" => {
+            parse_and_set_u32(value, &mut config.support.tree.wall_count)
+        }
+        "tree_support_auto_brim" => {
+            config.support.tree.auto_brim =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "tree_support_brim_width" => {
+            parse_and_set_f64(value, &mut config.support.tree.brim_width)
+        }
+        "tree_support_adaptive_layer_height" => {
+            config.support.tree.adaptive_layer_height =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "tree_support_angle_slow" => {
+            parse_and_set_f64(value, &mut config.support.tree.angle_slow)
+        }
+        "tree_support_top_rate" => {
+            parse_and_set_f64(value, &mut config.support.tree.top_rate)
+        }
+        "tree_support_with_infill" => {
+            config.support.tree.with_infill =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
         // --- Default: store unmapped fields in passthrough ---
         _ => {
             config
@@ -1408,6 +1701,48 @@ fn map_gcode_dialect(value: &str) -> Option<GcodeDialect> {
         "marlin" => Some(GcodeDialect::Marlin),
         "klipper" => Some(GcodeDialect::Klipper),
         "reprapfirmware" | "reprap" => Some(GcodeDialect::RepRapFirmware),
+        _ => None,
+    }
+}
+
+/// Map an upstream support type value to our `SupportType` enum.
+///
+/// Handles both OrcaSlicer and PrusaSlicer naming conventions:
+/// - OrcaSlicer: "none"/"disable", "normal(auto)"/"normal(manual)"/"grid", "tree(auto)"/"organic"/"tree_slim"
+/// - PrusaSlicer: "0" (none), "1" (auto), "snug", "grid", "organic"
+pub(crate) fn map_support_type(value: &str) -> Option<SupportType> {
+    match value.to_lowercase().as_str() {
+        "none" | "disable" | "0" => Some(SupportType::None),
+        "auto" | "default" | "1" => Some(SupportType::Auto),
+        "normal" | "normal(auto)" | "normal(manual)" | "grid" | "snug"
+        | "traditional" => Some(SupportType::Traditional),
+        "tree" | "tree(auto)" | "tree_slim" | "organic" => Some(SupportType::Tree),
+        _ => None,
+    }
+}
+
+/// Map an upstream support pattern value to our `SupportPattern` enum.
+///
+/// Handles both OrcaSlicer and PrusaSlicer pattern names.
+pub(crate) fn map_support_pattern(value: &str) -> Option<SupportPattern> {
+    match value.to_lowercase().as_str() {
+        "default" | "line" => Some(SupportPattern::Line),
+        "rectilinear" => Some(SupportPattern::Rectilinear),
+        "grid" => Some(SupportPattern::Grid),
+        "honeycomb" => Some(SupportPattern::Honeycomb),
+        "lightning" => Some(SupportPattern::Lightning),
+        _ => None,
+    }
+}
+
+/// Map an upstream support interface pattern value to our `InterfacePattern` enum.
+///
+/// Handles both OrcaSlicer and PrusaSlicer interface pattern names.
+pub(crate) fn map_interface_pattern(value: &str) -> Option<InterfacePattern> {
+    match value.to_lowercase().as_str() {
+        "default" | "rectilinear" | "auto" => Some(InterfacePattern::Rectilinear),
+        "grid" => Some(InterfacePattern::Grid),
+        "concentric" => Some(InterfacePattern::Concentric),
         _ => None,
     }
 }

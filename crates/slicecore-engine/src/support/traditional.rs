@@ -216,6 +216,30 @@ pub fn generate_support_infill(
                 None,
             )
         }
+        SupportPattern::Honeycomb => {
+            // Honeycomb pattern via the Honeycomb infill dispatch.
+            infill::generate_infill(
+                &InfillPattern::Honeycomb,
+                support_regions,
+                density,
+                layer_index,
+                0.0,
+                extrusion_width,
+                None,
+            )
+        }
+        SupportPattern::Lightning => {
+            // Lightning pattern via the Lightning infill dispatch.
+            infill::generate_infill(
+                &InfillPattern::Lightning,
+                support_regions,
+                density,
+                layer_index,
+                0.0,
+                extrusion_width,
+                None,
+            )
+        }
     }
 }
 
