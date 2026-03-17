@@ -455,28 +455,33 @@ These fields serve specialized use cases or UI-only purposes.
 
 | Sub-struct | Our Fields | Mapped from Upstream | Known Unmapped Upstream | Coverage |
 |------------|:---------:|:--------------------:|:---------------------:|:--------:|
-| PrintConfig (top-level) | 42 | 24 | ~8 | 57% |
+| PrintConfig (top-level) | 48 | 35 | ~5 | 73% |
 | LineWidthConfig | 7 | 7 | 0 | 100% |
 | SpeedConfig | 19 | 19 | ~3 | 100% (our fields) |
 | CoolingConfig | 11 | 10 | ~3 | 91% |
 | RetractionConfig | 9 | 9 | ~3 | 100% (our fields) |
-| MachineConfig | 28 | 25 | ~6 | 89% |
-| AccelerationConfig | 9 | 9 | ~3 | 100% (our fields) |
+| MachineConfig | 33 | 30 | ~3 | 91% |
+| AccelerationConfig | 16 | 16 | 0 | 100% (incl. jerk) |
 | FilamentPropsConfig | 16 | 16 | ~5 | 100% (our fields) |
-| SupportConfig + subs | 27 | 0 | ~15 | 0% (deferred) |
-| IroningConfig | 5 | 4 | ~1 | 80% |
-| ScarfJointConfig | 13 | 0 | ~8 | 0% (deferred) |
-| MultiMaterialConfig | 7 | 0 | ~6 | 0% (deferred) |
-| SequentialConfig | 6 | 4 | ~1 | 67% |
+| SupportConfig (body) | 27 | 26 | ~3 | 96% |
+| BridgeConfig | 9 | 8 | ~2 | 89% |
+| TreeSupportConfig | 16 | 12 | ~5 | 75% |
+| IroningConfig | 5 | 5 | 0 | 100% |
+| ScarfJointConfig | 18 | 16 | ~2 | 89% |
+| MultiMaterialConfig | 22 | 19 | ~10 | 86% |
+| SequentialConfig | 6 | 5 | ~1 | 83% |
 | PerFeatureFlow | 13 | 0 | 0 | N/A (our feature) |
-| CustomGcodeHooks | 5 | 0 | ~3 | 0% (deferred) |
-| PostProcessConfig + subs | 12 | 0 | ~2 | 0% (deferred) |
+| CustomGcodeHooks | 14 | 10 | ~2 | 71% |
+| PostProcessConfig + subs | 13 | 6 | ~1 | 46% |
 
-**Overall typed field count:** ~258 fields across all sub-structs
-**Overall upstream mapping coverage (of our fields):** ~127/258 = ~49%
-**Upstream keys we can consume:** ~150 unique OrcaSlicer keys
+**Overall typed field count:** ~310 fields across all sub-structs (was ~258 pre-Phase 34)
+**Overall upstream mapping coverage (of our fields):** ~249/310 = ~80% (was ~49%)
+**Upstream keys we can consume:** ~250 unique OrcaSlicer/PrusaSlicer keys (was ~150)
 **Estimated total OrcaSlicer keys:** ~400+
-**Gap:** ~65 missing fields identified (P0: 15, P1: 30, P2: 20)
+**Passthrough ratio on representative profiles:** <5% (was ~40%)
+**G-code template variable translations:** 60 (25 OrcaSlicer + 35 PrusaSlicer)
+
+*Updated 2026-03-17 after Phase 34 completion (Plans 02-06).*
 
 ---
 
