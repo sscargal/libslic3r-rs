@@ -240,6 +240,9 @@ pub struct SupportConfig {
     pub quality_preset: Option<QualityPreset>,
     /// Strategy for resolving conflicting configuration values.
     pub conflict_resolution: ConflictResolution,
+    /// Number of dense interface layers at the bottom of support (support floor).
+    /// OrcaSlicer: `support_bottom_interface_layers`. Range: 0-10. Default: 0.
+    pub support_bottom_interface_layers: u32,
 }
 
 impl Default for SupportConfig {
@@ -262,6 +265,7 @@ impl Default for SupportConfig {
             tree: TreeSupportConfig::default(),
             quality_preset: None,
             conflict_resolution: ConflictResolution::WarnOnConflict,
+            support_bottom_interface_layers: 0,
         }
     }
 }
@@ -316,7 +320,10 @@ mod tests {
         assert!(!config.build_plate_only);
         assert!(config.bridge_detection);
         assert!(config.quality_preset.is_none());
-        assert_eq!(config.conflict_resolution, ConflictResolution::WarnOnConflict);
+        assert_eq!(
+            config.conflict_resolution,
+            ConflictResolution::WarnOnConflict
+        );
     }
 
     #[test]
@@ -388,7 +395,11 @@ mod tests {
 
     #[test]
     fn support_pattern_serde_round_trip() {
-        let patterns = [SupportPattern::Grid, SupportPattern::Line, SupportPattern::Rectilinear];
+        let patterns = [
+            SupportPattern::Grid,
+            SupportPattern::Line,
+            SupportPattern::Rectilinear,
+        ];
         for p in &patterns {
             let json = serde_json::to_string(p).unwrap();
             let deserialized: SupportPattern = serde_json::from_str(&json).unwrap();
@@ -441,7 +452,10 @@ mod tests {
 
     #[test]
     fn conflict_resolution_serde_round_trip() {
-        let modes = [ConflictResolution::WarnOnConflict, ConflictResolution::SmartMerge];
+        let modes = [
+            ConflictResolution::WarnOnConflict,
+            ConflictResolution::SmartMerge,
+        ];
         for m in &modes {
             let json = serde_json::to_string(m).unwrap();
             let deserialized: ConflictResolution = serde_json::from_str(&json).unwrap();

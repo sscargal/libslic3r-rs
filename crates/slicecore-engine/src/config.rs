@@ -94,6 +94,136 @@ pub enum InternalBridgeMode {
     Always,
 }
 
+/// Brim adhesion type.
+///
+/// Controls where brim lines are placed relative to the object outline.
+/// Import mappers translate OrcaSlicer strings to these variants.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BrimType {
+    /// No brim (disabled).
+    #[default]
+    None,
+    /// Brim on the outer side of the object outline only.
+    Outer,
+    /// Brim on the inner side of the object outline only.
+    Inner,
+    /// Brim on both inner and outer sides.
+    Both,
+}
+
+/// Fuzzy skin configuration for textured surface finish.
+///
+/// When enabled, random displacements are applied to outer wall points
+/// to create a rough, organic texture on the print surface.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct FuzzySkinConfig {
+    /// Enable fuzzy skin effect on outer walls.
+    /// OrcaSlicer: `fuzzy_skin`. PrusaSlicer: `fuzzy_skin`.
+    /// Default: false.
+    pub enabled: bool,
+    /// Maximum random displacement amplitude in mm.
+    /// OrcaSlicer: `fuzzy_skin_thickness`. PrusaSlicer: `fuzzy_skin_thickness`.
+    /// Range: 0.0-1.0. Default: 0.3.
+    pub thickness: f64,
+    /// Distance between displacement points along the wall in mm.
+    /// OrcaSlicer: `fuzzy_skin_point_dist`. PrusaSlicer: `fuzzy_skin_point_distance`.
+    /// Range: 0.1-5.0. Default: 0.8.
+    pub point_distance: f64,
+}
+
+impl Default for FuzzySkinConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            thickness: 0.3,
+            point_distance: 0.8,
+        }
+    }
+}
+
+/// Additional brim and skirt configuration fields.
+///
+/// These fields supplement the existing top-level `skirt_loops`,
+/// `skirt_distance`, and `brim_width` fields in `PrintConfig`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BrimSkirtConfig {
+    /// Brim adhesion type (none/outer/inner/both).
+    /// OrcaSlicer: `brim_type`. PrusaSlicer: `brim_type`.
+    /// Default: None.
+    pub brim_type: BrimType,
+    /// Enable brim ears (brim only at sharp corners).
+    /// OrcaSlicer: `brim_ears`. Default: false.
+    pub brim_ears: bool,
+    /// Maximum overhang angle for brim ears in degrees.
+    /// OrcaSlicer: `brim_ears_max_angle`. Range: 0-180. Default: 125.0.
+    pub brim_ears_max_angle: f64,
+    /// Skirt height in layers.
+    /// OrcaSlicer: `skirt_height`. PrusaSlicer: `skirt_height`.
+    /// Range: 1-100. Default: 1.
+    pub skirt_height: u32,
+}
+
+impl Default for BrimSkirtConfig {
+    fn default() -> Self {
+        Self {
+            brim_type: BrimType::None,
+            brim_ears: false,
+            brim_ears_max_angle: 125.0,
+            skirt_height: 1,
+        }
+    }
+}
+
+/// Input shaping motion configuration.
+///
+/// Controls accel-to-decel factor used by firmware input shaping
+/// to reduce ringing artifacts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct InputShapingConfig {
+    /// Enable accel-to-decel factor for input shaping.
+    /// OrcaSlicer: `accel_to_decel_enable`. Default: false.
+    pub accel_to_decel_enable: bool,
+    /// Accel-to-decel factor ratio.
+    /// OrcaSlicer: `accel_to_decel_factor`. Range: 0.0-1.0. Default: 0.5.
+    pub accel_to_decel_factor: f64,
+}
+
+impl Default for InputShapingConfig {
+    fn default() -> Self {
+        Self {
+            accel_to_decel_enable: false,
+            accel_to_decel_factor: 0.5,
+        }
+    }
+}
+
+/// Tool change retraction configuration for multi-material printing.
+///
+/// Controls retraction behavior during filament cutting and tool changes.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ToolChangeRetractionConfig {
+    /// Retraction distance when filament is cut during tool change in mm.
+    /// OrcaSlicer: `retraction_distances_when_cut`. Default: 18.0.
+    pub retraction_distance_when_cut: f64,
+    /// Enable long retraction when filament is cut.
+    /// OrcaSlicer: `long_retractions_when_cut`. Default: false.
+    pub long_retraction_when_cut: bool,
+}
+
+impl Default for ToolChangeRetractionConfig {
+    fn default() -> Self {
+        Self {
+            retraction_distance_when_cut: 18.0,
+            long_retraction_when_cut: false,
+        }
+    }
+}
+
 /// Dimensional compensation configuration.
 ///
 /// Groups XY hole/contour compensation and elephant foot compensation.
@@ -223,6 +353,9 @@ pub struct SpeedConfig {
     /// OrcaSlicer: `internal_bridge_speed`. PrusaSlicer: N/A.
     /// Range: 0-300. Default: 0.0.
     pub internal_bridge_speed: f64,
+    /// Master switch for overhang speed adjustments.
+    /// OrcaSlicer: `enable_overhang_speed`. Default: true.
+    pub enable_overhang_speed: bool,
 }
 
 impl Default for SpeedConfig {
@@ -248,6 +381,7 @@ impl Default for SpeedConfig {
             overhang_4_4: 0.0,
             travel_z: 0.0,
             internal_bridge_speed: 0.0,
+            enable_overhang_speed: true,
         }
     }
 }
@@ -283,6 +417,12 @@ pub struct CoolingConfig {
     pub full_fan_speed_layer: u32,
     /// Enable automatic slowdown for layer cooling.
     pub slow_down_for_layer_cooling: bool,
+    /// Auxiliary/additional cooling fan speed as percentage (0-100).
+    /// OrcaSlicer: `additional_cooling_fan_speed`. Range: 0-100. Default: 0.0.
+    pub additional_cooling_fan_speed: f64,
+    /// Enable auxiliary cooling fan.
+    /// OrcaSlicer: `auxiliary_fan`. Default: false.
+    pub auxiliary_fan: bool,
 }
 
 impl Default for CoolingConfig {
@@ -299,6 +439,8 @@ impl Default for CoolingConfig {
             overhang_fan_threshold: 25.0,
             full_fan_speed_layer: 0,
             slow_down_for_layer_cooling: true,
+            additional_cooling_fan_speed: 0.0,
+            auxiliary_fan: false,
         }
     }
 }
@@ -538,6 +680,15 @@ pub struct AccelerationConfig {
     /// of the nominal acceleration distance. 0 = disabled.
     /// OrcaSlicer: `min_length_factor`. PrusaSlicer: N/A. Default: 0.0.
     pub min_length_factor: f64,
+    /// Internal solid infill acceleration in mm/s^2.
+    /// OrcaSlicer: `internal_solid_infill_acceleration`. Range: 0-50000. Default: 0.0 (use default).
+    pub internal_solid_infill_acceleration: f64,
+    /// Support acceleration in mm/s^2.
+    /// OrcaSlicer: `support_acceleration`. Range: 0-50000. Default: 0.0 (use default).
+    pub support_acceleration: f64,
+    /// Support interface acceleration in mm/s^2.
+    /// OrcaSlicer: `support_interface_acceleration`. Range: 0-50000. Default: 0.0 (use default).
+    pub support_interface_acceleration: f64,
 }
 
 impl Default for AccelerationConfig {
@@ -553,6 +704,9 @@ impl Default for AccelerationConfig {
             sparse_infill: 0.0,
             bridge: 0.0,
             min_length_factor: 0.0,
+            internal_solid_infill_acceleration: 0.0,
+            support_acceleration: 0.0,
+            support_interface_acceleration: 0.0,
         }
     }
 }
@@ -611,6 +765,9 @@ pub struct FilamentPropsConfig {
     /// OrcaSlicer: `z_offset` (in filament profile). PrusaSlicer: N/A.
     /// Range: -2.0 to 2.0. Default: 0.0.
     pub z_offset: f64,
+    /// Filament color as hex string (e.g., "#FF0000") for preview rendering.
+    /// OrcaSlicer: `filament_colour`. Default: "" (no color set).
+    pub filament_colour: String,
     // --- Per-bed-type temperatures (Vec<f64> for multi-extruder) ---
     /// Smooth/hot plate temperatures per extruder (degrees C).
     /// OrcaSlicer: `hot_plate_temp`. Default: empty (use bed_temperatures).
@@ -660,6 +817,7 @@ impl Default for FilamentPropsConfig {
             chamber_temperature: 0.0,
             filament_shrink: 100.0,
             z_offset: 0.0,
+            filament_colour: String::new(),
             hot_plate_temp: Vec::new(),
             cool_plate_temp: Vec::new(),
             eng_plate_temp: Vec::new(),
@@ -948,6 +1106,52 @@ pub struct PrintConfig {
     /// custom G-code injection) that run after G-code generation.
     #[serde(default)]
     pub post_process: PostProcessConfig,
+
+    // --- Fuzzy Skin (Phase 33) ---
+    /// Fuzzy skin configuration for textured surface finish.
+    pub fuzzy_skin: FuzzySkinConfig,
+
+    // --- Brim/Skirt Additions (Phase 33) ---
+    /// Additional brim and skirt configuration fields.
+    /// Note: existing skirt_loops, skirt_distance, brim_width remain at top-level.
+    pub brim_skirt: BrimSkirtConfig,
+
+    // --- Input Shaping (Phase 33) ---
+    /// Input shaping motion configuration.
+    pub input_shaping: InputShapingConfig,
+
+    // --- Precise Outer Wall (Phase 33) ---
+    /// Enable precise outer wall positioning for dimensional accuracy.
+    /// OrcaSlicer: `precise_outer_wall`. Default: false.
+    pub precise_outer_wall: bool,
+
+    // --- Draft Shield (Phase 33) ---
+    /// Enable draft shield (wall around print to block air currents).
+    /// OrcaSlicer: `draft_shield`. PrusaSlicer: `draft_shield`. Default: false.
+    pub draft_shield: bool,
+
+    // --- Ooze Prevention (Phase 33) ---
+    /// Enable ooze prevention (standby temp reduction for inactive tools).
+    /// OrcaSlicer: `ooze_prevention`. PrusaSlicer: `ooze_prevention`. Default: false.
+    pub ooze_prevention: bool,
+
+    // --- Infill Combination (Phase 33) ---
+    /// Combine infill every N layers (0 or 1 = disabled).
+    /// OrcaSlicer: `infill_combination`. Range: 0-10. Default: 0.
+    pub infill_combination: u32,
+
+    // --- Infill Anchor (Phase 33) ---
+    /// Maximum length of infill anchor in mm.
+    /// OrcaSlicer: `infill_anchor_max`. PrusaSlicer: `infill_anchor_max`. Range: 0-50. Default: 12.0.
+    pub infill_anchor_max: f64,
+
+    // --- Arachne Parameters (Phase 33) ---
+    /// Minimum bead width for Arachne wall generation in mm.
+    /// OrcaSlicer: `min_bead_width`. Range: 0.0-1.0. Default: 0.315.
+    pub min_bead_width: f64,
+    /// Minimum feature size for Arachne detection in mm.
+    /// OrcaSlicer: `min_feature_size`. Range: 0.0-1.0. Default: 0.25.
+    pub min_feature_size: f64,
 }
 
 fn default_thumbnail_resolution() -> [u32; 2] {
@@ -1237,6 +1441,17 @@ impl Default for PrintConfig {
             thumbnail_resolution: default_thumbnail_resolution(),
 
             post_process: PostProcessConfig::default(),
+
+            fuzzy_skin: FuzzySkinConfig::default(),
+            brim_skirt: BrimSkirtConfig::default(),
+            input_shaping: InputShapingConfig::default(),
+            precise_outer_wall: false,
+            draft_shield: false,
+            ooze_prevention: false,
+            infill_combination: 0,
+            infill_anchor_max: 12.0,
+            min_bead_width: 0.315,
+            min_feature_size: 0.25,
         }
     }
 }
@@ -1381,6 +1596,20 @@ pub struct MultiMaterialConfig {
     pub purge_volume: f64,
     /// Wipe length across the purge tower in mm.
     pub wipe_length: f64,
+    /// Filament/tool index for wall perimeters (0-based, None = use default).
+    /// OrcaSlicer: `wall_filament` (1-based). Import mapper translates to 0-based.
+    pub wall_filament: Option<usize>,
+    /// Filament/tool index for solid infill (0-based, None = use default).
+    /// OrcaSlicer: `solid_infill_filament` (1-based).
+    pub solid_infill_filament: Option<usize>,
+    /// Filament/tool index for support structures (0-based, None = use default).
+    /// OrcaSlicer: `support_filament` (1-based).
+    pub support_filament: Option<usize>,
+    /// Filament/tool index for support interface layers (0-based, None = use default).
+    /// OrcaSlicer: `support_interface_filament` (1-based).
+    pub support_interface_filament: Option<usize>,
+    /// Tool change retraction configuration.
+    pub tool_change_retraction: ToolChangeRetractionConfig,
 }
 
 impl Default for MultiMaterialConfig {
@@ -1393,6 +1622,11 @@ impl Default for MultiMaterialConfig {
             purge_tower_width: 15.0,
             purge_volume: 70.0,
             wipe_length: 2.0,
+            wall_filament: None,
+            solid_infill_filament: None,
+            support_filament: None,
+            support_interface_filament: None,
+            tool_change_retraction: ToolChangeRetractionConfig::default(),
         }
     }
 }
