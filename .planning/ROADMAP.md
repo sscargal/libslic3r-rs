@@ -694,10 +694,16 @@ Plans:
 
 ### Phase 35: ConfigSchema system with setting metadata and JSON Schema generation
 
-**Goal:** [To be planned]
+**Goal:** Build a per-field metadata system for all config settings using a proc-macro derive, populate a runtime SettingRegistry, and generate JSON Schema 2020-12 + flat metadata JSON output. Replace ad-hoc validation with schema-driven validation. Deliver a CLI schema command for querying and exporting. Annotate ALL ~387 fields with tier, description, units, constraints, affects, and category.
 **Requirements**: TBD
 **Depends on:** Phase 34
-**Plans:** 0 plans
+**Plans:** 7 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 35 to break down)
+- [ ] 35-01-PLAN.md -- Runtime types crate (SettingDefinition, SettingKey, ValueType, Tier, SettingCategory, SettingRegistry)
+- [ ] 35-02-PLAN.md -- Proc-macro derive crate (#[derive(SettingSchema)] for structs and enums)
+- [ ] 35-03-PLAN.md -- TIER_MAP.md design artifact with user review gate
+- [ ] 35-04-PLAN.md -- Annotate all config structs and enums in config.rs
+- [ ] 35-05-PLAN.md -- Annotate support/config.rs and cross-module enums
+- [ ] 35-06-PLAN.md -- JSON Schema generation, flat metadata JSON, search API, global registry
+- [ ] 35-07-PLAN.md -- CLI schema subcommand, schema-driven validation, integrity tests
