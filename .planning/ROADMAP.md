@@ -673,13 +673,24 @@ Plans:
 
 ### Phase 34: Support config and advanced feature profile import mapping
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Map ALL remaining unmapped config sections from upstream profiles (OrcaSlicer/BambuStudio/PrusaSlicer) to achieve 100% typed field coverage. Covers SupportConfig, ScarfJointConfig, MultiMaterialConfig, CustomGcodeHooks, PostProcessConfig, ~20 P2 niche fields, G-code template variable translation, and coverage reporting.
+**Requirements**: SUPPORT-MAP, SCARF-MAP, MULTI-MAP, GCODE-MAP, POST-MAP, P2-FIELDS, GCODE-TRANSLATE, PASSTHROUGH-THRESHOLD, ROUND-TRIP, RECONVERT
 **Depends on:** Phase 33
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. All 5 previously-0% sub-structs (SupportConfig, ScarfJoint, MultiMaterial, CustomGcode, PostProcess) have upstream field mappings in both JSON and INI importers
+  2. All ~20 P2 niche fields have typed config representation with upstream mappings
+  3. G-code template variable translation table exists and is wired into import pipeline
+  4. Passthrough ratio is below 5% on representative profiles
+  5. CONFIG_PARITY_AUDIT.md Section 4 reflects final coverage numbers
+**Plans:** 6 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 34 to break down)
+- [ ] 34-01-PLAN.md -- Comprehensive field inventory from real profile scanning
+- [ ] 34-02-PLAN.md -- SupportConfig + BridgeConfig + TreeSupportConfig field mapping (JSON + INI)
+- [ ] 34-03-PLAN.md -- ScarfJoint + MultiMaterial + CustomGcode field mapping (JSON + INI)
+- [ ] 34-04-PLAN.md -- PostProcess + P2 niche fields + straggler fields
+- [ ] 34-05-PLAN.md -- G-code template variable translation table and dual storage
+- [ ] 34-06-PLAN.md -- Integration tests, re-conversion, coverage report, audit update
 
 ### Phase 35: ConfigSchema system with setting metadata and JSON Schema generation
 
