@@ -538,10 +538,19 @@ pub struct MachineConfig {
     pub jerk_values_e: Vec<f64>,
     /// Machine start G-code template.
     pub start_gcode: String,
+    /// Verbatim start G-code from upstream profile before variable translation.
+    #[serde(default)]
+    pub start_gcode_original: String,
     /// Machine end G-code template.
     pub end_gcode: String,
+    /// Verbatim end G-code from upstream profile before variable translation.
+    #[serde(default)]
+    pub end_gcode_original: String,
     /// G-code inserted at every layer change.
     pub layer_change_gcode: String,
+    /// Verbatim layer change G-code from upstream profile before variable translation.
+    #[serde(default)]
+    pub layer_change_gcode_original: String,
     /// Nozzle type descriptor (e.g., "hardened_steel", "brass").
     pub nozzle_type: String,
     /// Printer model identifier.
@@ -654,8 +663,11 @@ impl Default for MachineConfig {
             jerk_values_z: vec![0.4],
             jerk_values_e: vec![2.5],
             start_gcode: String::new(),
+            start_gcode_original: String::new(),
             end_gcode: String::new(),
+            end_gcode_original: String::new(),
             layer_change_gcode: String::new(),
+            layer_change_gcode_original: String::new(),
             nozzle_type: String::new(),
             printer_model: String::new(),
             bed_shape: String::new(),

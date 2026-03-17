@@ -37,10 +37,19 @@ use serde::{Deserialize, Serialize};
 pub struct CustomGcodeHooks {
     /// G-code injected before each layer's Z move.
     pub before_layer_change: String,
+    /// Verbatim G-code from upstream profile before variable translation.
+    #[serde(default)]
+    pub before_layer_change_original: String,
     /// G-code injected after each layer's Z move.
     pub after_layer_change: String,
+    /// Verbatim G-code from upstream profile before variable translation.
+    #[serde(default)]
+    pub after_layer_change_original: String,
     /// G-code injected during tool changes (multi-material, future use).
     pub tool_change_gcode: String,
+    /// Verbatim G-code from upstream profile before variable translation.
+    #[serde(default)]
+    pub tool_change_gcode_original: String,
     /// Alias for `before_layer_change` (synonym used by some slicer UIs).
     /// If both are non-empty, `before_layer_change` takes precedence.
     pub before_every_layer: String,
@@ -50,12 +59,21 @@ pub struct CustomGcodeHooks {
     /// G-code injected on color change (M600 or equivalent).
     /// OrcaSlicer: `color_change_gcode`. PrusaSlicer: `color_change_gcode`.
     pub color_change: String,
+    /// Verbatim G-code from upstream profile before variable translation.
+    #[serde(default)]
+    pub color_change_original: String,
     /// G-code injected when print is paused.
     /// OrcaSlicer: `machine_pause_gcode` / `pause_print_gcode`.
     pub pause_print: String,
+    /// Verbatim G-code from upstream profile before variable translation.
+    #[serde(default)]
+    pub pause_print_original: String,
     /// G-code injected between objects in sequential printing mode.
     /// PrusaSlicer: `between_objects_gcode`.
     pub between_objects: String,
+    /// Verbatim G-code from upstream profile before variable translation.
+    #[serde(default)]
+    pub between_objects_original: String,
 }
 
 impl CustomGcodeHooks {

@@ -414,6 +414,85 @@ pub fn validate_config(config: &PrintConfig) -> Vec<ValidationIssue> {
         });
     }
 
+    // Phase 34: Support config range validation
+    if !(0.0..=90.0).contains(&config.support.overhang_angle) {
+        issues.push(ValidationIssue {
+            field: "support.overhang_angle".into(),
+            message: format!(
+                "Overhang angle {:.1} outside valid range 0-90 degrees",
+                config.support.overhang_angle
+            ),
+            severity: ValidationSeverity::Error,
+            value: format!("{}", config.support.overhang_angle),
+        });
+    }
+    if !(0.0..=1.0).contains(&config.support.support_density) {
+        issues.push(ValidationIssue {
+            field: "support.support_density".into(),
+            message: format!(
+                "Support density {:.2} outside valid range 0.0-1.0",
+                config.support.support_density
+            ),
+            severity: ValidationSeverity::Error,
+            value: format!("{}", config.support.support_density),
+        });
+    }
+    if !(0.0..=5.0).contains(&config.support.z_gap) {
+        issues.push(ValidationIssue {
+            field: "support.z_gap".into(),
+            message: format!(
+                "Support Z gap {:.2} mm outside valid range 0-5 mm",
+                config.support.z_gap
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.support.z_gap),
+        });
+    }
+    if !(0.0..=5.0).contains(&config.support.xy_gap) {
+        issues.push(ValidationIssue {
+            field: "support.xy_gap".into(),
+            message: format!(
+                "Support XY gap {:.2} mm outside valid range 0-5 mm",
+                config.support.xy_gap
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.support.xy_gap),
+        });
+    }
+    if !(0.1..=2.0).contains(&config.support.bridge.flow_ratio) {
+        issues.push(ValidationIssue {
+            field: "support.bridge.flow_ratio".into(),
+            message: format!(
+                "Bridge flow ratio {:.2} outside valid range 0.1-2.0",
+                config.support.bridge.flow_ratio
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.support.bridge.flow_ratio),
+        });
+    }
+    if !(1..=100).contains(&config.scarf_joint.scarf_steps) {
+        issues.push(ValidationIssue {
+            field: "scarf_joint.scarf_steps".into(),
+            message: format!(
+                "Scarf steps {} outside valid range 1-100",
+                config.scarf_joint.scarf_steps
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.scarf_joint.scarf_steps),
+        });
+    }
+    if !(1.0..=200.0).contains(&config.multi_material.purge_tower_width) {
+        issues.push(ValidationIssue {
+            field: "multi_material.purge_tower_width".into(),
+            message: format!(
+                "Wipe tower width {:.1} mm outside valid range 1-200 mm",
+                config.multi_material.purge_tower_width
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.multi_material.purge_tower_width),
+        });
+    }
+
     issues
 }
 
@@ -601,6 +680,40 @@ fn resolve_variable(name: &str, config: &PrintConfig) -> Option<String> {
         "support_bottom_interface_layers" | "support_material_bottom_interface_layers" => {
             Some(format!("{}", config.support.support_bottom_interface_layers))
         }
+
+        // Phase 34: Support fields
+        "support_density" => Some(format!("{}", config.support.support_density)),
+        "support_type" => Some(format!("{:?}", config.support.support_type).to_lowercase()),
+        "overhang_angle" | "support_threshold_angle" => {
+            Some(format!("{}", config.support.overhang_angle))
+        }
+        "support_z_gap" | "z_gap" => Some(format!("{}", config.support.z_gap)),
+        "support_xy_gap" | "xy_gap" => Some(format!("{}", config.support.xy_gap)),
+        "support_interface_layers" | "interface_layers" => {
+            Some(format!("{}", config.support.interface_layers))
+        }
+
+        // Phase 34: Bridge fields
+        "bridge_speed" => Some(format!("{}", config.support.bridge.speed)),
+        "bridge_flow_ratio" => Some(format!("{}", config.support.bridge.flow_ratio)),
+        "bridge_fan_speed" => Some(format!("{}", config.support.bridge.fan_speed)),
+
+        // Phase 34: Scarf joint fields
+        "scarf_start_height" => Some(format!("{}", config.scarf_joint.scarf_start_height)),
+        "scarf_length" => Some(format!("{}", config.scarf_joint.scarf_length)),
+        "scarf_steps" => Some(format!("{}", config.scarf_joint.scarf_steps)),
+
+        // Phase 34: Multi-material fields
+        "wipe_tower_width" | "purge_tower_width" => {
+            Some(format!("{}", config.multi_material.purge_tower_width))
+        }
+        "purge_volume" => Some(format!("{}", config.multi_material.purge_volume)),
+
+        // Phase 34: P2 fields
+        "slicing_tolerance" => {
+            Some(format!("{:?}", config.slicing_tolerance).to_lowercase())
+        }
+        "silent_mode" => Some(format!("{}", u8::from(config.machine.silent_mode))),
 
         // Passthrough fallback
         _ => config.passthrough.get(name).cloned(),

@@ -27,6 +27,7 @@ use std::collections::HashMap;
 use slicecore_gcode_io::GcodeDialect;
 
 use crate::config::PrintConfig;
+use crate::gcode_template;
 use crate::infill::InfillPattern;
 use crate::profile_import::{
     map_brim_type, map_interface_pattern, map_support_pattern, map_support_type,
@@ -717,17 +718,27 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
 
         // =====================================================================
         // Machine sub-config fields (PrusaSlicer names)
+        // Dual storage: original (verbatim) + translated (our variable names).
         // =====================================================================
         "start_gcode" => {
-            config.machine.start_gcode = value.to_string();
+            config.machine.start_gcode_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.machine.start_gcode =
+                gcode_template::translate_gcode_template(value, &table);
             true
         }
         "end_gcode" => {
-            config.machine.end_gcode = value.to_string();
+            config.machine.end_gcode_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.machine.end_gcode =
+                gcode_template::translate_gcode_template(value, &table);
             true
         }
         "layer_gcode" => {
-            config.machine.layer_change_gcode = value.to_string();
+            config.machine.layer_change_gcode_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.machine.layer_change_gcode =
+                gcode_template::translate_gcode_template(value, &table);
             true
         }
         "max_print_height" => parse_and_set_f64(value, &mut config.machine.printable_height),
@@ -1256,25 +1267,41 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
 
         // =====================================================================
         // Custom G-code hook fields (PrusaSlicer names)
+        // Dual storage: original (verbatim) + translated (our variable names).
         // =====================================================================
         "before_layer_gcode" => {
-            config.custom_gcode.before_layer_change = value.to_string();
+            config.custom_gcode.before_layer_change_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.custom_gcode.before_layer_change =
+                gcode_template::translate_gcode_template(value, &table);
             true
         }
         "toolchange_gcode" => {
-            config.custom_gcode.tool_change_gcode = value.to_string();
+            config.custom_gcode.tool_change_gcode_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.custom_gcode.tool_change_gcode =
+                gcode_template::translate_gcode_template(value, &table);
             true
         }
         "color_change_gcode" => {
-            config.custom_gcode.color_change = value.to_string();
+            config.custom_gcode.color_change_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.custom_gcode.color_change =
+                gcode_template::translate_gcode_template(value, &table);
             true
         }
         "pause_print_gcode" => {
-            config.custom_gcode.pause_print = value.to_string();
+            config.custom_gcode.pause_print_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.custom_gcode.pause_print =
+                gcode_template::translate_gcode_template(value, &table);
             true
         }
         "between_objects_gcode" => {
-            config.custom_gcode.between_objects = value.to_string();
+            config.custom_gcode.between_objects_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.custom_gcode.between_objects =
+                gcode_template::translate_gcode_template(value, &table);
             true
         }
 
@@ -2295,7 +2322,13 @@ fill_density = 10%
             "layer_gcode",
             ";LAYER:[layer_num]"
         ));
-        assert_eq!(config.machine.layer_change_gcode, ";LAYER:[layer_num]");
+        // Translation converts [layer_num] -> {layer_num}
+        assert_eq!(config.machine.layer_change_gcode, ";LAYER:{layer_num}");
+        // Original preserved verbatim
+        assert_eq!(
+            config.machine.layer_change_gcode_original,
+            ";LAYER:[layer_num]"
+        );
 
         assert!(apply_prusaslicer_field_mapping(
             &mut config,
