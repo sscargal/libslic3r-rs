@@ -263,6 +263,144 @@ pub fn validate_config(config: &PrintConfig) -> Vec<ValidationIssue> {
         });
     }
 
+    // --- P1 field range validations ---
+
+    // Fuzzy skin validation
+    if config.fuzzy_skin.enabled {
+        if config.fuzzy_skin.thickness > 1.0 {
+            issues.push(ValidationIssue {
+                field: "fuzzy_skin.thickness".into(),
+                message: format!(
+                    "Fuzzy skin thickness ({:.2} mm) exceeds typical range (0.0-1.0)",
+                    config.fuzzy_skin.thickness
+                ),
+                severity: ValidationSeverity::Warning,
+                value: format!("{}", config.fuzzy_skin.thickness),
+            });
+        }
+        if config.fuzzy_skin.point_distance < 0.1 || config.fuzzy_skin.point_distance > 5.0 {
+            issues.push(ValidationIssue {
+                field: "fuzzy_skin.point_distance".into(),
+                message: format!(
+                    "Fuzzy skin point distance ({:.2} mm) outside typical range (0.1-5.0)",
+                    config.fuzzy_skin.point_distance
+                ),
+                severity: ValidationSeverity::Warning,
+                value: format!("{}", config.fuzzy_skin.point_distance),
+            });
+        }
+    }
+
+    // Brim ears angle validation
+    if config.brim_skirt.brim_ears && config.brim_skirt.brim_ears_max_angle > 180.0 {
+        issues.push(ValidationIssue {
+            field: "brim_skirt.brim_ears_max_angle".into(),
+            message: format!(
+                "Brim ears max angle ({:.1}) exceeds 180 degrees",
+                config.brim_skirt.brim_ears_max_angle
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.brim_skirt.brim_ears_max_angle),
+        });
+    }
+
+    // Input shaping factor validation
+    if config.input_shaping.accel_to_decel_enable
+        && (config.input_shaping.accel_to_decel_factor < 0.0
+            || config.input_shaping.accel_to_decel_factor > 1.0)
+    {
+        issues.push(ValidationIssue {
+            field: "input_shaping.accel_to_decel_factor".into(),
+            message: format!(
+                "Accel-to-decel factor ({:.2}) outside range (0.0-1.0)",
+                config.input_shaping.accel_to_decel_factor
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.input_shaping.accel_to_decel_factor),
+        });
+    }
+
+    // Infill combination validation
+    if config.infill_combination > 10 {
+        issues.push(ValidationIssue {
+            field: "infill_combination".into(),
+            message: format!(
+                "Infill combination every {} layers is unusually high (typical: 0-10)",
+                config.infill_combination
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.infill_combination),
+        });
+    }
+
+    // Infill anchor max validation
+    if config.infill_anchor_max > 50.0 {
+        issues.push(ValidationIssue {
+            field: "infill_anchor_max".into(),
+            message: format!(
+                "Infill anchor max ({:.1} mm) exceeds typical range (0-50)",
+                config.infill_anchor_max
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.infill_anchor_max),
+        });
+    }
+
+    // Arachne parameter validation
+    if config.arachne_enabled {
+        if config.min_bead_width <= 0.0 || config.min_bead_width > 1.0 {
+            issues.push(ValidationIssue {
+                field: "min_bead_width".into(),
+                message: format!(
+                    "Min bead width ({:.3} mm) outside typical range (0.0-1.0)",
+                    config.min_bead_width
+                ),
+                severity: ValidationSeverity::Warning,
+                value: format!("{}", config.min_bead_width),
+            });
+        }
+        if config.min_feature_size <= 0.0 || config.min_feature_size > 1.0 {
+            issues.push(ValidationIssue {
+                field: "min_feature_size".into(),
+                message: format!(
+                    "Min feature size ({:.3} mm) outside typical range (0.0-1.0)",
+                    config.min_feature_size
+                ),
+                severity: ValidationSeverity::Warning,
+                value: format!("{}", config.min_feature_size),
+            });
+        }
+    }
+
+    // Tool change retraction validation
+    if config.multi_material.tool_change_retraction.retraction_distance_when_cut > 50.0 {
+        issues.push(ValidationIssue {
+            field: "multi_material.tool_change_retraction.retraction_distance_when_cut".into(),
+            message: format!(
+                "Tool change retraction distance ({:.1} mm) unusually large (>50)",
+                config.multi_material.tool_change_retraction.retraction_distance_when_cut
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!(
+                "{}",
+                config.multi_material.tool_change_retraction.retraction_distance_when_cut
+            ),
+        });
+    }
+
+    // Additional cooling fan speed validation
+    if config.cooling.additional_cooling_fan_speed > 100.0 {
+        issues.push(ValidationIssue {
+            field: "cooling.additional_cooling_fan_speed".into(),
+            message: format!(
+                "Additional cooling fan speed ({:.0}%) exceeds 100%",
+                config.cooling.additional_cooling_fan_speed
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.cooling.additional_cooling_fan_speed),
+        });
+    }
+
     // Internal bridge speed range
     if config.speeds.internal_bridge_speed > 300.0 {
         issues.push(ValidationIssue {
