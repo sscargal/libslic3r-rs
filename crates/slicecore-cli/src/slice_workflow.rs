@@ -595,6 +595,24 @@ pub fn generate_gcode_header(
     }
     header.push_str(";\n");
 
+    // P0 config field summary (Phase 32)
+    header.push_str(&format!("; xy_hole_compensation = {}\n", composed.config.dimensional_compensation.xy_hole_compensation));
+    header.push_str(&format!("; xy_contour_compensation = {}\n", composed.config.dimensional_compensation.xy_contour_compensation));
+    header.push_str(&format!("; elephant_foot_compensation = {}\n", composed.config.dimensional_compensation.elephant_foot_compensation));
+    header.push_str(&format!("; top_surface_pattern = {:?}\n", composed.config.top_surface_pattern));
+    header.push_str(&format!("; bottom_surface_pattern = {:?}\n", composed.config.bottom_surface_pattern));
+    header.push_str(&format!("; solid_infill_pattern = {:?}\n", composed.config.solid_infill_pattern));
+    header.push_str(&format!("; extra_perimeters_on_overhangs = {}\n", composed.config.extra_perimeters_on_overhangs));
+    header.push_str(&format!("; internal_bridge_support = {:?}\n", composed.config.internal_bridge_support));
+    header.push_str(&format!("; internal_bridge_speed = {}\n", composed.config.speeds.internal_bridge_speed));
+    header.push_str(&format!("; chamber_temperature = {}\n", composed.config.filament.chamber_temperature));
+    header.push_str(&format!("; filament_shrink = {}%\n", composed.config.filament.filament_shrink));
+    header.push_str(&format!("; z_offset = {} (global) + {} (filament)\n", composed.config.z_offset, composed.config.filament.z_offset));
+    header.push_str(&format!("; curr_bed_type = {:?}\n", composed.config.machine.curr_bed_type));
+    header.push_str(&format!("; precise_z_height = {}\n", composed.config.precise_z_height));
+    header.push_str(&format!("; min_length_factor = {}\n", composed.config.accel.min_length_factor));
+    header.push_str(";\n");
+
     // Full merged config as TOML comments
     if let Ok(toml_str) = toml::to_string_pretty(&composed.config) {
         for line in toml_str.lines() {
