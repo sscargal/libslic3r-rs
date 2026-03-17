@@ -47,6 +47,15 @@ pub struct CustomGcodeHooks {
     /// G-code injected at specific Z heights.
     /// Each entry is a `(z_height, gcode_string)` pair.
     pub custom_gcode_per_z: Vec<(f64, String)>,
+    /// G-code injected on color change (M600 or equivalent).
+    /// OrcaSlicer: `color_change_gcode`. PrusaSlicer: `color_change_gcode`.
+    pub color_change: String,
+    /// G-code injected when print is paused.
+    /// OrcaSlicer: `machine_pause_gcode` / `pause_print_gcode`.
+    pub pause_print: String,
+    /// G-code injected between objects in sequential printing mode.
+    /// PrusaSlicer: `between_objects_gcode`.
+    pub between_objects: String,
 }
 
 impl CustomGcodeHooks {

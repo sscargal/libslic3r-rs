@@ -405,6 +405,13 @@ pub fn prusaslicer_key_to_config_field(key: &str) -> Option<&'static str> {
         "support_material_enforce_layers" => Some("support.enforce_layers"),
         "support_material_closing_radius" => Some("support.closing_radius"),
 
+        // Custom G-code hook fields (PrusaSlicer).
+        "before_layer_gcode" => Some("custom_gcode.before_layer_change"),
+        "toolchange_gcode" => Some("custom_gcode.tool_change_gcode"),
+        "color_change_gcode" => Some("custom_gcode.color_change"),
+        "pause_print_gcode" => Some("custom_gcode.pause_print"),
+        "between_objects_gcode" => Some("custom_gcode.between_objects"),
+
         // Multi-material config fields (PrusaSlicer).
         "wipe_tower" => Some("multi_material.enabled"),
         "wipe_tower_x" => Some("multi_material.purge_tower_position"),
@@ -1224,6 +1231,30 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         "filament_colour" => {
             let first = first_comma_value(value);
             config.filament.filament_colour = first.to_string();
+            true
+        }
+
+        // =====================================================================
+        // Custom G-code hook fields (PrusaSlicer names)
+        // =====================================================================
+        "before_layer_gcode" => {
+            config.custom_gcode.before_layer_change = value.to_string();
+            true
+        }
+        "toolchange_gcode" => {
+            config.custom_gcode.tool_change_gcode = value.to_string();
+            true
+        }
+        "color_change_gcode" => {
+            config.custom_gcode.color_change = value.to_string();
+            true
+        }
+        "pause_print_gcode" => {
+            config.custom_gcode.pause_print = value.to_string();
+            true
+        }
+        "between_objects_gcode" => {
+            config.custom_gcode.between_objects = value.to_string();
             true
         }
 

@@ -732,6 +732,17 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "flush_into_support" => Some("multi_material.flush_into_support"),
         "purge_in_prime_tower" => Some("multi_material.purge_in_prime_tower"),
 
+        // --- Custom G-code hook fields ---
+        "before_layer_change_gcode" | "before_layer_gcode" => {
+            Some("custom_gcode.before_layer_change")
+        }
+        "change_filament_gcode" | "toolchange_gcode" | "tool_change_gcode" => {
+            Some("custom_gcode.tool_change_gcode")
+        }
+        "color_change_gcode" => Some("custom_gcode.color_change"),
+        "machine_pause_gcode" | "pause_print_gcode" => Some("custom_gcode.pause_print"),
+        "between_objects_gcode" => Some("custom_gcode.between_objects"),
+
         // Ironing sub-fields don't map to simple top-level fields.
         _ => None,
     }
@@ -1740,6 +1751,28 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "tree_support_with_infill" => {
             config.support.tree.with_infill =
                 value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- Custom G-code hook fields ---
+        "before_layer_change_gcode" | "before_layer_gcode" => {
+            config.custom_gcode.before_layer_change = value.to_string();
+            true
+        }
+        "change_filament_gcode" | "toolchange_gcode" | "tool_change_gcode" => {
+            config.custom_gcode.tool_change_gcode = value.to_string();
+            true
+        }
+        "color_change_gcode" => {
+            config.custom_gcode.color_change = value.to_string();
+            true
+        }
+        "machine_pause_gcode" | "pause_print_gcode" => {
+            config.custom_gcode.pause_print = value.to_string();
+            true
+        }
+        "between_objects_gcode" => {
+            config.custom_gcode.between_objects = value.to_string();
             true
         }
 
