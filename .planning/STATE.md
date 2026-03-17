@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 33-03-PLAN.md
-last_updated: "2026-03-17T01:49:41.035Z"
-last_activity: "2026-03-17 - Completed plan 33-03: Template Variables and Validation"
+stopped_at: Completed 33-04-PLAN.md
+last_updated: "2026-03-17T01:55:55.048Z"
+last_activity: "2026-03-17 - Completed plan 33-04: P1 Integration Tests"
 progress:
   total_phases: 35
-  completed_phases: 32
+  completed_phases: 33
   total_plans: 141
-  completed_plans: 140
-  percent: 99
+  completed_plans: 141
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 33 in progress -- P1 Config Gap Closure (Profile Fidelity Fields)
+**Current focus:** Phase 33 complete -- P1 Config Gap Closure (Profile Fidelity Fields)
 
 ## Current Position
 
 Phase: 33 of 35 (P1 Config Gap Closure - Profile Fidelity Fields)
-Plan: 3 of 3 in current phase (3 complete)
+Plan: 4 of 4 in current phase (4 complete)
 Status: Phase 33 Complete
-Last activity: 2026-03-17 - Completed plan 33-03: Template Variables and Validation
+Last activity: 2026-03-17 - Completed plan 33-04: P1 Integration Tests
 
-Progress: [██████████] 99% (140/141 overall)
+Progress: [██████████] 100% (141/141 overall)
 
 ## Performance Metrics
 
@@ -119,6 +119,7 @@ Progress: [██████████] 99% (140/141 overall)
 | Phase 33 P01 | 5min | 2 tasks | 3 files |
 | Phase 33 P02 | 3min | 2 tasks | 2 files |
 | Phase 33 P03 | 2min | 2 tasks | 1 files |
+| Phase 33 P04 | 4min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -598,6 +599,7 @@ Recent decisions affecting current work:
 - [Phase 33]: P1 config fields follow Phase 32 sub-struct pattern with #[serde(default)]
 - [Phase 33]: Shared map_brim_type as pub(crate) between JSON and INI importers
 - [Phase 33]: Filament index template variables emit 1-based values for G-code compatibility
+- [Phase 33]: P1 config fields fully verified with 28 integration tests covering defaults, round-trip, import, templates, and validation
 
 ### Roadmap Evolution
 

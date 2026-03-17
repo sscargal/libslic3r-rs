@@ -663,7 +663,7 @@ Plans:
 **Goal:** Add ~30 P1-priority config fields (FuzzySkinConfig, BrimSkirtConfig, InputShapingConfig, ToolChangeRetractionConfig sub-structs + extensions to AccelerationConfig, CoolingConfig, SpeedConfig, FilamentPropsConfig, MultiMaterialConfig) with OrcaSlicer JSON and PrusaSlicer INI import mappings, G-code template variables, and range validation -- config + mapping only, no engine behavior changes
 **Requirements**: P33-01 through P33-16
 **Depends on:** Phase 32
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 33-01-PLAN.md -- New sub-structs, BrimType enum, extend existing sub-structs, top-level fields
