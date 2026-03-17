@@ -35,7 +35,7 @@
 
 use slicecore_gcode_io::GcodeDialect;
 
-use crate::config::{BedType, InternalBridgeMode, PrintConfig, SurfacePattern};
+use crate::config::{BedType, BrimType, InternalBridgeMode, PrintConfig, SurfacePattern};
 use crate::error::EngineError;
 use crate::infill::InfillPattern;
 use crate::seam::SeamPosition;
@@ -588,6 +588,44 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
             Some("filament.textured_plate_temp_initial_layer")
         }
 
+        // --- P1 config gap closure fields ---
+        "fuzzy_skin" => Some("fuzzy_skin.enabled"),
+        "fuzzy_skin_thickness" => Some("fuzzy_skin.thickness"),
+        "fuzzy_skin_point_dist" => Some("fuzzy_skin.point_distance"),
+        "brim_type" => Some("brim_skirt.brim_type"),
+        "brim_ears" => Some("brim_skirt.brim_ears"),
+        "brim_ears_max_angle" => Some("brim_skirt.brim_ears_max_angle"),
+        "skirt_height" => Some("brim_skirt.skirt_height"),
+        "accel_to_decel_enable" => Some("input_shaping.accel_to_decel_enable"),
+        "accel_to_decel_factor" => Some("input_shaping.accel_to_decel_factor"),
+        "retraction_distances_when_cut" => {
+            Some("multi_material.tool_change_retraction.retraction_distance_when_cut")
+        }
+        "long_retractions_when_cut" => {
+            Some("multi_material.tool_change_retraction.long_retraction_when_cut")
+        }
+        "internal_solid_infill_acceleration" => {
+            Some("accel.internal_solid_infill_acceleration")
+        }
+        "support_acceleration" => Some("accel.support_acceleration"),
+        "support_interface_acceleration" => Some("accel.support_interface_acceleration"),
+        "additional_cooling_fan_speed" => Some("cooling.additional_cooling_fan_speed"),
+        "auxiliary_fan" => Some("cooling.auxiliary_fan"),
+        "enable_overhang_speed" => Some("speeds.enable_overhang_speed"),
+        "filament_colour" => Some("filament.filament_colour"),
+        "wall_filament" => Some("multi_material.wall_filament"),
+        "solid_infill_filament" => Some("multi_material.solid_infill_filament"),
+        "support_filament" => Some("multi_material.support_filament"),
+        "support_interface_filament" => Some("multi_material.support_interface_filament"),
+        "precise_outer_wall" => Some("precise_outer_wall"),
+        "draft_shield" => Some("draft_shield"),
+        "ooze_prevention" => Some("ooze_prevention"),
+        "infill_combination" | "infill_every_layers" => Some("infill_combination"),
+        "infill_anchor_max" => Some("infill_anchor_max"),
+        "min_bead_width" => Some("min_bead_width"),
+        "min_feature_size" => Some("min_feature_size"),
+        "support_bottom_interface_layers" => Some("support.support_bottom_interface_layers"),
+
         // Ironing sub-fields don't map to simple top-level fields.
         _ => None,
     }
@@ -1085,6 +1123,166 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             }
         }
 
+        // --- P1 config gap closure: fuzzy skin ---
+        "fuzzy_skin" => {
+            config.fuzzy_skin.enabled =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "fuzzy_skin_thickness" => parse_and_set_f64(value, &mut config.fuzzy_skin.thickness),
+        "fuzzy_skin_point_dist" => {
+            parse_and_set_f64(value, &mut config.fuzzy_skin.point_distance)
+        }
+
+        // --- P1 config gap closure: brim/skirt ---
+        "brim_type" => {
+            if let Some(bt) = map_brim_type(value) {
+                config.brim_skirt.brim_type = bt;
+                true
+            } else {
+                false
+            }
+        }
+        "brim_ears" => {
+            config.brim_skirt.brim_ears =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "brim_ears_max_angle" => {
+            parse_and_set_f64(value, &mut config.brim_skirt.brim_ears_max_angle)
+        }
+        "skirt_height" => parse_and_set_u32(value, &mut config.brim_skirt.skirt_height),
+
+        // --- P1 config gap closure: input shaping ---
+        "accel_to_decel_enable" => {
+            config.input_shaping.accel_to_decel_enable =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "accel_to_decel_factor" => {
+            parse_and_set_f64(value, &mut config.input_shaping.accel_to_decel_factor)
+        }
+
+        // --- P1 config gap closure: tool change retraction ---
+        "retraction_distances_when_cut" => {
+            // OrcaSlicer uses plural "distances" and may be an array; take first value.
+            let first = value.split(',').next().unwrap_or(value).trim();
+            parse_and_set_f64(
+                first,
+                &mut config.multi_material.tool_change_retraction.retraction_distance_when_cut,
+            )
+        }
+        "long_retractions_when_cut" => {
+            // OrcaSlicer uses plural "retractions" and may be an array; take first value.
+            let first = value.split(',').next().unwrap_or(value).trim();
+            config
+                .multi_material
+                .tool_change_retraction
+                .long_retraction_when_cut =
+                first == "1" || first.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- P1 config gap closure: acceleration ---
+        "internal_solid_infill_acceleration" => {
+            parse_and_set_f64(value, &mut config.accel.internal_solid_infill_acceleration)
+        }
+        "support_acceleration" => {
+            parse_and_set_f64(value, &mut config.accel.support_acceleration)
+        }
+        "support_interface_acceleration" => {
+            parse_and_set_f64(value, &mut config.accel.support_interface_acceleration)
+        }
+
+        // --- P1 config gap closure: cooling ---
+        "additional_cooling_fan_speed" => {
+            parse_and_set_f64(value, &mut config.cooling.additional_cooling_fan_speed)
+        }
+        "auxiliary_fan" => {
+            config.cooling.auxiliary_fan =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- P1 config gap closure: speed ---
+        "enable_overhang_speed" => {
+            config.speeds.enable_overhang_speed =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- P1 config gap closure: filament ---
+        "filament_colour" => {
+            // May be array for multi-extruder; take first value.
+            let first = value.split(';').next().unwrap_or(value).trim();
+            config.filament.filament_colour = first.to_string();
+            true
+        }
+
+        // --- P1 config gap closure: multi-material filament indices ---
+        "wall_filament" => {
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.wall_filament = if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
+        }
+        "solid_infill_filament" => {
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.solid_infill_filament =
+                    if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
+        }
+        "support_filament" => {
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.support_filament =
+                    if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
+        }
+        "support_interface_filament" => {
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.support_interface_filament =
+                    if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
+        }
+
+        // --- P1 config gap closure: top-level fields ---
+        "precise_outer_wall" => {
+            config.precise_outer_wall =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "draft_shield" => {
+            config.draft_shield = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "ooze_prevention" => {
+            config.ooze_prevention =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "infill_combination" | "infill_every_layers" => {
+            parse_and_set_u32(value, &mut config.infill_combination)
+        }
+        "infill_anchor_max" => parse_and_set_f64(value, &mut config.infill_anchor_max),
+        "min_bead_width" => parse_and_set_f64(value, &mut config.min_bead_width),
+        "min_feature_size" => parse_and_set_f64(value, &mut config.min_feature_size),
+
+        // --- P1 config gap closure: support ---
+        "support_bottom_interface_layers" => {
+            parse_and_set_u32(value, &mut config.support.support_bottom_interface_layers)
+        }
+
         // --- Default: store unmapped fields in passthrough ---
         _ => {
             config
@@ -1160,6 +1358,20 @@ pub(crate) fn map_internal_bridge_mode(value: &str) -> Option<InternalBridgeMode
         "0" | "false" | "off" | "disabled" => Some(InternalBridgeMode::Off),
         "1" | "true" | "auto" => Some(InternalBridgeMode::Auto),
         "2" | "always" => Some(InternalBridgeMode::Always),
+        _ => None,
+    }
+}
+
+/// Map an upstream brim type name to our `BrimType` enum.
+///
+/// Handles OrcaSlicer and PrusaSlicer naming conventions including underscore
+/// and space-separated variants.
+pub(crate) fn map_brim_type(value: &str) -> Option<BrimType> {
+    match value.to_lowercase().replace(' ', "").as_str() {
+        "no_brim" | "nobrim" | "none" => Some(BrimType::None),
+        "outer_only" | "outeronly" | "outer" => Some(BrimType::Outer),
+        "inner_only" | "inneronly" | "inner" => Some(BrimType::Inner),
+        "outer_and_inner" | "outerandinner" | "both" => Some(BrimType::Both),
         _ => None,
     }
 }
