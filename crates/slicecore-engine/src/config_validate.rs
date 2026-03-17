@@ -377,6 +377,93 @@ fn resolve_variable(name: &str, config: &PrintConfig) -> Option<String> {
         // Precise Z
         "precise_z_height" => Some(format!("{}", u8::from(config.precise_z_height))),
 
+        // Fuzzy skin
+        "fuzzy_skin" => Some(format!("{}", u8::from(config.fuzzy_skin.enabled))),
+        "fuzzy_skin_thickness" => Some(format!("{}", config.fuzzy_skin.thickness)),
+        "fuzzy_skin_point_dist" | "fuzzy_skin_point_distance" => {
+            Some(format!("{}", config.fuzzy_skin.point_distance))
+        }
+
+        // Brim/skirt
+        "brim_type" => Some(format!("{:?}", config.brim_skirt.brim_type).to_lowercase()),
+        "brim_ears" => Some(format!("{}", u8::from(config.brim_skirt.brim_ears))),
+        "brim_ears_max_angle" => Some(format!("{}", config.brim_skirt.brim_ears_max_angle)),
+        "skirt_height" => Some(format!("{}", config.brim_skirt.skirt_height)),
+
+        // Input shaping
+        "accel_to_decel_enable" => {
+            Some(format!("{}", u8::from(config.input_shaping.accel_to_decel_enable)))
+        }
+        "accel_to_decel_factor" => {
+            Some(format!("{}", config.input_shaping.accel_to_decel_factor))
+        }
+
+        // Tool-change retraction
+        "retraction_distances_when_cut" => Some(format!(
+            "{}",
+            config.multi_material.tool_change_retraction.retraction_distance_when_cut
+        )),
+        "long_retractions_when_cut" => Some(format!(
+            "{}",
+            u8::from(config.multi_material.tool_change_retraction.long_retraction_when_cut)
+        )),
+
+        // Acceleration extensions
+        "internal_solid_infill_acceleration" => {
+            Some(format!("{}", config.accel.internal_solid_infill_acceleration))
+        }
+        "support_acceleration" => Some(format!("{}", config.accel.support_acceleration)),
+        "support_interface_acceleration" => {
+            Some(format!("{}", config.accel.support_interface_acceleration))
+        }
+
+        // Cooling extensions
+        "additional_cooling_fan_speed" => {
+            Some(format!("{}", config.cooling.additional_cooling_fan_speed))
+        }
+        "auxiliary_fan" => Some(format!("{}", u8::from(config.cooling.auxiliary_fan))),
+
+        // Speed extension
+        "enable_overhang_speed" => {
+            Some(format!("{}", u8::from(config.speeds.enable_overhang_speed)))
+        }
+
+        // Filament colour
+        "filament_colour" => Some(config.filament.filament_colour.clone()),
+
+        // Multi-material filament indices (1-based for G-code compatibility, 0 = default)
+        "wall_filament" => {
+            Some(format!("{}", config.multi_material.wall_filament.map_or(0, |v| v + 1)))
+        }
+        "solid_infill_filament" => Some(format!(
+            "{}",
+            config.multi_material.solid_infill_filament.map_or(0, |v| v + 1)
+        )),
+        "support_filament" => Some(format!(
+            "{}",
+            config.multi_material.support_filament.map_or(0, |v| v + 1)
+        )),
+        "support_interface_filament" => Some(format!(
+            "{}",
+            config.multi_material.support_interface_filament.map_or(0, |v| v + 1)
+        )),
+
+        // Top-level PrintConfig P1 fields
+        "precise_outer_wall" => Some(format!("{}", u8::from(config.precise_outer_wall))),
+        "draft_shield" => Some(format!("{}", u8::from(config.draft_shield))),
+        "ooze_prevention" => Some(format!("{}", u8::from(config.ooze_prevention))),
+        "infill_combination" | "infill_every_layers" => {
+            Some(format!("{}", config.infill_combination))
+        }
+        "infill_anchor_max" => Some(format!("{}", config.infill_anchor_max)),
+        "min_bead_width" => Some(format!("{}", config.min_bead_width)),
+        "min_feature_size" => Some(format!("{}", config.min_feature_size)),
+
+        // Support
+        "support_bottom_interface_layers" | "support_material_bottom_interface_layers" => {
+            Some(format!("{}", config.support.support_bottom_interface_layers))
+        }
+
         // Passthrough fallback
         _ => config.passthrough.get(name).cloned(),
     }
