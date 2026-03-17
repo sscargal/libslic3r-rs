@@ -35,7 +35,7 @@
 
 use slicecore_gcode_io::GcodeDialect;
 
-use crate::config::PrintConfig;
+use crate::config::{BedType, InternalBridgeMode, PrintConfig, SurfacePattern};
 use crate::error::EngineError;
 use crate::infill::InfillPattern;
 use crate::seam::SeamPosition;
@@ -344,18 +344,54 @@ fn apply_array_field_mapping(
             config.filament.nozzle_temperatures = extract_array_f64(value);
             true
         }
-        "bed_temperature" | "hot_plate_temp" => {
+        "bed_temperature" => {
             config.filament.bed_temperatures = extract_array_f64(value);
+            true
+        }
+        "hot_plate_temp" => {
+            let temps = extract_array_f64(value);
+            config.filament.bed_temperatures = temps.clone();
+            config.filament.hot_plate_temp = temps;
             true
         }
         "nozzle_temperature_initial_layer" | "first_layer_temperature" => {
             config.filament.first_layer_nozzle_temperatures = extract_array_f64(value);
             true
         }
-        "bed_temperature_initial_layer"
-        | "first_layer_bed_temperature"
-        | "hot_plate_temp_initial_layer" => {
+        "bed_temperature_initial_layer" | "first_layer_bed_temperature" => {
             config.filament.first_layer_bed_temperatures = extract_array_f64(value);
+            true
+        }
+        "hot_plate_temp_initial_layer" => {
+            let temps = extract_array_f64(value);
+            config.filament.first_layer_bed_temperatures = temps.clone();
+            config.filament.hot_plate_temp_initial_layer = temps;
+            true
+        }
+
+        // --- Per-bed-type temperature arrays (OrcaSlicer-specific) ---
+        "cool_plate_temp" => {
+            config.filament.cool_plate_temp = extract_array_f64(value);
+            true
+        }
+        "eng_plate_temp" => {
+            config.filament.eng_plate_temp = extract_array_f64(value);
+            true
+        }
+        "textured_plate_temp" => {
+            config.filament.textured_plate_temp = extract_array_f64(value);
+            true
+        }
+        "cool_plate_temp_initial_layer" => {
+            config.filament.cool_plate_temp_initial_layer = extract_array_f64(value);
+            true
+        }
+        "eng_plate_temp_initial_layer" => {
+            config.filament.eng_plate_temp_initial_layer = extract_array_f64(value);
+            true
+        }
+        "textured_plate_temp_initial_layer" => {
+            config.filament.textured_plate_temp_initial_layer = extract_array_f64(value);
             true
         }
         _ => false,
@@ -527,6 +563,30 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "resolution" => Some("resolution"),
         "raft_layers" => Some("raft_layers"),
         "detect_thin_wall" | "thin_walls" => Some("detect_thin_wall"),
+
+        // --- P0 config gap closure fields ---
+        "xy_hole_compensation" => Some("dimensional_compensation.xy_hole_compensation"),
+        "xy_contour_compensation" => Some("dimensional_compensation.xy_contour_compensation"),
+        "top_surface_pattern" => Some("top_surface_pattern"),
+        "bottom_surface_pattern" => Some("bottom_surface_pattern"),
+        "internal_solid_infill_pattern" => Some("solid_infill_pattern"),
+        "extra_perimeters_on_overhangs" => Some("extra_perimeters_on_overhangs"),
+        "internal_bridge_speed" => Some("speeds.internal_bridge_speed"),
+        "internal_bridge_support_enabled" => Some("internal_bridge_support"),
+        "filament_shrinkage_compensation" => Some("filament.filament_shrink"),
+        "z_offset" => Some("z_offset"),
+        "precise_z_height" => Some("precise_z_height"),
+        "min_length_factor" => Some("accel.min_length_factor"),
+        "chamber_temperature" => Some("filament.chamber_temperature"),
+        "curr_bed_type" => Some("machine.curr_bed_type"),
+        "cool_plate_temp" => Some("filament.cool_plate_temp"),
+        "eng_plate_temp" => Some("filament.eng_plate_temp"),
+        "textured_plate_temp" => Some("filament.textured_plate_temp"),
+        "cool_plate_temp_initial_layer" => Some("filament.cool_plate_temp_initial_layer"),
+        "eng_plate_temp_initial_layer" => Some("filament.eng_plate_temp_initial_layer"),
+        "textured_plate_temp_initial_layer" => {
+            Some("filament.textured_plate_temp_initial_layer")
+        }
 
         // Ironing sub-fields don't map to simple top-level fields.
         _ => None,
@@ -937,6 +997,94 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             true
         }
 
+        // --- P0 config gap closure: dimensional compensation ---
+        "xy_hole_compensation" => {
+            parse_and_set_f64(value, &mut config.dimensional_compensation.xy_hole_compensation)
+        }
+        "xy_contour_compensation" => {
+            parse_and_set_f64(value, &mut config.dimensional_compensation.xy_contour_compensation)
+        }
+
+        // --- P0 config gap closure: surface patterns ---
+        "top_surface_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.top_surface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "bottom_surface_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.bottom_surface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "internal_solid_infill_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.solid_infill_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+
+        // --- P0 config gap closure: overhang perimeters ---
+        "extra_perimeters_on_overhangs" => {
+            config.extra_perimeters_on_overhangs =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- P0 config gap closure: bridge settings ---
+        "internal_bridge_speed" => {
+            parse_and_set_f64(value, &mut config.speeds.internal_bridge_speed)
+        }
+        "internal_bridge_support_enabled" => {
+            if let Some(mode) = map_internal_bridge_mode(value) {
+                config.internal_bridge_support = mode;
+                true
+            } else {
+                false
+            }
+        }
+
+        // --- P0 config gap closure: filament shrink ---
+        "filament_shrinkage_compensation" => {
+            parse_and_set_f64(value, &mut config.filament.filament_shrink)
+        }
+
+        // --- P0 config gap closure: z offset (global) ---
+        "z_offset" => parse_and_set_f64(value, &mut config.z_offset),
+
+        // --- P0 config gap closure: precise Z ---
+        "precise_z_height" => {
+            config.precise_z_height = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- P0 config gap closure: acceleration min_length_factor ---
+        "min_length_factor" => parse_and_set_f64(value, &mut config.accel.min_length_factor),
+
+        // --- P0 config gap closure: chamber temperature ---
+        // OrcaSlicer uses same key in both machine and filament contexts.
+        // Import as filament by default; machine profiles use separate mapping.
+        "chamber_temperature" => {
+            parse_and_set_f64(value, &mut config.filament.chamber_temperature)
+        }
+
+        // --- P0 config gap closure: bed type ---
+        "curr_bed_type" => {
+            if let Some(bt) = map_bed_type(value) {
+                config.machine.curr_bed_type = bt;
+                true
+            } else {
+                false
+            }
+        }
+
         // --- Default: store unmapped fields in passthrough ---
         _ => {
             config
@@ -977,6 +1125,44 @@ fn parse_and_set_u32(value: &str, target: &mut u32) -> bool {
 // ---------------------------------------------------------------------------
 // Enum mapping helpers (private)
 // ---------------------------------------------------------------------------
+
+/// Map an upstream surface pattern name to our `SurfacePattern` enum.
+///
+/// Handles OrcaSlicer and PrusaSlicer naming conventions.
+pub(crate) fn map_surface_pattern(value: &str) -> Option<SurfacePattern> {
+    match value.to_lowercase().as_str() {
+        "rectilinear" | "zig-zag" | "line" => Some(SurfacePattern::Rectilinear),
+        "monotonic" => Some(SurfacePattern::Monotonic),
+        "monotonicline" | "monotonic_line" => Some(SurfacePattern::MonotonicLine),
+        "concentric" => Some(SurfacePattern::Concentric),
+        "hilbertcurve" | "hilbert" => Some(SurfacePattern::Hilbert),
+        "archimedeanchords" | "archimedean" => Some(SurfacePattern::Archimedean),
+        _ => None,
+    }
+}
+
+/// Map an upstream bed type name to our `BedType` enum.
+pub(crate) fn map_bed_type(value: &str) -> Option<BedType> {
+    match value.to_lowercase().replace(' ', "").as_str() {
+        "coolplate" | "cool_plate" => Some(BedType::CoolPlate),
+        "engineeringplate" | "engineering_plate" | "epplate" => Some(BedType::EngineeringPlate),
+        "hightempplate" | "high_temp_plate" | "hotplate" => Some(BedType::HighTempPlate),
+        "texturedpeiplate" | "textured_pei" | "texturedpei" => Some(BedType::TexturedPei),
+        "smoothpeiplate" | "smooth_pei" | "smoothpei" => Some(BedType::SmoothPei),
+        "satinpeiplate" | "satin_pei" | "satinpei" => Some(BedType::SatinPei),
+        _ => None,
+    }
+}
+
+/// Map an upstream internal bridge mode value to our `InternalBridgeMode` enum.
+pub(crate) fn map_internal_bridge_mode(value: &str) -> Option<InternalBridgeMode> {
+    match value.to_lowercase().as_str() {
+        "0" | "false" | "off" | "disabled" => Some(InternalBridgeMode::Off),
+        "1" | "true" | "auto" => Some(InternalBridgeMode::Auto),
+        "2" | "always" => Some(InternalBridgeMode::Always),
+        _ => None,
+    }
+}
 
 /// Map an OrcaSlicer infill pattern name to our InfillPattern enum.
 fn map_infill_pattern(value: &str) -> Option<InfillPattern> {
