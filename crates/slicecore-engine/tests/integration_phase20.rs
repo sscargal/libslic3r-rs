@@ -242,9 +242,11 @@ fn test_passthrough_storage() {
 #[test]
 #[ignore] // Requires profiles/ directory from import-profiles
 fn test_converted_toml_has_nested_sections() {
-    let process_path = "/home/steve/libslic3r-rs/profiles/bambustudio/BBL/process/0.20mm_Standard_BBL_X1C.toml";
+    let process_path =
+        "/home/steve/libslic3r-rs/profiles/bambustudio/BBL/process/0.20mm_Standard_BBL_X1C.toml";
     let machine_path = "/home/steve/libslic3r-rs/profiles/bambustudio/BBL/machine/Bambu_Lab_X1_Carbon_0.4_nozzle.toml";
-    let filament_dir = std::path::Path::new("/home/steve/libslic3r-rs/profiles/bambustudio/BBL/filament");
+    let filament_dir =
+        std::path::Path::new("/home/steve/libslic3r-rs/profiles/bambustudio/BBL/filament");
 
     // Process profile should have [speeds] and [accel]
     let process_toml = std::fs::read_to_string(process_path)
@@ -311,11 +313,13 @@ fn test_converted_toml_has_nested_sections() {
 #[test]
 #[ignore] // Requires profiles/ directory from import-profiles
 fn test_x1c_profiles_have_comprehensive_settings() {
-    let process_path = "/home/steve/libslic3r-rs/profiles/bambustudio/BBL/process/0.20mm_Standard_BBL_X1C.toml";
+    let process_path =
+        "/home/steve/libslic3r-rs/profiles/bambustudio/BBL/process/0.20mm_Standard_BBL_X1C.toml";
     let machine_path = "/home/steve/libslic3r-rs/profiles/bambustudio/BBL/machine/Bambu_Lab_X1_Carbon_0.4_nozzle.toml";
 
     // Find a PLA filament profile for X1C
-    let filament_dir = std::path::Path::new("/home/steve/libslic3r-rs/profiles/bambustudio/BBL/filament");
+    let filament_dir =
+        std::path::Path::new("/home/steve/libslic3r-rs/profiles/bambustudio/BBL/filament");
     let filament_path = find_filament_profile(filament_dir, "PLA")
         .expect("Should find a PLA filament profile for BambuStudio");
 
@@ -327,10 +331,10 @@ fn test_x1c_profiles_have_comprehensive_settings() {
     let filament_toml = std::fs::read_to_string(&filament_path)
         .unwrap_or_else(|e| panic!("Failed to read {}: {}", filament_path.display(), e));
 
-    let process_config: PrintConfig = toml::from_str(&process_toml)
-        .unwrap_or_else(|e| panic!("Failed to parse process: {}", e));
-    let machine_config: PrintConfig = toml::from_str(&machine_toml)
-        .unwrap_or_else(|e| panic!("Failed to parse machine: {}", e));
+    let process_config: PrintConfig =
+        toml::from_str(&process_toml).unwrap_or_else(|e| panic!("Failed to parse process: {}", e));
+    let machine_config: PrintConfig =
+        toml::from_str(&machine_toml).unwrap_or_else(|e| panic!("Failed to parse machine: {}", e));
     let filament_config: PrintConfig = toml::from_str(&filament_toml)
         .unwrap_or_else(|e| panic!("Failed to parse filament: {}", e));
 
@@ -491,7 +495,7 @@ fn test_sc1_critical_process_fields() {
 
     // Process misc fields
     let _ = config.bridge_flow;
-    let _ = config.elefant_foot_compensation;
+    let _ = config.dimensional_compensation.elephant_foot_compensation;
     let _ = config.infill_direction;
     let _ = config.infill_wall_overlap;
     let _ = config.spiral_mode;
@@ -637,7 +641,10 @@ fn test_sc4_json_mapper_50_plus_fields() {
     // Cooling fields
     obj.insert("fan_max_speed".into(), serde_json::json!(["100"]));
     obj.insert("fan_min_speed".into(), serde_json::json!(["35"]));
-    obj.insert("slow_down_for_layer_cooling".into(), serde_json::json!(["1"]));
+    obj.insert(
+        "slow_down_for_layer_cooling".into(),
+        serde_json::json!(["1"]),
+    );
     obj.insert("slow_down_layer_time".into(), serde_json::json!(["8"]));
     obj.insert("slow_down_min_speed".into(), serde_json::json!(["10"]));
     obj.insert("overhang_fan_speed".into(), serde_json::json!(["100"]));
@@ -691,33 +698,27 @@ fn test_sc5_ini_mapper_expanded_fields() {
     fields.insert("retract_length".to_string(), "0.8".to_string());
     fields.insert("retract_speed".to_string(), "35".to_string());
     fields.insert("retract_lift".to_string(), "0.3".to_string());
-    fields.insert(
-        "retract_before_travel".to_string(),
-        "2.0".to_string(),
-    );
+    fields.insert("retract_before_travel".to_string(), "2.0".to_string());
     fields.insert("deretract_speed".to_string(), "25".to_string());
 
     // Machine fields
     fields.insert("nozzle_diameter".to_string(), "0.4".to_string());
-    fields.insert("bed_shape".to_string(), "0x0,250x0,250x210,0x210".to_string());
+    fields.insert(
+        "bed_shape".to_string(),
+        "0x0,250x0,250x210,0x210".to_string(),
+    );
     fields.insert("start_gcode".to_string(), "G28\nG29".to_string());
     fields.insert("end_gcode".to_string(), "M104 S0".to_string());
     fields.insert("max_print_speed".to_string(), "200".to_string());
     fields.insert("machine_max_acceleration_x".to_string(), "5000".to_string());
     fields.insert("machine_max_acceleration_y".to_string(), "5000".to_string());
     fields.insert("machine_max_acceleration_z".to_string(), "100".to_string());
-    fields.insert(
-        "machine_max_acceleration_e".to_string(),
-        "5000".to_string(),
-    );
+    fields.insert("machine_max_acceleration_e".to_string(), "5000".to_string());
 
     // Acceleration
     fields.insert("default_acceleration".to_string(), "1000".to_string());
     fields.insert("travel_acceleration".to_string(), "1500".to_string());
-    fields.insert(
-        "first_layer_acceleration".to_string(),
-        "500".to_string(),
-    );
+    fields.insert("first_layer_acceleration".to_string(), "500".to_string());
 
     // Filament props
     fields.insert("filament_diameter".to_string(), "1.75".to_string());
@@ -728,14 +729,8 @@ fn test_sc5_ini_mapper_expanded_fields() {
     fields.insert("max_volumetric_speed".to_string(), "15".to_string());
     fields.insert("temperature".to_string(), "215".to_string());
     fields.insert("bed_temperature".to_string(), "60".to_string());
-    fields.insert(
-        "first_layer_temperature".to_string(),
-        "220".to_string(),
-    );
-    fields.insert(
-        "first_layer_bed_temperature".to_string(),
-        "65".to_string(),
-    );
+    fields.insert("first_layer_temperature".to_string(), "220".to_string());
+    fields.insert("first_layer_bed_temperature".to_string(), "65".to_string());
 
     // Cooling
     fields.insert("min_fan_speed".to_string(), "35".to_string());
@@ -748,22 +743,10 @@ fn test_sc5_ini_mapper_expanded_fields() {
         "external_perimeter_extrusion_width".to_string(),
         "0.42".to_string(),
     );
-    fields.insert(
-        "perimeter_extrusion_width".to_string(),
-        "0.45".to_string(),
-    );
-    fields.insert(
-        "infill_extrusion_width".to_string(),
-        "0.45".to_string(),
-    );
-    fields.insert(
-        "top_infill_extrusion_width".to_string(),
-        "0.42".to_string(),
-    );
-    fields.insert(
-        "first_layer_extrusion_width".to_string(),
-        "0.5".to_string(),
-    );
+    fields.insert("perimeter_extrusion_width".to_string(), "0.45".to_string());
+    fields.insert("infill_extrusion_width".to_string(), "0.45".to_string());
+    fields.insert("top_infill_extrusion_width".to_string(), "0.42".to_string());
+    fields.insert("first_layer_extrusion_width".to_string(), "0.5".to_string());
     fields.insert(
         "solid_infill_extrusion_width".to_string(),
         "0.42".to_string(),
@@ -855,7 +838,11 @@ fn walkdir(base: &std::path::Path, subdir: &str) -> Vec<std::path::PathBuf> {
     results
 }
 
-fn walk_recursive(dir: &std::path::Path, target_subdir: &str, results: &mut Vec<std::path::PathBuf>) {
+fn walk_recursive(
+    dir: &std::path::Path,
+    target_subdir: &str,
+    results: &mut Vec<std::path::PathBuf>,
+) {
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -883,10 +870,7 @@ fn collect_toml_files(dir: &std::path::Path, results: &mut Vec<std::path::PathBu
 }
 
 /// Find a filament profile containing a keyword in its filename.
-fn find_filament_profile(
-    dir: &std::path::Path,
-    keyword: &str,
-) -> Option<std::path::PathBuf> {
+fn find_filament_profile(dir: &std::path::Path, keyword: &str) -> Option<std::path::PathBuf> {
     if !dir.exists() {
         return None;
     }

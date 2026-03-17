@@ -129,14 +129,8 @@ pub fn import_upstream_profile(value: &serde_json::Value) -> Result<ImportResult
 
     // Extract metadata.
     let metadata = ProfileMetadata {
-        name: obj
-            .get("name")
-            .and_then(|v| v.as_str())
-            .map(String::from),
-        profile_type: obj
-            .get("type")
-            .and_then(|v| v.as_str())
-            .map(String::from),
+        name: obj.get("name").and_then(|v| v.as_str()).map(String::from),
+        profile_type: obj.get("type").and_then(|v| v.as_str()).map(String::from),
         inherits: obj
             .get("inherits")
             .and_then(|v| v.as_str())
@@ -297,9 +291,7 @@ fn extract_array_f64(value: &serde_json::Value) -> Vec<f64> {
                 _ => None,
             })
             .collect(),
-        serde_json::Value::String(s) if s != "nil" => {
-            s.parse::<f64>().ok().into_iter().collect()
-        }
+        serde_json::Value::String(s) if s != "nil" => s.parse::<f64>().ok().into_iter().collect(),
         serde_json::Value::Number(n) => n.as_f64().into_iter().collect(),
         _ => Vec::new(),
     }
@@ -434,9 +426,7 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "slow_down_min_speed" | "min_print_speed" => Some("cooling.slow_down_min_speed"),
         "overhang_fan_speed" => Some("cooling.overhang_fan_speed"),
         "overhang_fan_threshold" => Some("cooling.overhang_fan_threshold"),
-        "full_fan_speed_layer" | "disable_fan_first_layers" => {
-            Some("cooling.full_fan_speed_layer")
-        }
+        "full_fan_speed_layer" | "disable_fan_first_layers" => Some("cooling.full_fan_speed_layer"),
         "slow_down_for_layer_cooling" => Some("cooling.slow_down_for_layer_cooling"),
 
         // --- Retraction sub-config fields ---
@@ -472,7 +462,8 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "extruder_clearance_radius" | "extruder_clearance_max_radius" => {
             Some("sequential.extruder_clearance_radius")
         }
-        "extruder_clearance_height_to_rod" | "extruder_clearance_height_to_lid"
+        "extruder_clearance_height_to_rod"
+        | "extruder_clearance_height_to_lid"
         | "extruder_clearance_height" => Some("sequential.extruder_clearance_height"),
         "gantry_width" => Some("sequential.gantry_width"),
 
@@ -646,9 +637,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             parse_and_set_f64(value, &mut config.speeds.initial_layer_infill)
         }
         "support_speed" => parse_and_set_f64(value, &mut config.speeds.support),
-        "support_interface_speed" => {
-            parse_and_set_f64(value, &mut config.speeds.support_interface)
-        }
+        "support_interface_speed" => parse_and_set_f64(value, &mut config.speeds.support_interface),
         "small_perimeter_speed" => {
             // Handle percentage format: strip % if present, parse as raw mm/s.
             if let Some(v) = parse_percentage_or_f64(value) {
@@ -681,27 +670,17 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
                 .insert(key.to_string(), value.to_string());
             true
         }
-        "outer_wall_line_width" => {
-            parse_and_set_f64(value, &mut config.line_widths.outer_wall)
-        }
-        "inner_wall_line_width" => {
-            parse_and_set_f64(value, &mut config.line_widths.inner_wall)
-        }
-        "sparse_infill_line_width" => {
-            parse_and_set_f64(value, &mut config.line_widths.infill)
-        }
-        "top_surface_line_width" => {
-            parse_and_set_f64(value, &mut config.line_widths.top_surface)
-        }
+        "outer_wall_line_width" => parse_and_set_f64(value, &mut config.line_widths.outer_wall),
+        "inner_wall_line_width" => parse_and_set_f64(value, &mut config.line_widths.inner_wall),
+        "sparse_infill_line_width" => parse_and_set_f64(value, &mut config.line_widths.infill),
+        "top_surface_line_width" => parse_and_set_f64(value, &mut config.line_widths.top_surface),
         "initial_layer_line_width" => {
             parse_and_set_f64(value, &mut config.line_widths.initial_layer)
         }
         "internal_solid_infill_line_width" => {
             parse_and_set_f64(value, &mut config.line_widths.internal_solid_infill)
         }
-        "support_line_width" => {
-            parse_and_set_f64(value, &mut config.line_widths.support)
-        }
+        "support_line_width" => parse_and_set_f64(value, &mut config.line_widths.support),
 
         // --- Cooling sub-config fields ---
         "fan_max_speed" => {
@@ -747,9 +726,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         }
 
         // --- Retraction sub-config fields ---
-        "deretraction_speed" => {
-            parse_and_set_f64(value, &mut config.retraction.deretraction_speed)
-        }
+        "deretraction_speed" => parse_and_set_f64(value, &mut config.retraction.deretraction_speed),
         "retract_before_wipe" => {
             // Percentage value.
             if let Some(v) = parse_percentage_or_f64(value) {
@@ -767,9 +744,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             config.retraction.wipe = value == "1" || value == "true";
             true
         }
-        "wipe_distance" => {
-            parse_and_set_f64(value, &mut config.retraction.wipe_distance)
-        }
+        "wipe_distance" => parse_and_set_f64(value, &mut config.retraction.wipe_distance),
 
         // --- Machine sub-config fields ---
         "machine_start_gcode" | "start_gcode" => {
@@ -808,18 +783,10 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "machine_max_acceleration_travel" => {
             parse_and_set_f64(value, &mut config.machine.max_acceleration_travel)
         }
-        "machine_max_speed_x" => {
-            parse_and_set_f64(value, &mut config.machine.max_speed_x)
-        }
-        "machine_max_speed_y" => {
-            parse_and_set_f64(value, &mut config.machine.max_speed_y)
-        }
-        "machine_max_speed_z" => {
-            parse_and_set_f64(value, &mut config.machine.max_speed_z)
-        }
-        "machine_max_speed_e" => {
-            parse_and_set_f64(value, &mut config.machine.max_speed_e)
-        }
+        "machine_max_speed_x" => parse_and_set_f64(value, &mut config.machine.max_speed_x),
+        "machine_max_speed_y" => parse_and_set_f64(value, &mut config.machine.max_speed_y),
+        "machine_max_speed_z" => parse_and_set_f64(value, &mut config.machine.max_speed_z),
+        "machine_max_speed_e" => parse_and_set_f64(value, &mut config.machine.max_speed_e),
         "nozzle_type" => {
             config.machine.nozzle_type = value.to_string();
             true
@@ -832,12 +799,8 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             config.machine.bed_shape = value.to_string();
             true
         }
-        "min_layer_height" => {
-            parse_and_set_f64(value, &mut config.machine.min_layer_height)
-        }
-        "max_layer_height" => {
-            parse_and_set_f64(value, &mut config.machine.max_layer_height)
-        }
+        "min_layer_height" => parse_and_set_f64(value, &mut config.machine.min_layer_height),
+        "max_layer_height" => parse_and_set_f64(value, &mut config.machine.max_layer_height),
 
         // --- Sequential/gantry clearance fields ---
         "extruder_clearance_radius" | "extruder_clearance_max_radius" => {
@@ -857,32 +820,18 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "extruder_clearance_height" => {
             parse_and_set_f64(value, &mut config.sequential.extruder_clearance_height)
         }
-        "gantry_width" => {
-            parse_and_set_f64(value, &mut config.sequential.gantry_width)
-        }
+        "gantry_width" => parse_and_set_f64(value, &mut config.sequential.gantry_width),
 
         // --- Acceleration sub-config fields ---
-        "outer_wall_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.outer_wall)
-        }
-        "inner_wall_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.inner_wall)
-        }
-        "initial_layer_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.initial_layer)
-        }
+        "outer_wall_acceleration" => parse_and_set_f64(value, &mut config.accel.outer_wall),
+        "inner_wall_acceleration" => parse_and_set_f64(value, &mut config.accel.inner_wall),
+        "initial_layer_acceleration" => parse_and_set_f64(value, &mut config.accel.initial_layer),
         "initial_layer_travel_acceleration" | "initial_layer_travel_speed" => {
             parse_and_set_f64(value, &mut config.accel.initial_layer_travel)
         }
-        "top_surface_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.top_surface)
-        }
-        "sparse_infill_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.sparse_infill)
-        }
-        "bridge_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.bridge)
-        }
+        "top_surface_acceleration" => parse_and_set_f64(value, &mut config.accel.top_surface),
+        "sparse_infill_acceleration" => parse_and_set_f64(value, &mut config.accel.sparse_infill),
+        "bridge_acceleration" => parse_and_set_f64(value, &mut config.accel.bridge),
 
         // --- Filament fields (original flat) ---
         // Note: temperature array fields are handled by apply_array_field_mapping.
@@ -947,9 +896,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "retraction_length" => parse_and_set_f64(value, &mut config.retraction.length),
         "retraction_speed" => parse_and_set_f64(value, &mut config.retraction.speed),
         "z_hop" => parse_and_set_f64(value, &mut config.retraction.z_hop),
-        "retraction_minimum_travel" => {
-            parse_and_set_f64(value, &mut config.retraction.min_travel)
-        }
+        "retraction_minimum_travel" => parse_and_set_f64(value, &mut config.retraction.min_travel),
         "gcode_flavor" => {
             if let Some(dialect) = map_gcode_dialect(value) {
                 config.gcode_dialect = dialect;
@@ -960,24 +907,16 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         }
 
         // --- Process misc flat fields ---
-        "bridge_flow" | "bridge_flow_ratio" => {
-            parse_and_set_f64(value, &mut config.bridge_flow)
-        }
+        "bridge_flow" | "bridge_flow_ratio" => parse_and_set_f64(value, &mut config.bridge_flow),
         "elefant_foot_compensation" => {
-            parse_and_set_f64(value, &mut config.elefant_foot_compensation)
+            parse_and_set_f64(value, &mut config.dimensional_compensation.elephant_foot_compensation)
         }
-        "infill_direction" => {
-            parse_and_set_f64(value, &mut config.infill_direction)
-        }
+        "infill_direction" => parse_and_set_f64(value, &mut config.infill_direction),
         "infill_wall_overlap" | "infill_overlap" => {
             // Handle percentage format: strip %, divide by 100.
             let cleaned = value.trim_end_matches('%');
             if let Ok(v) = cleaned.parse::<f64>() {
-                config.infill_wall_overlap = if value.contains('%') {
-                    v / 100.0
-                } else {
-                    v
-                };
+                config.infill_wall_overlap = if value.contains('%') { v / 100.0 } else { v };
                 true
             } else {
                 false
@@ -991,12 +930,8 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             config.only_one_wall_top = value == "1" || value == "true";
             true
         }
-        "resolution" => {
-            parse_and_set_f64(value, &mut config.resolution)
-        }
-        "raft_layers" => {
-            parse_and_set_u32(value, &mut config.raft_layers)
-        }
+        "resolution" => parse_and_set_f64(value, &mut config.resolution),
+        "raft_layers" => parse_and_set_u32(value, &mut config.raft_layers),
         "detect_thin_wall" | "thin_walls" => {
             config.detect_thin_wall = value == "1" || value == "true";
             true
@@ -1101,10 +1036,7 @@ mod tests {
             ConfigFormat::Json
         );
         // Whitespace before opening brace.
-        assert_eq!(
-            detect_config_format(b"\n\t  {\"a\":1}"),
-            ConfigFormat::Json
-        );
+        assert_eq!(detect_config_format(b"\n\t  {\"a\":1}"), ConfigFormat::Json);
     }
 
     #[test]
@@ -1376,10 +1308,7 @@ mod tests {
             map_infill_pattern("rectilinear"),
             Some(InfillPattern::Rectilinear)
         );
-        assert_eq!(
-            map_infill_pattern("line"),
-            Some(InfillPattern::Rectilinear)
-        );
+        assert_eq!(map_infill_pattern("line"), Some(InfillPattern::Rectilinear));
         assert_eq!(map_infill_pattern("unknown_pattern"), None);
     }
 
@@ -1672,7 +1601,9 @@ mod tests {
 
         // All should be mapped.
         assert!(result.mapped_fields.contains(&"bridge_speed".to_string()));
-        assert!(result.mapped_fields.contains(&"gap_infill_speed".to_string()));
+        assert!(result
+            .mapped_fields
+            .contains(&"gap_infill_speed".to_string()));
     }
 
     #[test]
@@ -1891,7 +1822,7 @@ mod tests {
         let config = &result.config;
 
         assert!((config.bridge_flow - 0.95).abs() < 1e-9);
-        assert!((config.elefant_foot_compensation - 0.1).abs() < 1e-9);
+        assert!((config.dimensional_compensation.elephant_foot_compensation - 0.1).abs() < 1e-9);
         assert!((config.infill_direction - 45.0).abs() < 1e-9);
         assert!((config.infill_wall_overlap - 0.15).abs() < 1e-9);
         assert!(config.spiral_mode);
@@ -2047,78 +1978,125 @@ mod tests {
 
         // Process basics (19)
         for key in &[
-            "layer_height", "initial_layer_print_height", "wall_loops",
-            "sparse_infill_density", "top_shell_layers", "bottom_shell_layers",
-            "outer_wall_speed", "sparse_infill_speed", "travel_speed",
-            "initial_layer_speed", "skirt_loops", "skirt_distance",
-            "brim_width", "default_acceleration", "travel_acceleration",
-            "enable_arc_fitting", "adaptive_layer_height",
-            "wall_generator", "seam_position",
+            "layer_height",
+            "initial_layer_print_height",
+            "wall_loops",
+            "sparse_infill_density",
+            "top_shell_layers",
+            "bottom_shell_layers",
+            "outer_wall_speed",
+            "sparse_infill_speed",
+            "travel_speed",
+            "initial_layer_speed",
+            "skirt_loops",
+            "skirt_distance",
+            "brim_width",
+            "default_acceleration",
+            "travel_acceleration",
+            "enable_arc_fitting",
+            "adaptive_layer_height",
+            "wall_generator",
+            "seam_position",
         ] {
             obj.insert((*key).into(), json!("10"));
         }
         // Speed sub-config (15)
         for key in &[
-            "bridge_speed", "inner_wall_speed", "gap_infill_speed",
-            "top_surface_speed", "internal_solid_infill_speed",
-            "initial_layer_infill_speed", "support_speed",
-            "support_interface_speed", "small_perimeter_speed",
-            "solid_infill_speed", "overhang_1_4_speed", "overhang_2_4_speed",
-            "overhang_3_4_speed", "overhang_4_4_speed", "travel_speed_z",
+            "bridge_speed",
+            "inner_wall_speed",
+            "gap_infill_speed",
+            "top_surface_speed",
+            "internal_solid_infill_speed",
+            "initial_layer_infill_speed",
+            "support_speed",
+            "support_interface_speed",
+            "small_perimeter_speed",
+            "solid_infill_speed",
+            "overhang_1_4_speed",
+            "overhang_2_4_speed",
+            "overhang_3_4_speed",
+            "overhang_4_4_speed",
+            "travel_speed_z",
         ] {
             obj.insert((*key).into(), json!("50"));
         }
         // Line widths (7)
         for key in &[
-            "outer_wall_line_width", "inner_wall_line_width",
-            "sparse_infill_line_width", "top_surface_line_width",
-            "initial_layer_line_width", "internal_solid_infill_line_width",
+            "outer_wall_line_width",
+            "inner_wall_line_width",
+            "sparse_infill_line_width",
+            "top_surface_line_width",
+            "initial_layer_line_width",
+            "internal_solid_infill_line_width",
             "support_line_width",
         ] {
             obj.insert((*key).into(), json!("0.45"));
         }
         // Cooling (8)
         for key in &[
-            "fan_max_speed", "fan_min_speed", "slow_down_layer_time",
-            "slow_down_min_speed", "overhang_fan_speed",
-            "overhang_fan_threshold", "full_fan_speed_layer",
+            "fan_max_speed",
+            "fan_min_speed",
+            "slow_down_layer_time",
+            "slow_down_min_speed",
+            "overhang_fan_speed",
+            "overhang_fan_threshold",
+            "full_fan_speed_layer",
             "slow_down_for_layer_cooling",
         ] {
             obj.insert((*key).into(), json!("10"));
         }
         // Retraction (5)
         for key in &[
-            "deretraction_speed", "retract_before_wipe",
-            "retract_when_changing_layer", "wipe", "wipe_distance",
+            "deretraction_speed",
+            "retract_before_wipe",
+            "retract_when_changing_layer",
+            "wipe",
+            "wipe_distance",
         ] {
             obj.insert((*key).into(), json!("1"));
         }
         // Machine limits (14)
         for key in &[
-            "printable_height", "machine_max_acceleration_x",
-            "machine_max_acceleration_y", "machine_max_acceleration_z",
-            "machine_max_acceleration_e", "machine_max_acceleration_extruding",
-            "machine_max_acceleration_retracting", "machine_max_acceleration_travel",
-            "machine_max_speed_x", "machine_max_speed_y",
-            "machine_max_speed_z", "machine_max_speed_e",
-            "min_layer_height", "max_layer_height",
+            "printable_height",
+            "machine_max_acceleration_x",
+            "machine_max_acceleration_y",
+            "machine_max_acceleration_z",
+            "machine_max_acceleration_e",
+            "machine_max_acceleration_extruding",
+            "machine_max_acceleration_retracting",
+            "machine_max_acceleration_travel",
+            "machine_max_speed_x",
+            "machine_max_speed_y",
+            "machine_max_speed_z",
+            "machine_max_speed_e",
+            "min_layer_height",
+            "max_layer_height",
         ] {
             obj.insert((*key).into(), json!("100"));
         }
         // Acceleration (7)
         for key in &[
-            "outer_wall_acceleration", "inner_wall_acceleration",
-            "initial_layer_acceleration", "initial_layer_travel_acceleration",
-            "top_surface_acceleration", "sparse_infill_acceleration",
+            "outer_wall_acceleration",
+            "inner_wall_acceleration",
+            "initial_layer_acceleration",
+            "initial_layer_travel_acceleration",
+            "top_surface_acceleration",
+            "sparse_infill_acceleration",
             "bridge_acceleration",
         ] {
             obj.insert((*key).into(), json!("5000"));
         }
         // Process misc (9)
         for key in &[
-            "bridge_flow", "elefant_foot_compensation", "infill_direction",
-            "infill_wall_overlap", "resolution", "spiral_mode",
-            "only_one_wall_top", "raft_layers", "detect_thin_wall",
+            "bridge_flow",
+            "elefant_foot_compensation",
+            "infill_direction",
+            "infill_wall_overlap",
+            "resolution",
+            "spiral_mode",
+            "only_one_wall_top",
+            "raft_layers",
+            "detect_thin_wall",
         ] {
             obj.insert((*key).into(), json!("0"));
         }

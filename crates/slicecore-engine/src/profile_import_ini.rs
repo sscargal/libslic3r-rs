@@ -177,8 +177,7 @@ pub fn resolve_ini_inheritance(
             let key = (section.section_type.clone(), parent_name);
             if let Some(&parent_idx) = lookup.get(&key) {
                 let parent = &sections[parent_idx];
-                let parent_resolved =
-                    resolve_ini_inheritance(parent, sections, lookup, depth + 1);
+                let parent_resolved = resolve_ini_inheritance(parent, sections, lookup, depth + 1);
                 // Merge parent fields into resolved (left-to-right overlay).
                 for (k, v) in parent_resolved {
                     resolved.insert(k, v);
@@ -412,11 +411,7 @@ fn parse_bool(value: &str) -> Option<bool> {
 /// - Percentage speed/width values (ending with `%`): skipped (not absolute)
 /// - Boolean fields (`0`/`1`): parsed to bool
 /// - Unmapped fields: stored in `config.passthrough` BTreeMap
-pub fn apply_prusaslicer_field_mapping(
-    config: &mut PrintConfig,
-    key: &str,
-    value: &str,
-) -> bool {
+pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> bool {
     match key {
         // =====================================================================
         // Process fields (existing flat fields)
@@ -485,9 +480,7 @@ pub fn apply_prusaslicer_field_mapping(
             }
             parse_and_set_f64(value, &mut config.speeds.solid_infill)
         }
-        "support_material_speed" => {
-            parse_and_set_f64(value, &mut config.speeds.support)
-        }
+        "support_material_speed" => parse_and_set_f64(value, &mut config.speeds.support),
         "support_material_interface_speed" => {
             if value.ends_with('%') {
                 return false;
@@ -649,9 +642,7 @@ pub fn apply_prusaslicer_field_mapping(
             config.machine.layer_change_gcode = value.to_string();
             true
         }
-        "max_print_height" => {
-            parse_and_set_f64(value, &mut config.machine.printable_height)
-        }
+        "max_print_height" => parse_and_set_f64(value, &mut config.machine.printable_height),
         "machine_max_acceleration_x" => {
             let first = first_comma_value(value);
             parse_and_set_f64(first, &mut config.machine.max_acceleration_x)
@@ -761,37 +752,25 @@ pub fn apply_prusaslicer_field_mapping(
             true
         }
         "first_layer_temperature" => {
-            config.filament.first_layer_nozzle_temperatures =
-                parse_comma_separated_f64(value);
+            config.filament.first_layer_nozzle_temperatures = parse_comma_separated_f64(value);
             true
         }
         "first_layer_bed_temperature" => {
-            config.filament.first_layer_bed_temperatures =
-                parse_comma_separated_f64(value);
+            config.filament.first_layer_bed_temperatures = parse_comma_separated_f64(value);
             true
         }
 
         // =====================================================================
         // Acceleration sub-config fields (PrusaSlicer names)
         // =====================================================================
-        "external_perimeter_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.outer_wall)
-        }
-        "perimeter_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.inner_wall)
-        }
+        "external_perimeter_acceleration" => parse_and_set_f64(value, &mut config.accel.outer_wall),
+        "perimeter_acceleration" => parse_and_set_f64(value, &mut config.accel.inner_wall),
         "first_layer_acceleration" | "first_layer_acceleration_over_raft" => {
             parse_and_set_f64(value, &mut config.accel.initial_layer)
         }
-        "top_solid_infill_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.top_surface)
-        }
-        "infill_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.sparse_infill)
-        }
-        "bridge_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.bridge)
-        }
+        "top_solid_infill_acceleration" => parse_and_set_f64(value, &mut config.accel.top_surface),
+        "infill_acceleration" => parse_and_set_f64(value, &mut config.accel.sparse_infill),
+        "bridge_acceleration" => parse_and_set_f64(value, &mut config.accel.bridge),
 
         // =====================================================================
         // Filament sub-config fields (PrusaSlicer names)
@@ -897,7 +876,7 @@ pub fn apply_prusaslicer_field_mapping(
         // =====================================================================
         "bridge_flow_ratio" => parse_and_set_f64(value, &mut config.bridge_flow),
         "elefant_foot_compensation" | "elephant_foot_compensation" => {
-            parse_and_set_f64(value, &mut config.elefant_foot_compensation)
+            parse_and_set_f64(value, &mut config.dimensional_compensation.elephant_foot_compensation)
         }
         "fill_angle" => parse_and_set_f64(value, &mut config.infill_direction),
         "infill_overlap" => {
@@ -905,11 +884,7 @@ pub fn apply_prusaslicer_field_mapping(
             let cleaned = value.trim_end_matches('%');
             if let Ok(v) = cleaned.parse::<f64>() {
                 // If it had a %, convert from percentage to fraction.
-                config.infill_wall_overlap = if value.ends_with('%') {
-                    v / 100.0
-                } else {
-                    v
-                };
+                config.infill_wall_overlap = if value.ends_with('%') { v / 100.0 } else { v };
                 true
             } else {
                 false
@@ -1510,8 +1485,7 @@ fill_density = 10%
         resolved.insert("some_unknown_field".to_string(), "value".to_string());
         resolved.insert("inherits".to_string(), "*common*".to_string());
 
-        let result =
-            import_prusaslicer_ini_profile(&resolved, "0.15mm QUALITY @MK4S", "print");
+        let result = import_prusaslicer_ini_profile(&resolved, "0.15mm QUALITY @MK4S", "print");
 
         assert!((result.config.layer_height - 0.15).abs() < 1e-9);
         assert_eq!(result.config.wall_count, 4);
@@ -1630,10 +1604,7 @@ fill_density = 10%
             prusaslicer_key_to_config_field("retract_before_travel"),
             Some("min_travel_for_retract")
         );
-        assert_eq!(
-            prusaslicer_key_to_config_field("unknown_field"),
-            None
-        );
+        assert_eq!(prusaslicer_key_to_config_field("unknown_field"), None);
     }
 
     #[test]
@@ -1840,7 +1811,10 @@ fill_density = 10%
             "some_value"
         ));
         assert_eq!(
-            config.passthrough.get("some_totally_unknown_field").unwrap(),
+            config
+                .passthrough
+                .get("some_totally_unknown_field")
+                .unwrap(),
             "some_value"
         );
 
@@ -1859,7 +1833,10 @@ fill_density = 10%
             "50"
         ));
         assert_eq!(
-            config.passthrough.get("first_layer_speed_over_raft").unwrap(),
+            config
+                .passthrough
+                .get("first_layer_speed_over_raft")
+                .unwrap(),
             "50"
         );
     }
@@ -2029,18 +2006,10 @@ fill_density = 10%
         ));
         assert_eq!(config.cooling.full_fan_speed_layer, 4);
 
-        assert!(apply_prusaslicer_field_mapping(
-            &mut config,
-            "cooling",
-            "1"
-        ));
+        assert!(apply_prusaslicer_field_mapping(&mut config, "cooling", "1"));
         assert!(config.cooling.slow_down_for_layer_cooling);
 
-        assert!(apply_prusaslicer_field_mapping(
-            &mut config,
-            "cooling",
-            "0"
-        ));
+        assert!(apply_prusaslicer_field_mapping(&mut config, "cooling", "0"));
         assert!(!config.cooling.slow_down_for_layer_cooling);
     }
 
@@ -2069,18 +2038,10 @@ fill_density = 10%
         ));
         assert!(config.retraction.retract_when_changing_layer);
 
-        assert!(apply_prusaslicer_field_mapping(
-            &mut config,
-            "wipe",
-            "1"
-        ));
+        assert!(apply_prusaslicer_field_mapping(&mut config, "wipe", "1"));
         assert!(config.retraction.wipe);
 
-        assert!(apply_prusaslicer_field_mapping(
-            &mut config,
-            "wipe",
-            "0"
-        ));
+        assert!(apply_prusaslicer_field_mapping(&mut config, "wipe", "0"));
         assert!(!config.retraction.wipe);
     }
 
@@ -2218,7 +2179,7 @@ fill_density = 10%
             "elefant_foot_compensation",
             "0.2"
         ));
-        assert!((config.elefant_foot_compensation - 0.2).abs() < 1e-9);
+        assert!((config.dimensional_compensation.elephant_foot_compensation - 0.2).abs() < 1e-9);
 
         // Alternate spelling.
         assert!(apply_prusaslicer_field_mapping(
@@ -2226,7 +2187,7 @@ fill_density = 10%
             "elephant_foot_compensation",
             "0.15"
         ));
-        assert!((config.elefant_foot_compensation - 0.15).abs() < 1e-9);
+        assert!((config.dimensional_compensation.elephant_foot_compensation - 0.15).abs() < 1e-9);
 
         assert!(apply_prusaslicer_field_mapping(
             &mut config,
@@ -2416,10 +2377,7 @@ fill_density = 10%
             "some_unknown_prusaslicer_field".to_string(),
             "123".to_string(),
         );
-        resolved.insert(
-            "another_unknown_field".to_string(),
-            "abc".to_string(),
-        );
+        resolved.insert("another_unknown_field".to_string(), "abc".to_string());
 
         let result = import_prusaslicer_ini_profile(&resolved, "Test", "print");
 
@@ -2436,7 +2394,11 @@ fill_density = 10%
             "123"
         );
         assert_eq!(
-            result.config.passthrough.get("another_unknown_field").unwrap(),
+            result
+                .config
+                .passthrough
+                .get("another_unknown_field")
+                .unwrap(),
             "abc"
         );
 

@@ -219,6 +219,10 @@ pub struct SpeedConfig {
     pub overhang_4_4: f64,
     /// Z-axis travel speed (mm/s, 0 = use travel_speed).
     pub travel_z: f64,
+    /// Internal bridge speed (mm/s, 0 = inherit from bridge speed).
+    /// OrcaSlicer: `internal_bridge_speed`. PrusaSlicer: N/A.
+    /// Range: 0-300. Default: 0.0.
+    pub internal_bridge_speed: f64,
 }
 
 impl Default for SpeedConfig {
@@ -243,6 +247,7 @@ impl Default for SpeedConfig {
             overhang_3_4: 0.0,
             overhang_4_4: 0.0,
             travel_z: 0.0,
+            internal_bridge_speed: 0.0,
         }
     }
 }
@@ -415,6 +420,13 @@ pub struct MachineConfig {
     pub extruder_count: u32,
     /// Printer power consumption in watts (for cost estimation, 0 = not set).
     pub watts: f64,
+    /// Maximum chamber temperature the printer can reach (degrees C, 0 = no chamber heater).
+    /// Used to validate filament chamber_temperature requests.
+    /// OrcaSlicer: `chamber_temperature` (in machine profile). Range: 0-120. Default: 0.0.
+    pub chamber_temperature: f64,
+    /// Currently selected bed/build plate type.
+    /// OrcaSlicer: `curr_bed_type`. Default: TexturedPEI.
+    pub curr_bed_type: BedType,
 }
 
 impl Default for MachineConfig {
@@ -449,6 +461,8 @@ impl Default for MachineConfig {
             max_layer_height: 0.0,
             extruder_count: 1,
             watts: 0.0,
+            chamber_temperature: 0.0,
+            curr_bed_type: BedType::default(),
         }
     }
 }
@@ -519,6 +533,11 @@ pub struct AccelerationConfig {
     pub sparse_infill: f64,
     /// Bridge acceleration (mm/s^2, 0 = use print_acceleration).
     pub bridge: f64,
+    /// Minimum segment length factor (percentage, 0-100).
+    /// Prevents acceleration changes on segments shorter than this factor
+    /// of the nominal acceleration distance. 0 = disabled.
+    /// OrcaSlicer: `min_length_factor`. PrusaSlicer: N/A. Default: 0.0.
+    pub min_length_factor: f64,
 }
 
 impl Default for AccelerationConfig {
@@ -533,6 +552,7 @@ impl Default for AccelerationConfig {
             top_surface: 0.0,
             sparse_infill: 0.0,
             bridge: 0.0,
+            min_length_factor: 0.0,
         }
     }
 }
@@ -579,6 +599,43 @@ pub struct FilamentPropsConfig {
     pub filament_start_gcode: String,
     /// Filament end G-code (run once when filament unloaded).
     pub filament_end_gcode: String,
+    /// Desired chamber temperature for this filament (degrees C, 0 = not required).
+    /// Validated against `MachineConfig.chamber_temperature` (max) during profile merge.
+    /// OrcaSlicer: `chamber_temperature` (in filament profile). Range: 0-80. Default: 0.0.
+    pub chamber_temperature: f64,
+    /// Filament shrinkage compensation percentage (100 = no shrink, >100 = expand).
+    /// OrcaSlicer: `filament_shrinkage_compensation`. PrusaSlicer: N/A.
+    /// Range: 90.0-110.0. Default: 100.0 (no compensation).
+    pub filament_shrink: f64,
+    /// Per-filament Z offset additive adjustment (mm). Added to global z_offset.
+    /// OrcaSlicer: `z_offset` (in filament profile). PrusaSlicer: N/A.
+    /// Range: -2.0 to 2.0. Default: 0.0.
+    pub z_offset: f64,
+    // --- Per-bed-type temperatures (Vec<f64> for multi-extruder) ---
+    /// Smooth/hot plate temperatures per extruder (degrees C).
+    /// OrcaSlicer: `hot_plate_temp`. Default: empty (use bed_temperatures).
+    pub hot_plate_temp: Vec<f64>,
+    /// Cool plate temperatures per extruder (degrees C).
+    /// OrcaSlicer: `cool_plate_temp`. Default: empty.
+    pub cool_plate_temp: Vec<f64>,
+    /// Engineering plate temperatures per extruder (degrees C).
+    /// OrcaSlicer: `eng_plate_temp`. Default: empty.
+    pub eng_plate_temp: Vec<f64>,
+    /// Textured plate temperatures per extruder (degrees C).
+    /// OrcaSlicer: `textured_plate_temp`. Default: empty.
+    pub textured_plate_temp: Vec<f64>,
+    /// Smooth/hot plate first layer temperatures per extruder (degrees C).
+    /// OrcaSlicer: `hot_plate_temp_initial_layer`. Default: empty.
+    pub hot_plate_temp_initial_layer: Vec<f64>,
+    /// Cool plate first layer temperatures per extruder (degrees C).
+    /// OrcaSlicer: `cool_plate_temp_initial_layer`. Default: empty.
+    pub cool_plate_temp_initial_layer: Vec<f64>,
+    /// Engineering plate first layer temperatures per extruder (degrees C).
+    /// OrcaSlicer: `eng_plate_temp_initial_layer`. Default: empty.
+    pub eng_plate_temp_initial_layer: Vec<f64>,
+    /// Textured plate first layer temperatures per extruder (degrees C).
+    /// OrcaSlicer: `textured_plate_temp_initial_layer`. Default: empty.
+    pub textured_plate_temp_initial_layer: Vec<f64>,
 }
 
 impl Default for FilamentPropsConfig {
@@ -600,6 +657,17 @@ impl Default for FilamentPropsConfig {
             filament_retraction_speed: None,
             filament_start_gcode: String::new(),
             filament_end_gcode: String::new(),
+            chamber_temperature: 0.0,
+            filament_shrink: 100.0,
+            z_offset: 0.0,
+            hot_plate_temp: Vec::new(),
+            cool_plate_temp: Vec::new(),
+            eng_plate_temp: Vec::new(),
+            textured_plate_temp: Vec::new(),
+            hot_plate_temp_initial_layer: Vec::new(),
+            cool_plate_temp_initial_layer: Vec::new(),
+            eng_plate_temp_initial_layer: Vec::new(),
+            textured_plate_temp_initial_layer: Vec::new(),
         }
     }
 }
@@ -629,6 +697,32 @@ impl FilamentPropsConfig {
             .first()
             .copied()
             .unwrap_or(65.0)
+    }
+
+    /// Resolves bed temperatures based on the selected bed type.
+    ///
+    /// Returns `(normal_temp, first_layer_temp)` for the first extruder.
+    /// Falls back to `bed_temperatures`/`first_layer_bed_temperatures` if
+    /// the per-type temperature array is empty.
+    pub fn resolve_bed_temperatures(&self, bed_type: BedType) -> (f64, f64) {
+        let (temps, fl_temps) = match bed_type {
+            BedType::CoolPlate => (&self.cool_plate_temp, &self.cool_plate_temp_initial_layer),
+            BedType::EngineeringPlate => {
+                (&self.eng_plate_temp, &self.eng_plate_temp_initial_layer)
+            }
+            BedType::HighTempPlate | BedType::SmoothPei => {
+                (&self.hot_plate_temp, &self.hot_plate_temp_initial_layer)
+            }
+            BedType::TexturedPei | BedType::SatinPei => {
+                (&self.textured_plate_temp, &self.textured_plate_temp_initial_layer)
+            }
+        };
+        let normal = temps.first().copied().unwrap_or_else(|| self.bed_temp());
+        let first_layer = fl_temps
+            .first()
+            .copied()
+            .unwrap_or_else(|| self.first_layer_bed_temp());
+        (normal, first_layer)
     }
 }
 
@@ -781,11 +875,41 @@ pub struct PrintConfig {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub passthrough: BTreeMap<String, String>,
 
+    // --- Dimensional Compensation (Phase 32) ---
+    /// Dimensional compensation settings (XY hole, XY contour, elephant foot).
+    pub dimensional_compensation: DimensionalCompensationConfig,
+
+    // --- Surface Patterns (Phase 32) ---
+    /// Top surface fill pattern. Default: Monotonic.
+    pub top_surface_pattern: SurfacePattern,
+    /// Bottom surface fill pattern. Default: Monotonic.
+    pub bottom_surface_pattern: SurfacePattern,
+    /// Internal solid layer fill pattern. Default: Monotonic.
+    pub solid_infill_pattern: SurfacePattern,
+
+    // --- Overhangs (Phase 32) ---
+    /// Generate extra perimeters on overhangs for better quality.
+    /// OrcaSlicer: `extra_perimeters_on_overhangs`. Default: false.
+    pub extra_perimeters_on_overhangs: bool,
+
+    // --- Bridges (Phase 32) ---
+    /// Internal bridge support mode (off/auto/always).
+    /// OrcaSlicer: `internal_bridge_support_enabled`. Default: Off.
+    pub internal_bridge_support: InternalBridgeMode,
+
+    // --- Z Offset (Phase 32) ---
+    /// Global Z offset in mm. Per-filament z_offset is additive.
+    /// OrcaSlicer/PrusaSlicer: `z_offset`. Range: -5.0 to 5.0. Default: 0.0.
+    pub z_offset: f64,
+
+    // --- Precise Z (Phase 32) ---
+    /// Enable precise Z height positioning.
+    /// OrcaSlicer: `precise_z_height`. Default: false.
+    pub precise_z_height: bool,
+
     // --- Process misc fields (Phase 20) ---
     /// Bridge flow ratio (1.0 = normal flow).
     pub bridge_flow: f64,
-    /// Elephant foot compensation in mm.
-    pub elefant_foot_compensation: f64,
     /// Infill line direction in degrees.
     pub infill_direction: f64,
     /// Infill-wall overlap as a fraction (0-1).
@@ -1089,8 +1213,16 @@ impl Default for PrintConfig {
             filament: FilamentPropsConfig::default(),
             passthrough: BTreeMap::new(),
 
+            dimensional_compensation: DimensionalCompensationConfig::default(),
+            top_surface_pattern: SurfacePattern::default(),
+            bottom_surface_pattern: SurfacePattern::default(),
+            solid_infill_pattern: SurfacePattern::default(),
+            extra_perimeters_on_overhangs: false,
+            internal_bridge_support: InternalBridgeMode::default(),
+            z_offset: 0.0,
+            precise_z_height: false,
+
             bridge_flow: 1.0,
-            elefant_foot_compensation: 0.0,
             infill_direction: 45.0,
             infill_wall_overlap: 0.15,
             spiral_mode: false,
@@ -1879,7 +2011,7 @@ polyhole_min_diameter = 0.5
 
         // Process misc
         assert!((config.bridge_flow - 1.0).abs() < 1e-9);
-        assert!((config.elefant_foot_compensation - 0.0).abs() < 1e-9);
+        assert!((config.dimensional_compensation.elephant_foot_compensation - 0.0).abs() < 1e-9);
         assert!((config.infill_direction - 45.0).abs() < 1e-9);
         assert!((config.infill_wall_overlap - 0.15).abs() < 1e-9);
         assert!(!config.spiral_mode);
