@@ -698,6 +698,40 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "tree_support_top_rate" => Some("support.tree.top_rate"),
         "tree_support_with_infill" => Some("support.tree.with_infill"),
 
+        // --- Scarf joint config fields ---
+        "seam_slope_type" => Some("scarf_joint.enabled"),
+        "seam_slope_conditional" => Some("scarf_joint.conditional_scarf"),
+        "seam_slope_start_height" => Some("scarf_joint.scarf_start_height"),
+        "seam_slope_entire_loop" => Some("scarf_joint.scarf_around_entire_wall"),
+        "seam_slope_min_length" => Some("scarf_joint.scarf_length"),
+        "seam_slope_steps" => Some("scarf_joint.scarf_steps"),
+        "seam_slope_inner_walls" => Some("scarf_joint.scarf_inner_walls"),
+        "seam_slope_gap" => Some("scarf_joint.seam_gap"),
+        "wipe_on_loops" => Some("scarf_joint.wipe_on_loop"),
+        "role_based_wipe_speed" => Some("scarf_joint.role_based_wipe_speed"),
+        "wipe_speed" => Some("scarf_joint.wipe_speed"),
+        "scarf_joint_speed" => Some("scarf_joint.scarf_speed"),
+        "scarf_joint_flow_ratio" => Some("scarf_joint.scarf_flow_ratio"),
+        "scarf_angle_threshold" => Some("scarf_joint.scarf_angle_threshold"),
+        "scarf_overhang_threshold" => Some("scarf_joint.scarf_overhang_threshold"),
+        "override_filament_scarf_seam_setting" => Some("scarf_joint.override_filament_setting"),
+
+        // --- Multi-material config fields ---
+        "enable_prime_tower" | "wipe_tower" => Some("multi_material.enabled"),
+        "wipe_tower_x" => Some("multi_material.purge_tower_position"),
+        "wipe_tower_y" => Some("multi_material.purge_tower_position"),
+        "wipe_tower_width" | "prime_tower_width" => Some("multi_material.purge_tower_width"),
+        "prime_volume" | "purge_volume" => Some("multi_material.purge_volume"),
+        "wipe_tower_rotation_angle" => Some("multi_material.wipe_tower_rotation_angle"),
+        "wipe_tower_bridging" => Some("multi_material.wipe_tower_bridging"),
+        "wipe_tower_cone_angle" => Some("multi_material.wipe_tower_cone_angle"),
+        "wipe_tower_no_sparse_layers" => Some("multi_material.wipe_tower_no_sparse_layers"),
+        "single_extruder_multi_material" => Some("multi_material.single_extruder_mmu"),
+        "flush_into_infill" => Some("multi_material.flush_into_infill"),
+        "flush_into_objects" => Some("multi_material.flush_into_objects"),
+        "flush_into_support" => Some("multi_material.flush_into_support"),
+        "purge_in_prime_tower" => Some("multi_material.purge_in_prime_tower"),
+
         // Ironing sub-fields don't map to simple top-level fields.
         _ => None,
     }
@@ -1530,6 +1564,139 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             } else {
                 false
             }
+        }
+
+        // --- Scarf joint config fields (OrcaSlicer-only) ---
+        "seam_slope_type" => {
+            // OrcaSlicer: "none" or "0" means disabled, anything else enables.
+            config.scarf_joint.enabled =
+                !value.is_empty() && value != "none" && value != "0";
+            true
+        }
+        "seam_slope_conditional" => {
+            config.scarf_joint.conditional_scarf =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "seam_slope_start_height" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.scarf_start_height)
+        }
+        "seam_slope_entire_loop" => {
+            config.scarf_joint.scarf_around_entire_wall =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "seam_slope_min_length" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.scarf_length)
+        }
+        "seam_slope_steps" => {
+            parse_and_set_u32(value, &mut config.scarf_joint.scarf_steps)
+        }
+        "seam_slope_inner_walls" => {
+            config.scarf_joint.scarf_inner_walls =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "seam_slope_gap" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.seam_gap)
+        }
+        "wipe_on_loops" => {
+            config.scarf_joint.wipe_on_loop =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "role_based_wipe_speed" => {
+            config.scarf_joint.role_based_wipe_speed =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "wipe_speed" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.wipe_speed)
+        }
+        "scarf_joint_speed" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.scarf_speed)
+        }
+        "scarf_joint_flow_ratio" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.scarf_flow_ratio)
+        }
+        "scarf_angle_threshold" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.scarf_angle_threshold)
+        }
+        "scarf_overhang_threshold" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.scarf_overhang_threshold)
+        }
+        "override_filament_scarf_seam_setting" => {
+            config.scarf_joint.override_filament_setting =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- Multi-material config fields (OrcaSlicer/BambuStudio + shared) ---
+        "enable_prime_tower" | "wipe_tower" => {
+            config.multi_material.enabled =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "wipe_tower_x" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.multi_material.purge_tower_position[0] = v;
+                true
+            } else {
+                false
+            }
+        }
+        "wipe_tower_y" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.multi_material.purge_tower_position[1] = v;
+                true
+            } else {
+                false
+            }
+        }
+        "wipe_tower_width" | "prime_tower_width" => {
+            parse_and_set_f64(value, &mut config.multi_material.purge_tower_width)
+        }
+        "prime_volume" | "purge_volume" => {
+            parse_and_set_f64(value, &mut config.multi_material.purge_volume)
+        }
+        "wipe_tower_rotation_angle" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_rotation_angle)
+        }
+        "wipe_tower_bridging" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_bridging)
+        }
+        "wipe_tower_cone_angle" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_cone_angle)
+        }
+        "wipe_tower_no_sparse_layers" => {
+            config.multi_material.wipe_tower_no_sparse_layers =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "single_extruder_multi_material" => {
+            config.multi_material.single_extruder_mmu =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "flush_into_infill" => {
+            config.multi_material.flush_into_infill =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "flush_into_objects" => {
+            config.multi_material.flush_into_objects =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "flush_into_support" => {
+            config.multi_material.flush_into_support =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "purge_in_prime_tower" => {
+            config.multi_material.purge_in_prime_tower =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
         }
 
         // --- Tree support fields ---

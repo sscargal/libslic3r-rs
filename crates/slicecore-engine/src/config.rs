@@ -1158,6 +1158,10 @@ fn default_thumbnail_resolution() -> [u32; 2] {
     [300, 300]
 }
 
+fn default_true() -> bool {
+    true
+}
+
 // ============================================================================
 // Post-Processing Configuration
 // ============================================================================
@@ -1318,6 +1322,22 @@ pub struct ScarfJointConfig {
     pub wipe_speed: f64,
     /// Enable inward wipe at seam close.
     pub wipe_on_loop: bool,
+    /// Gap between scarf ramp end and next layer start in mm.
+    /// OrcaSlicer: `seam_slope_gap`.
+    #[serde(default)]
+    pub seam_gap: f64,
+    /// Minimum angle (degrees) at which scarf joint activates.
+    /// OrcaSlicer: `scarf_angle_threshold`.
+    #[serde(default)]
+    pub scarf_angle_threshold: f64,
+    /// Overhang percentage threshold at which scarf joint is disabled.
+    /// OrcaSlicer: `scarf_overhang_threshold`.
+    #[serde(default)]
+    pub scarf_overhang_threshold: f64,
+    /// Override filament-level scarf seam settings with process-level.
+    /// OrcaSlicer: `override_filament_scarf_seam_setting`.
+    #[serde(default)]
+    pub override_filament_setting: bool,
 }
 
 impl Default for ScarfJointConfig {
@@ -1336,6 +1356,10 @@ impl Default for ScarfJointConfig {
             role_based_wipe_speed: false,
             wipe_speed: 0.0,
             wipe_on_loop: false,
+            seam_gap: 0.0,
+            scarf_angle_threshold: 0.0,
+            scarf_overhang_threshold: 0.0,
+            override_filament_setting: false,
         }
     }
 }
@@ -1610,6 +1634,42 @@ pub struct MultiMaterialConfig {
     pub support_interface_filament: Option<usize>,
     /// Tool change retraction configuration.
     pub tool_change_retraction: ToolChangeRetractionConfig,
+    /// Rotation angle for the purge tower in degrees.
+    /// OrcaSlicer/PrusaSlicer: `wipe_tower_rotation_angle`.
+    #[serde(default)]
+    pub wipe_tower_rotation_angle: f64,
+    /// Purge tower bridging flow rate.
+    /// PrusaSlicer: `wipe_tower_bridging`.
+    #[serde(default)]
+    pub wipe_tower_bridging: f64,
+    /// Cone angle for tapered purge tower (degrees).
+    /// PrusaSlicer: `wipe_tower_cone_angle`.
+    #[serde(default)]
+    pub wipe_tower_cone_angle: f64,
+    /// Skip sparse (empty) purge tower layers.
+    /// PrusaSlicer: `wipe_tower_no_sparse_layers`.
+    #[serde(default)]
+    pub wipe_tower_no_sparse_layers: bool,
+    /// Single extruder multi-material mode (e.g., MMU2).
+    /// Shared: `single_extruder_multi_material`.
+    #[serde(default)]
+    pub single_extruder_mmu: bool,
+    /// Flush/purge excess filament into infill regions.
+    /// OrcaSlicer: `flush_into_infill`.
+    #[serde(default)]
+    pub flush_into_infill: bool,
+    /// Flush/purge excess filament into printed objects.
+    /// OrcaSlicer: `flush_into_objects`.
+    #[serde(default)]
+    pub flush_into_objects: bool,
+    /// Flush/purge excess filament into support structures.
+    /// OrcaSlicer: `flush_into_support`.
+    #[serde(default)]
+    pub flush_into_support: bool,
+    /// Use the prime tower for purging.
+    /// OrcaSlicer: `purge_in_prime_tower`.
+    #[serde(default = "default_true")]
+    pub purge_in_prime_tower: bool,
 }
 
 impl Default for MultiMaterialConfig {
@@ -1627,6 +1687,15 @@ impl Default for MultiMaterialConfig {
             support_filament: None,
             support_interface_filament: None,
             tool_change_retraction: ToolChangeRetractionConfig::default(),
+            wipe_tower_rotation_angle: 0.0,
+            wipe_tower_bridging: 10.0,
+            wipe_tower_cone_angle: 0.0,
+            wipe_tower_no_sparse_layers: false,
+            single_extruder_mmu: false,
+            flush_into_infill: false,
+            flush_into_objects: false,
+            flush_into_support: false,
+            purge_in_prime_tower: true,
         }
     }
 }

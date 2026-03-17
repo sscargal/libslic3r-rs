@@ -405,6 +405,19 @@ pub fn prusaslicer_key_to_config_field(key: &str) -> Option<&'static str> {
         "support_material_enforce_layers" => Some("support.enforce_layers"),
         "support_material_closing_radius" => Some("support.closing_radius"),
 
+        // Multi-material config fields (PrusaSlicer).
+        "wipe_tower" => Some("multi_material.enabled"),
+        "wipe_tower_x" => Some("multi_material.purge_tower_position"),
+        "wipe_tower_y" => Some("multi_material.purge_tower_position"),
+        "wipe_tower_width" => Some("multi_material.purge_tower_width"),
+        "wipe_tower_rotation_angle" => Some("multi_material.wipe_tower_rotation_angle"),
+        "wipe_tower_bridging" => Some("multi_material.wipe_tower_bridging"),
+        "wipe_tower_cone_angle" => Some("multi_material.wipe_tower_cone_angle"),
+        "wipe_tower_no_sparse_layers" => Some("multi_material.wipe_tower_no_sparse_layers"),
+        "single_extruder_multi_material" => Some("multi_material.single_extruder_mmu"),
+        "support_material_extruder" => Some("multi_material.support_filament"),
+        "support_material_interface_extruder" => Some("multi_material.support_interface_filament"),
+
         _ => None,
     }
 }
@@ -1212,6 +1225,86 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
             let first = first_comma_value(value);
             config.filament.filament_colour = first.to_string();
             true
+        }
+
+        // =====================================================================
+        // Scarf joint fields
+        // =====================================================================
+        // PrusaSlicer has no scarf joint equivalent -- skip.
+
+        // =====================================================================
+        // Multi-material config fields (PrusaSlicer names)
+        // =====================================================================
+        "wipe_tower" => {
+            if let Some(b) = parse_bool(value) {
+                config.multi_material.enabled = b;
+                true
+            } else {
+                false
+            }
+        }
+        "wipe_tower_x" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.multi_material.purge_tower_position[0] = v;
+                true
+            } else {
+                false
+            }
+        }
+        "wipe_tower_y" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.multi_material.purge_tower_position[1] = v;
+                true
+            } else {
+                false
+            }
+        }
+        "wipe_tower_width" => {
+            parse_and_set_f64(value, &mut config.multi_material.purge_tower_width)
+        }
+        "wipe_tower_rotation_angle" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_rotation_angle)
+        }
+        "wipe_tower_bridging" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_bridging)
+        }
+        "wipe_tower_cone_angle" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_cone_angle)
+        }
+        "wipe_tower_no_sparse_layers" => {
+            if let Some(b) = parse_bool(value) {
+                config.multi_material.wipe_tower_no_sparse_layers = b;
+                true
+            } else {
+                false
+            }
+        }
+        "single_extruder_multi_material" => {
+            if let Some(b) = parse_bool(value) {
+                config.multi_material.single_extruder_mmu = b;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_extruder" => {
+            // PrusaSlicer: 1-based extruder index for support.
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.support_filament = if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_interface_extruder" => {
+            // PrusaSlicer: 1-based extruder index for support interface.
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.support_interface_filament =
+                    if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
         }
 
         // =====================================================================
