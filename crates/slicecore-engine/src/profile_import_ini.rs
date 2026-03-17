@@ -28,7 +28,7 @@ use slicecore_gcode_io::GcodeDialect;
 
 use crate::config::PrintConfig;
 use crate::infill::InfillPattern;
-use crate::profile_import::{map_surface_pattern, ImportResult, ProfileMetadata};
+use crate::profile_import::{map_brim_type, map_surface_pattern, ImportResult, ProfileMetadata};
 use crate::seam::SeamPosition;
 
 // ---------------------------------------------------------------------------
@@ -364,6 +364,23 @@ pub fn prusaslicer_key_to_config_field(key: &str) -> Option<&'static str> {
         "solid_fill_pattern" => Some("internal_solid_infill_pattern"),
         "extra_perimeters_over_overhangs" => Some("extra_perimeters_on_overhangs"),
         "z_offset" => Some("z_offset"),
+
+        // P1 config gap closure fields.
+        "fuzzy_skin" => Some("fuzzy_skin.enabled"),
+        "fuzzy_skin_thickness" => Some("fuzzy_skin.thickness"),
+        "fuzzy_skin_point_distance" => Some("fuzzy_skin.point_distance"),
+        "brim_type" => Some("brim_skirt.brim_type"),
+        "skirt_height" => Some("brim_skirt.skirt_height"),
+        "draft_shield" => Some("draft_shield"),
+        "ooze_prevention" => Some("ooze_prevention"),
+        "infill_every_layers" => Some("infill_combination"),
+        "infill_anchor_max" => Some("infill_anchor_max"),
+        "min_bead_width" => Some("min_bead_width"),
+        "min_feature_size" => Some("min_feature_size"),
+        "support_material_bottom_interface_layers" => {
+            Some("support.support_bottom_interface_layers")
+        }
+        "filament_colour" => Some("filament.filament_colour"),
 
         _ => None,
     }
@@ -962,6 +979,69 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
             true
         }
         "z_offset" => parse_and_set_f64(value, &mut config.z_offset),
+
+        // =====================================================================
+        // P1 config gap closure fields (PrusaSlicer-applicable subset)
+        // =====================================================================
+
+        // Fuzzy skin (PrusaSlicer uses "fuzzy_skin_point_distance" not "_dist").
+        "fuzzy_skin" => {
+            if let Some(b) = parse_bool(value) {
+                config.fuzzy_skin.enabled = b;
+                true
+            } else {
+                false
+            }
+        }
+        "fuzzy_skin_thickness" => parse_and_set_f64(value, &mut config.fuzzy_skin.thickness),
+        "fuzzy_skin_point_distance" => {
+            parse_and_set_f64(value, &mut config.fuzzy_skin.point_distance)
+        }
+
+        // Brim/skirt.
+        "brim_type" => {
+            if let Some(bt) = map_brim_type(value) {
+                config.brim_skirt.brim_type = bt;
+                true
+            } else {
+                false
+            }
+        }
+        "skirt_height" => parse_and_set_u32(value, &mut config.brim_skirt.skirt_height),
+
+        // Top-level fields.
+        "draft_shield" => {
+            if let Some(b) = parse_bool(value) {
+                config.draft_shield = b;
+                true
+            } else {
+                false
+            }
+        }
+        "ooze_prevention" => {
+            if let Some(b) = parse_bool(value) {
+                config.ooze_prevention = b;
+                true
+            } else {
+                false
+            }
+        }
+        "infill_every_layers" => parse_and_set_u32(value, &mut config.infill_combination),
+        "infill_anchor_max" => parse_and_set_f64(value, &mut config.infill_anchor_max),
+        "min_bead_width" => parse_and_set_f64(value, &mut config.min_bead_width),
+        "min_feature_size" => parse_and_set_f64(value, &mut config.min_feature_size),
+
+        // Support (PrusaSlicer uses "support_material_bottom_interface_layers").
+        "support_material_bottom_interface_layers" => {
+            parse_and_set_u32(value, &mut config.support.support_bottom_interface_layers)
+        }
+
+        // Filament colour.
+        "filament_colour" => {
+            let first = first_comma_value(value);
+            config.filament.filament_colour = first.to_string();
+            true
+        }
 
         // =====================================================================
         // Default: store unmapped fields in passthrough
