@@ -38,6 +38,7 @@ pub mod flow_control;
 pub mod gap_fill;
 pub mod gcode_analysis;
 pub mod gcode_gen;
+pub mod gcode_template;
 pub mod infill;
 pub mod ironing;
 pub mod modifier;
