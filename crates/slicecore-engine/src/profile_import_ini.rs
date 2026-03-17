@@ -28,7 +28,10 @@ use slicecore_gcode_io::GcodeDialect;
 
 use crate::config::PrintConfig;
 use crate::infill::InfillPattern;
-use crate::profile_import::{map_brim_type, map_surface_pattern, ImportResult, ProfileMetadata};
+use crate::profile_import::{
+    map_brim_type, map_interface_pattern, map_support_pattern, map_support_type,
+    map_surface_pattern, ImportResult, ProfileMetadata,
+};
 use crate::seam::SeamPosition;
 
 // ---------------------------------------------------------------------------
@@ -381,6 +384,26 @@ pub fn prusaslicer_key_to_config_field(key: &str) -> Option<&'static str> {
             Some("support.support_bottom_interface_layers")
         }
         "filament_colour" => Some("filament.filament_colour"),
+
+        // Support config fields (PrusaSlicer).
+        "support_material" => Some("support.enabled"),
+        "support_material_auto" => Some("support.support_type"),
+        "support_material_style" => Some("support.support_type"),
+        "support_material_threshold" => Some("support.overhang_angle"),
+        "support_material_pattern" => Some("support.support_pattern"),
+        "support_material_buildplate_only" => Some("support.build_plate_only"),
+        "support_material_contact_distance" => Some("support.z_gap"),
+        "support_material_bottom_contact_distance" => Some("support.bottom_z_gap"),
+        "support_material_xy_spacing" => Some("support.xy_gap"),
+        "support_material_interface_layers" => Some("support.interface_layers"),
+        "support_material_interface_pattern" => Some("support.interface_pattern"),
+        "support_material_spacing" => Some("support.support_density"),
+        "support_material_interface_spacing" => Some("support.interface_density"),
+        "support_material_flow" => Some("support.flow_ratio"),
+        "support_material_interface_flow" => Some("support.interface_flow_ratio"),
+        "support_material_synchronize_layers" => Some("support.synchronize_layers"),
+        "support_material_enforce_layers" => Some("support.enforce_layers"),
+        "support_material_closing_radius" => Some("support.closing_radius"),
 
         _ => None,
     }
@@ -1031,9 +1054,157 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         "min_bead_width" => parse_and_set_f64(value, &mut config.min_bead_width),
         "min_feature_size" => parse_and_set_f64(value, &mut config.min_feature_size),
 
-        // Support (PrusaSlicer uses "support_material_bottom_interface_layers").
+        // =====================================================================
+        // Support config fields (PrusaSlicer names)
+        // =====================================================================
+        "support_material" => {
+            if let Some(b) = parse_bool(value) {
+                config.support.enabled = b;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_auto" => {
+            if let Some(b) = parse_bool(value) {
+                if b {
+                    config.support.support_type =
+                        crate::support::config::SupportType::Auto;
+                }
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_style" => {
+            if let Some(st) = map_support_type(value) {
+                config.support.support_type = st;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_threshold" => {
+            parse_and_set_f64(value, &mut config.support.overhang_angle)
+        }
+        "support_material_pattern" => {
+            if let Some(p) = map_support_pattern(value) {
+                config.support.support_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_buildplate_only" => {
+            if let Some(b) = parse_bool(value) {
+                config.support.build_plate_only = b;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_contact_distance" => {
+            parse_and_set_f64(value, &mut config.support.z_gap)
+        }
+        "support_material_bottom_contact_distance" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.support.bottom_z_gap = Some(v);
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_xy_spacing" => {
+            parse_and_set_f64(value, &mut config.support.xy_gap)
+        }
+        "support_material_interface_layers" => {
+            parse_and_set_u32(value, &mut config.support.interface_layers)
+        }
         "support_material_bottom_interface_layers" => {
             parse_and_set_u32(value, &mut config.support.support_bottom_interface_layers)
+        }
+        "support_material_interface_pattern" => {
+            if let Some(p) = map_interface_pattern(value) {
+                config.support.interface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_spacing" => {
+            // Convert spacing to density: density = line_width / spacing.
+            if let Ok(spacing) = value.parse::<f64>() {
+                if spacing > 0.0 {
+                    let line_width = config
+                        .passthrough
+                        .get("extrusion_width")
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .unwrap_or(0.4);
+                    config.support.support_density =
+                        (line_width / spacing).clamp(0.0, 1.0);
+                }
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_interface_spacing" => {
+            // Convert spacing to density: density = line_width / spacing.
+            if let Ok(spacing) = value.parse::<f64>() {
+                if spacing > 0.0 {
+                    let line_width = config
+                        .passthrough
+                        .get("extrusion_width")
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .unwrap_or(0.4);
+                    config.support.interface_density =
+                        (line_width / spacing).clamp(0.0, 1.0);
+                } else {
+                    config.support.interface_density = 1.0;
+                }
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_with_sheath" => {
+            // Store in passthrough (no direct typed field).
+            config
+                .passthrough
+                .insert(key.to_string(), value.to_string());
+            true
+        }
+        "support_material_flow" => {
+            parse_and_set_f64(value, &mut config.support.flow_ratio)
+        }
+        "support_material_interface_flow" => {
+            parse_and_set_f64(value, &mut config.support.interface_flow_ratio)
+        }
+        "support_material_synchronize_layers" => {
+            if let Some(b) = parse_bool(value) {
+                config.support.synchronize_layers = b;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_enforce_layers" => {
+            parse_and_set_u32(value, &mut config.support.enforce_layers)
+        }
+        "support_material_closing_radius" => {
+            parse_and_set_f64(value, &mut config.support.closing_radius)
+        }
+        "raft_layers" => parse_and_set_u32(value, &mut config.support.raft_layers),
+
+        // Bridge fields (PrusaSlicer names).
+        "bridge_fan_speed" => {
+            let first = first_comma_value(value);
+            if let Ok(v) = first.parse::<f64>() {
+                config.support.bridge.fan_speed = (v.clamp(0.0, 255.0)) as u8;
+                true
+            } else {
+                false
+            }
         }
 
         // Filament colour.
