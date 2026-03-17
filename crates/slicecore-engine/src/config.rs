@@ -569,6 +569,66 @@ pub struct MachineConfig {
     /// Currently selected bed/build plate type.
     /// OrcaSlicer: `curr_bed_type`. Default: TexturedPEI.
     pub curr_bed_type: BedType,
+    /// Enable silent/stealth mode for quieter operation.
+    /// OrcaSlicer/PrusaSlicer: `silent_mode`. Default: false.
+    #[serde(default)]
+    pub silent_mode: bool,
+    /// Nozzle hardness rating in HRC (Rockwell C scale).
+    /// OrcaSlicer: `nozzle_hrc`. Default: 0.
+    #[serde(default)]
+    pub nozzle_hrc: u32,
+    /// Write machine limits (M201/M203/M204) to G-code output.
+    /// OrcaSlicer: `emit_machine_limits_to_gcode`. Default: false.
+    #[serde(default)]
+    pub emit_machine_limits_to_gcode: bool,
+    /// Custom bed texture image path for UI preview.
+    /// OrcaSlicer/PrusaSlicer: `bed_custom_texture`. Default: empty.
+    #[serde(default)]
+    pub bed_custom_texture: String,
+    /// Custom bed 3D model path for UI preview.
+    /// OrcaSlicer/PrusaSlicer: `bed_custom_model`. Default: empty.
+    #[serde(default)]
+    pub bed_custom_model: String,
+    /// XY offset per extruder in mm [[x, y], ...].
+    /// OrcaSlicer/PrusaSlicer: `extruder_offset`. Default: empty.
+    #[serde(default)]
+    pub extruder_offset: Vec<[f64; 2]>,
+    /// Bambu AMS cooling tube length in mm.
+    /// OrcaSlicer/PrusaSlicer: `cooling_tube_length`. Default: 0.0.
+    #[serde(default)]
+    pub cooling_tube_length: f64,
+    /// Bambu AMS cooling tube retraction distance in mm.
+    /// OrcaSlicer/PrusaSlicer: `cooling_tube_retraction`. Default: 0.0.
+    #[serde(default)]
+    pub cooling_tube_retraction: f64,
+    /// Bambu AMS parking position retraction distance in mm.
+    /// OrcaSlicer/PrusaSlicer: `parking_pos_retraction`. Default: 0.0.
+    #[serde(default)]
+    pub parking_pos_retraction: f64,
+    /// Bambu AMS extra loading move distance in mm.
+    /// OrcaSlicer/PrusaSlicer: `extra_loading_move`. Default: 0.0.
+    #[serde(default)]
+    pub extra_loading_move: f64,
+    /// Retraction length for tool change in mm.
+    /// PrusaSlicer: `retract_length_toolchange`. Default: 0.0.
+    #[serde(default)]
+    pub retract_length_toolchange: f64,
+    /// Extra length to prime after retraction in mm.
+    /// PrusaSlicer: `retract_restart_extra`. Default: 0.0.
+    #[serde(default)]
+    pub retract_restart_extra: f64,
+    /// Extra length to prime after tool change retraction in mm.
+    /// PrusaSlicer: `retract_restart_extra_toolchange`. Default: 0.0.
+    #[serde(default)]
+    pub retract_restart_extra_toolchange: f64,
+    /// Minimum extruding rate in mm/s.
+    /// OrcaSlicer: `machine_min_extruding_rate`. Default: 0.0.
+    #[serde(default)]
+    pub min_extruding_rate: f64,
+    /// Minimum travel rate in mm/s.
+    /// OrcaSlicer: `machine_min_travel_rate`. Default: 0.0.
+    #[serde(default)]
+    pub min_travel_rate: f64,
 }
 
 impl Default for MachineConfig {
@@ -605,6 +665,21 @@ impl Default for MachineConfig {
             watts: 0.0,
             chamber_temperature: 0.0,
             curr_bed_type: BedType::default(),
+            silent_mode: false,
+            nozzle_hrc: 0,
+            emit_machine_limits_to_gcode: false,
+            bed_custom_texture: String::new(),
+            bed_custom_model: String::new(),
+            extruder_offset: Vec::new(),
+            cooling_tube_length: 0.0,
+            cooling_tube_retraction: 0.0,
+            parking_pos_retraction: 0.0,
+            extra_loading_move: 0.0,
+            retract_length_toolchange: 0.0,
+            retract_restart_extra: 0.0,
+            retract_restart_extra_toolchange: 0.0,
+            min_extruding_rate: 0.0,
+            min_travel_rate: 0.0,
         }
     }
 }
@@ -689,6 +764,34 @@ pub struct AccelerationConfig {
     /// Support interface acceleration in mm/s^2.
     /// OrcaSlicer: `support_interface_acceleration`. Range: 0-50000. Default: 0.0 (use default).
     pub support_interface_acceleration: f64,
+    /// Default jerk value in mm/s (0 = firmware default).
+    /// OrcaSlicer: `default_jerk`. Default: 0.0.
+    #[serde(default)]
+    pub default_jerk: f64,
+    /// Outer wall jerk value in mm/s (0 = use default_jerk).
+    /// OrcaSlicer: `outer_wall_jerk`. Default: 0.0.
+    #[serde(default)]
+    pub outer_wall_jerk: f64,
+    /// Inner wall jerk value in mm/s (0 = use default_jerk).
+    /// OrcaSlicer: `inner_wall_jerk`. Default: 0.0.
+    #[serde(default)]
+    pub inner_wall_jerk: f64,
+    /// Top surface jerk value in mm/s (0 = use default_jerk).
+    /// OrcaSlicer: `top_surface_jerk`. Default: 0.0.
+    #[serde(default)]
+    pub top_surface_jerk: f64,
+    /// Infill jerk value in mm/s (0 = use default_jerk).
+    /// OrcaSlicer: `infill_jerk`. Default: 0.0.
+    #[serde(default)]
+    pub infill_jerk: f64,
+    /// Travel jerk value in mm/s (0 = use default_jerk).
+    /// OrcaSlicer: `travel_jerk`. Default: 0.0.
+    #[serde(default)]
+    pub travel_jerk: f64,
+    /// Initial layer jerk value in mm/s (0 = use default_jerk).
+    /// OrcaSlicer: `initial_layer_jerk`. Default: 0.0.
+    #[serde(default)]
+    pub initial_layer_jerk: f64,
 }
 
 impl Default for AccelerationConfig {
@@ -707,6 +810,13 @@ impl Default for AccelerationConfig {
             internal_solid_infill_acceleration: 0.0,
             support_acceleration: 0.0,
             support_interface_acceleration: 0.0,
+            default_jerk: 0.0,
+            outer_wall_jerk: 0.0,
+            inner_wall_jerk: 0.0,
+            top_surface_jerk: 0.0,
+            infill_jerk: 0.0,
+            travel_jerk: 0.0,
+            initial_layer_jerk: 0.0,
         }
     }
 }
@@ -1152,6 +1262,40 @@ pub struct PrintConfig {
     /// Minimum feature size for Arachne detection in mm.
     /// OrcaSlicer: `min_feature_size`. Range: 0.0-1.0. Default: 0.25.
     pub min_feature_size: f64,
+
+    // --- P2 Niche Fields (Phase 34) ---
+    /// Slicing tolerance mode for layer boundary positioning.
+    /// OrcaSlicer/PrusaSlicer: `slicing_tolerance`. Default: Middle.
+    #[serde(default)]
+    pub slicing_tolerance: SlicingTolerance,
+    /// Thumbnail size specs (e.g., ["96x96", "400x300"]).
+    /// OrcaSlicer/PrusaSlicer: `thumbnails`. Default: empty.
+    #[serde(default)]
+    pub thumbnails: Vec<String>,
+    /// Cumulative compatible printers condition expressions.
+    /// OrcaSlicer: `compatible_printers_condition_cummulative`. Default: empty.
+    #[serde(default)]
+    pub compatible_printers_condition: Vec<String>,
+    /// Profile inheritance grouping identifier.
+    /// OrcaSlicer: `inherits_group`. Default: empty.
+    #[serde(default)]
+    pub inherits_group: String,
+    /// Maximum travel detour length for optimization in mm.
+    /// OrcaSlicer: `max_travel_detour_distance`. Default: 0.0.
+    #[serde(default)]
+    pub max_travel_detour_length: f64,
+    /// Enable exclude/cancel object support.
+    /// OrcaSlicer: `exclude_object`. Default: false.
+    #[serde(default)]
+    pub exclude_object: bool,
+    /// Reduce retraction on infill-to-infill travel.
+    /// OrcaSlicer: `reduce_infill_retraction`. Default: false.
+    #[serde(default)]
+    pub reduce_infill_retraction: bool,
+    /// Reduce wall crossing during travel moves.
+    /// OrcaSlicer: `reduce_crossing_wall`. Default: false.
+    #[serde(default)]
+    pub reduce_crossing_wall: bool,
 }
 
 fn default_thumbnail_resolution() -> [u32; 2] {
@@ -1189,6 +1333,26 @@ pub struct PostProcessConfig {
     /// Explicit plugin execution order by name.
     /// When empty, plugins are sorted by priority.
     pub plugin_order: Vec<String>,
+    /// Post-process script paths (semicolon/newline separated in upstream).
+    /// OrcaSlicer/PrusaSlicer: `post_process`. Default: empty.
+    #[serde(default)]
+    pub scripts: Vec<String>,
+    /// Label objects in G-code output (Exclude Object support).
+    /// OrcaSlicer: `gcode_label_objects`. Default: false.
+    #[serde(default)]
+    pub gcode_label_objects: bool,
+    /// Include comments in G-code output.
+    /// OrcaSlicer: `gcode_comments`. Default: false.
+    #[serde(default)]
+    pub gcode_comments: bool,
+    /// Add line numbers to G-code output.
+    /// OrcaSlicer: `gcode_add_line_number`. Default: false.
+    #[serde(default)]
+    pub gcode_add_line_number: bool,
+    /// Output filename format template.
+    /// OrcaSlicer: `filename_format`. Default: empty.
+    #[serde(default)]
+    pub filename_format: String,
 }
 
 impl Default for PostProcessConfig {
@@ -1201,6 +1365,11 @@ impl Default for PostProcessConfig {
             fan_overrides: Vec::new(),
             custom_gcode: Vec::new(),
             plugin_order: Vec::new(),
+            scripts: Vec::new(),
+            gcode_label_objects: false,
+            gcode_comments: false,
+            gcode_add_line_number: false,
+            filename_format: String::new(),
         }
     }
 }
@@ -1364,6 +1533,22 @@ impl Default for ScarfJointConfig {
     }
 }
 
+/// Slicing tolerance mode for layer boundary positioning.
+///
+/// Controls how the slicer determines the Z height within a layer for
+/// contour intersection. Affects dimensional accuracy of angled surfaces.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SlicingTolerance {
+    /// Slice at the midpoint of each layer (default, balanced accuracy).
+    #[default]
+    Middle,
+    /// Slice at the nearest point to the original mesh surface.
+    Nearest,
+    /// Use Gaussian averaging for smoother contour transitions.
+    Gauss,
+}
+
 /// Controls which perimeter types receive scarf joint treatment.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -1476,6 +1661,15 @@ impl Default for PrintConfig {
             infill_anchor_max: 12.0,
             min_bead_width: 0.315,
             min_feature_size: 0.25,
+
+            slicing_tolerance: SlicingTolerance::default(),
+            thumbnails: Vec::new(),
+            compatible_printers_condition: Vec::new(),
+            inherits_group: String::new(),
+            max_travel_detour_length: 0.0,
+            exclude_object: false,
+            reduce_infill_retraction: false,
+            reduce_crossing_wall: false,
         }
     }
 }

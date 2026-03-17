@@ -35,7 +35,7 @@
 
 use slicecore_gcode_io::GcodeDialect;
 
-use crate::config::{BedType, BrimType, InternalBridgeMode, PrintConfig, SurfacePattern};
+use crate::config::{BedType, BrimType, InternalBridgeMode, PrintConfig, SlicingTolerance, SurfacePattern};
 use crate::error::EngineError;
 use crate::infill::InfillPattern;
 use crate::seam::SeamPosition;
@@ -742,6 +742,56 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "color_change_gcode" => Some("custom_gcode.color_change"),
         "machine_pause_gcode" | "pause_print_gcode" => Some("custom_gcode.pause_print"),
         "between_objects_gcode" => Some("custom_gcode.between_objects"),
+
+        // --- PostProcess/Timelapse fields ---
+        "post_process" => Some("post_process.scripts"),
+        "timelapse_type" => Some("post_process.timelapse.enabled"),
+        "gcode_label_objects" => Some("post_process.gcode_label_objects"),
+        "gcode_comments" => Some("post_process.gcode_comments"),
+        "gcode_add_line_number" => Some("post_process.gcode_add_line_number"),
+        "filename_format" => Some("post_process.filename_format"),
+
+        // --- P2 niche fields ---
+        "slicing_tolerance" => Some("slicing_tolerance"),
+        "thumbnails" => Some("thumbnails"),
+        "silent_mode" => Some("machine.silent_mode"),
+        "nozzle_hrc" => Some("machine.nozzle_hrc"),
+        "emit_machine_limits_to_gcode" => Some("machine.emit_machine_limits_to_gcode"),
+        "bed_custom_texture" => Some("machine.bed_custom_texture"),
+        "bed_custom_model" => Some("machine.bed_custom_model"),
+        "extruder_offset" => Some("machine.extruder_offset"),
+        "cooling_tube_length" => Some("machine.cooling_tube_length"),
+        "cooling_tube_retraction" => Some("machine.cooling_tube_retraction"),
+        "parking_pos_retraction" => Some("machine.parking_pos_retraction"),
+        "extra_loading_move" => Some("machine.extra_loading_move"),
+        "compatible_printers_condition_cummulative" => Some("compatible_printers_condition"),
+        "inherits_group" => Some("inherits_group"),
+        "max_travel_detour_distance" | "max_travel_detour_length" => {
+            Some("max_travel_detour_length")
+        }
+        "exclude_object" => Some("exclude_object"),
+        "reduce_infill_retraction" => Some("reduce_infill_retraction"),
+        "reduce_crossing_wall" => Some("reduce_crossing_wall"),
+
+        // --- Straggler fields ---
+        "ironing_angle" => Some("ironing.angle"),
+        "print_sequence" => Some("sequential.enabled"),
+
+        // --- Jerk fields ---
+        "default_jerk" => Some("accel.default_jerk"),
+        "outer_wall_jerk" => Some("accel.outer_wall_jerk"),
+        "inner_wall_jerk" => Some("accel.inner_wall_jerk"),
+        "top_surface_jerk" => Some("accel.top_surface_jerk"),
+        "infill_jerk" => Some("accel.infill_jerk"),
+        "travel_jerk" => Some("accel.travel_jerk"),
+        "initial_layer_jerk" => Some("accel.initial_layer_jerk"),
+
+        // --- Machine straggler fields ---
+        "retract_length_toolchange" => Some("machine.retract_length_toolchange"),
+        "retract_restart_extra" => Some("machine.retract_restart_extra"),
+        "retract_restart_extra_toolchange" => Some("machine.retract_restart_extra_toolchange"),
+        "machine_min_extruding_rate" => Some("machine.min_extruding_rate"),
+        "machine_min_travel_rate" => Some("machine.min_travel_rate"),
 
         // Ironing sub-fields don't map to simple top-level fields.
         _ => None,
@@ -1774,6 +1824,169 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "between_objects_gcode" => {
             config.custom_gcode.between_objects = value.to_string();
             true
+        }
+
+        // --- PostProcess config fields ---
+        "post_process" => {
+            // Split by semicolon or newline to get individual script paths.
+            let scripts: Vec<String> = value
+                .split(|c: char| c == ';' || c == '\n')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            config.post_process.scripts = scripts;
+            true
+        }
+        "timelapse_type" => {
+            // "none" or empty -> disabled, anything else -> enabled.
+            config.post_process.timelapse.enabled =
+                !value.is_empty() && value != "none" && value != "0";
+            true
+        }
+        "gcode_label_objects" => {
+            config.post_process.gcode_label_objects =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "gcode_comments" => {
+            config.post_process.gcode_comments =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "gcode_add_line_number" => {
+            config.post_process.gcode_add_line_number =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "filename_format" => {
+            config.post_process.filename_format = value.to_string();
+            true
+        }
+
+        // --- P2 niche fields ---
+        "slicing_tolerance" => {
+            config.slicing_tolerance = match value.to_lowercase().as_str() {
+                "middle" => SlicingTolerance::Middle,
+                "nearest" => SlicingTolerance::Nearest,
+                "gauss" => SlicingTolerance::Gauss,
+                _ => SlicingTolerance::Middle,
+            };
+            true
+        }
+        "thumbnails" => {
+            // Parse as comma-separated or semicolon-separated size specs.
+            let specs: Vec<String> = value
+                .split(|c: char| c == ',' || c == ';')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            config.thumbnails = specs;
+            true
+        }
+        "silent_mode" => {
+            config.machine.silent_mode =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "nozzle_hrc" => parse_and_set_u32(value, &mut config.machine.nozzle_hrc),
+        "emit_machine_limits_to_gcode" => {
+            config.machine.emit_machine_limits_to_gcode =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "bed_custom_texture" => {
+            config.machine.bed_custom_texture = value.to_string();
+            true
+        }
+        "bed_custom_model" => {
+            config.machine.bed_custom_model = value.to_string();
+            true
+        }
+        "extruder_offset" => {
+            // Store as passthrough; complex parsing handled elsewhere.
+            config
+                .passthrough
+                .insert(key.to_string(), value.to_string());
+            true
+        }
+        "cooling_tube_length" => {
+            parse_and_set_f64(value, &mut config.machine.cooling_tube_length)
+        }
+        "cooling_tube_retraction" => {
+            parse_and_set_f64(value, &mut config.machine.cooling_tube_retraction)
+        }
+        "parking_pos_retraction" => {
+            parse_and_set_f64(value, &mut config.machine.parking_pos_retraction)
+        }
+        "extra_loading_move" => {
+            parse_and_set_f64(value, &mut config.machine.extra_loading_move)
+        }
+        "compatible_printers_condition_cummulative" => {
+            let conditions: Vec<String> = value
+                .split(';')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            config.compatible_printers_condition = conditions;
+            true
+        }
+        "inherits_group" => {
+            config.inherits_group = value.to_string();
+            true
+        }
+        "max_travel_detour_distance" | "max_travel_detour_length" => {
+            parse_and_set_f64(value, &mut config.max_travel_detour_length)
+        }
+        "exclude_object" => {
+            config.exclude_object =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "reduce_infill_retraction" => {
+            config.reduce_infill_retraction =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "reduce_crossing_wall" => {
+            config.reduce_crossing_wall =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- Straggler fields from partially-mapped sections ---
+        "ironing_angle" => {
+            parse_and_set_f64(value, &mut config.ironing.angle)
+        }
+        "print_sequence" => {
+            config.sequential.enabled =
+                value.eq_ignore_ascii_case("by object");
+            true
+        }
+
+        // --- Jerk fields (AccelerationConfig stragglers) ---
+        "default_jerk" => parse_and_set_f64(value, &mut config.accel.default_jerk),
+        "outer_wall_jerk" => parse_and_set_f64(value, &mut config.accel.outer_wall_jerk),
+        "inner_wall_jerk" => parse_and_set_f64(value, &mut config.accel.inner_wall_jerk),
+        "top_surface_jerk" => parse_and_set_f64(value, &mut config.accel.top_surface_jerk),
+        "infill_jerk" => parse_and_set_f64(value, &mut config.accel.infill_jerk),
+        "travel_jerk" => parse_and_set_f64(value, &mut config.accel.travel_jerk),
+        "initial_layer_jerk" => parse_and_set_f64(value, &mut config.accel.initial_layer_jerk),
+
+        // --- Machine straggler fields ---
+        "retract_length_toolchange" => {
+            parse_and_set_f64(value, &mut config.machine.retract_length_toolchange)
+        }
+        "retract_restart_extra" => {
+            parse_and_set_f64(value, &mut config.machine.retract_restart_extra)
+        }
+        "retract_restart_extra_toolchange" => {
+            parse_and_set_f64(value, &mut config.machine.retract_restart_extra_toolchange)
+        }
+        "machine_min_extruding_rate" => {
+            parse_and_set_f64(value, &mut config.machine.min_extruding_rate)
+        }
+        "machine_min_travel_rate" => {
+            parse_and_set_f64(value, &mut config.machine.min_travel_rate)
         }
 
         // --- Default: store unmapped fields in passthrough ---

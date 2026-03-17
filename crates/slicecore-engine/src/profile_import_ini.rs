@@ -425,6 +425,26 @@ pub fn prusaslicer_key_to_config_field(key: &str) -> Option<&'static str> {
         "support_material_extruder" => Some("multi_material.support_filament"),
         "support_material_interface_extruder" => Some("multi_material.support_interface_filament"),
 
+        // PostProcess/P2/Straggler fields (Phase 34).
+        "post_process" => Some("post_process.scripts"),
+        "slicing_tolerance" => Some("slicing_tolerance"),
+        "thumbnails" => Some("thumbnails"),
+        "silent_mode" => Some("machine.silent_mode"),
+        "bed_custom_texture" => Some("machine.bed_custom_texture"),
+        "bed_custom_model" => Some("machine.bed_custom_model"),
+        "cooling_tube_length" => Some("machine.cooling_tube_length"),
+        "cooling_tube_retraction" => Some("machine.cooling_tube_retraction"),
+        "parking_pos_retraction" => Some("machine.parking_pos_retraction"),
+        "extra_loading_move" => Some("machine.extra_loading_move"),
+        "retract_length_toolchange" => Some("machine.retract_length_toolchange"),
+        "retract_restart_extra" => Some("machine.retract_restart_extra"),
+        "retract_restart_extra_toolchange" => Some("machine.retract_restart_extra_toolchange"),
+        "ironing_type" => Some("ironing.enabled"),
+        "ironing_angle" => Some("ironing.angle"),
+        "ironing_speed" => Some("ironing.speed"),
+        "ironing_spacing" => Some("ironing.spacing"),
+        "extruder_clearance_height" => Some("sequential.extruder_clearance_height"),
+
         _ => None,
     }
 }
@@ -1337,6 +1357,84 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
                 false
             }
         }
+
+        // =====================================================================
+        // PostProcess/P2/Straggler fields (Phase 34)
+        // =====================================================================
+        "post_process" => {
+            let scripts: Vec<String> = value
+                .split(|c: char| c == ';' || c == '\n')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            config.post_process.scripts = scripts;
+            true
+        }
+        "slicing_tolerance" => {
+            config.slicing_tolerance = match value.to_lowercase().as_str() {
+                "middle" => crate::config::SlicingTolerance::Middle,
+                "nearest" => crate::config::SlicingTolerance::Nearest,
+                "gauss" => crate::config::SlicingTolerance::Gauss,
+                _ => crate::config::SlicingTolerance::Middle,
+            };
+            true
+        }
+        "thumbnails" => {
+            let specs: Vec<String> = value
+                .split(|c: char| c == ',' || c == ';')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            config.thumbnails = specs;
+            true
+        }
+        "silent_mode" => {
+            if let Some(b) = parse_bool(value) {
+                config.machine.silent_mode = b;
+                true
+            } else {
+                false
+            }
+        }
+        "bed_custom_texture" => {
+            config.machine.bed_custom_texture = value.to_string();
+            true
+        }
+        "bed_custom_model" => {
+            config.machine.bed_custom_model = value.to_string();
+            true
+        }
+        "cooling_tube_length" => {
+            parse_and_set_f64(value, &mut config.machine.cooling_tube_length)
+        }
+        "cooling_tube_retraction" => {
+            parse_and_set_f64(value, &mut config.machine.cooling_tube_retraction)
+        }
+        "parking_pos_retraction" => {
+            parse_and_set_f64(value, &mut config.machine.parking_pos_retraction)
+        }
+        "extra_loading_move" => {
+            parse_and_set_f64(value, &mut config.machine.extra_loading_move)
+        }
+        "retract_length_toolchange" => {
+            let first = first_comma_value(value);
+            parse_and_set_f64(first, &mut config.machine.retract_length_toolchange)
+        }
+        "retract_restart_extra" => {
+            let first = first_comma_value(value);
+            parse_and_set_f64(first, &mut config.machine.retract_restart_extra)
+        }
+        "retract_restart_extra_toolchange" => {
+            let first = first_comma_value(value);
+            parse_and_set_f64(first, &mut config.machine.retract_restart_extra_toolchange)
+        }
+        "ironing_type" => {
+            config.ironing.enabled = !value.is_empty() && value != "no ironing" && value != "neironing";
+            true
+        }
+        "ironing_angle" => parse_and_set_f64(value, &mut config.ironing.angle),
+        "ironing_speed" => parse_and_set_f64(value, &mut config.ironing.speed),
+        "ironing_spacing" => parse_and_set_f64(value, &mut config.ironing.spacing),
 
         // =====================================================================
         // Default: store unmapped fields in passthrough
