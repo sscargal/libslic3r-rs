@@ -28,7 +28,7 @@ use slicecore_gcode_io::GcodeDialect;
 
 use crate::config::PrintConfig;
 use crate::infill::InfillPattern;
-use crate::profile_import::{ImportResult, ProfileMetadata};
+use crate::profile_import::{map_surface_pattern, ImportResult, ProfileMetadata};
 use crate::seam::SeamPosition;
 
 // ---------------------------------------------------------------------------
@@ -356,6 +356,14 @@ pub fn prusaslicer_key_to_config_field(key: &str) -> Option<&'static str> {
         "resolution" => Some("resolution"),
         "raft_layers" => Some("raft_layers"),
         "thin_walls" | "detect_thin_wall" => Some("detect_thin_wall"),
+
+        // --- P0 config gap closure: PrusaSlicer key name translations ---
+        "xy_size_compensation" => Some("xy_contour_compensation"),
+        "top_fill_pattern" => Some("top_surface_pattern"),
+        "bottom_fill_pattern" => Some("bottom_surface_pattern"),
+        "solid_fill_pattern" => Some("internal_solid_infill_pattern"),
+        "extra_perimeters_over_overhangs" => Some("extra_perimeters_on_overhangs"),
+        "z_offset" => Some("z_offset"),
 
         _ => None,
     }
@@ -916,6 +924,44 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
                 false
             }
         }
+
+        // =====================================================================
+        // P0 config gap closure fields (PrusaSlicer-applicable subset)
+        // =====================================================================
+        "xy_size_compensation" => {
+            // PrusaSlicer has a single xy_size_compensation for both hole and contour.
+            parse_and_set_f64(value, &mut config.dimensional_compensation.xy_contour_compensation)
+        }
+        "top_fill_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.top_surface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "bottom_fill_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.bottom_surface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "solid_fill_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.solid_infill_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "extra_perimeters_over_overhangs" => {
+            config.extra_perimeters_on_overhangs =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "z_offset" => parse_and_set_f64(value, &mut config.z_offset),
 
         // =====================================================================
         // Default: store unmapped fields in passthrough
