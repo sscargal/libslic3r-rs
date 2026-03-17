@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 34-04-PLAN.md
-last_updated: "2026-03-17T17:47:03.186Z"
+stopped_at: Completed 34-05-PLAN.md
+last_updated: "2026-03-17T17:54:31.694Z"
 last_activity: "2026-03-17 - Completed plan 34-04: PostProcess + P2 Niche Fields + Straggler Coverage"
 progress:
   total_phases: 35
   completed_phases: 33
   total_plans: 147
-  completed_plans: 145
+  completed_plans: 146
   percent: 98
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 34 of 35 (Support Config and Advanced Feature Profile Import Mapping)
-Plan: 4 of 6 in current phase (4 complete)
+Plan: 5 of 6 in current phase (5 complete)
 Status: In Progress
-Last activity: 2026-03-17 - Completed plan 34-04: PostProcess + P2 Niche Fields + Straggler Coverage
+Last activity: 2026-03-17 - Completed plan 34-05: G-code Template Variable Translation
 
-Progress: [██████████] 98% (144/147 overall)
+Progress: [██████████] 99% (146/147 overall)
 
 ## Performance Metrics
 
@@ -124,6 +124,7 @@ Progress: [██████████] 98% (144/147 overall)
 | Phase 34 P02 | 4min | 2 tasks | 4 files |
 | Phase 34 P03 | 4min | 2 tasks | 4 files |
 | Phase 34 P04 | 3min | 1 tasks | 3 files |
+| Phase 34 P05 | 5min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -609,6 +610,8 @@ Recent decisions affecting current work:
 - [Phase 34]: PrusaSlicer has no scarf joint equivalent; OrcaSlicer-only section
 - [Phase 34]: SlicingTolerance enum (Middle/Nearest/Gauss) for type-safe slicing tolerance
 - [Phase 34]: Jerk fields in AccelerationConfig (not MachineConfig) as process-level params
+- [Phase 34]: G-code variable translation uses sequential replacement with longest-first sort for correctness
+- [Phase 34]: Dual G-code storage with _original fields preserves verbatim upstream content
 
 ### Roadmap Evolution
 
@@ -654,6 +657,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-17T17:47:03.182Z
-Stopped at: Completed 34-04-PLAN.md
+Last session: 2026-03-17T17:54:31.690Z
+Stopped at: Completed 34-05-PLAN.md
 Resume file: None
