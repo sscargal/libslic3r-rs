@@ -32,6 +32,102 @@ pub enum WallOrder {
     OuterFirst,
 }
 
+/// Fill pattern for solid surfaces (top, bottom, internal solid).
+///
+/// Separate from [`InfillPattern`] because solid surfaces use a restricted
+/// subset of patterns suitable for dense fills. Patterns like Lightning or
+/// Gyroid are unsuitable for solid surfaces and are excluded.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SurfacePattern {
+    /// Parallel lines alternating direction per layer.
+    Rectilinear,
+    /// Unidirectional monotonic lines for smooth top/bottom surfaces.
+    #[default]
+    Monotonic,
+    /// Monotonic single-line variant (thinner line overlap).
+    MonotonicLine,
+    /// Concentric inward-spiraling pattern.
+    Concentric,
+    /// Hilbert space-filling curve pattern.
+    Hilbert,
+    /// Archimedean spiral pattern.
+    Archimedean,
+}
+
+/// Build plate surface type.
+///
+/// Used to select per-bed-type temperature profiles from filament settings.
+/// Import mappers translate upstream string values (e.g., "Cool Plate") to
+/// our snake_case variants.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BedType {
+    /// Cool/smooth PEI plate (low adhesion).
+    CoolPlate,
+    /// Engineering plate (textured, high adhesion).
+    EngineeringPlate,
+    /// High-temperature plate.
+    HighTempPlate,
+    /// Textured PEI plate (standard).
+    #[default]
+    TexturedPei,
+    /// Smooth PEI plate.
+    SmoothPei,
+    /// Satin PEI plate.
+    SatinPei,
+}
+
+/// Internal bridge support mode.
+///
+/// Controls whether internal bridges (bridges over infill) receive
+/// special speed/flow treatment.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InternalBridgeMode {
+    /// No internal bridge detection.
+    #[default]
+    Off,
+    /// Automatic detection of internal bridges.
+    Auto,
+    /// Always treat internal solid layers as bridges.
+    Always,
+}
+
+/// Dimensional compensation configuration.
+///
+/// Groups XY hole/contour compensation and elephant foot compensation.
+/// These fields offset geometry to improve dimensional accuracy of
+/// printed parts. All values in mm.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DimensionalCompensationConfig {
+    /// XY hole compensation in mm. Negative values shrink holes for tighter fits.
+    /// OrcaSlicer: `xy_hole_compensation`. PrusaSlicer: N/A (uses xy_size_compensation).
+    /// Range: -2.0 to 2.0 mm. Default: 0.0 (no compensation).
+    pub xy_hole_compensation: f64,
+    /// XY contour compensation in mm. Positive values expand outer contours.
+    /// OrcaSlicer: `xy_contour_compensation`. PrusaSlicer: `xy_size_compensation`.
+    /// Range: -2.0 to 2.0 mm. Default: 0.0 (no compensation).
+    pub xy_contour_compensation: f64,
+    /// Elephant foot compensation in mm (first layer inward offset).
+    /// Migrated from `PrintConfig.elefant_foot_compensation`.
+    /// OrcaSlicer: `elefant_foot_compensation`. PrusaSlicer: `elefant_foot_compensation`.
+    /// Range: 0.0 to 2.0 mm. Default: 0.0.
+    #[serde(alias = "elefant_foot_compensation")]
+    pub elephant_foot_compensation: f64,
+}
+
+impl Default for DimensionalCompensationConfig {
+    fn default() -> Self {
+        Self {
+            xy_hole_compensation: 0.0,
+            xy_contour_compensation: 0.0,
+            elephant_foot_compensation: 0.0,
+        }
+    }
+}
+
 // ============================================================================
 // Sub-config structs for organized field grouping
 // ============================================================================
