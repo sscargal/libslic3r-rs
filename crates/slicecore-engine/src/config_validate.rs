@@ -171,6 +171,111 @@ pub fn validate_config(config: &PrintConfig) -> Vec<ValidationIssue> {
         });
     }
 
+    // Dimensional compensation range checks
+    if config.dimensional_compensation.xy_hole_compensation.abs() > 2.0 {
+        issues.push(ValidationIssue {
+            field: "dimensional_compensation.xy_hole_compensation".into(),
+            message: format!(
+                "XY hole compensation {:.2} mm is extreme (range: -2.0 to 2.0)",
+                config.dimensional_compensation.xy_hole_compensation
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.dimensional_compensation.xy_hole_compensation),
+        });
+    }
+    if config.dimensional_compensation.xy_contour_compensation.abs() > 2.0 {
+        issues.push(ValidationIssue {
+            field: "dimensional_compensation.xy_contour_compensation".into(),
+            message: format!(
+                "XY contour compensation {:.2} mm is extreme (range: -2.0 to 2.0)",
+                config.dimensional_compensation.xy_contour_compensation
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.dimensional_compensation.xy_contour_compensation),
+        });
+    }
+    if config.dimensional_compensation.elephant_foot_compensation < 0.0
+        || config.dimensional_compensation.elephant_foot_compensation > 2.0
+    {
+        issues.push(ValidationIssue {
+            field: "dimensional_compensation.elephant_foot_compensation".into(),
+            message: format!(
+                "Elephant foot compensation {:.2} mm out of range (0.0 to 2.0)",
+                config.dimensional_compensation.elephant_foot_compensation
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.dimensional_compensation.elephant_foot_compensation),
+        });
+    }
+
+    // Chamber temperature validation
+    if config.filament.chamber_temperature > 0.0
+        && config.machine.chamber_temperature > 0.0
+        && config.filament.chamber_temperature > config.machine.chamber_temperature
+    {
+        issues.push(ValidationIssue {
+            field: "filament.chamber_temperature".into(),
+            message: format!(
+                "Filament requests {}C chamber but machine max is {}C",
+                config.filament.chamber_temperature,
+                config.machine.chamber_temperature
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.filament.chamber_temperature),
+        });
+    }
+    if config.filament.chamber_temperature > 80.0 {
+        issues.push(ValidationIssue {
+            field: "filament.chamber_temperature".into(),
+            message: format!(
+                "Chamber temperature {}C exceeds safety limit (80C)",
+                config.filament.chamber_temperature
+            ),
+            severity: ValidationSeverity::Error,
+            value: format!("{}", config.filament.chamber_temperature),
+        });
+    }
+
+    // Z offset range check
+    let total_z_offset = config.z_offset + config.filament.z_offset;
+    if total_z_offset.abs() > 5.0 {
+        issues.push(ValidationIssue {
+            field: "z_offset".into(),
+            message: format!(
+                "Total Z offset {:.2} mm (global {:.2} + filament {:.2}) exceeds safety limit (+/-5.0)",
+                total_z_offset, config.z_offset, config.filament.z_offset
+            ),
+            severity: ValidationSeverity::Error,
+            value: format!("{total_z_offset}"),
+        });
+    }
+
+    // Filament shrink range check
+    if config.filament.filament_shrink < 90.0 || config.filament.filament_shrink > 110.0 {
+        issues.push(ValidationIssue {
+            field: "filament.filament_shrink".into(),
+            message: format!(
+                "Filament shrink {}% is unusual (typical range: 90-110%)",
+                config.filament.filament_shrink
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.filament.filament_shrink),
+        });
+    }
+
+    // Internal bridge speed range
+    if config.speeds.internal_bridge_speed > 300.0 {
+        issues.push(ValidationIssue {
+            field: "speeds.internal_bridge_speed".into(),
+            message: format!(
+                "Internal bridge speed {} mm/s exceeds 300 mm/s",
+                config.speeds.internal_bridge_speed
+            ),
+            severity: ValidationSeverity::Warning,
+            value: format!("{}", config.speeds.internal_bridge_speed),
+        });
+    }
+
     issues
 }
 
@@ -238,7 +343,42 @@ fn resolve_variable(name: &str, config: &PrintConfig) -> Option<String> {
         "first_layer_bed_temp" => Some(format!("{}", config.filament.first_layer_bed_temp())),
         "layer_height" => Some(format!("{}", config.layer_height)),
         "nozzle_diameter" => Some(format!("{}", config.machine.nozzle_diameter())),
-        _ => None,
+
+        // Dimensional compensation
+        "xy_hole_compensation" => Some(format!("{}", config.dimensional_compensation.xy_hole_compensation)),
+        "xy_contour_compensation" => Some(format!("{}", config.dimensional_compensation.xy_contour_compensation)),
+        "elephant_foot_compensation" => Some(format!("{}", config.dimensional_compensation.elephant_foot_compensation)),
+
+        // Surface patterns (serialize as lowercase string for use in G-code comments)
+        "top_surface_pattern" => Some(format!("{:?}", config.top_surface_pattern).to_lowercase()),
+        "bottom_surface_pattern" => Some(format!("{:?}", config.bottom_surface_pattern).to_lowercase()),
+        "solid_infill_pattern" => Some(format!("{:?}", config.solid_infill_pattern).to_lowercase()),
+
+        // Overhangs
+        "extra_perimeters_on_overhangs" => Some(format!("{}", u8::from(config.extra_perimeters_on_overhangs))),
+
+        // Bridges
+        "internal_bridge_speed" => Some(format!("{}", config.speeds.internal_bridge_speed)),
+        "internal_bridge_support" => Some(format!("{:?}", config.internal_bridge_support).to_lowercase()),
+
+        // Filament
+        "chamber_temperature" => Some(format!("{}", config.filament.chamber_temperature)),
+        "filament_shrink" => Some(format!("{}", config.filament.filament_shrink)),
+
+        // Z offset (combined: global + per-filament)
+        "z_offset" => Some(format!("{}", config.z_offset + config.filament.z_offset)),
+
+        // Bed type
+        "curr_bed_type" => Some(format!("{:?}", config.machine.curr_bed_type).to_lowercase()),
+
+        // Acceleration
+        "min_length_factor" => Some(format!("{}", config.accel.min_length_factor)),
+
+        // Precise Z
+        "precise_z_height" => Some(format!("{}", u8::from(config.precise_z_height))),
+
+        // Passthrough fallback
+        _ => config.passthrough.get(name).cloned(),
     }
 }
 
@@ -319,5 +459,110 @@ mod tests {
         let gcode = "G28 ; {unknown_var} stuff";
         let result = resolve_template_variables(gcode, &config);
         assert_eq!(result, gcode, "unrecognized variables should be left unchanged");
+    }
+
+    #[test]
+    fn resolve_p0_template_variables() {
+        let mut config = PrintConfig::default();
+        config.dimensional_compensation.xy_hole_compensation = 0.1;
+        config.filament.chamber_temperature = 45.0;
+        config.z_offset = 0.05;
+        config.filament.z_offset = 0.02;
+
+        // Dimensional compensation
+        let result = resolve_template_variables("{xy_hole_compensation}", &config);
+        assert_eq!(result, "0.1");
+
+        // Chamber temperature
+        let result = resolve_template_variables("M141 S{chamber_temperature}", &config);
+        assert_eq!(result, "M141 S45");
+
+        // Combined z_offset (global + filament)
+        let result = resolve_template_variables("{z_offset}", &config);
+        assert!(result.contains("0.07"), "z_offset should be 0.05 + 0.02 = 0.07, got {result}");
+
+        // Surface pattern
+        let result = resolve_template_variables("{top_surface_pattern}", &config);
+        assert_eq!(result, "monotonic");
+
+        // Bool as u8
+        let result = resolve_template_variables("{precise_z_height}", &config);
+        assert_eq!(result, "0");
+
+        // Bed type
+        let result = resolve_template_variables("{curr_bed_type}", &config);
+        assert_eq!(result, "texturedpei");
+
+        // Filament shrink
+        let result = resolve_template_variables("{filament_shrink}", &config);
+        assert_eq!(result, "100");
+
+        // Min length factor
+        let result = resolve_template_variables("{min_length_factor}", &config);
+        assert_eq!(result, "0");
+    }
+
+    #[test]
+    fn passthrough_fallback_resolves() {
+        let mut config = PrintConfig::default();
+        config.passthrough.insert("custom_key".to_string(), "custom_value".to_string());
+        let result = resolve_template_variables("{custom_key}", &config);
+        assert_eq!(result, "custom_value");
+    }
+
+    #[test]
+    fn warns_extreme_xy_hole_compensation() {
+        let mut config = PrintConfig::default();
+        config.dimensional_compensation.xy_hole_compensation = 3.0;
+        let issues = validate_config(&config);
+        let warn = issues
+            .iter()
+            .find(|i| i.field.contains("xy_hole_compensation") && i.severity == ValidationSeverity::Warning);
+        assert!(warn.is_some(), "should warn about extreme xy_hole_compensation");
+    }
+
+    #[test]
+    fn errors_chamber_temp_exceeds_80() {
+        let mut config = PrintConfig::default();
+        config.filament.chamber_temperature = 90.0;
+        let issues = validate_config(&config);
+        let err = issues
+            .iter()
+            .find(|i| i.field.contains("chamber_temperature") && i.severity == ValidationSeverity::Error);
+        assert!(err.is_some(), "should error on chamber temp > 80C");
+    }
+
+    #[test]
+    fn errors_z_offset_exceeds_5() {
+        let mut config = PrintConfig::default();
+        config.z_offset = 3.0;
+        config.filament.z_offset = 3.0;
+        let issues = validate_config(&config);
+        let err = issues
+            .iter()
+            .find(|i| i.field == "z_offset" && i.severity == ValidationSeverity::Error);
+        assert!(err.is_some(), "should error on total z_offset > 5.0");
+    }
+
+    #[test]
+    fn warns_unusual_filament_shrink() {
+        let mut config = PrintConfig::default();
+        config.filament.filament_shrink = 85.0;
+        let issues = validate_config(&config);
+        let warn = issues
+            .iter()
+            .find(|i| i.field.contains("filament_shrink") && i.severity == ValidationSeverity::Warning);
+        assert!(warn.is_some(), "should warn about unusual filament shrink");
+    }
+
+    #[test]
+    fn warns_internal_bridge_speed_over_300() {
+        let mut config = PrintConfig::default();
+        config.speeds.internal_bridge_speed = 400.0;
+        let issues = validate_config(&config);
+        let warn = issues
+            .iter()
+            .find(|i| i.field.contains("internal_bridge_speed") && i.severity == ValidationSeverity::Warning);
+        assert!(warn.is_some(), "should warn about internal bridge speed > 300");
     }
 }
