@@ -660,13 +660,16 @@ Plans:
 
 ### Phase 33: P1 config gap closure - profile fidelity fields
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Add ~30 P1-priority config fields (FuzzySkinConfig, BrimSkirtConfig, InputShapingConfig, ToolChangeRetractionConfig sub-structs + extensions to AccelerationConfig, CoolingConfig, SpeedConfig, FilamentPropsConfig, MultiMaterialConfig) with OrcaSlicer JSON and PrusaSlicer INI import mappings, G-code template variables, and range validation -- config + mapping only, no engine behavior changes
+**Requirements**: P33-01 through P33-16
 **Depends on:** Phase 32
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 33 to break down)
+- [ ] 33-01-PLAN.md -- New sub-structs, BrimType enum, extend existing sub-structs, top-level fields
+- [ ] 33-02-PLAN.md -- OrcaSlicer JSON and PrusaSlicer INI field mappings
+- [ ] 33-03-PLAN.md -- G-code template variables and range validation
+- [ ] 33-04-PLAN.md -- Integration tests and profile re-conversion
 
 ### Phase 34: Support config and advanced feature profile import mapping
 
