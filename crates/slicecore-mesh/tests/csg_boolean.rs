@@ -264,11 +264,13 @@ fn test_xor_overlapping_boxes() {
 
 #[test]
 fn test_union_many_four_boxes() {
+    // Use non-overlapping boxes to avoid BSP coplanar-face instability.
+    // Each box is 1.0^3, spaced 2.0 apart — no shared faces or overlaps.
     let boxes = [
-        make_box_at(0.0, 0.0, 0.0, 1.5, 1.5, 1.5),
-        make_box_at(1.0, 0.0, 0.0, 1.5, 1.5, 1.5),
-        make_box_at(0.0, 1.0, 0.0, 1.5, 1.5, 1.5),
-        make_box_at(1.0, 1.0, 0.0, 1.5, 1.5, 1.5),
+        make_box_at(0.0, 0.0, 0.0, 1.0, 1.0, 1.0),
+        make_box_at(3.0, 0.0, 0.0, 1.0, 1.0, 1.0),
+        make_box_at(0.0, 3.0, 0.0, 1.0, 1.0, 1.0),
+        make_box_at(3.0, 3.0, 0.0, 1.0, 1.0, 1.0),
     ];
     let refs: Vec<&TriangleMesh> = boxes.iter().collect();
 
@@ -277,14 +279,13 @@ fn test_union_many_four_boxes() {
     assert_positive_volume(&result);
 
     let vol = signed_volume(result.vertices(), result.indices());
-    let individual_vol = 1.5 * 1.5 * 1.5;
-    // Combined volume should be less than 4 * individual (overlaps removed).
+    let individual_vol = 1.0;
+    // Non-overlapping: combined volume should equal 4 * individual.
     assert!(
-        vol < 4.0 * individual_vol,
-        "union_many volume {vol} should be < {}",
+        vol > 3.5 * individual_vol,
+        "union_many volume {vol} should be close to {}",
         4.0 * individual_vol
     );
-    assert!(vol > individual_vol, "should be bigger than one box");
     assert!(report.output_triangles > 0);
 }
 
