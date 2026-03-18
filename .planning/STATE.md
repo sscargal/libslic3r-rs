@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 36 context gathered
-last_updated: "2026-03-18T18:19:35.696Z"
-last_activity: "2026-03-18 - Completed quick task 260318-oau: Improve QA temp directory cleanup"
+status: executing
+stopped_at: Completed 36-01-PLAN.md
+last_updated: "2026-03-18T19:32:47.074Z"
+last_activity: "2026-03-18 - Completed 36-01-PLAN.md: Plugin status management and status-aware discovery"
 progress:
   total_phases: 36
   completed_phases: 35
-  total_plans: 154
-  completed_plans: 154
-  percent: 100
+  total_plans: 157
+  completed_plans: 155
+  percent: 99
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 35 -- ConfigSchema System with Setting Metadata and JSON Schema Generation
+**Current focus:** Phase 36 -- Add plugins subcommand for listing and managing installed plugins
 
 ## Current Position
 
-Phase: 35 of 35 (ConfigSchema System with Setting Metadata and JSON Schema Generation)
-Plan: 7 of 7 in current phase (7 complete)
-Status: Complete
-Last activity: 2026-03-18 - Completed quick task 260318-oau: Improve QA temp directory cleanup
+Phase: 36 of 36 (Add plugins subcommand)
+Plan: 1 of 3 in current phase (1 complete)
+Status: In Progress
+Last activity: 2026-03-18 - Completed 36-01-PLAN.md: Plugin status management and status-aware discovery
 
-Progress: [██████████] 100% (154/154 overall)
+Progress: [█████████░] 99% (155/157 overall)
 
 ## Performance Metrics
 
@@ -133,6 +133,7 @@ Progress: [██████████] 100% (154/154 overall)
 | Phase 35 P05 | 5 | 2 tasks | 7 files |
 | Phase 35 P06 | 4min | 2 tasks | 7 files |
 | Phase 35 P07 | 7 | 3 tasks | 7 files |
+| Phase 36 P01 | 6 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -630,6 +631,8 @@ Recent decisions affecting current work:
 - [Phase 35]: Bumped workspace MSRV from 1.75 to 1.80 for std::sync::LazyLock
 - [Phase 35]: JSON Schema uses nested properties from dotted keys with x- extensions for metadata
 - [Phase 35]: Schema-driven validation alongside existing hardcoded checks (domain-specific cross-field checks preserved)
+- [Phase 36]: serde_json promoted from dev to regular dependency for status file I/O
+- [Phase 36]: require_infill_plugin does disk discovery for disabled plugins; get_infill_plugin remains for backward compat
 
 ### Roadmap Evolution
 
@@ -678,6 +681,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T18:19:35.691Z
-Stopped at: Phase 36 context gathered
-Resume file: .planning/phases/36-add-a-plugins-subcommand-to-allow-users-to-list-and-manage-installed-plugins-such-as-enable-or-disable/36-CONTEXT.md
+Last session: 2026-03-18T19:32:47.069Z
+Stopped at: Completed 36-01-PLAN.md
+Resume file: None

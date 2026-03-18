@@ -713,7 +713,7 @@ Plans:
 **Goal:** Working `slicecore plugins` CLI subcommand with list, enable, disable, info, and validate commands; per-plugin .status files for state management; status-aware plugin discovery pipeline
 **Requirements**: [PLG-STATUS, PLG-DISCOVERY, PLG-REGISTRY, PLG-CLI-LIST, PLG-CLI-ENABLE, PLG-CLI-DISABLE, PLG-CLI-INFO, PLG-CLI-VALIDATE, PLG-GLOBAL-PLUGINDIR, PLG-QA-TESTS, PLG-DISABLED-SLICE-ERROR]
 **Depends on:** Phase 35
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 - [ ] 36-01-PLAN.md -- Plugin status module and status-aware discovery pipeline
 - [ ] 36-02-PLAN.md -- CLI plugins subcommand and global --plugin-dir promotion
