@@ -1,4 +1,4 @@
-//! Core types for the ConfigSchema setting metadata system.
+//! Core types for the `ConfigSchema` setting metadata system.
 
 use serde::{Deserialize, Serialize};
 
@@ -166,7 +166,7 @@ pub enum ValueType {
 /// A single variant in an enumerated setting value.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnumVariant {
-    /// The snake_case variant name used in configuration files.
+    /// The `snake_case` variant name used in configuration files.
     pub value: String,
     /// Human-readable display name for the UI.
     pub display: String,

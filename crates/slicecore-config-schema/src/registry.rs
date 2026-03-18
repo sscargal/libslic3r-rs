@@ -36,9 +36,10 @@ impl SettingRegistry {
     /// Panics if a definition with the same key is already registered.
     pub fn register(&mut self, def: SettingDefinition) {
         let key = def.key.clone();
-        if self.definitions.contains_key(&key) {
-            panic!("Duplicate setting key: {key}");
-        }
+        assert!(
+            !self.definitions.contains_key(&key),
+            "Duplicate setting key: {key}"
+        );
         self.definitions.insert(key, def);
     }
 
