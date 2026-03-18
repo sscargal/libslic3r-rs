@@ -47,6 +47,22 @@ fn native_plugin_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../plugins/examples/native-zigzag-infill")
 }
 
+/// Returns the platform-specific dynamic library filename for a given base name.
+///
+/// E.g., `dylib_name("native_zigzag_infill")` returns:
+/// - Linux:   `libnative_zigzag_infill.so`
+/// - macOS:   `libnative_zigzag_infill.dylib`
+/// - Windows: `native_zigzag_infill.dll`
+fn dylib_name(base: &str) -> String {
+    if cfg!(target_os = "macos") {
+        format!("lib{base}.dylib")
+    } else if cfg!(target_os = "windows") {
+        format!("{base}.dll")
+    } else {
+        format!("lib{base}.so")
+    }
+}
+
 /// Creates a PluginManifest for the native zigzag plugin.
 ///
 /// The `library_filename` matches `abi_stable`'s `BASE_NAME` convention:
@@ -68,7 +84,7 @@ fn zigzag_manifest() -> PluginManifest {
         // The abi_stable loader ignores this filename and searches for the BASE_NAME
         // library ("libslicecore_infill_plugin.so"). We set it to the actual file
         // name so resolve_library_path can find the file.
-        library_filename: "libslicecore_infill_plugin.so".to_string(),
+        library_filename: dylib_name("slicecore_infill_plugin"),
         capabilities: vec![PluginCapability::InfillPattern],
         resource_limits: None,
     }
@@ -83,8 +99,8 @@ fn zigzag_manifest() -> PluginManifest {
 #[cfg(feature = "native-plugins")]
 fn ensure_abi_stable_symlink(plugin_dir: &std::path::Path) {
     let debug_dir = plugin_dir.join("target").join("debug");
-    let actual = debug_dir.join("libnative_zigzag_infill.so");
-    let symlink = debug_dir.join("libslicecore_infill_plugin.so");
+    let actual = debug_dir.join(dylib_name("native_zigzag_infill"));
+    let symlink = debug_dir.join(dylib_name("slicecore_infill_plugin"));
 
     if actual.exists() && !symlink.exists() {
         std::os::unix::fs::symlink(&actual, &symlink).expect("Failed to create abi_stable symlink");
@@ -112,7 +128,7 @@ fn sc1_native_plugin_builds_successfully() {
     let lib_path = plugin_dir
         .join("target")
         .join("debug")
-        .join("libnative_zigzag_infill.so");
+        .join(dylib_name("native_zigzag_infill"));
     assert!(
         lib_path.exists(),
         "Native plugin library not found at {:?}",
