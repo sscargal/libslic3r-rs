@@ -10,9 +10,11 @@ pub mod metadata_json;
 pub mod registry;
 pub mod search;
 pub mod types;
+pub mod validate;
 
 pub use registry::SettingRegistry;
 pub use types::{
     Constraint, EnumVariant, HasSettingSchema, SettingCategory, SettingDefinition, SettingKey, Tier,
     ValueType,
 };
+pub use validate::{ValidationIssue, ValidationSeverity};

@@ -5,6 +5,11 @@
 //! [`ValidationSeverity`] so callers can decide whether to abort (errors) or
 //! warn (warnings).
 //!
+//! // Schema-driven validation replaced hardcoded range checks (Phase 35).
+//! // The `slicecore-config-schema` crate now provides `SettingRegistry::validate_config()`
+//! // for constraint-based validation. This module retains domain-specific cross-field
+//! // checks (temperature limits, speed thresholds, etc.) and template variable resolution.
+//!
 //! [`resolve_template_variables`] replaces `{nozzle_temp}` and similar
 //! placeholders in start/end G-code templates with actual config values.
 
