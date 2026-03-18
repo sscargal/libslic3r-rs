@@ -103,7 +103,10 @@ fn ensure_abi_stable_symlink(plugin_dir: &std::path::Path) {
     let symlink = debug_dir.join(dylib_name("slicecore_infill_plugin"));
 
     if actual.exists() && !symlink.exists() {
+        #[cfg(unix)]
         std::os::unix::fs::symlink(&actual, &symlink).expect("Failed to create abi_stable symlink");
+        #[cfg(windows)]
+        std::fs::copy(&actual, &symlink).expect("Failed to copy library for abi_stable");
     }
 }
 
