@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 35-07-PLAN.md
-last_updated: "2026-03-18T01:07:58.992Z"
-last_activity: "2026-03-18 - Completed plan 35-07: CLI Schema, Validation, and Integrity Tests"
+stopped_at: Phase 36 context gathered
+last_updated: "2026-03-18T18:19:35.696Z"
+last_activity: "2026-03-18 - Completed quick task 260318-oau: Improve QA temp directory cleanup"
 progress:
-  total_phases: 35
+  total_phases: 36
   completed_phases: 35
   total_plans: 154
   completed_plans: 154
@@ -656,6 +656,7 @@ Recent decisions affecting current work:
 - Phase 33 added: P1 config gap closure — ~30 profile fidelity fields (input shaping, fuzzy skin, advanced fan, brim types, etc.)
 - Phase 34 added: Support config and advanced feature profile import mapping (SupportConfig, scarf joint, multi-material, custom gcode hooks)
 - Phase 35 added: ConfigSchema system — SettingDefinition metadata with tiers, JSON Schema generation, validation (from PRD Section 7)
+- Phase 36 added: Plugins subcommand — list and manage installed plugins (enable/disable)
 
 ### Pending Todos
 
@@ -677,6 +678,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T17:29:48.511Z
-Stopped at: Completed quick task 260318-oau
-Resume file: None
+Last session: 2026-03-18T18:19:35.691Z
+Stopped at: Phase 36 context gathered
+Resume file: .planning/phases/36-add-a-plugins-subcommand-to-allow-users-to-list-and-manage-installed-plugins-such-as-enable-or-disable/36-CONTEXT.md
