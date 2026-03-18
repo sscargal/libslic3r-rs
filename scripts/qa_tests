@@ -1002,7 +1002,7 @@ group_coverage() {
         local lib_rs="$crates_dir/$crate/src/lib.rs"
         if [[ -f "$lib_rs" ]]; then
             local pub_mod_count
-            pub_mod_count=$(grep -c 'pub mod' "$lib_rs" 2>/dev/null || echo "0")
+            pub_mod_count=$(grep -c 'pub mod' "$lib_rs" 2>/dev/null) || pub_mod_count=0
             printf '  %-25s %s\n' "$crate" "$pub_mod_count"
         fi
     done
