@@ -697,7 +697,7 @@ Plans:
 **Goal:** Build a per-field metadata system for all config settings using a proc-macro derive, populate a runtime SettingRegistry, and generate JSON Schema 2020-12 + flat metadata JSON output. Replace ad-hoc validation with schema-driven validation. Deliver a CLI schema command for querying and exporting. Annotate ALL ~387 fields with tier, description, units, constraints, affects, and category.
 **Requirements**: TBD
 **Depends on:** Phase 34
-**Plans:** 4/7 plans executed
+**Plans:** 5/7 plans executed
 
 Plans:
 - [ ] 35-01-PLAN.md -- Runtime types crate (SettingDefinition, SettingKey, ValueType, Tier, SettingCategory, SettingRegistry)
