@@ -77,9 +77,12 @@ fn test_slice_with_builtin_profiles() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -92,7 +95,10 @@ fn test_slice_with_builtin_profiles() {
     );
     assert!(gcode.exists(), "G-code file should be created");
     let content = std::fs::read_to_string(&gcode).unwrap();
-    assert!(content.contains("G1"), "G-code should contain movement commands");
+    assert!(
+        content.contains("G1"),
+        "G-code should contain movement commands"
+    );
 }
 
 #[test]
@@ -105,10 +111,14 @@ fn test_slice_with_process_override() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "-p", "standard",
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "-p",
+            "standard",
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -132,10 +142,14 @@ fn test_slice_with_set_override() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "--set", "layer_height=0.1",
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "--set",
+            "layer_height=0.1",
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -159,11 +173,16 @@ fn test_slice_with_multiple_set() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "--set", "layer_height=0.1",
-            "--set", "infill_density=0.3",
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "--set",
+            "layer_height=0.1",
+            "--set",
+            "infill_density=0.3",
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -203,9 +222,12 @@ nozzle_diameters = [0.4]
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", machine_toml.to_str().unwrap(),
-            "-f", "generic_pla",
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            machine_toml.to_str().unwrap(),
+            "-f",
+            "generic_pla",
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -238,8 +260,10 @@ fn test_config_and_machine_mutually_exclusive() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "--config", config.to_str().unwrap(),
-            "-m", "generic_printer",
+            "--config",
+            config.to_str().unwrap(),
+            "-m",
+            "generic_printer",
         ])
         .output()
         .expect("failed to run slicecore");
@@ -264,8 +288,10 @@ fn test_config_and_filament_mutually_exclusive() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "--config", config.to_str().unwrap(),
-            "-f", "generic_pla",
+            "--config",
+            config.to_str().unwrap(),
+            "-f",
+            "generic_pla",
         ])
         .output()
         .expect("failed to run slicecore");
@@ -291,8 +317,10 @@ fn test_config_alone_still_works() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "--config", config.to_str().unwrap(),
-            "-o", gcode.to_str().unwrap(),
+            "--config",
+            config.to_str().unwrap(),
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -320,10 +348,13 @@ fn test_dry_run_no_gcode() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
             "--dry-run",
-            "-o", gcode.to_str().unwrap(),
+            "-o",
+            gcode.to_str().unwrap(),
         ])
         .output()
         .expect("failed to run slicecore");
@@ -334,7 +365,10 @@ fn test_dry_run_no_gcode() {
         "dry-run should exit 0: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert!(!gcode.exists(), "G-code file should NOT be created during dry-run");
+    assert!(
+        !gcode.exists(),
+        "G-code file should NOT be created during dry-run"
+    );
 }
 
 #[test]
@@ -346,8 +380,10 @@ fn test_dry_run_shows_config_info() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
             "--dry-run",
         ])
         .output()
@@ -376,10 +412,14 @@ fn test_save_config_writes_toml() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "--save-config", saved_config.to_str().unwrap(),
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "--save-config",
+            saved_config.to_str().unwrap(),
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -409,10 +449,14 @@ fn test_save_config_contains_provenance() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "--save-config", saved_config.to_str().unwrap(),
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "--save-config",
+            saved_config.to_str().unwrap(),
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -441,10 +485,13 @@ fn test_show_config_outputs_to_stdout() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
             "--show-config",
-            "-o", gcode.to_str().unwrap(),
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -473,11 +520,14 @@ fn test_show_config_with_json() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
             "--show-config",
             "--json",
-            "-o", gcode.to_str().unwrap(),
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -522,9 +572,12 @@ nozzle_temperatures = [400.0]
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "--overrides", overrides.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "--overrides",
+            overrides.to_str().unwrap(),
         ])
         .output()
         .expect("failed to run slicecore");
@@ -532,10 +585,7 @@ nozzle_temperatures = [400.0]
     // Should exit with code 4 for safety validation error
     let code = output.status.code().unwrap_or(-1);
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert_eq!(
-        code, 4,
-        "should exit 4 for dangerous config: {stderr}"
-    );
+    assert_eq!(code, 4, "should exit 4 for dangerous config: {stderr}");
 }
 
 #[test]
@@ -559,11 +609,15 @@ nozzle_temperatures = [400.0]
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "--overrides", overrides.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "--overrides",
+            overrides.to_str().unwrap(),
             "--force",
-            "-o", gcode.to_str().unwrap(),
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -592,7 +646,8 @@ fn test_unsafe_defaults_works() {
             "slice",
             stl.to_str().unwrap(),
             "--unsafe-defaults",
-            "-o", gcode.to_str().unwrap(),
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -617,7 +672,8 @@ fn test_no_profiles_uses_defaults() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-o", gcode.to_str().unwrap(),
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -645,9 +701,12 @@ fn test_log_file_created() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -660,7 +719,10 @@ fn test_log_file_created() {
     );
 
     let log_path = dir.path().join("cube.log");
-    assert!(log_path.exists(), "log file should be created alongside G-code");
+    assert!(
+        log_path.exists(),
+        "log file should be created alongside G-code"
+    );
     let log_content = std::fs::read_to_string(&log_path).unwrap();
     assert!(
         log_content.contains("SliceCore") || log_content.contains("Layers"),
@@ -678,10 +740,13 @@ fn test_no_log_suppresses() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
             "--no-log",
-            "-o", gcode.to_str().unwrap(),
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -694,7 +759,10 @@ fn test_no_log_suppresses() {
     );
 
     let log_path = dir.path().join("cube.log");
-    assert!(!log_path.exists(), "log file should NOT be created when --no-log is used");
+    assert!(
+        !log_path.exists(),
+        "log file should NOT be created when --no-log is used"
+    );
 }
 
 #[test]
@@ -708,10 +776,14 @@ fn test_custom_log_file() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "--log-file", custom_log.to_str().unwrap(),
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "--log-file",
+            custom_log.to_str().unwrap(),
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -745,9 +817,12 @@ fn test_exit_0_success() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -765,13 +840,18 @@ fn test_exit_2_profile_error() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "nonexistent_printer_xyz",
-            "-f", "generic_pla",
+            "-m",
+            "nonexistent_printer_xyz",
+            "-f",
+            "generic_pla",
         ])
         .output()
         .expect("failed to run slicecore");
 
-    assert!(!output.status.success(), "should fail for nonexistent profile");
+    assert!(
+        !output.status.success(),
+        "should fail for nonexistent profile"
+    );
     let code = output.status.code().unwrap_or(-1);
     assert_eq!(code, 2, "nonexistent profile should exit with code 2");
 }
@@ -785,13 +865,18 @@ fn test_exit_2_missing_filament() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "nonexistent_filament_xyz",
+            "-m",
+            "generic_printer",
+            "-f",
+            "nonexistent_filament_xyz",
         ])
         .output()
         .expect("failed to run slicecore");
 
-    assert!(!output.status.success(), "should fail for nonexistent filament");
+    assert!(
+        !output.status.success(),
+        "should fail for nonexistent filament"
+    );
     let code = output.status.code().unwrap_or(-1);
     assert_eq!(code, 2, "nonexistent filament should exit with code 2");
 }
@@ -810,9 +895,12 @@ fn test_gcode_contains_reproduce_command() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -837,9 +925,12 @@ fn test_gcode_contains_profile_checksums() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -864,9 +955,12 @@ fn test_gcode_contains_version() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -900,9 +994,12 @@ nozzle_temperatures = [400.0]
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "--overrides", overrides.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "--overrides",
+            overrides.to_str().unwrap(),
         ])
         .output()
         .expect("failed to run slicecore");
@@ -924,8 +1021,10 @@ fn test_dry_run_with_show_config() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
             "--dry-run",
         ])
         .output()
@@ -949,8 +1048,10 @@ fn test_default_output_path() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
             "--quiet",
             "--no-log",
         ])
@@ -980,9 +1081,12 @@ fn test_profile_workflow_produces_summary() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "-o", gcode.to_str().unwrap(),
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "-o",
+            gcode.to_str().unwrap(),
         ])
         .output()
         .expect("failed to run slicecore");
@@ -1007,8 +1111,10 @@ fn test_unsafe_defaults_with_set_override() {
             "slice",
             stl.to_str().unwrap(),
             "--unsafe-defaults",
-            "--set", "layer_height=0.3",
-            "-o", gcode.to_str().unwrap(),
+            "--set",
+            "layer_height=0.3",
+            "-o",
+            gcode.to_str().unwrap(),
             "--quiet",
         ])
         .output()
@@ -1030,14 +1136,20 @@ fn test_invalid_set_format() {
         .args([
             "slice",
             stl.to_str().unwrap(),
-            "-m", "generic_printer",
-            "-f", "generic_pla",
-            "--set", "invalid_no_equals",
+            "-m",
+            "generic_printer",
+            "-f",
+            "generic_pla",
+            "--set",
+            "invalid_no_equals",
         ])
         .output()
         .expect("failed to run slicecore");
 
-    assert!(!output.status.success(), "should fail with invalid --set format");
+    assert!(
+        !output.status.success(),
+        "should fail with invalid --set format"
+    );
     let code = output.status.code().unwrap_or(-1);
     assert_eq!(code, 2, "invalid --set format should exit with code 2");
 }

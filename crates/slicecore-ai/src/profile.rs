@@ -254,7 +254,10 @@ I hope these settings work well for your model."#;
         let input = "This is not JSON at all. No curly braces here.";
         let result = extract_json(input);
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), AiError::InvalidJsonResponse(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            AiError::InvalidJsonResponse(_)
+        ));
     }
 
     #[test]
@@ -310,15 +313,39 @@ I hope these settings work well for your model."#;
         assert!(result.is_ok());
         let s = result.unwrap();
 
-        assert!((s.layer_height - 0.05).abs() < 1e-6, "layer_height should be clamped to 0.05");
+        assert!(
+            (s.layer_height - 0.05).abs() < 1e-6,
+            "layer_height should be clamped to 0.05"
+        );
         assert_eq!(s.wall_count, 6, "wall_count should be clamped to 6");
-        assert!((s.infill_density - 1.0).abs() < 1e-6, "infill_density should be clamped to 1.0");
-        assert!((s.support_overhang_angle - 30.0).abs() < 1e-6, "support_overhang_angle should be clamped to 30.0");
-        assert!((s.perimeter_speed - 20.0).abs() < 1e-6, "perimeter_speed should be clamped to 20.0");
-        assert!((s.infill_speed - 150.0).abs() < 1e-6, "infill_speed should be clamped to 150.0");
-        assert!((s.nozzle_temp - 260.0).abs() < 1e-6, "nozzle_temp should be clamped to 260.0");
-        assert!((s.bed_temp - 0.0).abs() < 1e-6, "bed_temp should be clamped to 0.0");
-        assert!((s.brim_width - 10.0).abs() < 1e-6, "brim_width should be clamped to 10.0");
+        assert!(
+            (s.infill_density - 1.0).abs() < 1e-6,
+            "infill_density should be clamped to 1.0"
+        );
+        assert!(
+            (s.support_overhang_angle - 30.0).abs() < 1e-6,
+            "support_overhang_angle should be clamped to 30.0"
+        );
+        assert!(
+            (s.perimeter_speed - 20.0).abs() < 1e-6,
+            "perimeter_speed should be clamped to 20.0"
+        );
+        assert!(
+            (s.infill_speed - 150.0).abs() < 1e-6,
+            "infill_speed should be clamped to 150.0"
+        );
+        assert!(
+            (s.nozzle_temp - 260.0).abs() < 1e-6,
+            "nozzle_temp should be clamped to 260.0"
+        );
+        assert!(
+            (s.bed_temp - 0.0).abs() < 1e-6,
+            "bed_temp should be clamped to 0.0"
+        );
+        assert!(
+            (s.brim_width - 10.0).abs() < 1e-6,
+            "brim_width should be clamped to 10.0"
+        );
     }
 
     #[test]
@@ -328,11 +355,23 @@ I hope these settings work well for your model."#;
         assert!(result.is_ok());
         let s = result.unwrap();
 
-        assert!((s.layer_height - 0.2).abs() < 1e-6, "default layer_height should be 0.2");
+        assert!(
+            (s.layer_height - 0.2).abs() < 1e-6,
+            "default layer_height should be 0.2"
+        );
         assert_eq!(s.wall_count, 2, "default wall_count should be 2");
-        assert!((s.infill_density - 0.2).abs() < 1e-6, "default infill_density should be 0.2");
-        assert_eq!(s.infill_pattern, "rectilinear", "default infill_pattern should be rectilinear");
-        assert!(!s.support_enabled, "default support_enabled should be false");
+        assert!(
+            (s.infill_density - 0.2).abs() < 1e-6,
+            "default infill_density should be 0.2"
+        );
+        assert_eq!(
+            s.infill_pattern, "rectilinear",
+            "default infill_pattern should be rectilinear"
+        );
+        assert!(
+            !s.support_enabled,
+            "default support_enabled should be false"
+        );
         assert!((s.support_overhang_angle - 45.0).abs() < 1e-6);
         assert!((s.perimeter_speed - 45.0).abs() < 1e-6);
         assert!((s.infill_speed - 80.0).abs() < 1e-6);

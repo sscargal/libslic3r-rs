@@ -98,8 +98,7 @@ fn mesh_boolean(
     check_cancelled(options)?;
 
     // Step (d): Retriangulate both meshes along intersection curves.
-    let intersection_points: Vec<Point3> =
-        intersection.points.iter().map(|p| p.position).collect();
+    let intersection_points: Vec<Point3> = intersection.points.iter().map(|p| p.position).collect();
 
     let (verts_a, idx_a, origins_a) = retriangulate_mesh(
         repaired_a.vertices(),
@@ -154,8 +153,8 @@ fn mesh_boolean(
         deduplicate_vertices(&selected_verts, &selected_indices, MERGE_TOL);
 
     // Step (j): Construct output mesh.
-    let result_mesh = TriangleMesh::new(final_verts, final_indices)
-        .map_err(CsgError::ResultConstruction)?;
+    let result_mesh =
+        TriangleMesh::new(final_verts, final_indices).map_err(CsgError::ResultConstruction)?;
 
     // Step (k): Validate manifold if requested.
     if options.validate_output {
@@ -202,25 +201,105 @@ fn select_triangles(
     match op {
         BooleanOp::Union => {
             // A.OUTSIDE + B.OUTSIDE
-            append_classified(verts_a, idx_a, class_a, Classification::Outside, false, out_verts, out_indices);
-            append_classified(verts_b, idx_b, class_b, Classification::Outside, false, out_verts, out_indices);
+            append_classified(
+                verts_a,
+                idx_a,
+                class_a,
+                Classification::Outside,
+                false,
+                out_verts,
+                out_indices,
+            );
+            append_classified(
+                verts_b,
+                idx_b,
+                class_b,
+                Classification::Outside,
+                false,
+                out_verts,
+                out_indices,
+            );
         }
         BooleanOp::Intersection => {
             // A.INSIDE + B.INSIDE
-            append_classified(verts_a, idx_a, class_a, Classification::Inside, false, out_verts, out_indices);
-            append_classified(verts_b, idx_b, class_b, Classification::Inside, false, out_verts, out_indices);
+            append_classified(
+                verts_a,
+                idx_a,
+                class_a,
+                Classification::Inside,
+                false,
+                out_verts,
+                out_indices,
+            );
+            append_classified(
+                verts_b,
+                idx_b,
+                class_b,
+                Classification::Inside,
+                false,
+                out_verts,
+                out_indices,
+            );
         }
         BooleanOp::Difference => {
             // A.OUTSIDE + B.INSIDE (flip winding on B's INSIDE)
-            append_classified(verts_a, idx_a, class_a, Classification::Outside, false, out_verts, out_indices);
-            append_classified(verts_b, idx_b, class_b, Classification::Inside, true, out_verts, out_indices);
+            append_classified(
+                verts_a,
+                idx_a,
+                class_a,
+                Classification::Outside,
+                false,
+                out_verts,
+                out_indices,
+            );
+            append_classified(
+                verts_b,
+                idx_b,
+                class_b,
+                Classification::Inside,
+                true,
+                out_verts,
+                out_indices,
+            );
         }
         BooleanOp::Xor => {
             // (A.OUTSIDE + B.INSIDE flipped) + (B.OUTSIDE + A.INSIDE flipped)
-            append_classified(verts_a, idx_a, class_a, Classification::Outside, false, out_verts, out_indices);
-            append_classified(verts_b, idx_b, class_b, Classification::Inside, true, out_verts, out_indices);
-            append_classified(verts_b, idx_b, class_b, Classification::Outside, false, out_verts, out_indices);
-            append_classified(verts_a, idx_a, class_a, Classification::Inside, true, out_verts, out_indices);
+            append_classified(
+                verts_a,
+                idx_a,
+                class_a,
+                Classification::Outside,
+                false,
+                out_verts,
+                out_indices,
+            );
+            append_classified(
+                verts_b,
+                idx_b,
+                class_b,
+                Classification::Inside,
+                true,
+                out_verts,
+                out_indices,
+            );
+            append_classified(
+                verts_b,
+                idx_b,
+                class_b,
+                Classification::Outside,
+                false,
+                out_verts,
+                out_indices,
+            );
+            append_classified(
+                verts_a,
+                idx_a,
+                class_a,
+                Classification::Inside,
+                true,
+                out_verts,
+                out_indices,
+            );
         }
     }
 }
@@ -321,7 +400,13 @@ fn deduplicate_vertices(
 
     let new_indices: Vec<[u32; 3]> = indices
         .iter()
-        .map(|tri| [remap[tri[0] as usize], remap[tri[1] as usize], remap[tri[2] as usize]])
+        .map(|tri| {
+            [
+                remap[tri[0] as usize],
+                remap[tri[1] as usize],
+                remap[tri[2] as usize],
+            ]
+        })
         .collect();
 
     (unique_verts, new_indices)
@@ -450,10 +535,7 @@ pub fn mesh_intersection(
 /// let b = primitive_box(2.0, 2.0, 2.0);
 /// let (result, report) = mesh_xor(&a, &b).unwrap();
 /// ```
-pub fn mesh_xor(
-    a: &TriangleMesh,
-    b: &TriangleMesh,
-) -> Result<(TriangleMesh, CsgReport), CsgError> {
+pub fn mesh_xor(a: &TriangleMesh, b: &TriangleMesh) -> Result<(TriangleMesh, CsgReport), CsgError> {
     mesh_boolean(a, b, BooleanOp::Xor, &CsgOptions::default())
 }
 
@@ -479,9 +561,7 @@ pub fn mesh_xor(
 /// let (result, report) = mesh_union_many(&refs).unwrap();
 /// assert!(report.output_triangles > 0);
 /// ```
-pub fn mesh_union_many(
-    meshes: &[&TriangleMesh],
-) -> Result<(TriangleMesh, CsgReport), CsgError> {
+pub fn mesh_union_many(meshes: &[&TriangleMesh]) -> Result<(TriangleMesh, CsgReport), CsgError> {
     if meshes.len() < 2 {
         return Err(CsgError::EmptyResult {
             operation: "UnionMany: need at least 2 meshes".to_string(),
@@ -505,14 +585,8 @@ pub fn mesh_union_many(
 
     // Final metrics from the last result.
     combined_report.output_triangles = result.triangle_count();
-    combined_report.volume = Some(volume::signed_volume(
-        result.vertices(),
-        result.indices(),
-    ));
-    combined_report.surface_area = Some(volume::surface_area(
-        result.vertices(),
-        result.indices(),
-    ));
+    combined_report.volume = Some(volume::signed_volume(result.vertices(), result.indices()));
+    combined_report.surface_area = Some(volume::surface_area(result.vertices(), result.indices()));
     combined_report.duration_ms = start.elapsed().as_millis() as u64;
 
     Ok((result, combined_report))

@@ -41,7 +41,9 @@ mod shading;
 mod types;
 
 pub use camera::CameraAngle;
-pub use gcode_embed::{format_gcode_thumbnail_block, thumbnail_format_for_dialect, ThumbnailFormat};
+pub use gcode_embed::{
+    format_gcode_thumbnail_block, thumbnail_format_for_dialect, ThumbnailFormat,
+};
 
 use slicecore_mesh::TriangleMesh;
 
@@ -65,7 +67,7 @@ impl Default for ThumbnailConfig {
             width: 300,
             height: 300,
             angles: vec![CameraAngle::Isometric],
-            background: [0, 0, 0, 0], // transparent
+            background: [0, 0, 0, 0],     // transparent
             model_color: [200, 200, 200], // #C8C8C8 light gray
         }
     }
@@ -187,7 +189,11 @@ mod tests {
         let thumbs = render_mesh(&mesh, &config);
         assert_eq!(thumbs.len(), 1);
 
-        let non_bg = thumbs[0].rgba.iter().filter(|px| **px != [0, 0, 0, 0]).count();
+        let non_bg = thumbs[0]
+            .rgba
+            .iter()
+            .filter(|px| **px != [0, 0, 0, 0])
+            .count();
         assert!(
             non_bg > 0,
             "Isometric render should have some non-background pixels"

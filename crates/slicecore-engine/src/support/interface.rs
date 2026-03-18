@@ -145,10 +145,7 @@ pub fn identify_interface_layers(
         let mut near_model_above = false;
         for offset in 1..=count {
             let above = i + offset;
-            if above < n
-                && above < model_contours.len()
-                && !model_contours[above].is_empty()
-            {
+            if above < n && above < model_contours.len() && !model_contours[above].is_empty() {
                 near_model_above = true;
                 break;
             }
@@ -390,20 +387,15 @@ pub fn apply_quality_preset(config: &mut SupportConfig) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::config::QualityPreset;
+    use super::*;
     use slicecore_geo::polygon::Polygon;
 
     /// Helper to create a validated CCW square at a given position and size.
     fn make_square(x: f64, y: f64, size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (x, y),
-            (x + size, y),
-            (x + size, y + size),
-            (x, y + size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(x, y), (x + size, y), (x + size, y + size), (x, y + size)])
+            .validate()
+            .unwrap()
     }
 
     // -- Interface identification tests --
@@ -504,10 +496,7 @@ mod tests {
         apply_z_gap(&mut support_regions, &model_contours, 0.3, 0.2);
 
         // Top 2 layers (3 and 4) should be removed.
-        assert!(
-            support_regions[4].is_empty(),
-            "Top layer should be removed"
-        );
+        assert!(support_regions[4].is_empty(), "Top layer should be removed");
         assert!(
             support_regions[3].is_empty(),
             "Second-from-top layer should also be removed (ceil rounding)"
@@ -524,10 +513,7 @@ mod tests {
     #[test]
     fn material_defaults_pla() {
         let gaps = MaterialDefaults::for_material(Material::Pla);
-        assert!(
-            (gaps.z_gap - 0.2).abs() < 1e-9,
-            "PLA z_gap should be 0.2mm"
-        );
+        assert!((gaps.z_gap - 0.2).abs() < 1e-9, "PLA z_gap should be 0.2mm");
         assert!(
             (gaps.xy_gap - 0.4).abs() < 1e-9,
             "PLA xy_gap should be 0.4mm"
@@ -546,10 +532,7 @@ mod tests {
     #[test]
     fn material_defaults_tpu() {
         let gaps = MaterialDefaults::for_material(Material::Tpu);
-        assert!(
-            (gaps.z_gap - 0.3).abs() < 1e-9,
-            "TPU z_gap should be 0.3mm"
-        );
+        assert!((gaps.z_gap - 0.3).abs() < 1e-9, "TPU z_gap should be 0.3mm");
         assert!(
             (gaps.xy_gap - 0.5).abs() < 1e-9,
             "TPU xy_gap should be 0.5mm"
@@ -625,10 +608,7 @@ mod tests {
             extrusion_width,
         );
 
-        assert!(
-            !body_lines.is_empty(),
-            "Body infill should produce lines"
-        );
+        assert!(!body_lines.is_empty(), "Body infill should produce lines");
         assert!(
             !interface_lines.is_empty(),
             "Interface infill should produce lines"
@@ -655,7 +635,10 @@ mod tests {
         // Grid should have both horizontal and vertical lines.
         let has_horizontal = lines.iter().any(|l| l.start.y == l.end.y);
         let has_vertical = lines.iter().any(|l| l.start.x == l.end.x);
-        assert!(has_horizontal, "Grid interface should have horizontal lines");
+        assert!(
+            has_horizontal,
+            "Grid interface should have horizontal lines"
+        );
         assert!(has_vertical, "Grid interface should have vertical lines");
     }
 

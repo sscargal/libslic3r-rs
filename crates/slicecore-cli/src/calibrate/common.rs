@@ -74,11 +74,7 @@ pub fn write_instructions(
     let mut file = std::fs::File::create(path)?;
     writeln!(file, "# {title}")?;
     writeln!(file)?;
-    writeln!(
-        file,
-        "Generated: {}",
-        chrono_lite_date()
-    )?;
+    writeln!(file, "Generated: {}", chrono_lite_date())?;
     writeln!(file)?;
     for (heading, content) in sections {
         writeln!(file, "## {heading}")?;
@@ -165,9 +161,7 @@ pub fn display_dry_run(
 
     eprintln!("=== Dry Run: {} ===", test_name);
     eprintln!();
-    eprintln!(
-        "Model dimensions: {w:.1}mm x {d:.1}mm x {h:.1}mm (W x D x H)"
-    );
+    eprintln!("Model dimensions: {w:.1}mm x {d:.1}mm x {h:.1}mm (W x D x H)");
     eprintln!("Bed size:         {bx:.0}mm x {by:.0}mm");
 
     let fit_status = if !fits {

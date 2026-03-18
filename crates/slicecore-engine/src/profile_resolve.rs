@@ -231,7 +231,13 @@ impl ProfileResolver {
         if let Some(ref user_dir) = self.user_dir {
             let type_dir = user_dir.join(expected_type);
             if type_dir.is_dir() {
-                self.search_directory(&type_dir, query, expected_type, ProfileSource::User, &mut matches);
+                self.search_directory(
+                    &type_dir,
+                    query,
+                    expected_type,
+                    ProfileSource::User,
+                    &mut matches,
+                );
             }
         }
 
@@ -262,8 +268,10 @@ impl ProfileResolver {
             let type_dir = lib_dir.join(expected_type);
             if type_dir.is_dir() {
                 // Only add matches not already found
-                let existing_paths: HashSet<PathBuf> =
-                    matches.iter().map(|m: &ResolvedProfile| m.path.clone()).collect();
+                let existing_paths: HashSet<PathBuf> = matches
+                    .iter()
+                    .map(|m: &ResolvedProfile| m.path.clone())
+                    .collect();
                 let mut dir_matches = Vec::new();
                 self.search_directory(
                     &type_dir,
@@ -488,7 +496,8 @@ impl ProfileResolver {
             )));
         }
         let content = std::fs::read_to_string(&path)?;
-        let profile_type = extract_profile_type(&content).unwrap_or_else(|| expected_type.to_string());
+        let profile_type =
+            extract_profile_type(&content).unwrap_or_else(|| expected_type.to_string());
 
         if profile_type != expected_type {
             return Err(ProfileError::TypeMismatch {
@@ -658,13 +667,7 @@ impl ProfileResolver {
                 let type_dir = user_dir.join(otype);
                 if type_dir.is_dir() {
                     let mut temp = Vec::new();
-                    self.search_directory(
-                        &type_dir,
-                        query,
-                        otype,
-                        ProfileSource::User,
-                        &mut temp,
-                    );
+                    self.search_directory(&type_dir, query, otype, ProfileSource::User, &mut temp);
                     if !temp.is_empty() {
                         return Some(ProfileError::TypeMismatch {
                             query: query.to_string(),
@@ -755,9 +758,7 @@ impl ProfileResolver {
         // Collect names from index
         if let Some(ref index) = self.index {
             for entry in &index.profiles {
-                if entry.profile_type == expected_type
-                    && !candidates.contains(&entry.name)
-                {
+                if entry.profile_type == expected_type && !candidates.contains(&entry.name) {
                     candidates.push(entry.name.clone());
                 }
             }
@@ -813,8 +814,7 @@ impl ProfileResolver {
             .and_then(|s| s.to_str())
             .unwrap_or("unknown")
             .to_string();
-        let profile_type =
-            extract_profile_type(&content).unwrap_or_else(|| "process".to_string());
+        let profile_type = extract_profile_type(&content).unwrap_or_else(|| "process".to_string());
 
         chain.push(ResolvedProfile {
             path: profile_path.to_path_buf(),
@@ -826,10 +826,7 @@ impl ProfileResolver {
 
         // Check for inherits field
         let table: toml::Table = toml::from_str(&content).map_err(|e| {
-            ProfileError::Parse(format!(
-                "failed to parse '{}': {e}",
-                profile_path.display()
-            ))
+            ProfileError::Parse(format!("failed to parse '{}': {e}", profile_path.display()))
         })?;
 
         if let Some(inherits) = table.get("inherits").and_then(|v| v.as_str()) {
@@ -910,10 +907,11 @@ mod tests {
         path
     }
 
-    fn make_test_resolver(user_dir: Option<PathBuf>, library_dirs: Vec<PathBuf>) -> ProfileResolver {
-        let index = library_dirs
-            .iter()
-            .find_map(|d| load_index(d).ok());
+    fn make_test_resolver(
+        user_dir: Option<PathBuf>,
+        library_dirs: Vec<PathBuf>,
+    ) -> ProfileResolver {
+        let index = library_dirs.iter().find_map(|d| load_index(d).ok());
         ProfileResolver::with_dirs(user_dir, library_dirs, index)
     }
 
@@ -931,7 +929,9 @@ mod tests {
         let path = write_profile(tmp.path(), "test_profile", "filament");
 
         let resolver = make_test_resolver(None, vec![]);
-        let result = resolver.resolve(path.to_str().unwrap(), "filament").unwrap();
+        let result = resolver
+            .resolve(path.to_str().unwrap(), "filament")
+            .unwrap();
         assert_eq!(result.path, path);
         assert_eq!(result.profile_type, "filament");
     }
@@ -944,9 +944,7 @@ mod tests {
 
         let resolver = make_test_resolver(None, vec![]);
         // Query contains '/' so should be treated as file path
-        let result = resolver
-            .resolve(path.to_str().unwrap(), "machine")
-            .unwrap();
+        let result = resolver.resolve(path.to_str().unwrap(), "machine").unwrap();
         assert_eq!(result.path, path);
     }
 
@@ -956,9 +954,7 @@ mod tests {
         let path = write_profile(tmp.path(), "direct", "process");
 
         let resolver = make_test_resolver(None, vec![]);
-        let result = resolver
-            .resolve(path.to_str().unwrap(), "process")
-            .unwrap();
+        let result = resolver.resolve(path.to_str().unwrap(), "process").unwrap();
         assert_eq!(result.name, "direct");
     }
 
@@ -1098,9 +1094,7 @@ mod tests {
         assert!(result.is_err());
         match result.unwrap_err() {
             ProfileError::TypeMismatch {
-                hint,
-                actual_type,
-                ..
+                hint, actual_type, ..
             } => {
                 assert_eq!(actual_type, "filament");
                 assert!(hint.unwrap().contains("--filament"));
@@ -1140,7 +1134,10 @@ mod tests {
         assert!(result.is_err());
         match result.unwrap_err() {
             ProfileError::CircularInheritance { chain } => {
-                assert!(chain.len() >= 2, "cycle chain should have at least 2 entries");
+                assert!(
+                    chain.len() >= 2,
+                    "cycle chain should have at least 2 entries"
+                );
             }
             other => panic!("expected CircularInheritance, got: {other}"),
         }
@@ -1157,10 +1154,7 @@ mod tests {
         let dirs = ProfileResolver::find_library_dirs(None);
         std::env::remove_var("SLICECORE_PROFILES_DIR");
 
-        assert!(
-            dirs.contains(&env_dir),
-            "should include env var directory"
-        );
+        assert!(dirs.contains(&env_dir), "should include env var directory");
     }
 
     #[test]
@@ -1197,8 +1191,12 @@ mod tests {
         let path = write_profile(tmp.path(), "test", "filament");
 
         let resolver = make_test_resolver(None, vec![]);
-        let r1 = resolver.resolve(path.to_str().unwrap(), "filament").unwrap();
-        let r2 = resolver.resolve(path.to_str().unwrap(), "filament").unwrap();
+        let r1 = resolver
+            .resolve(path.to_str().unwrap(), "filament")
+            .unwrap();
+        let r2 = resolver
+            .resolve(path.to_str().unwrap(), "filament")
+            .unwrap();
         assert_eq!(r1.checksum, r2.checksum);
         assert!(!r1.checksum.is_empty());
     }
@@ -1213,7 +1211,11 @@ mod tests {
         let filament_dir = lib_dir.join("orcaslicer").join("BBL").join("filament");
         fs::create_dir_all(&filament_dir).unwrap();
         let profile_path = filament_dir.join("PLA_Basic.toml");
-        fs::write(&profile_path, "profile_type = \"filament\"\nname = \"PLA_Basic\"\n").unwrap();
+        fs::write(
+            &profile_path,
+            "profile_type = \"filament\"\nname = \"PLA_Basic\"\n",
+        )
+        .unwrap();
 
         let index = make_test_index(vec![ProfileIndexEntry {
             id: "orcaslicer/BBL/filament/PLA_Basic".to_string(),

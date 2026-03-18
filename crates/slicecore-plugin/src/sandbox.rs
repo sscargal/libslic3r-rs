@@ -27,7 +27,7 @@ impl Default for SandboxConfig {
     fn default() -> Self {
         Self {
             max_memory_bytes: 64 * 1024 * 1024, // 64 MiB
-            max_cpu_fuel: 10_000_000,            // ~10M instructions
+            max_cpu_fuel: 10_000_000,           // ~10M instructions
         }
     }
 }

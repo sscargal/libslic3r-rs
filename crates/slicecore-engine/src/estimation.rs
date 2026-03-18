@@ -238,8 +238,13 @@ pub fn estimate_print_time(
                         0.0
                     };
 
-                    let time =
-                        trapezoid_time(distance, entry_speed, cur_feedrate, 0.0, travel_acceleration);
+                    let time = trapezoid_time(
+                        distance,
+                        entry_speed,
+                        cur_feedrate,
+                        0.0,
+                        travel_acceleration,
+                    );
                     travel_time_seconds += time;
                     total_seconds += time;
 
@@ -346,13 +351,21 @@ mod tests {
     #[test]
     fn trapezoid_time_zero_distance_returns_zero() {
         let t = trapezoid_time(0.0, 0.0, 100.0, 0.0, 1000.0);
-        assert!((t - 0.0).abs() < 1e-9, "Zero distance should return 0, got {}", t);
+        assert!(
+            (t - 0.0).abs() < 1e-9,
+            "Zero distance should return 0, got {}",
+            t
+        );
     }
 
     #[test]
     fn trapezoid_time_zero_acceleration_returns_zero() {
         let t = trapezoid_time(10.0, 0.0, 100.0, 0.0, 0.0);
-        assert!((t - 0.0).abs() < 1e-9, "Zero acceleration should return 0, got {}", t);
+        assert!(
+            (t - 0.0).abs() < 1e-9,
+            "Zero acceleration should return 0, got {}",
+            t
+        );
     }
 
     #[test]
@@ -403,7 +416,12 @@ mod tests {
 
         // Should be shorter than full profile time.
         let full = trapezoid_time(100.0, 0.0, 100.0, 0.0, 1000.0);
-        assert!(t < full, "Triangular ({}) should be less than full ({})", t, full);
+        assert!(
+            t < full,
+            "Triangular ({}) should be less than full ({})",
+            t,
+            full
+        );
     }
 
     #[test]
@@ -549,9 +567,8 @@ mod tests {
         // Move 2: 50mm @ 80mm/s = 0.625s
         // Move 3: 50mm @ 80mm/s = 0.625s
         // Total naive ~= 1.875s
-        let naive_total = (50.0f64.powi(2) + 0.2f64.powi(2)).sqrt() / 80.0
-            + 50.0 / 80.0
-            + 50.0 / 80.0;
+        let naive_total =
+            (50.0f64.powi(2) + 0.2f64.powi(2)).sqrt() / 80.0 + 50.0 / 80.0 + 50.0 / 80.0;
 
         assert!(
             estimate.total_seconds > naive_total,

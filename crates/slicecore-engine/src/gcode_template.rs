@@ -39,9 +39,18 @@
 pub fn build_orcaslicer_translation_table() -> Vec<(&'static str, &'static str)> {
     let mut table = vec![
         // Temperature variables
-        ("{nozzle_temperature_initial_layer_single}", "{first_layer_nozzle_temp}"),
-        ("{bed_temperature_initial_layer_single}", "{first_layer_bed_temp}"),
-        ("{nozzle_temperature_initial_layer}", "{first_layer_nozzle_temp}"),
+        (
+            "{nozzle_temperature_initial_layer_single}",
+            "{first_layer_nozzle_temp}",
+        ),
+        (
+            "{bed_temperature_initial_layer_single}",
+            "{first_layer_bed_temp}",
+        ),
+        (
+            "{nozzle_temperature_initial_layer}",
+            "{first_layer_nozzle_temp}",
+        ),
         ("{bed_temperature_initial_layer}", "{first_layer_bed_temp}"),
         ("{overall_chamber_temperature}", "{chamber_temperature}"),
         ("{nozzle_temperature}", "{nozzle_temp}"),
@@ -71,7 +80,10 @@ pub fn build_orcaslicer_translation_table() -> Vec<(&'static str, &'static str)>
         ("{next_extruder}", "{next_extruder}"),
         ("{previous_extruder}", "{previous_extruder}"),
         // Tool-change retraction
-        ("{retraction_distance_when_cut}", "{retraction_distance_when_cut}"),
+        (
+            "{retraction_distance_when_cut}",
+            "{retraction_distance_when_cut}",
+        ),
     ];
     // Sort by key length descending to prevent partial-match replacement.
     table.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
@@ -119,12 +131,30 @@ pub fn build_prusaslicer_translation_table() -> Vec<(&'static str, &'static str)
         // Machine info
         ("[printer_model]", "{printer_model}"),
         // Machine limits
-        ("[machine_max_acceleration_x]", "{machine_max_acceleration_x}"),
-        ("[machine_max_acceleration_y]", "{machine_max_acceleration_y}"),
-        ("[machine_max_acceleration_z]", "{machine_max_acceleration_z}"),
-        ("[machine_max_acceleration_e]", "{machine_max_acceleration_e}"),
-        ("[machine_max_acceleration_extruding]", "{machine_max_acceleration_extruding}"),
-        ("[machine_max_acceleration_retracting]", "{machine_max_acceleration_retracting}"),
+        (
+            "[machine_max_acceleration_x]",
+            "{machine_max_acceleration_x}",
+        ),
+        (
+            "[machine_max_acceleration_y]",
+            "{machine_max_acceleration_y}",
+        ),
+        (
+            "[machine_max_acceleration_z]",
+            "{machine_max_acceleration_z}",
+        ),
+        (
+            "[machine_max_acceleration_e]",
+            "{machine_max_acceleration_e}",
+        ),
+        (
+            "[machine_max_acceleration_extruding]",
+            "{machine_max_acceleration_extruding}",
+        ),
+        (
+            "[machine_max_acceleration_retracting]",
+            "{machine_max_acceleration_retracting}",
+        ),
         ("[machine_max_feedrate_x]", "{machine_max_speed_x}"),
         ("[machine_max_feedrate_y]", "{machine_max_speed_y}"),
         ("[machine_max_feedrate_z]", "{machine_max_speed_z}"),

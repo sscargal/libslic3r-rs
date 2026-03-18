@@ -32,10 +32,7 @@ pub trait AiProvider: Send + Sync {
     ///
     /// Returns [`AiError`] on network failures, authentication errors,
     /// response parsing failures, or empty responses.
-    async fn complete(
-        &self,
-        request: &CompletionRequest,
-    ) -> Result<CompletionResponse, AiError>;
+    async fn complete(&self, request: &CompletionRequest) -> Result<CompletionResponse, AiError>;
 
     /// Return the capabilities of this provider (structured output, streaming, context size).
     fn capabilities(&self) -> ProviderCapabilities;

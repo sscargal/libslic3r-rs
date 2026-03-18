@@ -91,8 +91,7 @@ pub fn generate_perimeters(
     let inner_contour = if shells_outside_in.is_empty() {
         // No shells were generated (wall_count=0 or collapsed immediately).
         // Offset by half width to get the infill boundary.
-        offset_polygons(contours, mm_to_coord(-half_width), JoinType::Miter)
-            .unwrap_or_default()
+        offset_polygons(contours, mm_to_coord(-half_width), JoinType::Miter).unwrap_or_default()
     } else {
         // Offset one more full width inward from the last shell.
         offset_polygons(
@@ -137,14 +136,9 @@ mod tests {
 
     /// Helper to create a validated CCW square at the origin with given size (mm).
     fn make_square(size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (0.0, 0.0),
-            (size, 0.0),
-            (size, size),
-            (0.0, size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(0.0, 0.0), (size, 0.0), (size, size), (0.0, size)])
+            .validate()
+            .unwrap()
     }
 
     fn total_area_mm2(polys: &[ValidPolygon]) -> f64 {

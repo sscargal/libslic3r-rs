@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 
 use slicecore_engine::event::{CallbackSubscriber, EventBus, SliceEvent};
 use slicecore_engine::output::{from_msgpack, to_json, to_msgpack};
-use slicecore_engine::{Engine, PrintConfig};
 use slicecore_engine::support::config::SupportConfig;
+use slicecore_engine::{Engine, PrintConfig};
 use slicecore_math::Point3;
 use slicecore_mesh::TriangleMesh;
 
@@ -94,8 +94,7 @@ fn multi_box_mesh(boxes: &[(f64, f64, f64, f64, f64, f64)]) -> TriangleMesh {
 
     for &(min_x, min_y, min_z, max_x, max_y, max_z) in boxes {
         let offset = all_vertices.len() as u32;
-        let (verts, idxs) =
-            box_vertices_indices(min_x, min_y, min_z, max_x, max_y, max_z, offset);
+        let (verts, idxs) = box_vertices_indices(min_x, min_y, min_z, max_x, max_y, max_z, offset);
         all_vertices.extend(verts);
         all_indices.extend(idxs);
     }
@@ -154,7 +153,10 @@ fn test_stl_to_gcode_calibration_cube() {
     let has_extrusion = gcode_str
         .lines()
         .any(|line| line.starts_with("G1") && line.contains(" E"));
-    assert!(has_extrusion, "G-code should contain G1 moves with E values");
+    assert!(
+        has_extrusion,
+        "G-code should contain G1 moves with E values"
+    );
 
     // Gcode ends with M104 S0 (heater off) in the postamble.
     let lines: Vec<&str> = gcode_str.lines().collect();
@@ -227,7 +229,7 @@ fn test_stl_to_gcode_with_supports() {
     // Base: 20x20x20mm at (90..110, 90..110, 0..20)
     // Shelf: extends 10mm outward at Z=14..20 at (110..120, 90..110, 14..20)
     let t_shape = multi_box_mesh(&[
-        (90.0, 90.0, 0.0, 110.0, 110.0, 20.0),  // base column
+        (90.0, 90.0, 0.0, 110.0, 110.0, 20.0),   // base column
         (110.0, 90.0, 14.0, 120.0, 110.0, 20.0), // overhang shelf
     ]);
 
@@ -268,10 +270,10 @@ fn test_stl_to_gcode_with_supports() {
 
     // Check for support-related content in the G-code.
     // Support generates TYPE:Support comments or additional extrusion.
-    let has_support_type = gcode_with_support.contains("TYPE:Support")
-        || gcode_with_support.contains("TYPE: Support");
-    let no_support_type = !gcode_no_support.contains("TYPE:Support")
-        && !gcode_no_support.contains("TYPE: Support");
+    let has_support_type =
+        gcode_with_support.contains("TYPE:Support") || gcode_with_support.contains("TYPE: Support");
+    let no_support_type =
+        !gcode_no_support.contains("TYPE:Support") && !gcode_no_support.contains("TYPE: Support");
 
     // At minimum, the supported version should produce more G-code.
     // Support type comments may or may not be present depending on implementation.
@@ -366,9 +368,8 @@ fn test_mesh_repair_integration() {
     ];
 
     // Repair the mesh.
-    let (repaired_mesh, report) =
-        slicecore_mesh::repair::repair(vertices.clone(), indices.clone())
-            .expect("repair should succeed");
+    let (repaired_mesh, report) = slicecore_mesh::repair::repair(vertices.clone(), indices.clone())
+        .expect("repair should succeed");
 
     // The degenerate triangle should have been removed.
     assert!(
@@ -410,8 +411,7 @@ fn test_json_output_integration() {
     let json_str = to_json(&result, &config).expect("to_json should succeed");
 
     // Parse the JSON.
-    let v: serde_json::Value =
-        serde_json::from_str(&json_str).expect("JSON should be parseable");
+    let v: serde_json::Value = serde_json::from_str(&json_str).expect("JSON should be parseable");
 
     // Verify fields.
     assert_eq!(
@@ -522,7 +522,10 @@ fn test_event_system_integration() {
     if let Some(SliceEvent::Complete {
         layers,
         time_seconds,
-    }) = captured.iter().rev().find(|e| matches!(e, SliceEvent::Complete { .. }))
+    }) = captured
+        .iter()
+        .rev()
+        .find(|e| matches!(e, SliceEvent::Complete { .. }))
     {
         assert_eq!(
             *layers, result.layer_count,

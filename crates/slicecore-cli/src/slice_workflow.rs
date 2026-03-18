@@ -9,11 +9,11 @@ use slicecore_engine::config::PrintConfig;
 use slicecore_engine::config_validate::{
     resolve_template_variables, validate_config, ValidationIssue, ValidationSeverity,
 };
+use slicecore_engine::get_builtin_profile;
 use slicecore_engine::profile_compose::{
-    ComposedConfig, ProfileComposer, SourceType, validate_set_key,
+    validate_set_key, ComposedConfig, ProfileComposer, SourceType,
 };
 use slicecore_engine::profile_resolve::ProfileResolver;
-use slicecore_engine::get_builtin_profile;
 
 /// All options from the CLI flags that control the slice workflow.
 #[allow(dead_code)]
@@ -81,7 +81,9 @@ pub fn run_slice_workflow(options: &SliceWorkflowOptions) -> Result<WorkflowResu
         && options.filament.is_none()
         && options.process.is_none()
     {
-        eprintln!("Warning: --unsafe-defaults active, using PrintConfig::default() with no profiles");
+        eprintln!(
+            "Warning: --unsafe-defaults active, using PrintConfig::default() with no profiles"
+        );
         log_lines.push("Using default config (--unsafe-defaults)".to_string());
 
         let mut composer = ProfileComposer::new();
@@ -150,9 +152,11 @@ pub fn run_slice_workflow(options: &SliceWorkflowOptions) -> Result<WorkflowResu
     } else {
         // Use built-in standard process profile
         if let Some(builtin) = get_builtin_profile("standard") {
-            if let Err(e) =
-                composer.add_toml_layer(SourceType::Process, "(built-in:standard)", builtin.toml_content)
-            {
+            if let Err(e) = composer.add_toml_layer(
+                SourceType::Process,
+                "(built-in:standard)",
+                builtin.toml_content,
+            ) {
                 eprintln!("Error: Failed to load built-in standard process profile: {e}");
                 return Err(2);
             }
@@ -295,11 +299,7 @@ fn apply_overrides_file(
 
         // Try TOML first, then JSON
         if composer
-            .add_toml_layer(
-                SourceType::UserOverride,
-                &path.to_string_lossy(),
-                &content,
-            )
+            .add_toml_layer(SourceType::UserOverride, &path.to_string_lossy(), &content)
             .is_err()
         {
             // Try JSON: parse as PrintConfig then serialize back to TOML
@@ -314,7 +314,10 @@ fn apply_overrides_file(
                         &path.to_string_lossy(),
                         &toml_str,
                     ) {
-                        eprintln!("Error: Failed to parse overrides file '{}': {e}", path.display());
+                        eprintln!(
+                            "Error: Failed to parse overrides file '{}': {e}",
+                            path.display()
+                        );
                         return Err(2);
                     }
                 }
@@ -487,11 +490,7 @@ fn print_annotated_config(composed: &ComposedConfig, json_output: bool) {
 }
 
 /// Saves merged config as TOML with provenance header comments.
-fn save_merged_config(
-    composed: &ComposedConfig,
-    save_path: &Path,
-    options: &SliceWorkflowOptions,
-) {
+fn save_merged_config(composed: &ComposedConfig, save_path: &Path, options: &SliceWorkflowOptions) {
     match toml::to_string_pretty(&composed.config) {
         Ok(toml_str) => {
             let mut output = String::new();
@@ -540,10 +539,7 @@ fn save_merged_config(
 }
 
 /// Generates G-code header comment block with version, timestamp, profiles, and config.
-pub fn generate_gcode_header(
-    composed: &ComposedConfig,
-    options: &SliceWorkflowOptions,
-) -> String {
+pub fn generate_gcode_header(composed: &ComposedConfig, options: &SliceWorkflowOptions) -> String {
     let mut header = String::new();
 
     // Version line
@@ -596,21 +592,75 @@ pub fn generate_gcode_header(
     header.push_str(";\n");
 
     // P0 config field summary (Phase 32)
-    header.push_str(&format!("; xy_hole_compensation = {}\n", composed.config.dimensional_compensation.xy_hole_compensation));
-    header.push_str(&format!("; xy_contour_compensation = {}\n", composed.config.dimensional_compensation.xy_contour_compensation));
-    header.push_str(&format!("; elephant_foot_compensation = {}\n", composed.config.dimensional_compensation.elephant_foot_compensation));
-    header.push_str(&format!("; top_surface_pattern = {:?}\n", composed.config.top_surface_pattern));
-    header.push_str(&format!("; bottom_surface_pattern = {:?}\n", composed.config.bottom_surface_pattern));
-    header.push_str(&format!("; solid_infill_pattern = {:?}\n", composed.config.solid_infill_pattern));
-    header.push_str(&format!("; extra_perimeters_on_overhangs = {}\n", composed.config.extra_perimeters_on_overhangs));
-    header.push_str(&format!("; internal_bridge_support = {:?}\n", composed.config.internal_bridge_support));
-    header.push_str(&format!("; internal_bridge_speed = {}\n", composed.config.speeds.internal_bridge_speed));
-    header.push_str(&format!("; chamber_temperature = {}\n", composed.config.filament.chamber_temperature));
-    header.push_str(&format!("; filament_shrink = {}%\n", composed.config.filament.filament_shrink));
-    header.push_str(&format!("; z_offset = {} (global) + {} (filament)\n", composed.config.z_offset, composed.config.filament.z_offset));
-    header.push_str(&format!("; curr_bed_type = {:?}\n", composed.config.machine.curr_bed_type));
-    header.push_str(&format!("; precise_z_height = {}\n", composed.config.precise_z_height));
-    header.push_str(&format!("; min_length_factor = {}\n", composed.config.accel.min_length_factor));
+    header.push_str(&format!(
+        "; xy_hole_compensation = {}\n",
+        composed
+            .config
+            .dimensional_compensation
+            .xy_hole_compensation
+    ));
+    header.push_str(&format!(
+        "; xy_contour_compensation = {}\n",
+        composed
+            .config
+            .dimensional_compensation
+            .xy_contour_compensation
+    ));
+    header.push_str(&format!(
+        "; elephant_foot_compensation = {}\n",
+        composed
+            .config
+            .dimensional_compensation
+            .elephant_foot_compensation
+    ));
+    header.push_str(&format!(
+        "; top_surface_pattern = {:?}\n",
+        composed.config.top_surface_pattern
+    ));
+    header.push_str(&format!(
+        "; bottom_surface_pattern = {:?}\n",
+        composed.config.bottom_surface_pattern
+    ));
+    header.push_str(&format!(
+        "; solid_infill_pattern = {:?}\n",
+        composed.config.solid_infill_pattern
+    ));
+    header.push_str(&format!(
+        "; extra_perimeters_on_overhangs = {}\n",
+        composed.config.extra_perimeters_on_overhangs
+    ));
+    header.push_str(&format!(
+        "; internal_bridge_support = {:?}\n",
+        composed.config.internal_bridge_support
+    ));
+    header.push_str(&format!(
+        "; internal_bridge_speed = {}\n",
+        composed.config.speeds.internal_bridge_speed
+    ));
+    header.push_str(&format!(
+        "; chamber_temperature = {}\n",
+        composed.config.filament.chamber_temperature
+    ));
+    header.push_str(&format!(
+        "; filament_shrink = {}%\n",
+        composed.config.filament.filament_shrink
+    ));
+    header.push_str(&format!(
+        "; z_offset = {} (global) + {} (filament)\n",
+        composed.config.z_offset, composed.config.filament.z_offset
+    ));
+    header.push_str(&format!(
+        "; curr_bed_type = {:?}\n",
+        composed.config.machine.curr_bed_type
+    ));
+    header.push_str(&format!(
+        "; precise_z_height = {}\n",
+        composed.config.precise_z_height
+    ));
+    header.push_str(&format!(
+        "; min_length_factor = {}\n",
+        composed.config.accel.min_length_factor
+    ));
     header.push_str(";\n");
 
     // Full merged config as TOML comments

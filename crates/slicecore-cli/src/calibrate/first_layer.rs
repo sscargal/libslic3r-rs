@@ -11,8 +11,8 @@ use slicecore_engine::calibrate::{generate_first_layer_mesh, FirstLayerParams, F
 use slicecore_engine::engine::Engine;
 
 use super::common::{
-    display_dry_run, format_calibration_header, resolve_calibration_config,
-    save_calibration_model, write_instructions,
+    display_dry_run, format_calibration_header, resolve_calibration_config, save_calibration_model,
+    write_instructions,
 };
 
 /// Arguments for the first layer calibration command, extracted from CLI.
@@ -81,7 +81,10 @@ pub fn cmd_first_layer(args: FirstLayerArgs) -> Result<(), Box<dyn std::error::E
         let dry_params: Vec<(&str, String)> = vec![
             ("Pattern", format!("{pattern:?}")),
             ("Coverage", format!("{:.0}%", params.coverage_percent)),
-            ("Plate Size", format!("{plate_width:.0}mm x {plate_depth:.0}mm")),
+            (
+                "Plate Size",
+                format!("{plate_width:.0}mm x {plate_depth:.0}mm"),
+            ),
             ("Layer Height", format!("{plate_height:.2}mm")),
         ];
         display_dry_run(
@@ -120,8 +123,14 @@ pub fn cmd_first_layer(args: FirstLayerArgs) -> Result<(), Box<dyn std::error::E
         &[
             ("Pattern", format!("{pattern:?}")),
             ("Coverage", format!("{:.0}%", params.coverage_percent)),
-            ("Plate Size", format!("{plate_width:.0}mm x {plate_depth:.0}mm")),
-            ("Layer Height", format!("{:.2}mm", config.first_layer_height)),
+            (
+                "Plate Size",
+                format!("{plate_width:.0}mm x {plate_depth:.0}mm"),
+            ),
+            (
+                "Layer Height",
+                format!("{:.2}mm", config.first_layer_height),
+            ),
         ],
     );
 

@@ -83,7 +83,11 @@ fn repair_removes_degenerate_triangles() {
     let (mesh, report) = repair(vertices, indices).expect("repair should succeed");
 
     assert_eq!(report.degenerate_removed, 1, "should remove 1 degenerate");
-    assert_eq!(mesh.triangle_count(), 12, "should have 12 triangles after repair");
+    assert_eq!(
+        mesh.triangle_count(),
+        12,
+        "should have 12 triangles after repair"
+    );
 }
 
 #[test]
@@ -127,14 +131,8 @@ fn repair_clean_mesh_reports_already_clean() {
     let (_mesh, report) = repair(vertices, indices).expect("repair should succeed");
 
     // A valid unit cube should require no repairs (or at most trivial ones)
-    assert_eq!(
-        report.degenerate_removed, 0,
-        "clean cube: no degenerates"
-    );
-    assert_eq!(
-        report.holes_filled, 0,
-        "clean cube: no holes"
-    );
+    assert_eq!(report.degenerate_removed, 0, "clean cube: no degenerates");
+    assert_eq!(report.holes_filled, 0, "clean cube: no holes");
     // The clean cube may or may not have was_already_clean=true depending on
     // whether the normal fixer or stitcher made any changes. At minimum,
     // degenerate + holes should be zero.

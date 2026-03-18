@@ -365,20 +365,16 @@ pub fn mesh_split_at_plane(
 
     let above_mesh = if above.indices.is_empty() {
         let p = verts[0];
-        TriangleMesh::new(vec![p, p, p], vec![[0, 1, 2]])
-            .map_err(CsgError::ResultConstruction)?
+        TriangleMesh::new(vec![p, p, p], vec![[0, 1, 2]]).map_err(CsgError::ResultConstruction)?
     } else {
-        TriangleMesh::new(above.verts, above.indices)
-            .map_err(CsgError::ResultConstruction)?
+        TriangleMesh::new(above.verts, above.indices).map_err(CsgError::ResultConstruction)?
     };
 
     let below_mesh = if below.indices.is_empty() {
         let p = verts[0];
-        TriangleMesh::new(vec![p, p, p], vec![[0, 1, 2]])
-            .map_err(CsgError::ResultConstruction)?
+        TriangleMesh::new(vec![p, p, p], vec![[0, 1, 2]]).map_err(CsgError::ResultConstruction)?
     } else {
-        TriangleMesh::new(below.verts, below.indices)
-            .map_err(CsgError::ResultConstruction)?
+        TriangleMesh::new(below.verts, below.indices).map_err(CsgError::ResultConstruction)?
     };
 
     let mut report = CsgReport {
@@ -449,16 +445,36 @@ fn split_crossing_triangle(
         let lone = sides.iter().position(|&s| s == Side::Above).unwrap_or(0);
         let (o1, o2) = other_two(lone);
         emit_split(
-            &pts, &orig, &sides, lone, o1, o2, plane,
-            above, below, above_orig_map, below_orig_map, true,
+            &pts,
+            &orig,
+            &sides,
+            lone,
+            o1,
+            o2,
+            plane,
+            above,
+            below,
+            above_orig_map,
+            below_orig_map,
+            true,
         );
     } else if n_above == 2 && n_below == 1 {
         // Two above, one below.
         let lone = sides.iter().position(|&s| s == Side::Below).unwrap_or(0);
         let (o1, o2) = other_two(lone);
         emit_split(
-            &pts, &orig, &sides, lone, o1, o2, plane,
-            above, below, above_orig_map, below_orig_map, false,
+            &pts,
+            &orig,
+            &sides,
+            lone,
+            o1,
+            o2,
+            plane,
+            above,
+            below,
+            above_orig_map,
+            below_orig_map,
+            false,
         );
     } else if n_above == 1 && n_below == 1 {
         // One above, one below, one on-plane.
@@ -518,9 +534,19 @@ fn emit_split(
 
     // References for the "one" side (where the lone vertex lives) and "two" side.
     let (one, two, one_map, two_map) = if lone_above {
-        (above as &mut HalfMesh, below as &mut HalfMesh, above_orig_map, below_orig_map)
+        (
+            above as &mut HalfMesh,
+            below as &mut HalfMesh,
+            above_orig_map,
+            below_orig_map,
+        )
     } else {
-        (below as &mut HalfMesh, above as &mut HalfMesh, below_orig_map, above_orig_map)
+        (
+            below as &mut HalfMesh,
+            above as &mut HalfMesh,
+            below_orig_map,
+            above_orig_map,
+        )
     };
 
     // Single triangle on the lone side.
@@ -600,7 +626,10 @@ fn cap_half(half: &mut HalfMesh, plane: &SplitPlane, is_above: bool) {
         }
 
         // Get the 3D positions of the loop vertices.
-        let loop_pts: Vec<Point3> = loop_indices.iter().map(|&vi| half.verts[vi as usize]).collect();
+        let loop_pts: Vec<Point3> = loop_indices
+            .iter()
+            .map(|&vi| half.verts[vi as usize])
+            .collect();
 
         // Project onto 2D plane coordinates.
         let (u_axis, v_axis) = plane_basis(plane.normal);
@@ -816,12 +845,7 @@ fn cross_2d(p0: (f64, f64), p1: (f64, f64), p2: (f64, f64)) -> f64 {
 }
 
 /// Tests if a point is inside a triangle (2D).
-fn point_in_triangle_2d(
-    p: (f64, f64),
-    a: (f64, f64),
-    b: (f64, f64),
-    c: (f64, f64),
-) -> bool {
+fn point_in_triangle_2d(p: (f64, f64), a: (f64, f64), b: (f64, f64), c: (f64, f64)) -> bool {
     let d1 = cross_2d(a, b, p);
     let d2 = cross_2d(b, c, p);
     let d3 = cross_2d(c, a, p);
@@ -876,12 +900,10 @@ mod tests {
     fn split_box_uncapped() {
         let mesh = primitive_box(2.0, 2.0, 2.0);
         let plane = SplitPlane::xy(0.0);
-        let result =
-            mesh_split_at_plane(&mesh, &plane, &SplitOptions { cap: false }).unwrap();
+        let result = mesh_split_at_plane(&mesh, &plane, &SplitOptions { cap: false }).unwrap();
         assert!(result.above.triangle_count() > 0);
         assert!(result.below.triangle_count() > 0);
-        let capped =
-            mesh_split_at_plane(&mesh, &plane, &SplitOptions::default()).unwrap();
+        let capped = mesh_split_at_plane(&mesh, &plane, &SplitOptions::default()).unwrap();
         assert!(
             result.above.triangle_count() + result.below.triangle_count()
                 <= capped.above.triangle_count() + capped.below.triangle_count()

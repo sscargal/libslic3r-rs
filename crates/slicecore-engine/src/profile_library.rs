@@ -190,16 +190,16 @@ fn merge_inheritance(parent: ImportResult, child: ImportResult) -> ImportResult 
     use crate::profile_convert::round_floats_in_value;
 
     // Start from parent's config as TOML table.
-    let parent_value = toml::Value::try_from(&parent.config)
-        .expect("PrintConfig should serialize to toml::Value");
+    let parent_value =
+        toml::Value::try_from(&parent.config).expect("PrintConfig should serialize to toml::Value");
     let mut merged_table = match parent_value {
         toml::Value::Table(t) => t,
         _ => unreachable!(),
     };
 
     // Serialize child's config to get its field values.
-    let child_value = toml::Value::try_from(&child.config)
-        .expect("PrintConfig should serialize to toml::Value");
+    let child_value =
+        toml::Value::try_from(&child.config).expect("PrintConfig should serialize to toml::Value");
     let child_table = match child_value {
         toml::Value::Table(t) => t,
         _ => unreachable!(),
@@ -277,13 +277,12 @@ fn merge_inheritance(parent: ImportResult, child: ImportResult) -> ImportResult 
     }
 
     // Deserialize back to PrintConfig.
-    let merged_config: crate::config::PrintConfig =
-        toml::Value::Table(merged_table)
-            .try_into()
-            .unwrap_or_else(|e| {
-                eprintln!("Warning: failed to deserialize merged config: {}", e);
-                crate::config::PrintConfig::default()
-            });
+    let merged_config: crate::config::PrintConfig = toml::Value::Table(merged_table)
+        .try_into()
+        .unwrap_or_else(|e| {
+            eprintln!("Warning: failed to deserialize merged config: {}", e);
+            crate::config::PrintConfig::default()
+        });
 
     // Merge field lists.
     let mut all_mapped = parent.mapped_fields;
@@ -372,10 +371,7 @@ pub fn batch_convert_profiles(
             continue; // Skip non-directory entries (.json files, .py scripts, etc.)
         }
 
-        let vendor_name = vendor_entry
-            .file_name()
-            .to_string_lossy()
-            .to_string();
+        let vendor_name = vendor_entry.file_name().to_string_lossy().to_string();
 
         // Process each profile type subdirectory.
         for profile_type in &["filament", "process", "machine"] {
@@ -411,11 +407,7 @@ pub fn batch_convert_profiles(
                 let value: serde_json::Value = match serde_json::from_str(&contents) {
                     Ok(v) => v,
                     Err(e) => {
-                        errors.push(format!(
-                            "Failed to parse JSON '{}': {}",
-                            path.display(),
-                            e
-                        ));
+                        errors.push(format!("Failed to parse JSON '{}': {}", path.display(), e));
                         continue;
                     }
                 };
@@ -449,16 +441,12 @@ pub fn batch_convert_profiles(
                 let convert_result = convert_to_toml(&resolved);
 
                 // Determine output filename.
-                let profile_name = resolved
-                    .metadata
-                    .name
-                    .clone()
-                    .unwrap_or_else(|| {
-                        path.file_stem()
-                            .and_then(|s| s.to_str())
-                            .unwrap_or("unknown")
-                            .to_string()
-                    });
+                let profile_name = resolved.metadata.name.clone().unwrap_or_else(|| {
+                    path.file_stem()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("unknown")
+                        .to_string()
+                });
 
                 let sanitized = sanitize_filename(&profile_name);
                 let out_dir = output_dir.join(&vendor_name).join(profile_type);
@@ -477,11 +465,7 @@ pub fn batch_convert_profiles(
 
                 // Write TOML file.
                 if let Err(e) = std::fs::write(&out_file, &convert_result.toml_output) {
-                    errors.push(format!(
-                        "Failed to write '{}': {}",
-                        out_file.display(),
-                        e
-                    ));
+                    errors.push(format!("Failed to write '{}': {}", out_file.display(), e));
                     continue;
                 }
 
@@ -588,10 +572,7 @@ pub fn batch_convert_prusaslicer_profiles(
         }
 
         // Skip SLA vendor files.
-        let filename = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
+        let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
         if filename.contains("SLA") {
             skipped += 1;
             continue;
@@ -638,19 +619,11 @@ pub fn batch_convert_prusaslicer_profiles(
             }
 
             // Resolve inheritance chain.
-            let resolved = resolve_ini_inheritance(
-                &sections[idx],
-                &sections,
-                &lookup,
-                0,
-            );
+            let resolved = resolve_ini_inheritance(&sections[idx], &sections, &lookup, 0);
 
             // Convert to ImportResult.
-            let import_result = import_prusaslicer_ini_profile(
-                &resolved,
-                &section.name,
-                &section.section_type,
-            );
+            let import_result =
+                import_prusaslicer_ini_profile(&resolved, &section.name, &section.section_type);
 
             // Convert to TOML.
             let convert_result = convert_to_toml(&import_result);
@@ -680,11 +653,7 @@ pub fn batch_convert_prusaslicer_profiles(
 
             // Write TOML file.
             if let Err(e) = std::fs::write(&out_file, &convert_result.toml_output) {
-                errors.push(format!(
-                    "Failed to write '{}': {}",
-                    out_file.display(),
-                    e
-                ));
+                errors.push(format!("Failed to write '{}': {}", out_file.display(), e));
                 continue;
             }
 
@@ -745,17 +714,12 @@ pub fn write_index(index: &ProfileIndex, output_dir: &Path) -> Result<(), Engine
         ))
     })?;
 
-    let json = serde_json::to_string_pretty(index).map_err(|e| {
-        EngineError::ConfigError(format!("Failed to serialize index: {}", e))
-    })?;
+    let json = serde_json::to_string_pretty(index)
+        .map_err(|e| EngineError::ConfigError(format!("Failed to serialize index: {}", e)))?;
 
     let path = output_dir.join("index.json");
     std::fs::write(&path, json).map_err(|e| {
-        EngineError::ConfigError(format!(
-            "Failed to write index '{}': {}",
-            path.display(),
-            e
-        ))
+        EngineError::ConfigError(format!("Failed to write index '{}': {}", path.display(), e))
     })?;
 
     Ok(())
@@ -765,19 +729,11 @@ pub fn write_index(index: &ProfileIndex, output_dir: &Path) -> Result<(), Engine
 pub fn load_index(profiles_dir: &Path) -> Result<ProfileIndex, EngineError> {
     let path = profiles_dir.join("index.json");
     let contents = std::fs::read_to_string(&path).map_err(|e| {
-        EngineError::ConfigError(format!(
-            "Failed to read index '{}': {}",
-            path.display(),
-            e
-        ))
+        EngineError::ConfigError(format!("Failed to read index '{}': {}", path.display(), e))
     })?;
 
     let index: ProfileIndex = serde_json::from_str(&contents).map_err(|e| {
-        EngineError::ConfigError(format!(
-            "Failed to parse index '{}': {}",
-            path.display(),
-            e
-        ))
+        EngineError::ConfigError(format!("Failed to parse index '{}': {}", path.display(), e))
     })?;
 
     Ok(index)
@@ -790,10 +746,7 @@ pub fn load_index(profiles_dir: &Path) -> Result<ProfileIndex, EngineError> {
 /// - Entries from the existing index with different IDs are preserved.
 ///
 /// If no existing index exists, writes the new index as-is.
-pub fn write_merged_index(
-    new_index: &ProfileIndex,
-    output_dir: &Path,
-) -> Result<(), EngineError> {
+pub fn write_merged_index(new_index: &ProfileIndex, output_dir: &Path) -> Result<(), EngineError> {
     let index_path = output_dir.join("index.json");
 
     let merged = if index_path.exists() {
@@ -801,11 +754,8 @@ pub fn write_merged_index(
         let existing = load_index(output_dir)?;
 
         // Build a set of IDs in the new index for fast lookup.
-        let new_ids: std::collections::HashSet<&str> = new_index
-            .profiles
-            .iter()
-            .map(|p| p.id.as_str())
-            .collect();
+        let new_ids: std::collections::HashSet<&str> =
+            new_index.profiles.iter().map(|p| p.id.as_str()).collect();
 
         // Keep existing entries whose IDs are not in the new index.
         let mut merged_profiles: Vec<ProfileIndexEntry> = existing
@@ -858,8 +808,8 @@ pub(crate) fn sanitize_filename(name: &str) -> String {
 pub(crate) fn extract_material_from_name(name: &str) -> Option<String> {
     // Order: longest match first to avoid prefix collisions.
     const MATERIALS: &[&str] = &[
-        "PLA-CF", "PLA+", "PETG-CF", "PA-CF", "PLA", "PETG", "ABS", "ASA",
-        "PA", "PC", "TPU", "PVA", "HIPS", "PP",
+        "PLA-CF", "PLA+", "PETG-CF", "PA-CF", "PLA", "PETG", "ABS", "ASA", "PA", "PC", "TPU",
+        "PVA", "HIPS", "PP",
     ];
 
     let upper = name.to_uppercase();
@@ -1038,10 +988,7 @@ mod tests {
             sanitize_filename("Generic (PLA) Profile"),
             "Generic_PLA_Profile"
         );
-        assert_eq!(
-            sanitize_filename("Profile/SubName"),
-            "Profile_SubName"
-        );
+        assert_eq!(sanitize_filename("Profile/SubName"), "Profile_SubName");
         assert_eq!(sanitize_filename("simple"), "simple");
     }
 
@@ -1064,10 +1011,7 @@ mod tests {
             extract_material_from_name("Generic ABS @BBL X1C"),
             Some("ABS".to_string())
         );
-        assert_eq!(
-            extract_material_from_name("Some Unknown Material"),
-            None
-        );
+        assert_eq!(extract_material_from_name("Some Unknown Material"), None);
         assert_eq!(
             extract_material_from_name("Bambu TPU 95A @BBL A1"),
             Some("TPU".to_string())
@@ -1084,30 +1028,18 @@ mod tests {
             extract_layer_height_from_name("0.08mm Extra Fine @BBL X1C"),
             Some(0.08)
         );
-        assert_eq!(
-            extract_layer_height_from_name("0.28mm Initial"),
-            Some(0.28)
-        );
-        assert_eq!(
-            extract_layer_height_from_name("Standard Profile"),
-            None
-        );
+        assert_eq!(extract_layer_height_from_name("0.28mm Initial"), Some(0.28));
+        assert_eq!(extract_layer_height_from_name("Standard Profile"), None);
     }
 
     #[test]
     fn test_extract_nozzle_size() {
-        assert_eq!(
-            extract_nozzle_size_from_name("0.4 nozzle"),
-            Some(0.4)
-        );
+        assert_eq!(extract_nozzle_size_from_name("0.4 nozzle"), Some(0.4));
         assert_eq!(
             extract_nozzle_size_from_name("Profile for 0.6 nozzle @BBL X1C"),
             Some(0.6)
         );
-        assert_eq!(
-            extract_nozzle_size_from_name("no nozzle info"),
-            None
-        );
+        assert_eq!(extract_nozzle_size_from_name("no nozzle info"), None);
     }
 
     #[test]
@@ -1132,10 +1064,7 @@ mod tests {
             extract_quality_from_name("0.12mm Fine"),
             Some("Fine".to_string())
         );
-        assert_eq!(
-            extract_quality_from_name("Generic PLA"),
-            None
-        );
+        assert_eq!(extract_quality_from_name("Generic PLA"), None);
     }
 
     #[test]
@@ -1148,10 +1077,7 @@ mod tests {
             extract_printer_model("Generic PLA @Creality K1"),
             Some("Creality K1".to_string())
         );
-        assert_eq!(
-            extract_printer_model("Generic PLA"),
-            None
-        );
+        assert_eq!(extract_printer_model("Generic PLA"), None);
     }
 
     #[test]
@@ -1198,13 +1124,13 @@ mod tests {
         assert_eq!(loaded.version, 1);
         assert_eq!(loaded.generated, "2026-01-01T00:00:00Z");
         assert_eq!(loaded.profiles.len(), 2);
-        assert_eq!(loaded.profiles[0].id, "orcaslicer/BBL/filament/Bambu_PLA_Basic");
+        assert_eq!(
+            loaded.profiles[0].id,
+            "orcaslicer/BBL/filament/Bambu_PLA_Basic"
+        );
         assert_eq!(loaded.profiles[0].material, Some("PLA".to_string()));
         assert_eq!(loaded.profiles[1].layer_height, Some(0.20));
-        assert_eq!(
-            loaded.profiles[1].quality,
-            Some("Standard".to_string())
-        );
+        assert_eq!(loaded.profiles[1].quality, Some("Standard".to_string()));
         assert_eq!(
             loaded.profiles[1].printer_model,
             Some("BBL X1C".to_string())
@@ -1248,12 +1174,8 @@ mod tests {
         .unwrap();
 
         let mut cache = HashMap::new();
-        let result = resolve_inheritance(
-            &dir.join("Bambu PLA Basic.json"),
-            &dir,
-            &mut cache,
-        )
-        .unwrap();
+        let result =
+            resolve_inheritance(&dir.join("Bambu PLA Basic.json"), &dir, &mut cache).unwrap();
 
         // Child overrides parent for nozzle_temperature and hot_plate_temp.
         assert!((result.config.filament.nozzle_temp() - 220.0).abs() < 1e-6);
@@ -1273,8 +1195,7 @@ mod tests {
         let out_dir = std::env::temp_dir().join("slicecore_test_batch_out");
         let _ = std::fs::remove_dir_all(&out_dir);
 
-        let result =
-            batch_convert_profiles(&dir, &out_dir, "test").unwrap();
+        let result = batch_convert_profiles(&dir, &out_dir, "test").unwrap();
 
         assert_eq!(result.converted, 0);
         assert_eq!(result.skipped, 0);
@@ -1325,15 +1246,9 @@ mod tests {
             sanitize_filename("Original Prusa i3 MK3S && MK3S+"),
             "Original_Prusa_i3_MK3S__and__MK3S+"
         );
-        assert_eq!(
-            sanitize_filename("MK3.9 && MK3.9+"),
-            "MK3.9__and__MK3.9+"
-        );
+        assert_eq!(sanitize_filename("MK3.9 && MK3.9+"), "MK3.9__and__MK3.9+");
         // Single & should be preserved.
-        assert_eq!(
-            sanitize_filename("A & B"),
-            "A_&_B"
-        );
+        assert_eq!(sanitize_filename("A & B"), "A_&_B");
     }
 
     #[test]

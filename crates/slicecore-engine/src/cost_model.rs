@@ -209,7 +209,12 @@ pub fn compute_cost(inputs: &CostInputs) -> CostEstimate {
     };
 
     // Total: sum of available components
-    let components = [filament_cost, electricity_cost, depreciation_cost, labor_cost];
+    let components = [
+        filament_cost,
+        electricity_cost,
+        depreciation_cost,
+        labor_cost,
+    ];
     let total_cost = {
         let sum: f64 = components.iter().filter_map(|c| *c).sum();
         if components.iter().any(|c| c.is_some()) {
@@ -244,7 +249,11 @@ pub fn compute_cost(inputs: &CostInputs) -> CostEstimate {
 /// assert!(est.filament_length_mm > 0.0);
 /// assert!(est.filament_weight_g > 0.0);
 /// ```
-pub fn volume_estimate(volume_mm3: f64, filament_diameter: f64, filament_density: f64) -> VolumeEstimate {
+pub fn volume_estimate(
+    volume_mm3: f64,
+    filament_diameter: f64,
+    filament_density: f64,
+) -> VolumeEstimate {
     let effective_volume = volume_mm3 * 0.50; // combined infill+shell factor
     let radius = filament_diameter / 2.0;
     let cross_section = std::f64::consts::PI * radius * radius;
@@ -253,7 +262,8 @@ pub fn volume_estimate(volume_mm3: f64, filament_diameter: f64, filament_density
     } else {
         0.0
     };
-    let filament_weight_g = filament_mm_to_grams(filament_length_mm, filament_diameter, filament_density);
+    let filament_weight_g =
+        filament_mm_to_grams(filament_length_mm, filament_diameter, filament_density);
     let rough_time_seconds = filament_length_mm / 40.0; // 40 mm/s average extrusion rate
 
     VolumeEstimate {
@@ -363,10 +373,26 @@ mod tests {
     fn test_volume_estimate_20mm_cube() {
         // 20mm cube = 8000 mm^3
         let est = volume_estimate(8000.0, 1.75, 1.24);
-        assert!(est.filament_length_mm > 100.0, "length={}", est.filament_length_mm);
-        assert!(est.filament_length_mm < 10000.0, "length={}", est.filament_length_mm);
-        assert!(est.filament_weight_g > 0.5, "weight={}", est.filament_weight_g);
-        assert!(est.filament_weight_g < 50.0, "weight={}", est.filament_weight_g);
+        assert!(
+            est.filament_length_mm > 100.0,
+            "length={}",
+            est.filament_length_mm
+        );
+        assert!(
+            est.filament_length_mm < 10000.0,
+            "length={}",
+            est.filament_length_mm
+        );
+        assert!(
+            est.filament_weight_g > 0.5,
+            "weight={}",
+            est.filament_weight_g
+        );
+        assert!(
+            est.filament_weight_g < 50.0,
+            "weight={}",
+            est.filament_weight_g
+        );
         assert!(est.rough_time_seconds > 0.0);
         assert!(est.disclaimer.contains("accuracy"));
     }

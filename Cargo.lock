@@ -2949,6 +2949,7 @@ dependencies = [
  "serde_json",
  "slicecore-ai",
  "slicecore-arrange",
+ "slicecore-config-schema",
  "slicecore-engine",
  "slicecore-fileio",
  "slicecore-gcode-io",

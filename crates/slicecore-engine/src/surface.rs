@@ -168,14 +168,9 @@ mod tests {
 
     /// Helper to create a validated CCW square at a given position and size.
     fn make_square(x: f64, y: f64, size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (x, y),
-            (x + size, y),
-            (x + size, y + size),
-            (x, y + size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(x, y), (x + size, y), (x + size, y + size), (x, y + size)])
+            .validate()
+            .unwrap()
     }
 
     /// Helper to create a SliceLayer with the given contours.
@@ -205,7 +200,10 @@ mod tests {
             !c0.solid_regions.is_empty(),
             "Layer 0 should be solid (bottom)"
         );
-        assert!(c0.sparse_regions.is_empty(), "Layer 0 should have no sparse");
+        assert!(
+            c0.sparse_regions.is_empty(),
+            "Layer 0 should have no sparse"
+        );
 
         // Layer 1: bottom solid.
         let c1 = classify_surfaces(&layers, 1, 2, 2);
@@ -213,7 +211,10 @@ mod tests {
             !c1.solid_regions.is_empty(),
             "Layer 1 should be solid (bottom)"
         );
-        assert!(c1.sparse_regions.is_empty(), "Layer 1 should have no sparse");
+        assert!(
+            c1.sparse_regions.is_empty(),
+            "Layer 1 should have no sparse"
+        );
 
         // Layer 2: interior -> sparse (identical contours above and below).
         let c2 = classify_surfaces(&layers, 2, 2, 2);
@@ -232,7 +233,10 @@ mod tests {
             !c3.solid_regions.is_empty(),
             "Layer 3 should be solid (top)"
         );
-        assert!(c3.sparse_regions.is_empty(), "Layer 3 should have no sparse");
+        assert!(
+            c3.sparse_regions.is_empty(),
+            "Layer 3 should have no sparse"
+        );
 
         // Layer 4: top solid.
         let c4 = classify_surfaces(&layers, 4, 2, 2);
@@ -240,7 +244,10 @@ mod tests {
             !c4.solid_regions.is_empty(),
             "Layer 4 should be solid (top)"
         );
-        assert!(c4.sparse_regions.is_empty(), "Layer 4 should have no sparse");
+        assert!(
+            c4.sparse_regions.is_empty(),
+            "Layer 4 should have no sparse"
+        );
     }
 
     #[test]
@@ -250,10 +257,7 @@ mod tests {
 
         // Single layer: both top and bottom -> solid.
         let c = classify_surfaces(&layers, 0, 2, 2);
-        assert!(
-            !c.solid_regions.is_empty(),
-            "Single layer should be solid"
-        );
+        assert!(!c.solid_regions.is_empty(), "Single layer should be solid");
         assert!(c.sparse_regions.is_empty());
     }
 

@@ -251,7 +251,14 @@ impl ProfileComposer {
                 overrode: None,
             };
 
-            merge_layer(&mut base, &layer.table, "", &source, &mut provenance, &mut warnings);
+            merge_layer(
+                &mut base,
+                &layer.table,
+                "",
+                &source,
+                &mut provenance,
+                &mut warnings,
+            );
         }
 
         // Apply --set overrides
@@ -335,7 +342,14 @@ pub fn merge_layer(
             (Some(toml::Value::Table(_)), toml::Value::Table(layer_table)) => {
                 // Safe: we just checked it's a table
                 if let Some(toml::Value::Table(base_table)) = base.get_mut(key) {
-                    merge_layer(base_table, layer_table, &dotted, source, provenance, warnings);
+                    merge_layer(
+                        base_table,
+                        layer_table,
+                        &dotted,
+                        source,
+                        provenance,
+                        warnings,
+                    );
                 }
             }
             // Layer has a table, base doesn't (or base doesn't have the key): insert
@@ -553,12 +567,10 @@ pub fn validate_set_key(key: &str) -> Result<(), EngineError> {
         }
     }
 
-    let suggestion = best_match
-        .filter(|(_, score)| *score > 0.7)
-        .map_or_else(
-            || format!("unknown config key '{key}'"),
-            |(candidate, _)| format!("unknown config key '{key}', did you mean '{candidate}'?"),
-        );
+    let suggestion = best_match.filter(|(_, score)| *score > 0.7).map_or_else(
+        || format!("unknown config key '{key}'"),
+        |(candidate, _)| format!("unknown config key '{key}', did you mean '{candidate}'?"),
+    );
 
     Err(EngineError::ConfigError(suggestion))
 }
@@ -673,24 +685,19 @@ mod tests {
     fn provenance_records_override_chain() {
         let mut composer = ProfileComposer::new();
         composer
-            .add_toml_layer(
-                SourceType::Machine,
-                "machine.toml",
-                "layer_height = 0.3\n",
-            )
+            .add_toml_layer(SourceType::Machine, "machine.toml", "layer_height = 0.3\n")
             .unwrap();
         composer
-            .add_toml_layer(
-                SourceType::Process,
-                "process.toml",
-                "layer_height = 0.1\n",
-            )
+            .add_toml_layer(SourceType::Process, "process.toml", "layer_height = 0.1\n")
             .unwrap();
 
         let result = composer.compose().unwrap();
         let source = result.provenance.get("layer_height").unwrap();
         assert_eq!(source.source_type, SourceType::Process);
-        assert!(source.overrode.is_some(), "should record what was overridden");
+        assert!(
+            source.overrode.is_some(),
+            "should record what was overridden"
+        );
 
         let overrode = source.overrode.as_ref().unwrap();
         assert_eq!(overrode.source_type, SourceType::Machine);
@@ -700,18 +707,10 @@ mod tests {
     fn conflict_detection_warns_on_same_field_from_multiple_layers() {
         let mut composer = ProfileComposer::new();
         composer
-            .add_toml_layer(
-                SourceType::Machine,
-                "machine.toml",
-                "layer_height = 0.3\n",
-            )
+            .add_toml_layer(SourceType::Machine, "machine.toml", "layer_height = 0.3\n")
             .unwrap();
         composer
-            .add_toml_layer(
-                SourceType::Process,
-                "process.toml",
-                "layer_height = 0.1\n",
-            )
+            .add_toml_layer(SourceType::Process, "process.toml", "layer_height = 0.1\n")
             .unwrap();
 
         let result = composer.compose().unwrap();
@@ -731,11 +730,7 @@ mod tests {
 
         // Machine sets layer_height
         composer
-            .add_toml_layer(
-                SourceType::Machine,
-                "machine.toml",
-                "layer_height = 0.4\n",
-            )
+            .add_toml_layer(SourceType::Machine, "machine.toml", "layer_height = 0.4\n")
             .unwrap();
         // Filament doesn't touch layer_height but sets filament diameter
         composer
@@ -747,11 +742,7 @@ mod tests {
             .unwrap();
         // Process overrides layer_height
         composer
-            .add_toml_layer(
-                SourceType::Process,
-                "process.toml",
-                "layer_height = 0.2\n",
-            )
+            .add_toml_layer(SourceType::Process, "process.toml", "layer_height = 0.2\n")
             .unwrap();
         // User override further overrides
         composer
@@ -839,10 +830,7 @@ mod tests {
             parse_set_value("hello"),
             toml::Value::String("hello".into())
         );
-        assert_eq!(
-            parse_set_value("PLA"),
-            toml::Value::String("PLA".into())
-        );
+        assert_eq!(parse_set_value("PLA"), toml::Value::String("PLA".into()));
     }
 
     #[test]
@@ -857,12 +845,7 @@ mod tests {
     #[test]
     fn set_dotted_key_creates_intermediates() {
         let mut table = toml::map::Map::new();
-        set_dotted_key(
-            &mut table,
-            "machine.bed_x",
-            toml::Value::Float(300.0),
-        )
-        .unwrap();
+        set_dotted_key(&mut table, "machine.bed_x", toml::Value::Float(300.0)).unwrap();
 
         assert!(table.contains_key("machine"));
         let machine = table["machine"].as_table().unwrap();
@@ -946,9 +929,7 @@ mod tests {
         let result = composer.compose().unwrap();
         // Should produce default config with no warnings
         let default = PrintConfig::default();
-        assert!(
-            (result.config.layer_height - default.layer_height).abs() < f64::EPSILON,
-        );
+        assert!((result.config.layer_height - default.layer_height).abs() < f64::EPSILON,);
         assert!(result.profile_checksums.is_empty());
     }
 

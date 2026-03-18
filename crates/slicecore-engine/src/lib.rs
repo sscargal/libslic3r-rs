@@ -52,10 +52,10 @@ pub mod postprocess_builtin;
 pub mod preview;
 pub mod profile_compose;
 pub mod profile_convert;
-pub mod profile_resolve;
 pub mod profile_import;
 pub mod profile_import_ini;
 pub mod profile_library;
+pub mod profile_resolve;
 pub mod scarf;
 pub mod seam;
 pub mod sequential;
@@ -67,13 +67,13 @@ pub mod toolpath;
 // Re-export primary types at crate root.
 pub use arachne::{generate_arachne_perimeters, ArachnePerimeter, ArachneResult};
 pub use builtin_profiles::{get_builtin_profile, list_builtin_profiles, BuiltinProfile};
-pub use config_validate::{
-    resolve_template_variables, validate_config, ValidationIssue, ValidationSeverity,
-};
 pub use calibration::{generate_pa_calibration, generate_pa_calibration_gcode};
 pub use config::{
     MultiMaterialConfig, PaCalibrationConfig, PrintConfig, ScarfJointConfig, ScarfJointType,
     SequentialConfig, SettingOverrides, ToolConfig, WallOrder,
+};
+pub use config_validate::{
+    resolve_template_variables, validate_config, ValidationIssue, ValidationSeverity,
 };
 pub use custom_gcode::{substitute_placeholders, CustomGcodeHooks};
 pub use engine::{CancellationToken, Engine, SliceResult};

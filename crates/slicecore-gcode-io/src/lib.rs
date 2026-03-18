@@ -45,13 +45,12 @@ pub mod validate;
 pub mod writer;
 
 // Re-export primary types at crate root for ergonomic imports.
+pub use arc::fit_arcs;
 pub use commands::GcodeCommand;
 pub use dialect::{
-    format_acceleration, format_jerk, format_pressure_advance, EndConfig, GcodeDialect,
-    StartConfig,
+    format_acceleration, format_jerk, format_pressure_advance, EndConfig, GcodeDialect, StartConfig,
 };
 pub use error::GcodeError;
-pub use validate::{validate_gcode, ValidationResult};
-pub use arc::fit_arcs;
 pub use thumbnail::write_thumbnail_comments;
+pub use validate::{validate_gcode, ValidationResult};
 pub use writer::GcodeWriter;

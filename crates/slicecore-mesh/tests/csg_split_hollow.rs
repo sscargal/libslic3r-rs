@@ -45,8 +45,14 @@ fn test_split_box_at_midpoint() {
     );
 
     // Both halves should be watertight (capped).
-    assert!(is_watertight(&result.above), "above half should be watertight");
-    assert!(is_watertight(&result.below), "below half should be watertight");
+    assert!(
+        is_watertight(&result.above),
+        "above half should be watertight"
+    );
+    assert!(
+        is_watertight(&result.below),
+        "below half should be watertight"
+    );
 
     // Each half should have the correct bounding box extent.
     let above_aabb = result.above.aabb();
@@ -108,8 +114,7 @@ fn test_split_box_uncapped() {
 
     // Capped version should have more triangles.
     let capped = mesh_split_at_plane(&mesh, &plane, &SplitOptions::default()).unwrap();
-    let uncapped_total =
-        uncapped.above.triangle_count() + uncapped.below.triangle_count();
+    let uncapped_total = uncapped.above.triangle_count() + uncapped.below.triangle_count();
     let capped_total = capped.above.triangle_count() + capped.below.triangle_count();
     assert!(
         capped_total >= uncapped_total,
@@ -335,14 +340,8 @@ fn test_offset_box_positive() {
     // Bounding box should be larger.
     let orig_aabb = mesh.aabb();
     let new_aabb = result.aabb();
-    assert!(
-        new_aabb.max.x > orig_aabb.max.x,
-        "offset should grow in +X"
-    );
-    assert!(
-        new_aabb.min.x < orig_aabb.min.x,
-        "offset should grow in -X"
-    );
+    assert!(new_aabb.max.x > orig_aabb.max.x, "offset should grow in +X");
+    assert!(new_aabb.min.x < orig_aabb.min.x, "offset should grow in -X");
 }
 
 #[test]

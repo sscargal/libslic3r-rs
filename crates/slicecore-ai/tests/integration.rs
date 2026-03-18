@@ -125,7 +125,10 @@ fn sc2_full_pipeline_cube() {
         "layer_height: {}",
         suggestion.layer_height
     );
-    assert!(!suggestion.reasoning.is_empty(), "reasoning should be populated");
+    assert!(
+        !suggestion.reasoning.is_empty(),
+        "reasoning should be populated"
+    );
 }
 
 #[test]

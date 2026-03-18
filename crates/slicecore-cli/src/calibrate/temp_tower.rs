@@ -12,8 +12,8 @@ use slicecore_engine::calibrate::{
 use slicecore_engine::engine::Engine;
 
 use super::common::{
-    display_dry_run, format_calibration_header, resolve_calibration_config,
-    save_calibration_model, write_instructions,
+    display_dry_run, format_calibration_header, resolve_calibration_config, save_calibration_model,
+    write_instructions,
 };
 
 /// Arguments for the temperature tower command, extracted from CLI.
@@ -138,13 +138,19 @@ pub fn cmd_temp_tower(args: TempTowerArgs) -> Result<(), Box<dyn std::error::Err
     let output_gcode = inject_temp_changes_text(&gcode_text, &schedule, &header);
 
     // 8. Write G-code
-    let output_path = args.output.unwrap_or_else(|| PathBuf::from("temp_tower.gcode"));
+    let output_path = args
+        .output
+        .unwrap_or_else(|| PathBuf::from("temp_tower.gcode"));
     std::fs::write(&output_path, output_gcode)?;
 
     // 9. Write companion instructions
     let instructions_path = output_path.with_extension("instructions.md");
     let sections = build_temp_tower_instructions(&params, &schedule);
-    write_instructions(&instructions_path, "Temperature Tower Calibration", &sections)?;
+    write_instructions(
+        &instructions_path,
+        "Temperature Tower Calibration",
+        &sections,
+    )?;
 
     // 10. Print summary
     eprintln!(

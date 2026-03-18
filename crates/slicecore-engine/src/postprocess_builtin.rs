@@ -94,9 +94,7 @@ impl PostProcessorPluginAdapter for PauseAtLayerPlugin {
 
             // Insert pause after the layer comment if this layer is in the list.
             if let GcodeCommand::Comment(text) = cmd {
-                if text.starts_with("Layer ")
-                    && self.layers.contains(&current_layer)
-                {
+                if text.starts_with("Layer ") && self.layers.contains(&current_layer) {
                     result.push(GcodeCommand::Comment(format!(
                         "Pause at layer {}",
                         current_layer
@@ -188,8 +186,7 @@ impl PostProcessorPluginAdapter for TimelapseCameraPlugin {
         for cmd in commands {
             // Track last known XY position from moves.
             match cmd {
-                GcodeCommand::LinearMove { x, y, .. }
-                | GcodeCommand::RapidMove { x, y, .. } => {
+                GcodeCommand::LinearMove { x, y, .. } | GcodeCommand::RapidMove { x, y, .. } => {
                     if let Some(xv) = x {
                         last_x = *xv;
                     }
@@ -218,9 +215,7 @@ impl PostProcessorPluginAdapter for TimelapseCameraPlugin {
                         f: None,
                     });
                     // 3. Dwell
-                    result.push(GcodeCommand::Dwell {
-                        ms: self.dwell_ms,
-                    });
+                    result.push(GcodeCommand::Dwell { ms: self.dwell_ms });
                     // 4. Return to last position
                     result.push(GcodeCommand::RapidMove {
                         x: Some(last_x),
@@ -318,9 +313,7 @@ impl PostProcessorPluginAdapter for FanSpeedOverridePlugin {
                 let mut overridden = false;
                 for rule in &self.rules {
                     let in_range = current_layer >= rule.start_layer
-                        && rule
-                            .end_layer
-                            .map_or(true, |end| current_layer <= end);
+                        && rule.end_layer.map_or(true, |end| current_layer <= end);
                     if in_range {
                         result.push(GcodeCommand::SetFanSpeed(rule.fan_speed));
                         overridden = true;
@@ -556,7 +549,10 @@ mod tests {
         let plugin = PauseAtLayerPlugin::from_config(&config);
         let commands = vec![layer_comment(0), layer_comment(1)];
         let result = plugin.process(&commands, &test_config_snapshot()).unwrap();
-        assert_eq!(result, commands, "should return unchanged when no layers specified");
+        assert_eq!(
+            result, commands,
+            "should return unchanged when no layers specified"
+        );
     }
 
     #[test]
@@ -615,12 +611,20 @@ mod tests {
         assert_eq!(result.len(), 7);
 
         // After layer comment: retract, park, dwell, return, unretract
-        assert!(matches!(&result[2], GcodeCommand::Retract { distance, .. } if (*distance - 1.5).abs() < 1e-9));
-        assert!(matches!(&result[3], GcodeCommand::RapidMove { x: Some(x), y: Some(y), .. } if (*x - 10.0).abs() < 1e-9 && (*y - 20.0).abs() < 1e-9));
+        assert!(
+            matches!(&result[2], GcodeCommand::Retract { distance, .. } if (*distance - 1.5).abs() < 1e-9)
+        );
+        assert!(
+            matches!(&result[3], GcodeCommand::RapidMove { x: Some(x), y: Some(y), .. } if (*x - 10.0).abs() < 1e-9 && (*y - 20.0).abs() < 1e-9)
+        );
         assert!(matches!(&result[4], GcodeCommand::Dwell { ms: 300 }));
         // Return to last known position (50, 60)
-        assert!(matches!(&result[5], GcodeCommand::RapidMove { x: Some(x), y: Some(y), .. } if (*x - 50.0).abs() < 1e-9 && (*y - 60.0).abs() < 1e-9));
-        assert!(matches!(&result[6], GcodeCommand::Unretract { distance, .. } if (*distance - 1.5).abs() < 1e-9));
+        assert!(
+            matches!(&result[5], GcodeCommand::RapidMove { x: Some(x), y: Some(y), .. } if (*x - 50.0).abs() < 1e-9 && (*y - 60.0).abs() < 1e-9)
+        );
+        assert!(
+            matches!(&result[6], GcodeCommand::Unretract { distance, .. } if (*distance - 1.5).abs() < 1e-9)
+        );
     }
 
     // ---- FanSpeedOverridePlugin tests ----
@@ -670,10 +674,7 @@ mod tests {
         }];
 
         let plugin = FanSpeedOverridePlugin::from_config(&config);
-        let commands = vec![
-            layer_comment(5),
-            GcodeCommand::SetFanSpeed(255),
-        ];
+        let commands = vec![layer_comment(5), GcodeCommand::SetFanSpeed(255)];
         let result = plugin.process(&commands, &test_config_snapshot()).unwrap();
         assert_eq!(result[1], GcodeCommand::SetFanSpeed(50));
     }
@@ -698,7 +699,12 @@ mod tests {
         }];
 
         let plugin = CustomGcodeInjectionPlugin::from_config(&config);
-        let commands = vec![layer_comment(0), layer_comment(1), layer_comment(2), layer_comment(3)];
+        let commands = vec![
+            layer_comment(0),
+            layer_comment(1),
+            layer_comment(2),
+            layer_comment(3),
+        ];
         let result = plugin.process(&commands, &test_config_snapshot()).unwrap();
 
         // Injection at layers 0 and 2 (every 2 layers)
@@ -711,14 +717,17 @@ mod tests {
     fn custom_gcode_at_layers() {
         let mut config = PostProcessConfig::default();
         config.custom_gcode = vec![CustomGcodeRule {
-            trigger: CustomGcodeTrigger::AtLayers {
-                layers: vec![1, 3],
-            },
+            trigger: CustomGcodeTrigger::AtLayers { layers: vec![1, 3] },
             gcode: "G28 X".to_string(),
         }];
 
         let plugin = CustomGcodeInjectionPlugin::from_config(&config);
-        let commands = vec![layer_comment(0), layer_comment(1), layer_comment(2), layer_comment(3)];
+        let commands = vec![
+            layer_comment(0),
+            layer_comment(1),
+            layer_comment(2),
+            layer_comment(3),
+        ];
         let result = plugin.process(&commands, &test_config_snapshot()).unwrap();
 
         assert_eq!(result.len(), 6);

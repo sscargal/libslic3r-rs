@@ -61,9 +61,10 @@ fn generate_struct_impl(
     let mut field_stmts = Vec::new();
 
     for field in fields {
-        let field_name = field.ident.as_ref().ok_or_else(|| {
-            syn::Error::new(field.span(), "expected named field")
-        })?;
+        let field_name = field
+            .ident
+            .as_ref()
+            .ok_or_else(|| syn::Error::new(field.span(), "expected named field"))?;
         let field_attrs = SettingAttrs::from_attrs(&field.attrs)?;
 
         // Skip fields with #[setting(skip)]
@@ -75,10 +76,7 @@ fn generate_struct_impl(
         if field_attrs.flatten {
             let field_ty = &field.ty;
             let field_name_string = field_name.to_string();
-            let child_prefix = field_attrs
-                .prefix
-                .as_deref()
-                .unwrap_or(&field_name_string);
+            let child_prefix = field_attrs.prefix.as_deref().unwrap_or(&field_name_string);
             let child_prefix_str = child_prefix.to_string();
 
             field_stmts.push(quote! {
@@ -191,10 +189,7 @@ fn generate_struct_impl(
 }
 
 /// Generates the body of `setting_definitions` for an enum.
-fn generate_enum_impl(
-    _name: &syn::Ident,
-    data: &syn::DataEnum,
-) -> syn::Result<TokenStream> {
+fn generate_enum_impl(_name: &syn::Ident, data: &syn::DataEnum) -> syn::Result<TokenStream> {
     let mut variant_exprs = Vec::new();
 
     for variant in &data.variants {

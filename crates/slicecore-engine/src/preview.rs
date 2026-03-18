@@ -295,14 +295,11 @@ mod tests {
 
     fn sample_contours() -> Vec<ValidPolygon> {
         use slicecore_geo::polygon::Polygon;
-        vec![Polygon::from_mm(&[
-            (10.0, 10.0),
-            (20.0, 10.0),
-            (20.0, 20.0),
-            (10.0, 20.0),
-        ])
-        .validate()
-        .unwrap()]
+        vec![
+            Polygon::from_mm(&[(10.0, 10.0), (20.0, 10.0), (20.0, 20.0), (10.0, 20.0)])
+                .validate()
+                .unwrap(),
+        ]
     }
 
     #[test]
@@ -367,10 +364,7 @@ mod tests {
             json.err()
         );
         let json_str = json.unwrap();
-        assert!(
-            !json_str.is_empty(),
-            "JSON output should be non-empty"
-        );
+        assert!(!json_str.is_empty(), "JSON output should be non-empty");
     }
 
     #[test]

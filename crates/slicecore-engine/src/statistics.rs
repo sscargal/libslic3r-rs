@@ -399,7 +399,12 @@ pub fn compute_statistics(
         let (display_name, machine_key) = feature_display_name(feature_type);
 
         let (seg_count, distance, filament, raw_time) = match acc {
-            Some(a) => (a.segment_count, a.distance_mm, a.filament_mm, a.time_seconds),
+            Some(a) => (
+                a.segment_count,
+                a.distance_mm,
+                a.filament_mm,
+                a.time_seconds,
+            ),
             None => (0, 0.0, 0.0, 0.0),
         };
 
@@ -580,17 +585,37 @@ mod tests {
 
         for feature in &all_features {
             let (name, key) = feature_display_name(*feature);
-            assert!(!name.is_empty(), "Display name should not be empty for {:?}", feature);
-            assert!(!key.is_empty(), "Machine key should not be empty for {:?}", feature);
+            assert!(
+                !name.is_empty(),
+                "Display name should not be empty for {:?}",
+                feature
+            );
+            assert!(
+                !key.is_empty(),
+                "Machine key should not be empty for {:?}",
+                feature
+            );
         }
     }
 
     #[test]
     fn feature_display_name_specific_values() {
-        assert_eq!(feature_display_name(FeatureType::OuterPerimeter), ("Outer wall", "outer_wall"));
-        assert_eq!(feature_display_name(FeatureType::InnerPerimeter), ("Inner wall", "inner_wall"));
-        assert_eq!(feature_display_name(FeatureType::SparseInfill), ("Sparse infill", "sparse_infill"));
-        assert_eq!(feature_display_name(FeatureType::Travel), ("Travel", "travel"));
+        assert_eq!(
+            feature_display_name(FeatureType::OuterPerimeter),
+            ("Outer wall", "outer_wall")
+        );
+        assert_eq!(
+            feature_display_name(FeatureType::InnerPerimeter),
+            ("Inner wall", "inner_wall")
+        );
+        assert_eq!(
+            feature_display_name(FeatureType::SparseInfill),
+            ("Sparse infill", "sparse_infill")
+        );
+        assert_eq!(
+            feature_display_name(FeatureType::Travel),
+            ("Travel", "travel")
+        );
     }
 
     #[test]
@@ -606,7 +631,13 @@ mod tests {
         assert!(!is_support_feature(FeatureType::Bridge));
     }
 
-    fn make_segment(start: (f64, f64), end: (f64, f64), feature: FeatureType, e: f64, feedrate: f64) -> ToolpathSegment {
+    fn make_segment(
+        start: (f64, f64),
+        end: (f64, f64),
+        feature: FeatureType,
+        e: f64,
+        feedrate: f64,
+    ) -> ToolpathSegment {
         ToolpathSegment {
             start: Point2::new(start.0, start.1),
             end: Point2::new(end.0, end.1),
@@ -625,9 +656,27 @@ mod tests {
             z: 0.2,
             layer_height: 0.2,
             segments: vec![
-                make_segment((0.0, 0.0), (10.0, 0.0), FeatureType::OuterPerimeter, 0.5, 2700.0),
-                make_segment((10.0, 0.0), (10.0, 10.0), FeatureType::OuterPerimeter, 0.5, 2700.0),
-                make_segment((10.0, 10.0), (5.0, 5.0), FeatureType::SparseInfill, 0.3, 4800.0),
+                make_segment(
+                    (0.0, 0.0),
+                    (10.0, 0.0),
+                    FeatureType::OuterPerimeter,
+                    0.5,
+                    2700.0,
+                ),
+                make_segment(
+                    (10.0, 0.0),
+                    (10.0, 10.0),
+                    FeatureType::OuterPerimeter,
+                    0.5,
+                    2700.0,
+                ),
+                make_segment(
+                    (10.0, 10.0),
+                    (5.0, 5.0),
+                    FeatureType::SparseInfill,
+                    0.3,
+                    4800.0,
+                ),
                 make_segment((0.0, 0.0), (10.0, 10.0), FeatureType::Travel, 0.0, 9000.0),
             ],
         };
@@ -637,7 +686,10 @@ mod tests {
         // Outer perimeter: 2 segments.
         let outer = accumulators.get(&FeatureType::OuterPerimeter).unwrap();
         assert_eq!(outer.segment_count, 2);
-        assert!((outer.distance_mm - 20.0).abs() < 0.01, "Two 10mm segments = 20mm");
+        assert!(
+            (outer.distance_mm - 20.0).abs() < 0.01,
+            "Two 10mm segments = 20mm"
+        );
         assert!((outer.filament_mm - 1.0).abs() < 0.01, "0.5 + 0.5 = 1.0mm");
 
         // Sparse infill: 1 segment.
@@ -704,7 +756,10 @@ mod tests {
         assert!((metrics.total_retraction_distance_mm - 0.8).abs() < 1e-6);
         assert_eq!(metrics.unretraction_count, 1);
         assert_eq!(metrics.z_hop_count, 1);
-        assert!((metrics.total_z_hop_distance_mm - 0.4).abs() < 1e-6, "0.6 - 0.2 = 0.4");
+        assert!(
+            (metrics.total_z_hop_distance_mm - 0.4).abs() < 1e-6,
+            "0.6 - 0.2 = 0.4"
+        );
         assert_eq!(metrics.wipe_count, 0);
         assert!((metrics.total_wipe_distance_mm - 0.0).abs() < 1e-6);
         assert_eq!(metrics.total_move_count, 2, "2 LinearMove commands");
@@ -713,13 +768,29 @@ mod tests {
     #[test]
     fn extract_gcode_metrics_multiple_retractions() {
         let commands = vec![
-            GcodeCommand::Retract { distance: 0.8, feedrate: 2700.0 },
-            GcodeCommand::Unretract { distance: 0.8, feedrate: 2700.0 },
-            GcodeCommand::LinearMove {
-                x: Some(10.0), y: None, z: None, e: Some(0.5), f: Some(3000.0),
+            GcodeCommand::Retract {
+                distance: 0.8,
+                feedrate: 2700.0,
             },
-            GcodeCommand::Retract { distance: 1.0, feedrate: 2700.0 },
-            GcodeCommand::Unretract { distance: 1.0, feedrate: 2700.0 },
+            GcodeCommand::Unretract {
+                distance: 0.8,
+                feedrate: 2700.0,
+            },
+            GcodeCommand::LinearMove {
+                x: Some(10.0),
+                y: None,
+                z: None,
+                e: Some(0.5),
+                f: Some(3000.0),
+            },
+            GcodeCommand::Retract {
+                distance: 1.0,
+                feedrate: 2700.0,
+            },
+            GcodeCommand::Unretract {
+                distance: 1.0,
+                feedrate: 2700.0,
+            },
         ];
 
         let metrics = extract_gcode_metrics(&commands);
@@ -736,25 +807,58 @@ mod tests {
             z: 0.2,
             layer_height: 0.2,
             segments: vec![
-                make_segment((0.0, 0.0), (20.0, 0.0), FeatureType::OuterPerimeter, 1.0, 2700.0),
-                make_segment((20.0, 0.0), (20.0, 20.0), FeatureType::InnerPerimeter, 1.0, 2700.0),
-                make_segment((0.0, 0.0), (15.0, 15.0), FeatureType::SparseInfill, 0.8, 4800.0),
+                make_segment(
+                    (0.0, 0.0),
+                    (20.0, 0.0),
+                    FeatureType::OuterPerimeter,
+                    1.0,
+                    2700.0,
+                ),
+                make_segment(
+                    (20.0, 0.0),
+                    (20.0, 20.0),
+                    FeatureType::InnerPerimeter,
+                    1.0,
+                    2700.0,
+                ),
+                make_segment(
+                    (0.0, 0.0),
+                    (15.0, 15.0),
+                    FeatureType::SparseInfill,
+                    0.8,
+                    4800.0,
+                ),
                 make_segment((0.0, 0.0), (20.0, 20.0), FeatureType::Travel, 0.0, 9000.0),
             ],
         };
 
         let gcode_commands = vec![
             GcodeCommand::LinearMove {
-                x: Some(20.0), y: Some(0.0), z: Some(0.2), e: Some(1.0), f: Some(2700.0),
+                x: Some(20.0),
+                y: Some(0.0),
+                z: Some(0.2),
+                e: Some(1.0),
+                f: Some(2700.0),
             },
             GcodeCommand::LinearMove {
-                x: Some(20.0), y: Some(20.0), z: None, e: Some(1.0), f: None,
+                x: Some(20.0),
+                y: Some(20.0),
+                z: None,
+                e: Some(1.0),
+                f: None,
             },
             GcodeCommand::LinearMove {
-                x: Some(15.0), y: Some(15.0), z: None, e: Some(0.8), f: Some(4800.0),
+                x: Some(15.0),
+                y: Some(15.0),
+                z: None,
+                e: Some(0.8),
+                f: Some(4800.0),
             },
             GcodeCommand::RapidMove {
-                x: Some(0.0), y: Some(0.0), z: None, f: Some(9000.0),
+                x: Some(0.0),
+                y: Some(0.0),
+                z: None,
+                f: Some(9000.0),
             },
         ];
 
@@ -784,8 +888,14 @@ mod tests {
 
         // Time percentages of total should sum to approximately 100%
         // (excluding virtual features).
-        let time_pct_sum: f64 = stats.features.iter()
-            .filter(|f| f.feature_type != "retract" && f.feature_type != "unretract" && f.feature_type != "wipe")
+        let time_pct_sum: f64 = stats
+            .features
+            .iter()
+            .filter(|f| {
+                f.feature_type != "retract"
+                    && f.feature_type != "unretract"
+                    && f.feature_type != "wipe"
+            })
             .map(|f| f.time_pct_total)
             .sum();
 
@@ -796,8 +906,14 @@ mod tests {
         );
 
         // Filament percentages should sum to ~100% for features with filament.
-        let filament_pct_sum: f64 = stats.features.iter()
-            .filter(|f| f.feature_type != "retract" && f.feature_type != "unretract" && f.feature_type != "wipe")
+        let filament_pct_sum: f64 = stats
+            .features
+            .iter()
+            .filter(|f| {
+                f.feature_type != "retract"
+                    && f.feature_type != "unretract"
+                    && f.feature_type != "wipe"
+            })
             .map(|f| f.filament_pct_total)
             .sum();
 
@@ -816,16 +932,22 @@ mod tests {
             layer_index: 0,
             z: 0.2,
             layer_height: 0.2,
-            segments: vec![
-                make_segment((0.0, 0.0), (10.0, 0.0), FeatureType::OuterPerimeter, 0.5, 2700.0),
-            ],
+            segments: vec![make_segment(
+                (0.0, 0.0),
+                (10.0, 0.0),
+                FeatureType::OuterPerimeter,
+                0.5,
+                2700.0,
+            )],
         };
 
-        let gcode_commands = vec![
-            GcodeCommand::LinearMove {
-                x: Some(10.0), y: Some(0.0), z: Some(0.2), e: Some(0.5), f: Some(2700.0),
-            },
-        ];
+        let gcode_commands = vec![GcodeCommand::LinearMove {
+            x: Some(10.0),
+            y: Some(0.0),
+            z: Some(0.2),
+            e: Some(0.5),
+            f: Some(2700.0),
+        }];
 
         let time_estimate = PrintTimeEstimate {
             total_seconds: 5.0,
@@ -860,14 +982,34 @@ mod tests {
         );
 
         // OuterPerimeter should have data.
-        let outer = stats.features.iter().find(|f| f.feature_type == "outer_wall").unwrap();
-        assert!(outer.time_seconds > 0.0, "Outer wall should have positive time");
-        assert!(outer.filament_mm > 0.0, "Outer wall should have positive filament");
+        let outer = stats
+            .features
+            .iter()
+            .find(|f| f.feature_type == "outer_wall")
+            .unwrap();
+        assert!(
+            outer.time_seconds > 0.0,
+            "Outer wall should have positive time"
+        );
+        assert!(
+            outer.filament_mm > 0.0,
+            "Outer wall should have positive filament"
+        );
 
         // InnerPerimeter should exist but with zero values.
-        let inner = stats.features.iter().find(|f| f.feature_type == "inner_wall").unwrap();
-        assert!((inner.time_seconds - 0.0).abs() < 1e-9, "Inner wall should have 0 time");
-        assert!((inner.filament_mm - 0.0).abs() < 1e-9, "Inner wall should have 0 filament");
+        let inner = stats
+            .features
+            .iter()
+            .find(|f| f.feature_type == "inner_wall")
+            .unwrap();
+        assert!(
+            (inner.time_seconds - 0.0).abs() < 1e-9,
+            "Inner wall should have 0 time"
+        );
+        assert!(
+            (inner.filament_mm - 0.0).abs() < 1e-9,
+            "Inner wall should have 0 filament"
+        );
         assert_eq!(inner.segment_count, 0, "Inner wall should have 0 segments");
 
         // All features should have display=true.
@@ -883,21 +1025,45 @@ mod tests {
             z: 0.2,
             layer_height: 0.2,
             segments: vec![
-                make_segment((0.0, 0.0), (10.0, 0.0), FeatureType::OuterPerimeter, 0.5, 2700.0),
+                make_segment(
+                    (0.0, 0.0),
+                    (10.0, 0.0),
+                    FeatureType::OuterPerimeter,
+                    0.5,
+                    2700.0,
+                ),
                 make_segment((10.0, 0.0), (20.0, 0.0), FeatureType::Support, 0.4, 4800.0),
-                make_segment((20.0, 0.0), (25.0, 0.0), FeatureType::SupportInterface, 0.2, 2700.0),
+                make_segment(
+                    (20.0, 0.0),
+                    (25.0, 0.0),
+                    FeatureType::SupportInterface,
+                    0.2,
+                    2700.0,
+                ),
             ],
         };
 
         let gcode_commands = vec![
             GcodeCommand::LinearMove {
-                x: Some(10.0), y: Some(0.0), z: Some(0.2), e: Some(0.5), f: Some(2700.0),
+                x: Some(10.0),
+                y: Some(0.0),
+                z: Some(0.2),
+                e: Some(0.5),
+                f: Some(2700.0),
             },
             GcodeCommand::LinearMove {
-                x: Some(20.0), y: Some(0.0), z: None, e: Some(0.4), f: Some(4800.0),
+                x: Some(20.0),
+                y: Some(0.0),
+                z: None,
+                e: Some(0.4),
+                f: Some(4800.0),
             },
             GcodeCommand::LinearMove {
-                x: Some(25.0), y: Some(0.0), z: None, e: Some(0.2), f: Some(2700.0),
+                x: Some(25.0),
+                y: Some(0.0),
+                z: None,
+                e: Some(0.2),
+                f: Some(2700.0),
             },
         ];
 
@@ -946,14 +1112,35 @@ mod tests {
         );
 
         // Support features flagged correctly.
-        let support = stats.features.iter().find(|f| f.feature_type == "support").unwrap();
-        assert!(support.is_support, "Support should be flagged as is_support");
+        let support = stats
+            .features
+            .iter()
+            .find(|f| f.feature_type == "support")
+            .unwrap();
+        assert!(
+            support.is_support,
+            "Support should be flagged as is_support"
+        );
 
-        let support_iface = stats.features.iter().find(|f| f.feature_type == "support_interface").unwrap();
-        assert!(support_iface.is_support, "Support interface should be flagged as is_support");
+        let support_iface = stats
+            .features
+            .iter()
+            .find(|f| f.feature_type == "support_interface")
+            .unwrap();
+        assert!(
+            support_iface.is_support,
+            "Support interface should be flagged as is_support"
+        );
 
-        let outer = stats.features.iter().find(|f| f.feature_type == "outer_wall").unwrap();
-        assert!(!outer.is_support, "Outer wall should not be flagged as is_support");
+        let outer = stats
+            .features
+            .iter()
+            .find(|f| f.feature_type == "outer_wall")
+            .unwrap();
+        assert!(
+            !outer.is_support,
+            "Outer wall should not be flagged as is_support"
+        );
     }
 
     #[test]
@@ -963,26 +1150,42 @@ mod tests {
                 layer_index: 0,
                 z: 0.2,
                 layer_height: 0.2,
-                segments: vec![
-                    make_segment((0.0, 0.0), (10.0, 0.0), FeatureType::OuterPerimeter, 0.5, 2700.0),
-                ],
+                segments: vec![make_segment(
+                    (0.0, 0.0),
+                    (10.0, 0.0),
+                    FeatureType::OuterPerimeter,
+                    0.5,
+                    2700.0,
+                )],
             },
             LayerToolpath {
                 layer_index: 1,
                 z: 0.4,
                 layer_height: 0.2,
-                segments: vec![
-                    make_segment((0.0, 0.0), (10.0, 0.0), FeatureType::OuterPerimeter, 0.5, 2700.0),
-                ],
+                segments: vec![make_segment(
+                    (0.0, 0.0),
+                    (10.0, 0.0),
+                    FeatureType::OuterPerimeter,
+                    0.5,
+                    2700.0,
+                )],
             },
         ];
 
         let gcode_commands = vec![
             GcodeCommand::LinearMove {
-                x: Some(10.0), y: None, z: Some(0.2), e: Some(0.5), f: Some(2700.0),
+                x: Some(10.0),
+                y: None,
+                z: Some(0.2),
+                e: Some(0.5),
+                f: Some(2700.0),
             },
             GcodeCommand::LinearMove {
-                x: Some(10.0), y: None, z: Some(0.4), e: Some(0.5), f: Some(2700.0),
+                x: Some(10.0),
+                y: None,
+                z: Some(0.4),
+                e: Some(0.5),
+                f: Some(2700.0),
             },
         ];
 
@@ -1002,9 +1205,18 @@ mod tests {
 
         let config = PrintConfig::default();
 
-        let stats = compute_statistics(&layers, &gcode_commands, &time_estimate, &filament_usage, &config);
+        let stats = compute_statistics(
+            &layers,
+            &gcode_commands,
+            &time_estimate,
+            &filament_usage,
+            &config,
+        );
         assert_eq!(stats.summary.layer_count, 2, "Should report 2 layers");
-        assert_eq!(stats.summary.total_segments, 2, "Should have 2 total segments");
+        assert_eq!(
+            stats.summary.total_segments, 2,
+            "Should have 2 total segments"
+        );
     }
 
     #[test]

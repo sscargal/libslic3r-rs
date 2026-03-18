@@ -96,7 +96,10 @@ pub fn validate_config(config: &PrintConfig) -> Vec<ValidationIssue> {
             severity: ValidationSeverity::Warning,
             value: format!("{}", config.layer_height),
         });
-    } else if config.layer_height > nozzle_diam * 0.75 && config.layer_height <= nozzle_diam && nozzle_diam > 0.0 {
+    } else if config.layer_height > nozzle_diam * 0.75
+        && config.layer_height <= nozzle_diam
+        && nozzle_diam > 0.0
+    {
         issues.push(ValidationIssue {
             field: "layer_height".into(),
             message: format!(
@@ -188,7 +191,12 @@ pub fn validate_config(config: &PrintConfig) -> Vec<ValidationIssue> {
             value: format!("{}", config.dimensional_compensation.xy_hole_compensation),
         });
     }
-    if config.dimensional_compensation.xy_contour_compensation.abs() > 2.0 {
+    if config
+        .dimensional_compensation
+        .xy_contour_compensation
+        .abs()
+        > 2.0
+    {
         issues.push(ValidationIssue {
             field: "dimensional_compensation.xy_contour_compensation".into(),
             message: format!(
@@ -196,7 +204,10 @@ pub fn validate_config(config: &PrintConfig) -> Vec<ValidationIssue> {
                 config.dimensional_compensation.xy_contour_compensation
             ),
             severity: ValidationSeverity::Warning,
-            value: format!("{}", config.dimensional_compensation.xy_contour_compensation),
+            value: format!(
+                "{}",
+                config.dimensional_compensation.xy_contour_compensation
+            ),
         });
     }
     if config.dimensional_compensation.elephant_foot_compensation < 0.0
@@ -209,7 +220,10 @@ pub fn validate_config(config: &PrintConfig) -> Vec<ValidationIssue> {
                 config.dimensional_compensation.elephant_foot_compensation
             ),
             severity: ValidationSeverity::Warning,
-            value: format!("{}", config.dimensional_compensation.elephant_foot_compensation),
+            value: format!(
+                "{}",
+                config.dimensional_compensation.elephant_foot_compensation
+            ),
         });
     }
 
@@ -222,8 +236,7 @@ pub fn validate_config(config: &PrintConfig) -> Vec<ValidationIssue> {
             field: "filament.chamber_temperature".into(),
             message: format!(
                 "Filament requests {}C chamber but machine max is {}C",
-                config.filament.chamber_temperature,
-                config.machine.chamber_temperature
+                config.filament.chamber_temperature, config.machine.chamber_temperature
             ),
             severity: ValidationSeverity::Warning,
             value: format!("{}", config.filament.chamber_temperature),
@@ -378,17 +391,28 @@ pub fn validate_config(config: &PrintConfig) -> Vec<ValidationIssue> {
     }
 
     // Tool change retraction validation
-    if config.multi_material.tool_change_retraction.retraction_distance_when_cut > 50.0 {
+    if config
+        .multi_material
+        .tool_change_retraction
+        .retraction_distance_when_cut
+        > 50.0
+    {
         issues.push(ValidationIssue {
             field: "multi_material.tool_change_retraction.retraction_distance_when_cut".into(),
             message: format!(
                 "Tool change retraction distance ({:.1} mm) unusually large (>50)",
-                config.multi_material.tool_change_retraction.retraction_distance_when_cut
+                config
+                    .multi_material
+                    .tool_change_retraction
+                    .retraction_distance_when_cut
             ),
             severity: ValidationSeverity::Warning,
             value: format!(
                 "{}",
-                config.multi_material.tool_change_retraction.retraction_distance_when_cut
+                config
+                    .multi_material
+                    .tool_change_retraction
+                    .retraction_distance_when_cut
             ),
         });
     }
@@ -567,21 +591,37 @@ fn resolve_variable(name: &str, config: &PrintConfig) -> Option<String> {
         "nozzle_diameter" => Some(format!("{}", config.machine.nozzle_diameter())),
 
         // Dimensional compensation
-        "xy_hole_compensation" => Some(format!("{}", config.dimensional_compensation.xy_hole_compensation)),
-        "xy_contour_compensation" => Some(format!("{}", config.dimensional_compensation.xy_contour_compensation)),
-        "elephant_foot_compensation" => Some(format!("{}", config.dimensional_compensation.elephant_foot_compensation)),
+        "xy_hole_compensation" => Some(format!(
+            "{}",
+            config.dimensional_compensation.xy_hole_compensation
+        )),
+        "xy_contour_compensation" => Some(format!(
+            "{}",
+            config.dimensional_compensation.xy_contour_compensation
+        )),
+        "elephant_foot_compensation" => Some(format!(
+            "{}",
+            config.dimensional_compensation.elephant_foot_compensation
+        )),
 
         // Surface patterns (serialize as lowercase string for use in G-code comments)
         "top_surface_pattern" => Some(format!("{:?}", config.top_surface_pattern).to_lowercase()),
-        "bottom_surface_pattern" => Some(format!("{:?}", config.bottom_surface_pattern).to_lowercase()),
+        "bottom_surface_pattern" => {
+            Some(format!("{:?}", config.bottom_surface_pattern).to_lowercase())
+        }
         "solid_infill_pattern" => Some(format!("{:?}", config.solid_infill_pattern).to_lowercase()),
 
         // Overhangs
-        "extra_perimeters_on_overhangs" => Some(format!("{}", u8::from(config.extra_perimeters_on_overhangs))),
+        "extra_perimeters_on_overhangs" => Some(format!(
+            "{}",
+            u8::from(config.extra_perimeters_on_overhangs)
+        )),
 
         // Bridges
         "internal_bridge_speed" => Some(format!("{}", config.speeds.internal_bridge_speed)),
-        "internal_bridge_support" => Some(format!("{:?}", config.internal_bridge_support).to_lowercase()),
+        "internal_bridge_support" => {
+            Some(format!("{:?}", config.internal_bridge_support).to_lowercase())
+        }
 
         // Filament
         "chamber_temperature" => Some(format!("{}", config.filament.chamber_temperature)),
@@ -613,27 +653,35 @@ fn resolve_variable(name: &str, config: &PrintConfig) -> Option<String> {
         "skirt_height" => Some(format!("{}", config.brim_skirt.skirt_height)),
 
         // Input shaping
-        "accel_to_decel_enable" => {
-            Some(format!("{}", u8::from(config.input_shaping.accel_to_decel_enable)))
-        }
-        "accel_to_decel_factor" => {
-            Some(format!("{}", config.input_shaping.accel_to_decel_factor))
-        }
+        "accel_to_decel_enable" => Some(format!(
+            "{}",
+            u8::from(config.input_shaping.accel_to_decel_enable)
+        )),
+        "accel_to_decel_factor" => Some(format!("{}", config.input_shaping.accel_to_decel_factor)),
 
         // Tool-change retraction
         "retraction_distances_when_cut" => Some(format!(
             "{}",
-            config.multi_material.tool_change_retraction.retraction_distance_when_cut
+            config
+                .multi_material
+                .tool_change_retraction
+                .retraction_distance_when_cut
         )),
         "long_retractions_when_cut" => Some(format!(
             "{}",
-            u8::from(config.multi_material.tool_change_retraction.long_retraction_when_cut)
+            u8::from(
+                config
+                    .multi_material
+                    .tool_change_retraction
+                    .long_retraction_when_cut
+            )
         )),
 
         // Acceleration extensions
-        "internal_solid_infill_acceleration" => {
-            Some(format!("{}", config.accel.internal_solid_infill_acceleration))
-        }
+        "internal_solid_infill_acceleration" => Some(format!(
+            "{}",
+            config.accel.internal_solid_infill_acceleration
+        )),
         "support_acceleration" => Some(format!("{}", config.accel.support_acceleration)),
         "support_interface_acceleration" => {
             Some(format!("{}", config.accel.support_interface_acceleration))
@@ -654,12 +702,16 @@ fn resolve_variable(name: &str, config: &PrintConfig) -> Option<String> {
         "filament_colour" => Some(config.filament.filament_colour.clone()),
 
         // Multi-material filament indices (1-based for G-code compatibility, 0 = default)
-        "wall_filament" => {
-            Some(format!("{}", config.multi_material.wall_filament.map_or(0, |v| v + 1)))
-        }
+        "wall_filament" => Some(format!(
+            "{}",
+            config.multi_material.wall_filament.map_or(0, |v| v + 1)
+        )),
         "solid_infill_filament" => Some(format!(
             "{}",
-            config.multi_material.solid_infill_filament.map_or(0, |v| v + 1)
+            config
+                .multi_material
+                .solid_infill_filament
+                .map_or(0, |v| v + 1)
         )),
         "support_filament" => Some(format!(
             "{}",
@@ -667,7 +719,10 @@ fn resolve_variable(name: &str, config: &PrintConfig) -> Option<String> {
         )),
         "support_interface_filament" => Some(format!(
             "{}",
-            config.multi_material.support_interface_filament.map_or(0, |v| v + 1)
+            config
+                .multi_material
+                .support_interface_filament
+                .map_or(0, |v| v + 1)
         )),
 
         // Top-level PrintConfig P1 fields
@@ -682,9 +737,9 @@ fn resolve_variable(name: &str, config: &PrintConfig) -> Option<String> {
         "min_feature_size" => Some(format!("{}", config.min_feature_size)),
 
         // Support
-        "support_bottom_interface_layers" | "support_material_bottom_interface_layers" => {
-            Some(format!("{}", config.support.support_bottom_interface_layers))
-        }
+        "support_bottom_interface_layers" | "support_material_bottom_interface_layers" => Some(
+            format!("{}", config.support.support_bottom_interface_layers),
+        ),
 
         // Phase 34: Support fields
         "support_density" => Some(format!("{}", config.support.support_density)),
@@ -715,9 +770,7 @@ fn resolve_variable(name: &str, config: &PrintConfig) -> Option<String> {
         "purge_volume" => Some(format!("{}", config.multi_material.purge_volume)),
 
         // Phase 34: P2 fields
-        "slicing_tolerance" => {
-            Some(format!("{:?}", config.slicing_tolerance).to_lowercase())
-        }
+        "slicing_tolerance" => Some(format!("{:?}", config.slicing_tolerance).to_lowercase()),
         "silent_mode" => Some(format!("{}", u8::from(config.machine.silent_mode))),
 
         // Passthrough fallback
@@ -749,7 +802,10 @@ mod tests {
         let warn = issues
             .iter()
             .find(|i| i.field == "layer_height" && i.severity == ValidationSeverity::Warning);
-        assert!(warn.is_some(), "should warn about layer_height > nozzle_diameter");
+        assert!(
+            warn.is_some(),
+            "should warn about layer_height > nozzle_diameter"
+        );
     }
 
     #[test]
@@ -801,7 +857,10 @@ mod tests {
         let config = PrintConfig::default();
         let gcode = "G28 ; {unknown_var} stuff";
         let result = resolve_template_variables(gcode, &config);
-        assert_eq!(result, gcode, "unrecognized variables should be left unchanged");
+        assert_eq!(
+            result, gcode,
+            "unrecognized variables should be left unchanged"
+        );
     }
 
     #[test]
@@ -822,7 +881,10 @@ mod tests {
 
         // Combined z_offset (global + filament)
         let result = resolve_template_variables("{z_offset}", &config);
-        assert!(result.contains("0.07"), "z_offset should be 0.05 + 0.02 = 0.07, got {result}");
+        assert!(
+            result.contains("0.07"),
+            "z_offset should be 0.05 + 0.02 = 0.07, got {result}"
+        );
 
         // Surface pattern
         let result = resolve_template_variables("{top_surface_pattern}", &config);
@@ -848,7 +910,9 @@ mod tests {
     #[test]
     fn passthrough_fallback_resolves() {
         let mut config = PrintConfig::default();
-        config.passthrough.insert("custom_key".to_string(), "custom_value".to_string());
+        config
+            .passthrough
+            .insert("custom_key".to_string(), "custom_value".to_string());
         let result = resolve_template_variables("{custom_key}", &config);
         assert_eq!(result, "custom_value");
     }
@@ -858,10 +922,13 @@ mod tests {
         let mut config = PrintConfig::default();
         config.dimensional_compensation.xy_hole_compensation = 3.0;
         let issues = validate_config(&config);
-        let warn = issues
-            .iter()
-            .find(|i| i.field.contains("xy_hole_compensation") && i.severity == ValidationSeverity::Warning);
-        assert!(warn.is_some(), "should warn about extreme xy_hole_compensation");
+        let warn = issues.iter().find(|i| {
+            i.field.contains("xy_hole_compensation") && i.severity == ValidationSeverity::Warning
+        });
+        assert!(
+            warn.is_some(),
+            "should warn about extreme xy_hole_compensation"
+        );
     }
 
     #[test]
@@ -869,9 +936,9 @@ mod tests {
         let mut config = PrintConfig::default();
         config.filament.chamber_temperature = 90.0;
         let issues = validate_config(&config);
-        let err = issues
-            .iter()
-            .find(|i| i.field.contains("chamber_temperature") && i.severity == ValidationSeverity::Error);
+        let err = issues.iter().find(|i| {
+            i.field.contains("chamber_temperature") && i.severity == ValidationSeverity::Error
+        });
         assert!(err.is_some(), "should error on chamber temp > 80C");
     }
 
@@ -892,9 +959,9 @@ mod tests {
         let mut config = PrintConfig::default();
         config.filament.filament_shrink = 85.0;
         let issues = validate_config(&config);
-        let warn = issues
-            .iter()
-            .find(|i| i.field.contains("filament_shrink") && i.severity == ValidationSeverity::Warning);
+        let warn = issues.iter().find(|i| {
+            i.field.contains("filament_shrink") && i.severity == ValidationSeverity::Warning
+        });
         assert!(warn.is_some(), "should warn about unusual filament shrink");
     }
 
@@ -903,9 +970,12 @@ mod tests {
         let mut config = PrintConfig::default();
         config.speeds.internal_bridge_speed = 400.0;
         let issues = validate_config(&config);
-        let warn = issues
-            .iter()
-            .find(|i| i.field.contains("internal_bridge_speed") && i.severity == ValidationSeverity::Warning);
-        assert!(warn.is_some(), "should warn about internal bridge speed > 300");
+        let warn = issues.iter().find(|i| {
+            i.field.contains("internal_bridge_speed") && i.severity == ValidationSeverity::Warning
+        });
+        assert!(
+            warn.is_some(),
+            "should warn about internal bridge speed > 300"
+        );
     }
 }

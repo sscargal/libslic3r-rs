@@ -10,8 +10,8 @@
 //! Plus: support-disabled produces identical output, G-code validation,
 //! and configurable overhang angle threshold.
 
-use slicecore_engine::{Engine, PrintConfig};
 use slicecore_engine::support::config::{SupportConfig, SupportType};
+use slicecore_engine::{Engine, PrintConfig};
 use slicecore_gcode_io::validate_gcode;
 use slicecore_math::Point3;
 use slicecore_mesh::TriangleMesh;
@@ -27,8 +27,12 @@ use slicecore_mesh::TriangleMesh;
 /// indices are offset by `idx_offset` so multiple boxes can be combined into
 /// a single mesh.
 fn box_vertices_indices(
-    min_x: f64, min_y: f64, min_z: f64,
-    max_x: f64, max_y: f64, max_z: f64,
+    min_x: f64,
+    min_y: f64,
+    min_z: f64,
+    max_x: f64,
+    max_y: f64,
+    max_z: f64,
     idx_offset: u32,
 ) -> (Vec<Point3>, Vec<[u32; 3]>) {
     let o = idx_offset;
@@ -44,12 +48,18 @@ fn box_vertices_indices(
     ];
     // Standard cube winding (outward-facing normals)
     let indices = vec![
-        [o+4, o+5, o+6], [o+4, o+6, o+7], // top (max_z)
-        [o+1, o+0, o+3], [o+1, o+3, o+2], // bottom (min_z)
-        [o+1, o+2, o+6], [o+1, o+6, o+5], // +X
-        [o+0, o+4, o+7], [o+0, o+7, o+3], // -X
-        [o+3, o+7, o+6], [o+3, o+6, o+2], // +Y
-        [o+0, o+1, o+5], [o+0, o+5, o+4], // -Y
+        [o + 4, o + 5, o + 6],
+        [o + 4, o + 6, o + 7], // top (max_z)
+        [o + 1, o + 0, o + 3],
+        [o + 1, o + 3, o + 2], // bottom (min_z)
+        [o + 1, o + 2, o + 6],
+        [o + 1, o + 6, o + 5], // +X
+        [o + 0, o + 4, o + 7],
+        [o + 0, o + 7, o + 3], // -X
+        [o + 3, o + 7, o + 6],
+        [o + 3, o + 6, o + 2], // +Y
+        [o + 0, o + 1, o + 5],
+        [o + 0, o + 5, o + 4], // -Y
     ];
     (vertices, indices)
 }
@@ -61,9 +71,7 @@ fn multi_box_mesh(boxes: &[(f64, f64, f64, f64, f64, f64)]) -> TriangleMesh {
 
     for &(min_x, min_y, min_z, max_x, max_y, max_z) in boxes {
         let offset = all_vertices.len() as u32;
-        let (verts, idxs) = box_vertices_indices(
-            min_x, min_y, min_z, max_x, max_y, max_z, offset,
-        );
+        let (verts, idxs) = box_vertices_indices(min_x, min_y, min_z, max_x, max_y, max_z, offset);
         all_vertices.extend(verts);
         all_indices.extend(idxs);
     }
@@ -205,7 +213,10 @@ fn sc1_auto_support_identifies_overhangs_and_generates_traditional_support() {
         support_layer_count += 1;
     }
 
-    assert!(support_layer_count > 0, "Should have support on some layers");
+    assert!(
+        support_layer_count > 0,
+        "Should have support on some layers"
+    );
     assert!(
         support_layer_count < result.layer_count,
         "Should not have support on every layer ({} layers with support vs {} total layers)",
@@ -402,10 +413,7 @@ fn sc4_manual_enforcers_and_blockers_override_auto_support() {
     };
     let result = Engine::new(config).slice(&mesh, None).unwrap();
     let gcode = String::from_utf8_lossy(&result.gcode);
-    let auto_support_count = gcode
-        .lines()
-        .filter(|l| l.contains("TYPE:Support"))
-        .count();
+    let auto_support_count = gcode.lines().filter(|l| l.contains("TYPE:Support")).count();
 
     assert!(
         auto_support_count > 0,
@@ -413,14 +421,10 @@ fn sc4_manual_enforcers_and_blockers_override_auto_support() {
     );
 
     // Test blocker: create auto-support regions and remove them with a blocker.
-    let support_square = Polygon::from_mm(&[
-        (110.0, 90.0),
-        (120.0, 90.0),
-        (120.0, 110.0),
-        (110.0, 110.0),
-    ])
-    .validate()
-    .unwrap();
+    let support_square =
+        Polygon::from_mm(&[(110.0, 90.0), (120.0, 90.0), (120.0, 110.0), (110.0, 110.0)])
+            .validate()
+            .unwrap();
     let mut auto_support_regions = vec![vec![support_square]];
 
     let blocker = VolumeModifier {
@@ -441,10 +445,7 @@ fn sc4_manual_enforcers_and_blockers_override_auto_support() {
     );
 
     // Blocker should have removed the support from that region.
-    let remaining_area: f64 = auto_support_regions[0]
-        .iter()
-        .map(|p| p.area_mm2())
-        .sum();
+    let remaining_area: f64 = auto_support_regions[0].iter().map(|p| p.area_mm2()).sum();
     assert!(
         remaining_area < 50.0,
         "Blocker should remove most support (remaining area: {:.1} mm^2)",
@@ -462,13 +463,7 @@ fn sc4_manual_enforcers_and_blockers_override_auto_support() {
     };
 
     let enforcer_heights = vec![(10.0, 0.2)];
-    apply_overrides(
-        &mut empty_support,
-        &[],
-        &[],
-        &[enforcer],
-        &enforcer_heights,
-    );
+    apply_overrides(&mut empty_support, &[], &[], &[enforcer], &enforcer_heights);
 
     assert!(
         !empty_support[0].is_empty(),
@@ -578,7 +573,9 @@ fn test_support_disabled_output_unchanged() {
 
     // Default config has support disabled.
     let default_config = PrintConfig::default();
-    let default_result = Engine::new(default_config.clone()).slice(&mesh, None).unwrap();
+    let default_result = Engine::new(default_config.clone())
+        .slice(&mesh, None)
+        .unwrap();
 
     // Explicitly disabled support.
     let mut disabled_config = default_config;
@@ -628,8 +625,7 @@ fn test_support_gcode_valid() {
         assert!(
             validation.valid,
             "Config {} G-code should pass validation. Errors: {:?}",
-            i,
-            validation.errors
+            i, validation.errors
         );
     }
 }

@@ -253,7 +253,10 @@ mod tests {
             .get("layer_height")
             .and_then(|v| v.as_float())
             .expect("layer_height");
-        assert!((lh - 0.2).abs() < f64::EPSILON, "expected 0.20mm layer height");
+        assert!(
+            (lh - 0.2).abs() < f64::EPSILON,
+            "expected 0.20mm layer height"
+        );
         let infill = table
             .get("infill_density")
             .and_then(|v| v.as_float())

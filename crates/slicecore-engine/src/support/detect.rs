@@ -9,7 +9,9 @@
 //!    area threshold.
 
 use slicecore_geo::polygon::ValidPolygon;
-use slicecore_geo::{offset_polygons, point_in_polygon, polygon_difference, JoinType, PointLocation};
+use slicecore_geo::{
+    offset_polygons, point_in_polygon, polygon_difference, JoinType, PointLocation,
+};
 use slicecore_math::{coord_to_mm, mm_to_coord, IBBox2, IPoint2, Point3, Vec3, COORD_SCALE};
 use slicecore_mesh::TriangleMesh;
 
@@ -114,14 +116,8 @@ pub fn validate_overhangs_raycast(
             None => continue,
         };
 
-        let (min_x_mm, min_y_mm) = (
-            coord_to_mm(bbox.min.x),
-            coord_to_mm(bbox.min.y),
-        );
-        let (max_x_mm, max_y_mm) = (
-            coord_to_mm(bbox.max.x),
-            coord_to_mm(bbox.max.y),
-        );
+        let (min_x_mm, min_y_mm) = (coord_to_mm(bbox.min.x), coord_to_mm(bbox.min.y));
+        let (max_x_mm, max_y_mm) = (coord_to_mm(bbox.max.x), coord_to_mm(bbox.max.y));
 
         let spacing = if sample_spacing_mm <= 0.0 {
             2.0
@@ -146,12 +142,9 @@ pub fn validate_overhangs_raycast(
 
                     // Cast ray downward from this point.
                     let origin = Point3::new(x, y, layer_z);
-                    if let Some(hit) = bvh.intersect_ray(
-                        &origin,
-                        &direction,
-                        mesh.vertices(),
-                        mesh.indices(),
-                    ) {
+                    if let Some(hit) =
+                        bvh.intersect_ray(&origin, &direction, mesh.vertices(), mesh.indices())
+                    {
                         // If hit is within max_support_dist AND beyond the
                         // minimum threshold, the point is internally supported
                         // by model geometry. Hits closer than min_t are the
@@ -261,7 +254,10 @@ pub fn detect_all_overhangs(
     for i in 1..layers.len() {
         let current_contours = &layers[i];
         let below_contours = &layers[i - 1];
-        let z = layer_heights.get(i).copied().unwrap_or(layer_height * i as f64);
+        let z = layer_heights
+            .get(i)
+            .copied()
+            .unwrap_or(layer_height * i as f64);
         let lh = if i < layer_heights.len() && i > 0 {
             layer_heights[i] - layer_heights.get(i - 1).copied().unwrap_or(0.0)
         } else {
@@ -305,14 +301,9 @@ mod tests {
 
     /// Helper to create a validated CCW square at a given position and size.
     fn make_square(x: f64, y: f64, size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (x, y),
-            (x + size, y),
-            (x + size, y + size),
-            (x, y + size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(x, y), (x + size, y), (x + size, y + size), (x, y + size)])
+            .validate()
+            .unwrap()
     }
 
     #[test]
@@ -325,8 +316,7 @@ mod tests {
         // So the 5mm overhang is far beyond what's allowed.
         let current = vec![make_square(55.0, 50.0, 10.0)];
 
-        let overhangs =
-            detect_overhangs_layer(&current, &below, 45.0, 0.2, 0.44);
+        let overhangs = detect_overhangs_layer(&current, &below, 45.0, 0.2, 0.44);
 
         assert!(
             !overhangs.is_empty(),
@@ -341,8 +331,7 @@ mod tests {
         let below = vec![square.clone()];
         let current = vec![square];
 
-        let overhangs =
-            detect_overhangs_layer(&current, &below, 45.0, 0.2, 0.44);
+        let overhangs = detect_overhangs_layer(&current, &below, 45.0, 0.2, 0.44);
 
         assert!(
             overhangs.is_empty(),
@@ -355,8 +344,7 @@ mod tests {
         // First layer has nothing below it (empty below_contours).
         let current = vec![make_square(50.0, 50.0, 10.0)];
 
-        let overhangs =
-            detect_overhangs_layer(&current, &[], 45.0, 0.2, 0.44);
+        let overhangs = detect_overhangs_layer(&current, &[], 45.0, 0.2, 0.44);
 
         assert!(
             overhangs.is_empty(),
@@ -395,13 +383,7 @@ mod tests {
         // Exact same contours above and below = no overhangs possible.
         let square = make_square(100.0, 100.0, 20.0);
 
-        let overhangs = detect_overhangs_layer(
-            &[square.clone()],
-            &[square],
-            45.0,
-            0.2,
-            0.44,
-        );
+        let overhangs = detect_overhangs_layer(&[square.clone()], &[square], 45.0, 0.2, 0.44);
 
         assert!(
             overhangs.is_empty(),
@@ -415,13 +397,7 @@ mod tests {
         let large_below = make_square(40.0, 40.0, 30.0);
         let small_current = make_square(50.0, 50.0, 10.0);
 
-        let overhangs = detect_overhangs_layer(
-            &[small_current],
-            &[large_below],
-            45.0,
-            0.2,
-            0.44,
-        );
+        let overhangs = detect_overhangs_layer(&[small_current], &[large_below], 45.0, 0.2, 0.44);
 
         assert!(
             overhangs.is_empty(),
@@ -464,14 +440,12 @@ mod tests {
         let below = vec![make_square(50.0, 50.0, 10.0)];
         let current = vec![make_square(50.3, 50.0, 10.0)]; // 0.3mm shift
 
-        let _overhangs_60 =
-            detect_overhangs_layer(&current, &below, 60.0, 0.2, 0.44);
+        let _overhangs_60 = detect_overhangs_layer(&current, &below, 60.0, 0.2, 0.44);
 
         // At 60 degrees, max offset is ~0.346mm, so 0.3mm shift should be within tolerance.
         // The polygon difference may produce thin slivers or empty result.
         // The key assertion is that at 45 degrees the same shift would produce overhangs.
-        let overhangs_45 =
-            detect_overhangs_layer(&current, &below, 45.0, 0.2, 0.44);
+        let overhangs_45 = detect_overhangs_layer(&current, &below, 45.0, 0.2, 0.44);
 
         // At 45 degrees, max offset is 0.2mm, so 0.3mm shift produces overhangs.
         assert!(

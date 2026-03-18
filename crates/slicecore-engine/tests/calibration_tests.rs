@@ -83,7 +83,10 @@ fn test_temp_tower_mesh_fails_small_bed() {
     let schedule = temp_schedule(&params);
     let tower_height = 1.0 + schedule.len() as f64 * params.block_height;
     let result = validate_bed_fit(params.base_width, params.base_depth, tower_height, &machine);
-    assert!(result.is_err(), "30mm model should not fit on 40mm bed with 10mm margins (20mm usable)");
+    assert!(
+        result.is_err(),
+        "30mm model should not fit on 40mm bed with 10mm margins (20mm usable)"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -189,7 +192,11 @@ fn test_empty_schedule_no_changes() {
         GcodeCommand::Comment("end".to_string()),
     ];
     let result = inject_temp_changes(commands.clone(), &[]);
-    assert_eq!(result.len(), commands.len(), "empty schedule should not change commands");
+    assert_eq!(
+        result.len(),
+        commands.len(),
+        "empty schedule should not change commands"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -244,11 +251,20 @@ fn test_cost_model_partial_inputs() {
     };
     let est = compute_cost(&inputs);
 
-    assert!(est.filament_cost.is_some(), "filament cost should be computed");
+    assert!(
+        est.filament_cost.is_some(),
+        "filament cost should be computed"
+    );
     assert!(est.electricity_cost.is_none(), "no watts => no electricity");
-    assert!(est.depreciation_cost.is_none(), "no printer cost => no depreciation");
+    assert!(
+        est.depreciation_cost.is_none(),
+        "no printer cost => no depreciation"
+    );
     assert!(est.labor_cost.is_none(), "no labor rate => no labor");
-    assert!(!est.missing_hints.is_empty(), "should have hints for missing inputs");
+    assert!(
+        !est.missing_hints.is_empty(),
+        "should have hints for missing inputs"
+    );
 }
 
 #[test]
@@ -272,10 +288,26 @@ fn test_cost_model_zero_expected_hours() {
 fn test_volume_estimate_cube() {
     // 20mm cube = 8000 mm^3
     let est = volume_estimate(8000.0, 1.75, 1.24);
-    assert!(est.filament_length_mm > 100.0, "length should be >100mm, got {}", est.filament_length_mm);
-    assert!(est.filament_length_mm < 10000.0, "length should be <10000mm, got {}", est.filament_length_mm);
-    assert!(est.filament_weight_g > 0.5, "weight should be >0.5g, got {}", est.filament_weight_g);
-    assert!(est.filament_weight_g < 50.0, "weight should be <50g, got {}", est.filament_weight_g);
+    assert!(
+        est.filament_length_mm > 100.0,
+        "length should be >100mm, got {}",
+        est.filament_length_mm
+    );
+    assert!(
+        est.filament_length_mm < 10000.0,
+        "length should be <10000mm, got {}",
+        est.filament_length_mm
+    );
+    assert!(
+        est.filament_weight_g > 0.5,
+        "weight should be >0.5g, got {}",
+        est.filament_weight_g
+    );
+    assert!(
+        est.filament_weight_g < 50.0,
+        "weight should be <50g, got {}",
+        est.filament_weight_g
+    );
     assert!(est.rough_time_seconds > 0.0, "time should be positive");
 }
 
@@ -308,11 +340,17 @@ fn test_first_layer_mesh_flat() {
         coverage_percent: 80.0,
     };
     let mesh = generate_first_layer_mesh(&params, 220.0, 220.0);
-    assert!(mesh.triangle_count() > 0, "first layer mesh should have triangles");
+    assert!(
+        mesh.triangle_count() > 0,
+        "first layer mesh should have triangles"
+    );
 
     let aabb = mesh.aabb();
     let height = aabb.max.z - aabb.min.z;
-    assert!(height < 1.0, "first layer height should be <1mm, got {height}");
+    assert!(
+        height < 1.0,
+        "first layer height should be <1mm, got {height}"
+    );
 
     let width = aabb.max.x - aabb.min.x;
     let depth = aabb.max.y - aabb.min.y;
@@ -341,6 +379,12 @@ fn test_retraction_mesh_valid() {
         end_speed: 60.0,
     };
     let mesh = generate_retraction_mesh(&params);
-    assert!(mesh.vertex_count() > 0, "retraction mesh should have vertices");
-    assert!(mesh.triangle_count() > 0, "retraction mesh should have triangles");
+    assert!(
+        mesh.vertex_count() > 0,
+        "retraction mesh should have vertices"
+    );
+    assert!(
+        mesh.triangle_count() > 0,
+        "retraction mesh should have triangles"
+    );
 }

@@ -471,8 +471,7 @@ fn sc5_plugin_dir_empty_dir_warns_user() {
 // ---------------------------------------------------------------------------
 
 use slicecore_engine::config::{
-    BedType, DimensionalCompensationConfig, FilamentPropsConfig, InternalBridgeMode,
-    SurfacePattern,
+    BedType, DimensionalCompensationConfig, FilamentPropsConfig, InternalBridgeMode, SurfacePattern,
 };
 
 #[test]
@@ -481,10 +480,7 @@ fn test_p0_field_defaults() {
 
     // Dimensional compensation defaults
     assert_eq!(config.dimensional_compensation.xy_hole_compensation, 0.0);
-    assert_eq!(
-        config.dimensional_compensation.xy_contour_compensation,
-        0.0
-    );
+    assert_eq!(config.dimensional_compensation.xy_contour_compensation, 0.0);
     assert_eq!(
         config.dimensional_compensation.elephant_foot_compensation,
         0.0
@@ -522,9 +518,7 @@ fn test_p0_toml_round_trip() {
     let mut config = PrintConfig::default();
     config.dimensional_compensation.xy_hole_compensation = -0.1;
     config.dimensional_compensation.xy_contour_compensation = 0.05;
-    config
-        .dimensional_compensation
-        .elephant_foot_compensation = 0.2;
+    config.dimensional_compensation.elephant_foot_compensation = 0.2;
     config.top_surface_pattern = SurfacePattern::Concentric;
     config.bottom_surface_pattern = SurfacePattern::Rectilinear;
     config.solid_infill_pattern = SurfacePattern::MonotonicLine;
@@ -543,25 +537,11 @@ fn test_p0_toml_round_trip() {
     let toml_str = toml::to_string_pretty(&config).unwrap();
     let parsed: PrintConfig = toml::from_str(&toml_str).unwrap();
 
-    assert!(
-        (parsed.dimensional_compensation.xy_hole_compensation - (-0.1)).abs() < 1e-9
-    );
-    assert!(
-        (parsed.dimensional_compensation.xy_contour_compensation - 0.05).abs() < 1e-9
-    );
-    assert!(
-        (parsed
-            .dimensional_compensation
-            .elephant_foot_compensation
-            - 0.2)
-            .abs()
-            < 1e-9
-    );
+    assert!((parsed.dimensional_compensation.xy_hole_compensation - (-0.1)).abs() < 1e-9);
+    assert!((parsed.dimensional_compensation.xy_contour_compensation - 0.05).abs() < 1e-9);
+    assert!((parsed.dimensional_compensation.elephant_foot_compensation - 0.2).abs() < 1e-9);
     assert_eq!(parsed.top_surface_pattern, SurfacePattern::Concentric);
-    assert_eq!(
-        parsed.bottom_surface_pattern,
-        SurfacePattern::Rectilinear
-    );
+    assert_eq!(parsed.bottom_surface_pattern, SurfacePattern::Rectilinear);
     assert_eq!(parsed.solid_infill_pattern, SurfacePattern::MonotonicLine);
     assert!(parsed.extra_perimeters_on_overhangs);
     assert_eq!(parsed.internal_bridge_support, InternalBridgeMode::Auto);
@@ -682,12 +662,8 @@ elephant_foot_compensation = 0.3
 xy_hole_compensation = -0.1
 "#;
     let config: PrintConfig = toml::from_str(new_toml).unwrap();
-    assert!(
-        (config.dimensional_compensation.elephant_foot_compensation - 0.3).abs() < 1e-9
-    );
-    assert!(
-        (config.dimensional_compensation.xy_hole_compensation - (-0.1)).abs() < 1e-9
-    );
+    assert!((config.dimensional_compensation.elephant_foot_compensation - 0.3).abs() < 1e-9);
+    assert!((config.dimensional_compensation.xy_hole_compensation - (-0.1)).abs() < 1e-9);
 }
 
 #[test]
@@ -699,9 +675,7 @@ fn test_elephant_foot_serde_alias() {
 elefant_foot_compensation = 0.25
 "#;
     let config: PrintConfig = toml::from_str(toml_with_alias).unwrap();
-    assert!(
-        (config.dimensional_compensation.elephant_foot_compensation - 0.25).abs() < 1e-9
-    );
+    assert!((config.dimensional_compensation.elephant_foot_compensation - 0.25).abs() < 1e-9);
 }
 
 #[test]

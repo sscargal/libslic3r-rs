@@ -73,10 +73,7 @@ mod tests {
             has_horizontal,
             "Grid should produce horizontal lines (same y)"
         );
-        assert!(
-            has_vertical,
-            "Grid should produce vertical lines (same x)"
-        );
+        assert!(has_vertical, "Grid should produce vertical lines (same x)");
     }
 
     #[test]

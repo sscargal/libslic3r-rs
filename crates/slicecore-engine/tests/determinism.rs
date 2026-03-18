@@ -58,13 +58,18 @@ fn test_deterministic_output() {
     let mesh = calibration_cube_20mm();
 
     let engine1 = Engine::new(config.clone());
-    let result1 = engine1.slice(&mesh, None).expect("first slice should succeed");
+    let result1 = engine1
+        .slice(&mesh, None)
+        .expect("first slice should succeed");
 
     let engine2 = Engine::new(config);
-    let result2 = engine2.slice(&mesh, None).expect("second slice should succeed");
+    let result2 = engine2
+        .slice(&mesh, None)
+        .expect("second slice should succeed");
 
     assert_eq!(
-        result1.gcode, result2.gcode,
+        result1.gcode,
+        result2.gcode,
         "Determinism: identical input must produce bit-for-bit identical G-code output. \
          First output: {} bytes, second output: {} bytes",
         result1.gcode.len(),
@@ -92,10 +97,14 @@ fn test_deterministic_with_custom_config() {
     let mesh = calibration_cube_20mm();
 
     let engine1 = Engine::new(config.clone());
-    let result1 = engine1.slice(&mesh, None).expect("first slice should succeed");
+    let result1 = engine1
+        .slice(&mesh, None)
+        .expect("first slice should succeed");
 
     let engine2 = Engine::new(config);
-    let result2 = engine2.slice(&mesh, None).expect("second slice should succeed");
+    let result2 = engine2
+        .slice(&mesh, None)
+        .expect("second slice should succeed");
 
     assert_eq!(
         result1.gcode, result2.gcode,
@@ -273,7 +282,8 @@ fn test_parallel_sequential_determinism() {
     );
 
     assert_eq!(
-        result_parallel.gcode, result_sequential.gcode,
+        result_parallel.gcode,
+        result_sequential.gcode,
         "Parallel and sequential G-code must be byte-identical. \
          Parallel: {} bytes, Sequential: {} bytes",
         result_parallel.gcode.len(),
@@ -310,7 +320,8 @@ fn test_parallel_sequential_determinism_aligned_seam() {
         .expect("sequential aligned-seam slice should succeed");
 
     assert_eq!(
-        result_parallel.gcode, result_sequential.gcode,
+        result_parallel.gcode,
+        result_sequential.gcode,
         "Aligned seam: parallel and sequential G-code must be byte-identical. \
          Parallel: {} bytes, Sequential: {} bytes",
         result_parallel.gcode.len(),

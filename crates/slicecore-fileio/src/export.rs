@@ -115,7 +115,9 @@ fn triangle_mesh_to_model_with_thumbnail(
 
     if let Some(png_data) = thumbnail_png {
         let thumb_path = "Metadata/thumbnail.png".to_string();
-        model.attachments.insert(thumb_path.clone(), png_data.to_vec());
+        model
+            .attachments
+            .insert(thumb_path.clone(), png_data.to_vec());
         // Set the thumbnail path on the first object
         if let Some(obj) = model.resources.iter_objects_mut().next() {
             obj.thumbnail = Some(thumb_path);
@@ -301,7 +303,10 @@ mod tests {
     #[test]
     fn format_from_extension_unknown_returns_error() {
         let result = format_from_extension(Path::new("model.xyz"));
-        assert!(matches!(result, Err(FileIOError::UnsupportedExportFormat(_))));
+        assert!(matches!(
+            result,
+            Err(FileIOError::UnsupportedExportFormat(_))
+        ));
     }
 
     #[test]
@@ -335,7 +340,9 @@ mod tests {
         let size_without = buf_without.into_inner().len();
 
         // With thumbnail (fake PNG data)
-        let fake_png = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4, 5];
+        let fake_png = vec![
+            0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4, 5,
+        ];
         let mut buf_with = Cursor::new(Vec::new());
         save_mesh_to_writer_with_thumbnail(
             &mesh,

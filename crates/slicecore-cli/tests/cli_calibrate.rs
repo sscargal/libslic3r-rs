@@ -324,10 +324,7 @@ fn test_calibrate_list() {
         stdout.contains("retraction"),
         "Should list retraction, got:\n{stdout}"
     );
-    assert!(
-        stdout.contains("flow"),
-        "Should list flow, got:\n{stdout}"
-    );
+    assert!(stdout.contains("flow"), "Should list flow, got:\n{stdout}");
     assert!(
         stdout.contains("first-layer"),
         "Should list first-layer, got:\n{stdout}"
@@ -345,7 +342,9 @@ fn test_calibrate_help() {
 
     // Should show subcommands in help text
     assert!(
-        stdout.contains("temp-tower") || stdout.contains("Subcommands") || stdout.contains("Commands"),
+        stdout.contains("temp-tower")
+            || stdout.contains("Subcommands")
+            || stdout.contains("Commands"),
         "Help should mention subcommands, got:\n{stdout}"
     );
 }
@@ -376,11 +375,12 @@ fn test_calibrate_temp_tower_generates_gcode() {
         .expect("failed to run slicecore CLI");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(output.status.success(), "CLI failed: {stderr}");
     assert!(
-        output.status.success(),
-        "CLI failed: {stderr}"
+        output_path.exists(),
+        "G-code file should exist at {}",
+        output_path.display()
     );
-    assert!(output_path.exists(), "G-code file should exist at {}", output_path.display());
 
     let gcode = std::fs::read_to_string(&output_path).unwrap();
     assert!(
@@ -413,10 +413,7 @@ fn test_calibrate_temp_tower_dry_run() {
         .expect("failed to run slicecore CLI");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        output.status.success(),
-        "CLI failed: {stderr}"
-    );
+    assert!(output.status.success(), "CLI failed: {stderr}");
 
     // Dry run should output model dimensions and temperature range to stderr
     assert!(
@@ -456,10 +453,7 @@ fn test_calibrate_temp_tower_save_model() {
         .expect("failed to run slicecore CLI");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        output.status.success(),
-        "CLI failed: {stderr}"
-    );
+    assert!(output.status.success(), "CLI failed: {stderr}");
     assert!(
         model_path.exists(),
         "STL model file should exist at {}",
@@ -496,10 +490,7 @@ fn test_calibrate_temp_tower_instructions() {
         .expect("failed to run slicecore CLI");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        output.status.success(),
-        "CLI failed: {stderr}"
-    );
+    assert!(output.status.success(), "CLI failed: {stderr}");
 
     let instructions_path = output_path.with_extension("instructions.md");
     assert!(
@@ -531,10 +522,7 @@ fn test_calibrate_retraction_generates_gcode() {
         .expect("failed to run slicecore CLI");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        output.status.success(),
-        "CLI failed: {stderr}"
-    );
+    assert!(output.status.success(), "CLI failed: {stderr}");
     assert!(output_path.exists(), "G-code file should exist");
 
     let gcode = std::fs::read_to_string(&output_path).unwrap();
@@ -550,20 +538,12 @@ fn test_calibrate_flow_generates_gcode() {
     let output_path = dir.path().join("flow.gcode");
 
     let output = Command::new(cli_binary())
-        .args([
-            "calibrate",
-            "flow",
-            "-o",
-            output_path.to_str().unwrap(),
-        ])
+        .args(["calibrate", "flow", "-o", output_path.to_str().unwrap()])
         .output()
         .expect("failed to run slicecore CLI");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        output.status.success(),
-        "CLI failed: {stderr}"
-    );
+    assert!(output.status.success(), "CLI failed: {stderr}");
     assert!(output_path.exists(), "G-code file should exist");
 
     let gcode = std::fs::read_to_string(&output_path).unwrap();
@@ -589,10 +569,7 @@ fn test_calibrate_first_layer_generates_gcode() {
         .expect("failed to run slicecore CLI");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        output.status.success(),
-        "CLI failed: {stderr}"
-    );
+    assert!(output.status.success(), "CLI failed: {stderr}");
     assert!(output_path.exists(), "G-code file should exist");
 
     let gcode = std::fs::read_to_string(&output_path).unwrap();

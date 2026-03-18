@@ -25,16 +25,28 @@ use slicecore_config_derive::SettingSchema;
 pub enum SupportType {
     /// Automatically select between traditional and tree based on geometry.
     #[default]
-    #[setting(display = "Auto", description = "Automatically select support type based on model geometry")]
+    #[setting(
+        display = "Auto",
+        description = "Automatically select support type based on model geometry"
+    )]
     Auto,
     /// Column-based support with configurable pattern fill.
-    #[setting(display = "Traditional", description = "Column-based support with configurable pattern fill")]
+    #[setting(
+        display = "Traditional",
+        description = "Column-based support with configurable pattern fill"
+    )]
     Traditional,
     /// Tree-branching support for minimal contact area.
-    #[setting(display = "Tree", description = "Tree-branching support for minimal contact area")]
+    #[setting(
+        display = "Tree",
+        description = "Tree-branching support for minimal contact area"
+    )]
     Tree,
     /// Explicitly disable support (overrides `enabled` flag).
-    #[setting(display = "None", description = "Explicitly disable support generation")]
+    #[setting(
+        display = "None",
+        description = "Explicitly disable support generation"
+    )]
     None,
 }
 
@@ -47,16 +59,28 @@ pub enum SupportPattern {
     Grid,
     /// Single-direction lines (easier to remove).
     #[default]
-    #[setting(display = "Line", description = "Single-direction lines for easy removal")]
+    #[setting(
+        display = "Line",
+        description = "Single-direction lines for easy removal"
+    )]
     Line,
     /// Alternating-angle rectilinear fill.
-    #[setting(display = "Rectilinear", description = "Alternating-angle rectilinear fill")]
+    #[setting(
+        display = "Rectilinear",
+        description = "Alternating-angle rectilinear fill"
+    )]
     Rectilinear,
     /// Honeycomb pattern for high strength-to-weight ratio.
-    #[setting(display = "Honeycomb", description = "Honeycomb pattern for high strength-to-weight ratio")]
+    #[setting(
+        display = "Honeycomb",
+        description = "Honeycomb pattern for high strength-to-weight ratio"
+    )]
     Honeycomb,
     /// Lightning pattern for minimal material usage.
-    #[setting(display = "Lightning", description = "Tree-like pattern for minimal material usage")]
+    #[setting(
+        display = "Lightning",
+        description = "Tree-like pattern for minimal material usage"
+    )]
     Lightning,
 }
 
@@ -66,13 +90,22 @@ pub enum SupportPattern {
 pub enum InterfacePattern {
     /// Alternating-angle rectilinear (default, good surface quality).
     #[default]
-    #[setting(display = "Rectilinear", description = "Alternating-angle rectilinear for good surface quality")]
+    #[setting(
+        display = "Rectilinear",
+        description = "Alternating-angle rectilinear for good surface quality"
+    )]
     Rectilinear,
     /// Concentric rings following the support boundary.
-    #[setting(display = "Concentric", description = "Concentric rings following the support boundary")]
+    #[setting(
+        display = "Concentric",
+        description = "Concentric rings following the support boundary"
+    )]
     Concentric,
     /// Grid pattern for maximum coverage.
-    #[setting(display = "Grid", description = "Grid pattern for maximum interface coverage")]
+    #[setting(
+        display = "Grid",
+        description = "Grid pattern for maximum interface coverage"
+    )]
     Grid,
 }
 
@@ -82,13 +115,22 @@ pub enum InterfacePattern {
 pub enum TreeBranchStyle {
     /// Automatically select between organic and geometric based on model.
     #[default]
-    #[setting(display = "Auto", description = "Automatically select branch style based on model")]
+    #[setting(
+        display = "Auto",
+        description = "Automatically select branch style based on model"
+    )]
     Auto,
     /// Smooth, curved branches (better aesthetics, harder to remove).
-    #[setting(display = "Organic", description = "Smooth curved branches for better aesthetics")]
+    #[setting(
+        display = "Organic",
+        description = "Smooth curved branches for better aesthetics"
+    )]
     Organic,
     /// Straight, angular branches (easier to remove, faster to generate).
-    #[setting(display = "Geometric", description = "Straight angular branches for easy removal")]
+    #[setting(
+        display = "Geometric",
+        description = "Straight angular branches for easy removal"
+    )]
     Geometric,
 }
 
@@ -103,13 +145,22 @@ pub enum TaperMethod {
     #[setting(display = "Auto", description = "Automatically select taper method")]
     Auto,
     /// Linear diameter reduction from base to tip.
-    #[setting(display = "Linear", description = "Linear diameter reduction from base to tip")]
+    #[setting(
+        display = "Linear",
+        description = "Linear diameter reduction from base to tip"
+    )]
     Linear,
     /// Exponential diameter reduction (faster narrowing near tip).
-    #[setting(display = "Exponential", description = "Exponential diameter reduction with faster narrowing near tip")]
+    #[setting(
+        display = "Exponential",
+        description = "Exponential diameter reduction with faster narrowing near tip"
+    )]
     Exponential,
     /// Load-based taper considering supported weight distribution.
-    #[setting(display = "Load Based", description = "Load-based taper considering supported weight distribution")]
+    #[setting(
+        display = "Load Based",
+        description = "Load-based taper considering supported weight distribution"
+    )]
     LoadBased,
 }
 
@@ -121,13 +172,22 @@ pub enum TaperMethod {
 #[serde(rename_all = "snake_case")]
 pub enum QualityPreset {
     /// Fast removal: lower density, fewer interface layers, larger gaps.
-    #[setting(display = "Low", description = "Fast removal with lower density and fewer interface layers")]
+    #[setting(
+        display = "Low",
+        description = "Fast removal with lower density and fewer interface layers"
+    )]
     Low,
     /// Balanced defaults matching research recommendations.
-    #[setting(display = "Medium", description = "Balanced defaults matching research recommendations")]
+    #[setting(
+        display = "Medium",
+        description = "Balanced defaults matching research recommendations"
+    )]
     Medium,
     /// Maximum surface quality: higher density, more interface layers.
-    #[setting(display = "High", description = "Maximum surface quality with higher density")]
+    #[setting(
+        display = "High",
+        description = "Maximum surface quality with higher density"
+    )]
     High,
 }
 
@@ -137,10 +197,16 @@ pub enum QualityPreset {
 pub enum ConflictResolution {
     /// Warn when conflicting settings are detected (default).
     #[default]
-    #[setting(display = "Warn on Conflict", description = "Warn when conflicting settings are detected")]
+    #[setting(
+        display = "Warn on Conflict",
+        description = "Warn when conflicting settings are detected"
+    )]
     WarnOnConflict,
     /// Automatically merge conflicting settings using priority rules.
-    #[setting(display = "Smart Merge", description = "Automatically merge conflicting settings using priority rules")]
+    #[setting(
+        display = "Smart Merge",
+        description = "Automatically merge conflicting settings using priority rules"
+    )]
     SmartMerge,
 }
 
@@ -157,35 +223,88 @@ pub enum ConflictResolution {
 #[setting(category = "Support")]
 pub struct BridgeConfig {
     /// Bridge print speed in mm/s.
-    #[setting(tier = 3, description = "Bridge print speed", units = "mm/s", min = 1.0, max = 300.0, depends_on = "support.bridge_detection")]
+    #[setting(
+        tier = 3,
+        description = "Bridge print speed",
+        units = "mm/s",
+        min = 1.0,
+        max = 300.0,
+        depends_on = "support.bridge_detection"
+    )]
     pub speed: f64,
     /// Fan speed during bridging (0-255, 255 = 100%).
-    #[setting(tier = 3, description = "Fan speed during bridging (0-255)", min = 0.0, max = 255.0, depends_on = "support.bridge_detection")]
+    #[setting(
+        tier = 3,
+        description = "Fan speed during bridging (0-255)",
+        min = 0.0,
+        max = 255.0,
+        depends_on = "support.bridge_detection"
+    )]
     pub fan_speed: u8,
     /// Flow rate ratio during bridging (< 1.0 reduces stringing).
-    #[setting(tier = 3, description = "Flow rate ratio during bridging", min = 0.0, max = 2.0, depends_on = "support.bridge_detection")]
+    #[setting(
+        tier = 3,
+        description = "Flow rate ratio during bridging",
+        min = 0.0,
+        max = 2.0,
+        depends_on = "support.bridge_detection"
+    )]
     pub flow_ratio: f64,
     /// Acceleration during bridging in mm/s^2.
-    #[setting(tier = 3, description = "Acceleration during bridging", units = "mm/s^2", min = 0.0, max = 20000.0, depends_on = "support.bridge_detection")]
+    #[setting(
+        tier = 3,
+        description = "Acceleration during bridging",
+        units = "mm/s^2",
+        min = 0.0,
+        max = 20000.0,
+        depends_on = "support.bridge_detection"
+    )]
     pub acceleration: f64,
     /// Line width ratio relative to standard extrusion width.
-    #[setting(tier = 3, description = "Bridge line width ratio relative to standard width", min = 0.1, max = 3.0, depends_on = "support.bridge_detection")]
+    #[setting(
+        tier = 3,
+        description = "Bridge line width ratio relative to standard width",
+        min = 0.1,
+        max = 3.0,
+        depends_on = "support.bridge_detection"
+    )]
     pub line_width_ratio: f64,
     /// Bridge angle in degrees (0 = auto-detect).
     /// OrcaSlicer: `bridge_angle`. Default: 0.0.
-    #[setting(tier = 3, description = "Bridge angle (0 = auto-detect)", units = "deg", min = 0.0, max = 360.0, depends_on = "support.bridge_detection")]
+    #[setting(
+        tier = 3,
+        description = "Bridge angle (0 = auto-detect)",
+        units = "deg",
+        min = 0.0,
+        max = 360.0,
+        depends_on = "support.bridge_detection"
+    )]
     pub angle: f64,
     /// Bridge density as a fraction (0.0 - 1.0).
     /// OrcaSlicer: `bridge_density`. Default: 1.0.
-    #[setting(tier = 3, description = "Bridge density as a fraction", min = 0.0, max = 1.0, depends_on = "support.bridge_detection")]
+    #[setting(
+        tier = 3,
+        description = "Bridge density as a fraction",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "support.bridge_detection"
+    )]
     pub density: f64,
     /// Use thick bridges for stronger bridging.
     /// OrcaSlicer: `thick_bridges`. Default: false.
-    #[setting(tier = 3, description = "Use thick bridges for stronger bridging", depends_on = "support.bridge_detection")]
+    #[setting(
+        tier = 3,
+        description = "Use thick bridges for stronger bridging",
+        depends_on = "support.bridge_detection"
+    )]
     pub thick_bridges: bool,
     /// Disable support under bridge areas.
     /// OrcaSlicer: `bridge_no_support`. Default: false.
-    #[setting(tier = 3, description = "Disable support under bridge areas", depends_on = "support.bridge_detection")]
+    #[setting(
+        tier = 3,
+        description = "Disable support under bridge areas",
+        depends_on = "support.bridge_detection"
+    )]
     pub no_support: bool,
 }
 
@@ -214,61 +333,155 @@ impl Default for BridgeConfig {
 #[setting(category = "Support")]
 pub struct TreeSupportConfig {
     /// Branch growth style (organic curves vs geometric angles).
-    #[setting(tier = 3, description = "Branch growth style", depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Branch growth style",
+        depends_on = "support.support_type"
+    )]
     pub branch_style: TreeBranchStyle,
     /// Trunk diameter taper method.
-    #[setting(tier = 3, description = "Trunk diameter taper method", depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Trunk diameter taper method",
+        depends_on = "support.support_type"
+    )]
     pub taper_method: TaperMethod,
     /// Maximum branching angle in degrees.
-    #[setting(tier = 3, description = "Maximum branching angle", units = "deg", min = 0.0, max = 90.0, depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Maximum branching angle",
+        units = "deg",
+        min = 0.0,
+        max = 90.0,
+        depends_on = "support.support_type"
+    )]
     pub branch_angle: f64,
     /// Minimum branch divergence angle in degrees.
-    #[setting(tier = 3, description = "Minimum branch divergence angle", units = "deg", min = 0.0, max = 90.0, depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Minimum branch divergence angle",
+        units = "deg",
+        min = 0.0,
+        max = 90.0,
+        depends_on = "support.support_type"
+    )]
     pub min_branch_angle: f64,
     /// Maximum trunk diameter in mm.
-    #[setting(tier = 3, description = "Maximum trunk diameter", units = "mm", min = 0.1, max = 50.0, depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Maximum trunk diameter",
+        units = "mm",
+        min = 0.1,
+        max = 50.0,
+        depends_on = "support.support_type"
+    )]
     pub max_trunk_diameter: f64,
     /// Branch merge distance as a factor of trunk diameter.
-    #[setting(tier = 3, description = "Branch merge distance factor", min = 0.1, max = 20.0, depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Branch merge distance factor",
+        min = 0.1,
+        max = 20.0,
+        depends_on = "support.support_type"
+    )]
     pub merge_distance_factor: f64,
     /// Tip diameter at contact points in mm.
-    #[setting(tier = 3, description = "Tip diameter at contact points", units = "mm", min = 0.1, max = 5.0, depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Tip diameter at contact points",
+        units = "mm",
+        min = 0.1,
+        max = 5.0,
+        depends_on = "support.support_type"
+    )]
     pub tip_diameter: f64,
     /// Distance between tree branches in mm.
     /// OrcaSlicer: `tree_support_branch_distance`. Default: 5.0.
-    #[setting(tier = 3, description = "Distance between tree branches", units = "mm", min = 0.1, max = 50.0, depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Distance between tree branches",
+        units = "mm",
+        min = 0.1,
+        max = 50.0,
+        depends_on = "support.support_type"
+    )]
     pub branch_distance: f64,
     /// Angle at which branch diameter increases (degrees).
     /// OrcaSlicer: `tree_support_branch_diameter_angle`. Default: 5.0.
-    #[setting(tier = 3, description = "Angle at which branch diameter increases", units = "deg", min = 0.0, max = 45.0, depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Angle at which branch diameter increases",
+        units = "deg",
+        min = 0.0,
+        max = 45.0,
+        depends_on = "support.support_type"
+    )]
     pub branch_diameter_angle: f64,
     /// Number of walls around tree support branches.
     /// OrcaSlicer: `tree_support_wall_count`. Default: 0.
-    #[setting(tier = 3, description = "Number of walls around tree support branches", min = 0.0, max = 10.0, depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Number of walls around tree support branches",
+        min = 0.0,
+        max = 10.0,
+        depends_on = "support.support_type"
+    )]
     pub wall_count: u32,
     /// Auto-generate brim around tree support base.
     /// OrcaSlicer: `tree_support_auto_brim`. Default: true.
-    #[setting(tier = 3, description = "Auto-generate brim around tree support base", depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Auto-generate brim around tree support base",
+        depends_on = "support.support_type"
+    )]
     pub auto_brim: bool,
     /// Brim width around tree support base in mm.
     /// OrcaSlicer: `tree_support_brim_width`. Default: 3.0.
-    #[setting(tier = 3, description = "Brim width around tree support base", units = "mm", min = 0.0, max = 20.0, depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Brim width around tree support base",
+        units = "mm",
+        min = 0.0,
+        max = 20.0,
+        depends_on = "support.support_type"
+    )]
     pub brim_width: f64,
     /// Enable adaptive layer height for tree support.
     /// OrcaSlicer: `tree_support_adaptive_layer_height`. Default: true.
-    #[setting(tier = 3, description = "Enable adaptive layer height for tree support", depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Enable adaptive layer height for tree support",
+        depends_on = "support.support_type"
+    )]
     pub adaptive_layer_height: bool,
     /// Slow branch angle in degrees (for gradual angle changes).
     /// OrcaSlicer: `tree_support_angle_slow`. Default: 25.0.
-    #[setting(tier = 3, description = "Slow branch angle for gradual angle changes", units = "deg", min = 0.0, max = 90.0, depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Slow branch angle for gradual angle changes",
+        units = "deg",
+        min = 0.0,
+        max = 90.0,
+        depends_on = "support.support_type"
+    )]
     pub angle_slow: f64,
     /// Top contact rate for tree support branches.
     /// OrcaSlicer: `tree_support_top_rate`. Default: 0.3.
-    #[setting(tier = 3, description = "Top contact rate for tree support branches", min = 0.0, max = 1.0, depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Top contact rate for tree support branches",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "support.support_type"
+    )]
     pub top_rate: f64,
     /// Fill tree support interior with infill.
     /// OrcaSlicer: `tree_support_with_infill`. Default: false.
-    #[setting(tier = 3, description = "Fill tree support interior with infill", depends_on = "support.support_type")]
+    #[setting(
+        tier = 3,
+        description = "Fill tree support interior with infill",
+        depends_on = "support.support_type"
+    )]
     pub with_infill: bool,
 }
 
@@ -317,42 +530,108 @@ pub struct SupportConfig {
     #[setting(tier = 1, description = "Enable support structures")]
     pub enabled: bool,
     /// Support type selection strategy.
-    #[setting(tier = 2, description = "Type of support structure to generate", depends_on = "support.enabled")]
+    #[setting(
+        tier = 2,
+        description = "Type of support structure to generate",
+        depends_on = "support.enabled"
+    )]
     pub support_type: SupportType,
     /// Overhang angle threshold in degrees (surfaces steeper than this
     /// relative to horizontal are considered overhangs needing support).
-    #[setting(tier = 2, description = "Minimum overhang angle for support generation", units = "deg", min = 0.0, max = 90.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 2,
+        description = "Minimum overhang angle for support generation",
+        units = "deg",
+        min = 0.0,
+        max = 90.0,
+        depends_on = "support.enabled"
+    )]
     pub overhang_angle: f64,
     /// Minimum support region area in mm^2 (regions smaller than this
     /// are discarded as unprintable).
-    #[setting(tier = 3, description = "Minimum support region area", units = "mm^2", min = 0.0, max = 100.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Minimum support region area",
+        units = "mm^2",
+        min = 0.0,
+        max = 100.0,
+        depends_on = "support.enabled"
+    )]
     pub min_support_area: f64,
     /// Support body density as a fraction (0.0 - 1.0).
-    #[setting(tier = 3, description = "Support body density", min = 0.0, max = 1.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Support body density",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "support.enabled"
+    )]
     pub support_density: f64,
     /// Fill pattern for support body layers.
-    #[setting(tier = 3, description = "Fill pattern for support body layers", depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Fill pattern for support body layers",
+        depends_on = "support.enabled"
+    )]
     pub support_pattern: SupportPattern,
     /// Number of dense interface layers at top/bottom of support.
-    #[setting(tier = 3, description = "Number of dense interface layers", min = 0.0, max = 20.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Number of dense interface layers",
+        min = 0.0,
+        max = 20.0,
+        depends_on = "support.enabled"
+    )]
     pub interface_layers: u32,
     /// Interface layer density as a fraction (0.0 - 1.0).
-    #[setting(tier = 3, description = "Interface layer density", min = 0.0, max = 1.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Interface layer density",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "support.enabled"
+    )]
     pub interface_density: f64,
     /// Fill pattern for interface layers.
-    #[setting(tier = 3, description = "Fill pattern for support interface layers", depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Fill pattern for support interface layers",
+        depends_on = "support.enabled"
+    )]
     pub interface_pattern: InterfacePattern,
     /// Z-axis gap between support top and model bottom in mm.
-    #[setting(tier = 3, description = "Z-axis gap between support top and model", units = "mm", min = 0.0, max = 2.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Z-axis gap between support top and model",
+        units = "mm",
+        min = 0.0,
+        max = 2.0,
+        depends_on = "support.enabled"
+    )]
     pub z_gap: f64,
     /// XY-axis gap between support and model walls in mm.
-    #[setting(tier = 3, description = "XY-axis gap between support and model walls", units = "mm", min = 0.0, max = 5.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "XY-axis gap between support and model walls",
+        units = "mm",
+        min = 0.0,
+        max = 5.0,
+        depends_on = "support.enabled"
+    )]
     pub xy_gap: f64,
     /// Only generate support touching the build plate (no support-on-model).
-    #[setting(tier = 2, description = "Only generate support touching the build plate", depends_on = "support.enabled")]
+    #[setting(
+        tier = 2,
+        description = "Only generate support touching the build plate",
+        depends_on = "support.enabled"
+    )]
     pub build_plate_only: bool,
     /// Enable bridge detection for unsupported horizontal spans.
-    #[setting(tier = 3, description = "Enable bridge detection for unsupported spans", depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Enable bridge detection for unsupported spans",
+        depends_on = "support.enabled"
+    )]
     pub bridge_detection: bool,
     /// Bridge extrusion configuration.
     #[setting(flatten)]
@@ -361,58 +640,134 @@ pub struct SupportConfig {
     #[setting(flatten)]
     pub tree: TreeSupportConfig,
     /// Optional quality preset (overrides individual settings when applied).
-    #[setting(tier = 2, description = "Quality preset for support parameters", depends_on = "support.enabled")]
+    #[setting(
+        tier = 2,
+        description = "Quality preset for support parameters",
+        depends_on = "support.enabled"
+    )]
     pub quality_preset: Option<QualityPreset>,
     /// Strategy for resolving conflicting configuration values.
-    #[setting(tier = 3, description = "Strategy for resolving conflicting support settings", depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Strategy for resolving conflicting support settings",
+        depends_on = "support.enabled"
+    )]
     pub conflict_resolution: ConflictResolution,
     /// Number of dense interface layers at the bottom of support (support floor).
     /// OrcaSlicer: `support_bottom_interface_layers`. Range: 0-10. Default: 0.
-    #[setting(tier = 3, description = "Number of bottom interface layers (support floor)", min = 0.0, max = 10.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Number of bottom interface layers (support floor)",
+        min = 0.0,
+        max = 10.0,
+        depends_on = "support.enabled"
+    )]
     pub support_bottom_interface_layers: u32,
     /// Horizontal expansion distance for support regions in mm.
     /// OrcaSlicer: `support_expansion`. Default: 0.0.
-    #[setting(tier = 3, description = "Horizontal expansion distance for support regions", units = "mm", min = 0.0, max = 10.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Horizontal expansion distance for support regions",
+        units = "mm",
+        min = 0.0,
+        max = 10.0,
+        depends_on = "support.enabled"
+    )]
     pub expansion: f64,
     /// Number of raft layers below the model.
     /// OrcaSlicer/PrusaSlicer: `raft_layers`. Default: 0.
-    #[setting(tier = 3, description = "Number of raft layers below the model", min = 0.0, max = 20.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Number of raft layers below the model",
+        min = 0.0,
+        max = 20.0,
+        depends_on = "support.enabled"
+    )]
     pub raft_layers: u32,
     /// Raft first layer expansion in mm.
     /// OrcaSlicer: `raft_first_layer_expansion`. Default: 0.0.
-    #[setting(tier = 3, description = "Raft first layer expansion", units = "mm", min = 0.0, max = 20.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Raft first layer expansion",
+        units = "mm",
+        min = 0.0,
+        max = 20.0,
+        depends_on = "support.enabled"
+    )]
     pub raft_expansion: f64,
     /// Only generate support for critical overhang regions.
     /// OrcaSlicer: `support_critical_regions_only`. Default: false.
-    #[setting(tier = 3, description = "Only generate support for critical overhang regions", depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Only generate support for critical overhang regions",
+        depends_on = "support.enabled"
+    )]
     pub critical_regions_only: bool,
     /// Remove small overhang areas from support generation.
     /// OrcaSlicer: `support_remove_small_overhang`. Default: true.
-    #[setting(tier = 3, description = "Remove small overhang areas from support generation", depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Remove small overhang areas from support generation",
+        depends_on = "support.enabled"
+    )]
     pub remove_small_overhang: bool,
     /// Flow ratio for support extrusion (0.0 - 2.0).
     /// OrcaSlicer: `support_flow_ratio`. Default: 1.0.
-    #[setting(tier = 3, description = "Flow ratio for support extrusion", min = 0.0, max = 2.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Flow ratio for support extrusion",
+        min = 0.0,
+        max = 2.0,
+        depends_on = "support.enabled"
+    )]
     pub flow_ratio: f64,
     /// Flow ratio for support interface extrusion (0.0 - 2.0).
     /// OrcaSlicer: `support_interface_flow_ratio`. Default: 1.0.
-    #[setting(tier = 3, description = "Flow ratio for support interface extrusion", min = 0.0, max = 2.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Flow ratio for support interface extrusion",
+        min = 0.0,
+        max = 2.0,
+        depends_on = "support.enabled"
+    )]
     pub interface_flow_ratio: f64,
     /// Synchronize support layers with object layers.
     /// PrusaSlicer/OrcaSlicer: `support_material_synchronize_layers`. Default: false.
-    #[setting(tier = 3, description = "Synchronize support layers with object layers", depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Synchronize support layers with object layers",
+        depends_on = "support.enabled"
+    )]
     pub synchronize_layers: bool,
     /// Minimum number of layers to enforce support generation.
     /// PrusaSlicer: `support_material_enforce_layers`. Default: 0.
-    #[setting(tier = 3, description = "Minimum layers to enforce support generation", min = 0.0, max = 1000.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Minimum layers to enforce support generation",
+        min = 0.0,
+        max = 1000.0,
+        depends_on = "support.enabled"
+    )]
     pub enforce_layers: u32,
     /// Closing radius for support area generation in mm.
     /// PrusaSlicer: `support_material_closing_radius`. Default: 2.0.
-    #[setting(tier = 3, description = "Closing radius for support area generation", units = "mm", min = 0.0, max = 20.0, depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Closing radius for support area generation",
+        units = "mm",
+        min = 0.0,
+        max = 20.0,
+        depends_on = "support.enabled"
+    )]
     pub closing_radius: f64,
     /// Bottom Z gap distance in mm (gap between support floor and model).
     /// OrcaSlicer: `support_bottom_z_distance`. Defaults to z_gap value.
-    #[setting(tier = 3, description = "Bottom Z gap between support floor and model", units = "mm", depends_on = "support.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Bottom Z gap between support floor and model",
+        units = "mm",
+        depends_on = "support.enabled"
+    )]
     pub bottom_z_gap: Option<f64>,
 }
 

@@ -226,11 +226,7 @@ pub fn compute_taper_load_based(
 /// - `arena`: The tree support arena to modify in place.
 /// - `merge_distance`: Maximum distance between two roots to consider merging (in mm).
 /// - `max_diameter`: Maximum allowed trunk diameter in mm.
-pub fn merge_nearby_branches(
-    arena: &mut TreeSupportArena,
-    merge_distance: f64,
-    max_diameter: f64,
-) {
+pub fn merge_nearby_branches(arena: &mut TreeSupportArena, merge_distance: f64, max_diameter: f64) {
     let max_radius = max_diameter / 2.0;
 
     loop {

@@ -95,7 +95,7 @@ pub use postprocess_types::{
     PostProcessRequest, PostProcessResult, ProcessingMode,
 };
 pub use traits::{
-    CsgOperationPlugin, CsgOperationPlugin_TO, CsgPluginMod, CsgPluginMod_Ref,
-    InfillPatternPlugin, InfillPatternPlugin_TO, InfillPluginMod, InfillPluginMod_Ref,
+    CsgOperationPlugin, CsgOperationPlugin_TO, CsgPluginMod, CsgPluginMod_Ref, InfillPatternPlugin,
+    InfillPatternPlugin_TO, InfillPluginMod, InfillPluginMod_Ref,
 };
 pub use types::{CsgMeshData, CsgPrimitiveParams, FfiInfillLine, InfillRequest, InfillResult};

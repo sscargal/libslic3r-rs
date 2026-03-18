@@ -273,9 +273,9 @@ pub fn generate(
         // We scale: spacing = base_spacing * 2^(max_depth - depth) but cap
         // it so that it doesn't exceed the cell dimensions.
         let scale_factor = 1u64 << (MAX_DEPTH.saturating_sub(depth)) as u64;
-        let local_spacing = (base_spacing as u64 * scale_factor).min(
-            (cell_x_max - cell_x_min).max(cell_y_max - cell_y_min) as u64,
-        ) as Coord;
+        let local_spacing = (base_spacing as u64 * scale_factor)
+            .min((cell_x_max - cell_x_min).max(cell_y_max - cell_y_min) as u64)
+            as Coord;
 
         if local_spacing <= 0 {
             continue;
@@ -423,18 +423,8 @@ fn generate_cell_rotated(
         })
         .collect();
 
-    let r_min_y = rotated_ys
-        .iter()
-        .copied()
-        .fold(f64::MAX, f64::min)
-        .round() as Coord
-        + center_y;
-    let r_max_y = rotated_ys
-        .iter()
-        .copied()
-        .fold(f64::MIN, f64::max)
-        .round() as Coord
-        + center_y;
+    let r_min_y = rotated_ys.iter().copied().fold(f64::MAX, f64::min).round() as Coord + center_y;
+    let r_max_y = rotated_ys.iter().copied().fold(f64::MIN, f64::max).round() as Coord + center_y;
 
     let mut lines = Vec::new();
 

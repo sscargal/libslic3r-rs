@@ -75,8 +75,7 @@ pub fn repair(
     report.degenerate_removed = degenerate::remove_degenerate_triangles(&vertices, &mut indices);
 
     // Step 2: Stitch edges (merge nearby vertices within tolerance).
-    report.edges_stitched =
-        stitch::stitch_edges(&vertices, &mut indices, stitch::STITCH_TOLERANCE);
+    report.edges_stitched = stitch::stitch_edges(&vertices, &mut indices, stitch::STITCH_TOLERANCE);
 
     // Step 3: Fix normal directions BEFORE hole filling, because inconsistent
     // winding creates false boundary edges that confuse the hole detector.
@@ -146,7 +145,7 @@ mod tests {
         let (vertices, mut indices) = tetrahedron();
         // Flip one triangle's winding to create inconsistent normals.
         indices[2].swap(1, 2); // [1, 2, 3] -> [1, 3, 2] (reversed winding)
-        // Add a degenerate triangle.
+                               // Add a degenerate triangle.
         indices.push([0, 0, 1]);
         let (mesh, report) = repair(vertices, indices).unwrap();
         assert_eq!(report.degenerate_removed, 1);
@@ -157,10 +156,7 @@ mod tests {
 
     #[test]
     fn repair_all_degenerate_returns_error() {
-        let vertices = vec![
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(1.0, 0.0, 0.0),
-        ];
+        let vertices = vec![Point3::new(0.0, 0.0, 0.0), Point3::new(1.0, 0.0, 0.0)];
         let indices = vec![[0, 0, 1], [1, 1, 0]];
         let result = repair(vertices, indices);
         assert!(result.is_err());

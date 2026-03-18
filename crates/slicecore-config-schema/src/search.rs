@@ -66,12 +66,7 @@ mod tests {
     use super::*;
     use crate::types::{SettingCategory, SettingKey, Tier, ValueType};
 
-    fn make_def(
-        key: &str,
-        display: &str,
-        desc: &str,
-        tags: Vec<&str>,
-    ) -> SettingDefinition {
+    fn make_def(key: &str, display: &str, desc: &str, tags: Vec<&str>) -> SettingDefinition {
         SettingDefinition {
             key: SettingKey::new(key),
             display_name: display.to_owned(),
@@ -173,9 +168,19 @@ mod tests {
     fn tag_match_contributes_to_score() {
         let mut reg = SettingRegistry::new();
         // Has "quality" only in tags
-        reg.register(make_def("layer_height", "Layer Height", "height of layer", vec!["quality"]));
+        reg.register(make_def(
+            "layer_height",
+            "Layer Height",
+            "height of layer",
+            vec!["quality"],
+        ));
         // Has "quality" nowhere
-        reg.register(make_def("speed.travel", "Travel Speed", "travel speed", vec!["speed"]));
+        reg.register(make_def(
+            "speed.travel",
+            "Travel Speed",
+            "travel speed",
+            vec!["speed"],
+        ));
 
         let results = reg.search("quality");
         assert_eq!(results.len(), 1);
@@ -185,7 +190,12 @@ mod tests {
     #[test]
     fn no_match_returns_empty() {
         let mut reg = SettingRegistry::new();
-        reg.register(make_def("speed.perimeter", "Perimeter Speed", "speed", vec![]));
+        reg.register(make_def(
+            "speed.perimeter",
+            "Perimeter Speed",
+            "speed",
+            vec![],
+        ));
 
         let results = reg.search("zzzznonexistent");
         assert!(results.is_empty());

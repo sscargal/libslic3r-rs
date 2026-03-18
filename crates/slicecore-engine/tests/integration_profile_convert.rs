@@ -70,7 +70,10 @@ fn test_round_trip_process_profile() {
         slicecore_engine::InfillPattern::Grid,
         "infill_pattern should be Grid"
     );
-    assert_eq!(roundtrip.top_solid_layers, 5, "top_solid_layers should be 5");
+    assert_eq!(
+        roundtrip.top_solid_layers, 5,
+        "top_solid_layers should be 5"
+    );
     assert_eq!(
         roundtrip.bottom_solid_layers, 4,
         "bottom_solid_layers should be 4"
@@ -344,7 +347,10 @@ fn test_selective_output_no_defaults() {
         toml.contains("layer_height"),
         "TOML should contain layer_height"
     );
-    assert!(toml.contains("wall_count"), "TOML should contain wall_count");
+    assert!(
+        toml.contains("wall_count"),
+        "TOML should contain wall_count"
+    );
 
     // Should NOT contain default-only fields (not in the import at all).
     assert!(
@@ -590,9 +596,10 @@ fn test_real_multi_file_merge() {
     );
     // At least one of the temperature fields should differ from default.
     let defaults = PrintConfig::default();
-    let has_filament_data = (roundtrip.filament.nozzle_temp() - defaults.filament.nozzle_temp()).abs() > 1.0
-        || (roundtrip.filament.bed_temp() - defaults.filament.bed_temp()).abs() > 1.0
-        || (roundtrip.filament.density - defaults.filament.density).abs() > 0.01;
+    let has_filament_data =
+        (roundtrip.filament.nozzle_temp() - defaults.filament.nozzle_temp()).abs() > 1.0
+            || (roundtrip.filament.bed_temp() - defaults.filament.bed_temp()).abs() > 1.0
+            || (roundtrip.filament.density - defaults.filament.density).abs() > 0.01;
     assert!(
         has_filament_data,
         "Merged config should have some filament data differing from defaults"

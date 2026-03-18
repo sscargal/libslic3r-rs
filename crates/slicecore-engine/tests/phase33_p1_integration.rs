@@ -51,7 +51,12 @@ fn p1_tool_change_retraction_defaults() {
             .abs()
             < 1e-9
     );
-    assert!(!config.multi_material.tool_change_retraction.long_retraction_when_cut);
+    assert!(
+        !config
+            .multi_material
+            .tool_change_retraction
+            .long_retraction_when_cut
+    );
 }
 
 #[test]
@@ -144,10 +149,7 @@ fn p1_toml_round_trip() {
 #[test]
 fn p1_brim_type_serde() {
     // Test that BrimType serializes to snake_case strings
-    assert_eq!(
-        serde_json::to_string(&BrimType::None).unwrap(),
-        "\"none\""
-    );
+    assert_eq!(serde_json::to_string(&BrimType::None).unwrap(), "\"none\"");
     assert_eq!(
         serde_json::to_string(&BrimType::Outer).unwrap(),
         "\"outer\""
@@ -156,10 +158,7 @@ fn p1_brim_type_serde() {
         serde_json::to_string(&BrimType::Inner).unwrap(),
         "\"inner\""
     );
-    assert_eq!(
-        serde_json::to_string(&BrimType::Both).unwrap(),
-        "\"both\""
-    );
+    assert_eq!(serde_json::to_string(&BrimType::Both).unwrap(), "\"both\"");
 
     // Test deserialization
     assert_eq!(
@@ -293,10 +292,7 @@ fn p1_template_variables() {
     );
     assert!(resolve_template_variables("{brim_type}", &config).contains("outer"));
     // 0-based 2 -> 1-based 3
-    assert_eq!(
-        resolve_template_variables("{wall_filament}", &config),
-        "3"
-    );
+    assert_eq!(resolve_template_variables("{wall_filament}", &config), "3");
     assert_eq!(
         resolve_template_variables("{precise_outer_wall}", &config),
         "1"
@@ -339,7 +335,9 @@ fn p1_validation_fuzzy_skin_out_of_range() {
 
     let issues = validate_config(&config);
     assert!(
-        issues.iter().any(|i| i.field.contains("fuzzy_skin.thickness")),
+        issues
+            .iter()
+            .any(|i| i.field.contains("fuzzy_skin.thickness")),
         "Expected validation issue for fuzzy_skin.thickness > 1.0, got: {:?}",
         issues.iter().map(|i| &i.field).collect::<Vec<_>>()
     );
@@ -352,7 +350,9 @@ fn p1_validation_infill_combination_high() {
 
     let issues = validate_config(&config);
     assert!(
-        issues.iter().any(|i| i.field.contains("infill_combination")),
+        issues
+            .iter()
+            .any(|i| i.field.contains("infill_combination")),
         "Expected validation issue for infill_combination > 10, got: {:?}",
         issues.iter().map(|i| &i.field).collect::<Vec<_>>()
     );

@@ -30,43 +30,108 @@ use crate::toolpath::FeatureType;
 #[setting(category = "Advanced")]
 pub struct PerFeatureFlow {
     /// Flow multiplier for outer (visible) perimeter walls.
-    #[setting(tier = 3, description = "Flow multiplier for outer perimeter walls", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for outer perimeter walls",
+        min = 0.0,
+        max = 2.0
+    )]
     pub outer_perimeter: f64,
     /// Flow multiplier for inner perimeter walls.
-    #[setting(tier = 3, description = "Flow multiplier for inner perimeter walls", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for inner perimeter walls",
+        min = 0.0,
+        max = 2.0
+    )]
     pub inner_perimeter: f64,
     /// Flow multiplier for solid infill (top/bottom surfaces).
-    #[setting(tier = 3, description = "Flow multiplier for solid infill", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for solid infill",
+        min = 0.0,
+        max = 2.0
+    )]
     pub solid_infill: f64,
     /// Flow multiplier for sparse infill.
-    #[setting(tier = 3, description = "Flow multiplier for sparse infill", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for sparse infill",
+        min = 0.0,
+        max = 2.0
+    )]
     pub sparse_infill: f64,
     /// Flow multiplier for support structures.
-    #[setting(tier = 3, description = "Flow multiplier for support structures", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for support structures",
+        min = 0.0,
+        max = 2.0
+    )]
     pub support: f64,
     /// Flow multiplier for support interface layers.
-    #[setting(tier = 3, description = "Flow multiplier for support interface layers", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for support interface layers",
+        min = 0.0,
+        max = 2.0
+    )]
     pub support_interface: f64,
     /// Flow multiplier for bridge extrusions.
-    #[setting(tier = 3, description = "Flow multiplier for bridge extrusions", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for bridge extrusions",
+        min = 0.0,
+        max = 2.0
+    )]
     pub bridge: f64,
     /// Flow multiplier for gap fill extrusions.
-    #[setting(tier = 3, description = "Flow multiplier for gap fill extrusions", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for gap fill extrusions",
+        min = 0.0,
+        max = 2.0
+    )]
     pub gap_fill: f64,
     /// Flow multiplier for skirt outlines.
-    #[setting(tier = 3, description = "Flow multiplier for skirt outlines", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for skirt outlines",
+        min = 0.0,
+        max = 2.0
+    )]
     pub skirt: f64,
     /// Flow multiplier for brim adhesion aid.
-    #[setting(tier = 3, description = "Flow multiplier for brim adhesion", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for brim adhesion",
+        min = 0.0,
+        max = 2.0
+    )]
     pub brim: f64,
     /// Flow multiplier for variable-width (Arachne) perimeters.
-    #[setting(tier = 3, description = "Flow multiplier for variable-width perimeters", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for variable-width perimeters",
+        min = 0.0,
+        max = 2.0
+    )]
     pub variable_width_perimeter: f64,
     /// Flow multiplier for ironing passes.
-    #[setting(tier = 3, description = "Flow multiplier for ironing passes", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for ironing passes",
+        min = 0.0,
+        max = 2.0
+    )]
     pub ironing: f64,
     /// Flow multiplier for purge tower extrusions.
-    #[setting(tier = 3, description = "Flow multiplier for purge tower extrusions", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Flow multiplier for purge tower extrusions",
+        min = 0.0,
+        max = 2.0
+    )]
     pub purge_tower: f64,
 }
 

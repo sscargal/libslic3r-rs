@@ -226,7 +226,9 @@ fn parse_f64_lit(input: syn::parse::ParseStream<'_>) -> syn::Result<f64> {
 fn parse_string_array(input: syn::parse::ParseStream<'_>) -> syn::Result<Vec<String>> {
     let content;
     syn::bracketed!(content in input);
-    let items =
-        content.parse_terminated(|input: syn::parse::ParseStream<'_>| input.parse::<syn::LitStr>(), syn::Token![,])?;
+    let items = content.parse_terminated(
+        |input: syn::parse::ParseStream<'_>| input.parse::<syn::LitStr>(),
+        syn::Token![,],
+    )?;
     Ok(items.iter().map(syn::LitStr::value).collect())
 }

@@ -136,21 +136,12 @@ fn build_system_prompt(system_prompt: &str, response_format: Option<&ResponseFor
 
 #[async_trait]
 impl AiProvider for AnthropicProvider {
-    async fn complete(
-        &self,
-        request: &CompletionRequest,
-    ) -> Result<CompletionResponse, AiError> {
-        let system = build_system_prompt(
-            &request.system_prompt,
-            request.response_format.as_ref(),
-        );
+    async fn complete(&self, request: &CompletionRequest) -> Result<CompletionResponse, AiError> {
+        let system = build_system_prompt(&request.system_prompt, request.response_format.as_ref());
 
         // Only include user/assistant messages (not system)
-        let messages: Vec<AnthropicMessage> = request
-            .messages
-            .iter()
-            .filter_map(map_message)
-            .collect();
+        let messages: Vec<AnthropicMessage> =
+            request.messages.iter().filter_map(map_message).collect();
 
         let body = AnthropicRequest {
             model: self.model.clone(),

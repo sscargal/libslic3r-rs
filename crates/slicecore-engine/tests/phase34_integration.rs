@@ -276,21 +276,15 @@ fn test_custom_gcode_hooks_import() {
     let gcode = &result.config.custom_gcode;
 
     // Original is stored verbatim
-    assert!(gcode
-        .before_layer_change_original
-        .contains("{layer_z}"));
-    assert!(gcode
-        .before_layer_change_original
-        .contains("{layer_num}"));
+    assert!(gcode.before_layer_change_original.contains("{layer_z}"));
+    assert!(gcode.before_layer_change_original.contains("{layer_num}"));
 
     // Translated version should have our variable names (these are identity for layer_z/layer_num)
     assert!(gcode.before_layer_change.contains("{layer_z}"));
     assert!(gcode.before_layer_change.contains("{layer_num}"));
 
     // Tool change gcode
-    assert!(gcode
-        .tool_change_gcode_original
-        .contains("{next_extruder}"));
+    assert!(gcode.tool_change_gcode_original.contains("{next_extruder}"));
     assert!(gcode.tool_change_gcode.contains("{next_extruder}"));
 
     // Color change
@@ -411,7 +405,8 @@ fn test_gcode_template_translation_orcaslicer() {
 #[test]
 fn test_gcode_template_translation_prusaslicer() {
     let table = build_prusaslicer_translation_table();
-    let input = "M104 S[first_layer_temperature]\nM140 S[first_layer_bed_temperature]\n;LAYER:[layer_num]";
+    let input =
+        "M104 S[first_layer_temperature]\nM140 S[first_layer_bed_temperature]\n;LAYER:[layer_num]";
     let result = translate_gcode_template(input, &table);
 
     assert!(result.contains("{first_layer_nozzle_temp}"));
@@ -562,8 +557,7 @@ fn test_passthrough_threshold() {
     let result = import_upstream_profile(&json).unwrap();
 
     // Count non-metadata keys
-    let total_keys = result.mapped_fields.len()
-        + result.passthrough_fields.len();
+    let total_keys = result.mapped_fields.len() + result.passthrough_fields.len();
     let passthrough_count = result.passthrough_fields.len();
 
     let ratio = if total_keys > 0 {

@@ -27,11 +27,17 @@ use crate::support::config::SupportConfig;
 #[serde(rename_all = "snake_case")]
 pub enum WallOrder {
     /// Print inner walls first, then outer wall.
-    #[setting(display = "Inner First", description = "Print inner walls before the outer wall for better overhangs")]
+    #[setting(
+        display = "Inner First",
+        description = "Print inner walls before the outer wall for better overhangs"
+    )]
     InnerFirst,
     /// Print outer wall first, then inner walls.
     #[default]
-    #[setting(display = "Outer First", description = "Print outer wall first for better surface quality")]
+    #[setting(
+        display = "Outer First",
+        description = "Print outer wall first for better surface quality"
+    )]
     OuterFirst,
 }
 
@@ -44,20 +50,35 @@ pub enum WallOrder {
 #[serde(rename_all = "snake_case")]
 pub enum SurfacePattern {
     /// Parallel lines alternating direction per layer.
-    #[setting(display = "Rectilinear", description = "Parallel lines alternating direction each layer")]
+    #[setting(
+        display = "Rectilinear",
+        description = "Parallel lines alternating direction each layer"
+    )]
     Rectilinear,
     /// Unidirectional monotonic lines for smooth top/bottom surfaces.
     #[default]
-    #[setting(display = "Monotonic", description = "Unidirectional lines for smooth surfaces")]
+    #[setting(
+        display = "Monotonic",
+        description = "Unidirectional lines for smooth surfaces"
+    )]
     Monotonic,
     /// Monotonic single-line variant (thinner line overlap).
-    #[setting(display = "Monotonic Line", description = "Monotonic variant with thinner line overlap")]
+    #[setting(
+        display = "Monotonic Line",
+        description = "Monotonic variant with thinner line overlap"
+    )]
     MonotonicLine,
     /// Concentric inward-spiraling pattern.
-    #[setting(display = "Concentric", description = "Inward-spiraling concentric rings")]
+    #[setting(
+        display = "Concentric",
+        description = "Inward-spiraling concentric rings"
+    )]
     Concentric,
     /// Hilbert space-filling curve pattern.
-    #[setting(display = "Hilbert", description = "Hilbert space-filling curve for uniform coverage")]
+    #[setting(
+        display = "Hilbert",
+        description = "Hilbert space-filling curve for uniform coverage"
+    )]
     Hilbert,
     /// Archimedean spiral pattern.
     #[setting(display = "Archimedean", description = "Archimedean spiral pattern")]
@@ -73,20 +94,35 @@ pub enum SurfacePattern {
 #[serde(rename_all = "snake_case")]
 pub enum BedType {
     /// Cool/smooth PEI plate (low adhesion).
-    #[setting(display = "Cool Plate", description = "Cool/smooth PEI plate with low adhesion")]
+    #[setting(
+        display = "Cool Plate",
+        description = "Cool/smooth PEI plate with low adhesion"
+    )]
     CoolPlate,
     /// Engineering plate (textured, high adhesion).
-    #[setting(display = "Engineering Plate", description = "Engineering plate with high adhesion for technical materials")]
+    #[setting(
+        display = "Engineering Plate",
+        description = "Engineering plate with high adhesion for technical materials"
+    )]
     EngineeringPlate,
     /// High-temperature plate.
-    #[setting(display = "High Temp Plate", description = "High-temperature resistant build plate")]
+    #[setting(
+        display = "High Temp Plate",
+        description = "High-temperature resistant build plate"
+    )]
     HighTempPlate,
     /// Textured PEI plate (standard).
     #[default]
-    #[setting(display = "Textured PEI", description = "Textured PEI plate for general-purpose printing")]
+    #[setting(
+        display = "Textured PEI",
+        description = "Textured PEI plate for general-purpose printing"
+    )]
     TexturedPei,
     /// Smooth PEI plate.
-    #[setting(display = "Smooth PEI", description = "Smooth PEI plate for glossy first layers")]
+    #[setting(
+        display = "Smooth PEI",
+        description = "Smooth PEI plate for glossy first layers"
+    )]
     SmoothPei,
     /// Satin PEI plate.
     #[setting(display = "Satin PEI", description = "Satin-finish PEI plate")]
@@ -105,10 +141,16 @@ pub enum InternalBridgeMode {
     #[setting(display = "Off", description = "No internal bridge detection")]
     Off,
     /// Automatic detection of internal bridges.
-    #[setting(display = "Auto", description = "Automatically detect internal bridges over infill")]
+    #[setting(
+        display = "Auto",
+        description = "Automatically detect internal bridges over infill"
+    )]
     Auto,
     /// Always treat internal solid layers as bridges.
-    #[setting(display = "Always", description = "Always treat internal solid layers as bridges")]
+    #[setting(
+        display = "Always",
+        description = "Always treat internal solid layers as bridges"
+    )]
     Always,
 }
 
@@ -124,13 +166,22 @@ pub enum BrimType {
     #[setting(display = "None", description = "No brim adhesion aid")]
     None,
     /// Brim on the outer side of the object outline only.
-    #[setting(display = "Outer Only", description = "Brim on the outer side of the object outline")]
+    #[setting(
+        display = "Outer Only",
+        description = "Brim on the outer side of the object outline"
+    )]
     Outer,
     /// Brim on the inner side of the object outline only.
-    #[setting(display = "Inner Only", description = "Brim on the inner side of the object outline")]
+    #[setting(
+        display = "Inner Only",
+        description = "Brim on the inner side of the object outline"
+    )]
     Inner,
     /// Brim on both inner and outer sides.
-    #[setting(display = "Both Sides", description = "Brim on both inner and outer sides of the outline")]
+    #[setting(
+        display = "Both Sides",
+        description = "Brim on both inner and outer sides of the outline"
+    )]
     Both,
 }
 
@@ -150,12 +201,26 @@ pub struct FuzzySkinConfig {
     /// Maximum random displacement amplitude in mm.
     /// OrcaSlicer: `fuzzy_skin_thickness`. PrusaSlicer: `fuzzy_skin_thickness`.
     /// Range: 0.0-1.0. Default: 0.3.
-    #[setting(tier = 3, description = "Maximum random displacement amplitude", units = "mm", min = 0.0, max = 1.0, depends_on = "fuzzy_skin.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Maximum random displacement amplitude",
+        units = "mm",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "fuzzy_skin.enabled"
+    )]
     pub thickness: f64,
     /// Distance between displacement points along the wall in mm.
     /// OrcaSlicer: `fuzzy_skin_point_dist`. PrusaSlicer: `fuzzy_skin_point_distance`.
     /// Range: 0.1-5.0. Default: 0.8.
-    #[setting(tier = 3, description = "Distance between displacement points", units = "mm", min = 0.1, max = 5.0, depends_on = "fuzzy_skin.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Distance between displacement points",
+        units = "mm",
+        min = 0.1,
+        max = 5.0,
+        depends_on = "fuzzy_skin.enabled"
+    )]
     pub point_distance: f64,
 }
 
@@ -188,12 +253,24 @@ pub struct BrimSkirtConfig {
     pub brim_ears: bool,
     /// Maximum overhang angle for brim ears in degrees.
     /// OrcaSlicer: `brim_ears_max_angle`. Range: 0-180. Default: 125.0.
-    #[setting(tier = 3, description = "Maximum overhang angle for brim ears", units = "deg", min = 0.0, max = 180.0, depends_on = "brim_skirt.brim_ears")]
+    #[setting(
+        tier = 3,
+        description = "Maximum overhang angle for brim ears",
+        units = "deg",
+        min = 0.0,
+        max = 180.0,
+        depends_on = "brim_skirt.brim_ears"
+    )]
     pub brim_ears_max_angle: f64,
     /// Skirt height in layers.
     /// OrcaSlicer: `skirt_height`. PrusaSlicer: `skirt_height`.
     /// Range: 1-100. Default: 1.
-    #[setting(tier = 3, description = "Skirt height in layers", min = 1.0, max = 100.0)]
+    #[setting(
+        tier = 3,
+        description = "Skirt height in layers",
+        min = 1.0,
+        max = 100.0
+    )]
     pub skirt_height: u32,
 }
 
@@ -218,11 +295,20 @@ impl Default for BrimSkirtConfig {
 pub struct InputShapingConfig {
     /// Enable accel-to-decel factor for input shaping.
     /// OrcaSlicer: `accel_to_decel_enable`. Default: false.
-    #[setting(tier = 3, description = "Enable accel-to-decel factor for input shaping")]
+    #[setting(
+        tier = 3,
+        description = "Enable accel-to-decel factor for input shaping"
+    )]
     pub accel_to_decel_enable: bool,
     /// Accel-to-decel factor ratio.
     /// OrcaSlicer: `accel_to_decel_factor`. Range: 0.0-1.0. Default: 0.5.
-    #[setting(tier = 3, description = "Accel-to-decel factor ratio", min = 0.0, max = 1.0, depends_on = "input_shaping.accel_to_decel_enable")]
+    #[setting(
+        tier = 3,
+        description = "Accel-to-decel factor ratio",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "input_shaping.accel_to_decel_enable"
+    )]
     pub accel_to_decel_factor: f64,
 }
 
@@ -244,7 +330,11 @@ impl Default for InputShapingConfig {
 pub struct ToolChangeRetractionConfig {
     /// Retraction distance when filament is cut during tool change in mm.
     /// OrcaSlicer: `retraction_distances_when_cut`. Default: 18.0.
-    #[setting(tier = 4, description = "Retraction distance when filament is cut during tool change", units = "mm")]
+    #[setting(
+        tier = 4,
+        description = "Retraction distance when filament is cut during tool change",
+        units = "mm"
+    )]
     pub retraction_distance_when_cut: f64,
     /// Enable long retraction when filament is cut.
     /// OrcaSlicer: `long_retractions_when_cut`. Default: false.
@@ -285,7 +375,13 @@ pub struct DimensionalCompensationConfig {
     /// OrcaSlicer: `elefant_foot_compensation`. PrusaSlicer: `elefant_foot_compensation`.
     /// Range: 0.0 to 2.0 mm. Default: 0.0.
     #[serde(alias = "elefant_foot_compensation")]
-    #[setting(tier = 2, description = "First layer inward offset to compensate for elephant foot", units = "mm", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 2,
+        description = "First layer inward offset to compensate for elephant foot",
+        units = "mm",
+        min = 0.0,
+        max = 2.0
+    )]
     pub elephant_foot_compensation: f64,
 }
 
@@ -313,25 +409,67 @@ impl Default for DimensionalCompensationConfig {
 #[setting(category = "LineWidth")]
 pub struct LineWidthConfig {
     /// Outer wall line width in mm.
-    #[setting(tier = 2, description = "Outer wall line width", units = "mm", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 2,
+        description = "Outer wall line width",
+        units = "mm",
+        min = 0.0,
+        max = 2.0
+    )]
     pub outer_wall: f64,
     /// Inner wall line width in mm.
-    #[setting(tier = 2, description = "Inner wall line width", units = "mm", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 2,
+        description = "Inner wall line width",
+        units = "mm",
+        min = 0.0,
+        max = 2.0
+    )]
     pub inner_wall: f64,
     /// Sparse infill line width in mm.
-    #[setting(tier = 2, description = "Infill line width", units = "mm", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 2,
+        description = "Infill line width",
+        units = "mm",
+        min = 0.0,
+        max = 2.0
+    )]
     pub infill: f64,
     /// Top surface line width in mm.
-    #[setting(tier = 2, description = "Top surface line width", units = "mm", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 2,
+        description = "Top surface line width",
+        units = "mm",
+        min = 0.0,
+        max = 2.0
+    )]
     pub top_surface: f64,
     /// Initial (first) layer line width in mm.
-    #[setting(tier = 2, description = "Initial layer line width", units = "mm", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 2,
+        description = "Initial layer line width",
+        units = "mm",
+        min = 0.0,
+        max = 2.0
+    )]
     pub initial_layer: f64,
     /// Internal solid infill line width in mm.
-    #[setting(tier = 3, description = "Internal solid infill line width", units = "mm", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Internal solid infill line width",
+        units = "mm",
+        min = 0.0,
+        max = 2.0
+    )]
     pub internal_solid_infill: f64,
     /// Support structure line width in mm.
-    #[setting(tier = 3, description = "Support structure line width", units = "mm", min = 0.0, max = 2.0)]
+    #[setting(
+        tier = 3,
+        description = "Support structure line width",
+        units = "mm",
+        min = 0.0,
+        max = 2.0
+    )]
     pub support: f64,
 }
 
@@ -377,51 +515,139 @@ pub struct SpeedConfig {
     #[setting(tier = 2, description = "Bridge print speed", units = "mm/s", min = 1.0, max = 1000.0, affects = ["quality", "bridging"])]
     pub bridge: f64,
     /// Inner wall speed (mm/s, 0 = inherit from perimeter_speed).
-    #[setting(tier = 2, description = "Inner wall speed", units = "mm/s", min = 0.0, max = 1000.0)]
+    #[setting(
+        tier = 2,
+        description = "Inner wall speed",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0
+    )]
     pub inner_wall: f64,
     /// Gap fill speed (mm/s, 0 = inherit from perimeter_speed).
-    #[setting(tier = 3, description = "Gap fill speed", units = "mm/s", min = 0.0, max = 1000.0)]
+    #[setting(
+        tier = 3,
+        description = "Gap fill speed",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0
+    )]
     pub gap_fill: f64,
     /// Top surface speed (mm/s, 0 = inherit from perimeter_speed).
     #[setting(tier = 2, description = "Top surface speed", units = "mm/s", min = 0.0, max = 1000.0, affects = ["quality"])]
     pub top_surface: f64,
     /// Internal solid infill speed (mm/s, 0 = inherit).
-    #[setting(tier = 3, description = "Internal solid infill speed", units = "mm/s", min = 0.0, max = 1000.0)]
+    #[setting(
+        tier = 3,
+        description = "Internal solid infill speed",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0
+    )]
     pub internal_solid_infill: f64,
     /// Initial layer infill speed (mm/s, 0 = inherit).
-    #[setting(tier = 3, description = "Initial layer infill speed", units = "mm/s", min = 0.0, max = 1000.0)]
+    #[setting(
+        tier = 3,
+        description = "Initial layer infill speed",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0
+    )]
     pub initial_layer_infill: f64,
     /// Support structure speed (mm/s, 0 = inherit).
-    #[setting(tier = 2, description = "Support structure print speed", units = "mm/s", min = 0.0, max = 1000.0)]
+    #[setting(
+        tier = 2,
+        description = "Support structure print speed",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0
+    )]
     pub support: f64,
     /// Support interface speed (mm/s, 0 = inherit).
-    #[setting(tier = 3, description = "Support interface layer speed", units = "mm/s", min = 0.0, max = 1000.0)]
+    #[setting(
+        tier = 3,
+        description = "Support interface layer speed",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0
+    )]
     pub support_interface: f64,
     /// Small perimeter speed (mm/s, 0 = inherit from perimeter_speed).
-    #[setting(tier = 3, description = "Speed for small perimeter features", units = "mm/s", min = 0.0, max = 1000.0)]
+    #[setting(
+        tier = 3,
+        description = "Speed for small perimeter features",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0
+    )]
     pub small_perimeter: f64,
     /// Solid infill speed (mm/s, 0 = inherit).
-    #[setting(tier = 3, description = "Solid infill speed", units = "mm/s", min = 0.0, max = 1000.0)]
+    #[setting(
+        tier = 3,
+        description = "Solid infill speed",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0
+    )]
     pub solid_infill: f64,
     /// Overhang speed for 0-25% overhang (mm/s, 0 = inherit).
-    #[setting(tier = 3, description = "Overhang speed for 0-25% overhang", units = "mm/s", min = 0.0, max = 1000.0, depends_on = "speeds.enable_overhang_speed")]
+    #[setting(
+        tier = 3,
+        description = "Overhang speed for 0-25% overhang",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0,
+        depends_on = "speeds.enable_overhang_speed"
+    )]
     pub overhang_1_4: f64,
     /// Overhang speed for 25-50% overhang (mm/s, 0 = inherit).
-    #[setting(tier = 3, description = "Overhang speed for 25-50% overhang", units = "mm/s", min = 0.0, max = 1000.0, depends_on = "speeds.enable_overhang_speed")]
+    #[setting(
+        tier = 3,
+        description = "Overhang speed for 25-50% overhang",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0,
+        depends_on = "speeds.enable_overhang_speed"
+    )]
     pub overhang_2_4: f64,
     /// Overhang speed for 50-75% overhang (mm/s, 0 = inherit).
-    #[setting(tier = 3, description = "Overhang speed for 50-75% overhang", units = "mm/s", min = 0.0, max = 1000.0, depends_on = "speeds.enable_overhang_speed")]
+    #[setting(
+        tier = 3,
+        description = "Overhang speed for 50-75% overhang",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0,
+        depends_on = "speeds.enable_overhang_speed"
+    )]
     pub overhang_3_4: f64,
     /// Overhang speed for 75-100% overhang (mm/s, 0 = inherit).
-    #[setting(tier = 3, description = "Overhang speed for 75-100% overhang", units = "mm/s", min = 0.0, max = 1000.0, depends_on = "speeds.enable_overhang_speed")]
+    #[setting(
+        tier = 3,
+        description = "Overhang speed for 75-100% overhang",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0,
+        depends_on = "speeds.enable_overhang_speed"
+    )]
     pub overhang_4_4: f64,
     /// Z-axis travel speed (mm/s, 0 = use travel_speed).
-    #[setting(tier = 3, description = "Z-axis travel speed", units = "mm/s", min = 0.0, max = 1000.0)]
+    #[setting(
+        tier = 3,
+        description = "Z-axis travel speed",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0
+    )]
     pub travel_z: f64,
     /// Internal bridge speed (mm/s, 0 = inherit from bridge speed).
     /// OrcaSlicer: `internal_bridge_speed`. PrusaSlicer: N/A.
     /// Range: 0-300. Default: 0.0.
-    #[setting(tier = 3, description = "Internal bridge speed", units = "mm/s", min = 0.0, max = 300.0)]
+    #[setting(
+        tier = 3,
+        description = "Internal bridge speed",
+        units = "mm/s",
+        min = 0.0,
+        max = 300.0
+    )]
     pub internal_bridge_speed: f64,
     /// Master switch for overhang speed adjustments.
     /// OrcaSlicer: `enable_overhang_speed`. Default: true.
@@ -477,22 +703,46 @@ pub struct CoolingConfig {
     #[setting(tier = 2, description = "Number of initial layers with fan disabled", affects = ["adhesion"])]
     pub disable_fan_first_layers: u32,
     /// Maximum fan speed (percentage, 0-100).
-    #[setting(tier = 2, description = "Maximum fan speed", units = "%", min = 0.0, max = 100.0)]
+    #[setting(
+        tier = 2,
+        description = "Maximum fan speed",
+        units = "%",
+        min = 0.0,
+        max = 100.0
+    )]
     pub fan_max_speed: f64,
     /// Minimum fan speed (percentage, 0-100).
-    #[setting(tier = 2, description = "Minimum fan speed", units = "%", min = 0.0, max = 100.0)]
+    #[setting(
+        tier = 2,
+        description = "Minimum fan speed",
+        units = "%",
+        min = 0.0,
+        max = 100.0
+    )]
     pub fan_min_speed: f64,
     /// Slow down if layer time falls below this value (seconds).
     #[setting(tier = 3, description = "Slow down if layer time falls below this threshold", units = "s", min = 0.0, max = 300.0, affects = ["quality"])]
     pub slow_down_layer_time: f64,
     /// Minimum speed when slowing down for layer cooling (mm/s).
-    #[setting(tier = 3, description = "Minimum speed during layer cooling slowdown", units = "mm/s", min = 1.0, max = 100.0)]
+    #[setting(
+        tier = 3,
+        description = "Minimum speed during layer cooling slowdown",
+        units = "mm/s",
+        min = 1.0,
+        max = 100.0
+    )]
     pub slow_down_min_speed: f64,
     /// Fan speed for overhang regions (percentage, 0-100).
     #[setting(tier = 3, description = "Fan speed for overhang regions", units = "%", min = 0.0, max = 100.0, affects = ["overhangs"])]
     pub overhang_fan_speed: f64,
     /// Overhang angle threshold for fan override (degrees).
-    #[setting(tier = 3, description = "Overhang angle threshold for fan override", units = "deg", min = 0.0, max = 90.0)]
+    #[setting(
+        tier = 3,
+        description = "Overhang angle threshold for fan override",
+        units = "deg",
+        min = 0.0,
+        max = 90.0
+    )]
     pub overhang_fan_threshold: f64,
     /// Layer number at which fan reaches full speed (0 = immediate).
     #[setting(tier = 3, description = "Layer at which fan reaches full speed")]
@@ -502,7 +752,13 @@ pub struct CoolingConfig {
     pub slow_down_for_layer_cooling: bool,
     /// Auxiliary/additional cooling fan speed as percentage (0-100).
     /// OrcaSlicer: `additional_cooling_fan_speed`. Range: 0-100. Default: 0.0.
-    #[setting(tier = 3, description = "Additional cooling fan speed", units = "%", min = 0.0, max = 100.0)]
+    #[setting(
+        tier = 3,
+        description = "Additional cooling fan speed",
+        units = "%",
+        min = 0.0,
+        max = 100.0
+    )]
     pub additional_cooling_fan_speed: f64,
     /// Enable auxiliary cooling fan.
     /// OrcaSlicer: `auxiliary_fan`. Default: false.
@@ -546,16 +802,40 @@ pub struct RetractionConfig {
     #[setting(tier = 2, description = "Retraction speed", units = "mm/s", min = 1.0, max = 200.0, affects = ["stringing"])]
     pub speed: f64,
     /// Z-hop height during retraction in mm.
-    #[setting(tier = 2, description = "Z-hop height during retraction", units = "mm", min = 0.0, max = 5.0)]
+    #[setting(
+        tier = 2,
+        description = "Z-hop height during retraction",
+        units = "mm",
+        min = 0.0,
+        max = 5.0
+    )]
     pub z_hop: f64,
     /// Minimum travel distance to trigger retraction in mm.
-    #[setting(tier = 2, description = "Minimum travel distance to trigger retraction", units = "mm", min = 0.0, max = 20.0)]
+    #[setting(
+        tier = 2,
+        description = "Minimum travel distance to trigger retraction",
+        units = "mm",
+        min = 0.0,
+        max = 20.0
+    )]
     pub min_travel: f64,
     /// Deretraction (unretract) speed in mm/s (0 = same as retraction speed).
-    #[setting(tier = 3, description = "Deretraction speed", units = "mm/s", min = 0.0, max = 200.0)]
+    #[setting(
+        tier = 3,
+        description = "Deretraction speed",
+        units = "mm/s",
+        min = 0.0,
+        max = 200.0
+    )]
     pub deretraction_speed: f64,
     /// Percentage of retraction to perform before wipe (0-100).
-    #[setting(tier = 3, description = "Percentage of retraction before wipe", units = "%", min = 0.0, max = 100.0)]
+    #[setting(
+        tier = 3,
+        description = "Percentage of retraction before wipe",
+        units = "%",
+        min = 0.0,
+        max = 100.0
+    )]
     pub retract_before_wipe: f64,
     /// Whether to retract when changing layers.
     #[setting(tier = 3, description = "Retract when changing layers")]
@@ -564,7 +844,14 @@ pub struct RetractionConfig {
     #[setting(tier = 3, description = "Enable wipe move during retraction")]
     pub wipe: bool,
     /// Wipe distance in mm.
-    #[setting(tier = 3, description = "Wipe distance", units = "mm", min = 0.0, max = 10.0, depends_on = "retraction.wipe")]
+    #[setting(
+        tier = 3,
+        description = "Wipe distance",
+        units = "mm",
+        min = 0.0,
+        max = 10.0,
+        depends_on = "retraction.wipe"
+    )]
     pub wipe_distance: f64,
 }
 
@@ -595,13 +882,31 @@ impl Default for RetractionConfig {
 #[setting(category = "Machine")]
 pub struct MachineConfig {
     /// Bed X dimension in mm.
-    #[setting(tier = 2, description = "Bed X dimension", units = "mm", min = 1.0, max = 2000.0)]
+    #[setting(
+        tier = 2,
+        description = "Bed X dimension",
+        units = "mm",
+        min = 1.0,
+        max = 2000.0
+    )]
     pub bed_x: f64,
     /// Bed Y dimension in mm.
-    #[setting(tier = 2, description = "Bed Y dimension", units = "mm", min = 1.0, max = 2000.0)]
+    #[setting(
+        tier = 2,
+        description = "Bed Y dimension",
+        units = "mm",
+        min = 1.0,
+        max = 2000.0
+    )]
     pub bed_y: f64,
     /// Maximum printable height in mm.
-    #[setting(tier = 2, description = "Maximum printable height", units = "mm", min = 1.0, max = 2000.0)]
+    #[setting(
+        tier = 2,
+        description = "Maximum printable height",
+        units = "mm",
+        min = 1.0,
+        max = 2000.0
+    )]
     pub printable_height: f64,
     /// Maximum X acceleration (mm/s^2).
     #[setting(tier = 4, description = "Maximum X acceleration", units = "mm/s^2")]
@@ -613,16 +918,32 @@ pub struct MachineConfig {
     #[setting(tier = 4, description = "Maximum Z acceleration", units = "mm/s^2")]
     pub max_acceleration_z: f64,
     /// Maximum E (extruder) acceleration (mm/s^2).
-    #[setting(tier = 4, description = "Maximum extruder acceleration", units = "mm/s^2")]
+    #[setting(
+        tier = 4,
+        description = "Maximum extruder acceleration",
+        units = "mm/s^2"
+    )]
     pub max_acceleration_e: f64,
     /// Maximum acceleration while extruding (mm/s^2).
-    #[setting(tier = 4, description = "Maximum acceleration while extruding", units = "mm/s^2")]
+    #[setting(
+        tier = 4,
+        description = "Maximum acceleration while extruding",
+        units = "mm/s^2"
+    )]
     pub max_acceleration_extruding: f64,
     /// Maximum acceleration while retracting (mm/s^2).
-    #[setting(tier = 4, description = "Maximum acceleration while retracting", units = "mm/s^2")]
+    #[setting(
+        tier = 4,
+        description = "Maximum acceleration while retracting",
+        units = "mm/s^2"
+    )]
     pub max_acceleration_retracting: f64,
     /// Maximum acceleration during travel moves (mm/s^2).
-    #[setting(tier = 4, description = "Maximum acceleration during travel moves", units = "mm/s^2")]
+    #[setting(
+        tier = 4,
+        description = "Maximum acceleration during travel moves",
+        units = "mm/s^2"
+    )]
     pub max_acceleration_travel: f64,
     /// Maximum X speed (mm/s).
     #[setting(tier = 4, description = "Maximum X axis speed", units = "mm/s")]
@@ -697,12 +1018,22 @@ pub struct MachineConfig {
     #[setting(tier = 3, description = "Number of extruders/toolheads")]
     pub extruder_count: u32,
     /// Printer power consumption in watts (for cost estimation, 0 = not set).
-    #[setting(tier = 4, description = "Printer power consumption for cost estimation", units = "W")]
+    #[setting(
+        tier = 4,
+        description = "Printer power consumption for cost estimation",
+        units = "W"
+    )]
     pub watts: f64,
     /// Maximum chamber temperature the printer can reach (degrees C, 0 = no chamber heater).
     /// Used to validate filament chamber_temperature requests.
     /// OrcaSlicer: `chamber_temperature` (in machine profile). Range: 0-120. Default: 0.0.
-    #[setting(tier = 4, description = "Maximum chamber temperature", units = "deg_c", min = 0.0, max = 120.0)]
+    #[setting(
+        tier = 4,
+        description = "Maximum chamber temperature",
+        units = "deg_c",
+        min = 0.0,
+        max = 120.0
+    )]
     pub chamber_temperature: f64,
     /// Currently selected bed/build plate type.
     /// OrcaSlicer: `curr_bed_type`. Default: TexturedPEI.
@@ -746,17 +1077,29 @@ pub struct MachineConfig {
     /// Bambu AMS cooling tube retraction distance in mm.
     /// OrcaSlicer/PrusaSlicer: `cooling_tube_retraction`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 4, description = "AMS cooling tube retraction distance", units = "mm")]
+    #[setting(
+        tier = 4,
+        description = "AMS cooling tube retraction distance",
+        units = "mm"
+    )]
     pub cooling_tube_retraction: f64,
     /// Bambu AMS parking position retraction distance in mm.
     /// OrcaSlicer/PrusaSlicer: `parking_pos_retraction`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 4, description = "AMS parking position retraction distance", units = "mm")]
+    #[setting(
+        tier = 4,
+        description = "AMS parking position retraction distance",
+        units = "mm"
+    )]
     pub parking_pos_retraction: f64,
     /// Bambu AMS extra loading move distance in mm.
     /// OrcaSlicer/PrusaSlicer: `extra_loading_move`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 4, description = "AMS extra loading move distance", units = "mm")]
+    #[setting(
+        tier = 4,
+        description = "AMS extra loading move distance",
+        units = "mm"
+    )]
     pub extra_loading_move: f64,
     /// Retraction length for tool change in mm.
     /// PrusaSlicer: `retract_length_toolchange`. Default: 0.0.
@@ -771,7 +1114,11 @@ pub struct MachineConfig {
     /// Extra length to prime after tool change retraction in mm.
     /// PrusaSlicer: `retract_restart_extra_toolchange`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 4, description = "Extra prime after tool change retraction", units = "mm")]
+    #[setting(
+        tier = 4,
+        description = "Extra prime after tool change retraction",
+        units = "mm"
+    )]
     pub retract_restart_extra_toolchange: f64,
     /// Minimum extruding rate in mm/s.
     /// OrcaSlicer: `machine_min_extruding_rate`. Default: 0.0.
@@ -900,40 +1247,88 @@ pub struct AccelerationConfig {
     #[setting(tier = 3, description = "Outer wall acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["quality"])]
     pub outer_wall: f64,
     /// Inner wall acceleration (mm/s^2, 0 = use print_acceleration).
-    #[setting(tier = 3, description = "Inner wall acceleration", units = "mm/s^2", min = 0.0, max = 50000.0)]
+    #[setting(
+        tier = 3,
+        description = "Inner wall acceleration",
+        units = "mm/s^2",
+        min = 0.0,
+        max = 50000.0
+    )]
     pub inner_wall: f64,
     /// Initial layer acceleration (mm/s^2, 0 = use print_acceleration).
     #[setting(tier = 3, description = "Initial layer acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["adhesion"])]
     pub initial_layer: f64,
     /// Initial layer travel acceleration (mm/s^2, 0 = use travel_acceleration).
-    #[setting(tier = 3, description = "Initial layer travel acceleration", units = "mm/s^2", min = 0.0, max = 50000.0)]
+    #[setting(
+        tier = 3,
+        description = "Initial layer travel acceleration",
+        units = "mm/s^2",
+        min = 0.0,
+        max = 50000.0
+    )]
     pub initial_layer_travel: f64,
     /// Top surface acceleration (mm/s^2, 0 = use print_acceleration).
     #[setting(tier = 3, description = "Top surface acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["quality"])]
     pub top_surface: f64,
     /// Sparse infill acceleration (mm/s^2, 0 = use print_acceleration).
-    #[setting(tier = 3, description = "Sparse infill acceleration", units = "mm/s^2", min = 0.0, max = 50000.0)]
+    #[setting(
+        tier = 3,
+        description = "Sparse infill acceleration",
+        units = "mm/s^2",
+        min = 0.0,
+        max = 50000.0
+    )]
     pub sparse_infill: f64,
     /// Bridge acceleration (mm/s^2, 0 = use print_acceleration).
-    #[setting(tier = 3, description = "Bridge acceleration", units = "mm/s^2", min = 0.0, max = 50000.0)]
+    #[setting(
+        tier = 3,
+        description = "Bridge acceleration",
+        units = "mm/s^2",
+        min = 0.0,
+        max = 50000.0
+    )]
     pub bridge: f64,
     /// Minimum segment length factor (percentage, 0-100).
     /// Prevents acceleration changes on segments shorter than this factor
     /// of the nominal acceleration distance. 0 = disabled.
     /// OrcaSlicer: `min_length_factor`. PrusaSlicer: N/A. Default: 0.0.
-    #[setting(tier = 4, description = "Minimum segment length factor for acceleration changes", units = "%", min = 0.0, max = 100.0)]
+    #[setting(
+        tier = 4,
+        description = "Minimum segment length factor for acceleration changes",
+        units = "%",
+        min = 0.0,
+        max = 100.0
+    )]
     pub min_length_factor: f64,
     /// Internal solid infill acceleration in mm/s^2.
     /// OrcaSlicer: `internal_solid_infill_acceleration`. Range: 0-50000. Default: 0.0 (use default).
-    #[setting(tier = 3, description = "Internal solid infill acceleration", units = "mm/s^2", min = 0.0, max = 50000.0)]
+    #[setting(
+        tier = 3,
+        description = "Internal solid infill acceleration",
+        units = "mm/s^2",
+        min = 0.0,
+        max = 50000.0
+    )]
     pub internal_solid_infill_acceleration: f64,
     /// Support acceleration in mm/s^2.
     /// OrcaSlicer: `support_acceleration`. Range: 0-50000. Default: 0.0 (use default).
-    #[setting(tier = 3, description = "Support structure acceleration", units = "mm/s^2", min = 0.0, max = 50000.0)]
+    #[setting(
+        tier = 3,
+        description = "Support structure acceleration",
+        units = "mm/s^2",
+        min = 0.0,
+        max = 50000.0
+    )]
     pub support_acceleration: f64,
     /// Support interface acceleration in mm/s^2.
     /// OrcaSlicer: `support_interface_acceleration`. Range: 0-50000. Default: 0.0 (use default).
-    #[setting(tier = 3, description = "Support interface acceleration", units = "mm/s^2", min = 0.0, max = 50000.0)]
+    #[setting(
+        tier = 3,
+        description = "Support interface acceleration",
+        units = "mm/s^2",
+        min = 0.0,
+        max = 50000.0
+    )]
     pub support_interface_acceleration: f64,
     /// Default jerk value in mm/s (0 = firmware default).
     /// OrcaSlicer: `default_jerk`. Default: 0.0.
@@ -1011,10 +1406,22 @@ impl Default for AccelerationConfig {
 #[setting(category = "Filament")]
 pub struct FilamentPropsConfig {
     /// Filament diameter in mm.
-    #[setting(tier = 2, description = "Filament diameter", units = "mm", min = 1.0, max = 3.0)]
+    #[setting(
+        tier = 2,
+        description = "Filament diameter",
+        units = "mm",
+        min = 1.0,
+        max = 3.0
+    )]
     pub diameter: f64,
     /// Filament density in g/cm^3 (PLA ~1.24, ABS ~1.04, PETG ~1.27).
-    #[setting(tier = 3, description = "Filament density", units = "g/cm^3", min = 0.5, max = 3.0)]
+    #[setting(
+        tier = 3,
+        description = "Filament density",
+        units = "g/cm^3",
+        min = 0.5,
+        max = 3.0
+    )]
     pub density: f64,
     /// Filament cost per kilogram in currency units (e.g., USD/kg).
     #[setting(tier = 3, description = "Filament cost per kilogram")]
@@ -1026,13 +1433,27 @@ pub struct FilamentPropsConfig {
     #[setting(tier = 3, description = "Filament vendor/manufacturer name")]
     pub filament_vendor: String,
     /// Maximum volumetric speed (mm^3/s, 0 = unlimited).
-    #[setting(tier = 3, description = "Maximum volumetric extrusion speed", units = "mm^3/s", min = 0.0, max = 100.0)]
+    #[setting(
+        tier = 3,
+        description = "Maximum volumetric extrusion speed",
+        units = "mm^3/s",
+        min = 0.0,
+        max = 100.0
+    )]
     pub max_volumetric_speed: f64,
     /// Low end of recommended nozzle temperature range (degrees C).
-    #[setting(tier = 3, description = "Nozzle temperature range low end", units = "deg_c")]
+    #[setting(
+        tier = 3,
+        description = "Nozzle temperature range low end",
+        units = "deg_c"
+    )]
     pub nozzle_temperature_range_low: f64,
     /// High end of recommended nozzle temperature range (degrees C).
-    #[setting(tier = 3, description = "Nozzle temperature range high end", units = "deg_c")]
+    #[setting(
+        tier = 3,
+        description = "Nozzle temperature range high end",
+        units = "deg_c"
+    )]
     pub nozzle_temperature_range_high: f64,
     /// Per-extruder nozzle temperatures (degrees C). Multi-extruder array.
     #[setting(tier = 1, description = "Nozzle temperature per extruder", units = "deg_c", affects = ["adhesion", "quality", "stringing"])]
@@ -1047,10 +1468,18 @@ pub struct FilamentPropsConfig {
     #[setting(tier = 2, description = "First layer bed temperature per extruder", units = "deg_c", affects = ["adhesion"])]
     pub first_layer_bed_temperatures: Vec<f64>,
     /// Filament-specific retraction length override (mm, None = use global).
-    #[setting(tier = 3, description = "Filament-specific retraction length override", units = "mm")]
+    #[setting(
+        tier = 3,
+        description = "Filament-specific retraction length override",
+        units = "mm"
+    )]
     pub filament_retraction_length: Option<f64>,
     /// Filament-specific retraction speed override (mm/s, None = use global).
-    #[setting(tier = 3, description = "Filament-specific retraction speed override", units = "mm/s")]
+    #[setting(
+        tier = 3,
+        description = "Filament-specific retraction speed override",
+        units = "mm/s"
+    )]
     pub filament_retraction_speed: Option<f64>,
     /// Filament start G-code (run once when filament loaded).
     #[setting(tier = 4, description = "Filament-specific startup G-code")]
@@ -1061,12 +1490,24 @@ pub struct FilamentPropsConfig {
     /// Desired chamber temperature for this filament (degrees C, 0 = not required).
     /// Validated against `MachineConfig.chamber_temperature` (max) during profile merge.
     /// OrcaSlicer: `chamber_temperature` (in filament profile). Range: 0-80. Default: 0.0.
-    #[setting(tier = 3, description = "Desired chamber temperature for this filament", units = "deg_c", min = 0.0, max = 80.0)]
+    #[setting(
+        tier = 3,
+        description = "Desired chamber temperature for this filament",
+        units = "deg_c",
+        min = 0.0,
+        max = 80.0
+    )]
     pub chamber_temperature: f64,
     /// Filament shrinkage compensation percentage (100 = no shrink, >100 = expand).
     /// OrcaSlicer: `filament_shrinkage_compensation`. PrusaSlicer: N/A.
     /// Range: 90.0-110.0. Default: 100.0 (no compensation).
-    #[setting(tier = 4, description = "Filament shrinkage compensation", units = "%", min = 90.0, max = 110.0)]
+    #[setting(
+        tier = 4,
+        description = "Filament shrinkage compensation",
+        units = "%",
+        min = 90.0,
+        max = 110.0
+    )]
     pub filament_shrink: f64,
     /// Per-filament Z offset additive adjustment (mm). Added to global z_offset.
     /// OrcaSlicer: `z_offset` (in filament profile). PrusaSlicer: N/A.
@@ -1080,35 +1521,67 @@ pub struct FilamentPropsConfig {
     // --- Per-bed-type temperatures (Vec<f64> for multi-extruder) ---
     /// Smooth/hot plate temperatures per extruder (degrees C).
     /// OrcaSlicer: `hot_plate_temp`. Default: empty (use bed_temperatures).
-    #[setting(tier = 3, description = "Hot plate temperature per extruder", units = "deg_c")]
+    #[setting(
+        tier = 3,
+        description = "Hot plate temperature per extruder",
+        units = "deg_c"
+    )]
     pub hot_plate_temp: Vec<f64>,
     /// Cool plate temperatures per extruder (degrees C).
     /// OrcaSlicer: `cool_plate_temp`. Default: empty.
-    #[setting(tier = 3, description = "Cool plate temperature per extruder", units = "deg_c")]
+    #[setting(
+        tier = 3,
+        description = "Cool plate temperature per extruder",
+        units = "deg_c"
+    )]
     pub cool_plate_temp: Vec<f64>,
     /// Engineering plate temperatures per extruder (degrees C).
     /// OrcaSlicer: `eng_plate_temp`. Default: empty.
-    #[setting(tier = 3, description = "Engineering plate temperature per extruder", units = "deg_c")]
+    #[setting(
+        tier = 3,
+        description = "Engineering plate temperature per extruder",
+        units = "deg_c"
+    )]
     pub eng_plate_temp: Vec<f64>,
     /// Textured plate temperatures per extruder (degrees C).
     /// OrcaSlicer: `textured_plate_temp`. Default: empty.
-    #[setting(tier = 3, description = "Textured plate temperature per extruder", units = "deg_c")]
+    #[setting(
+        tier = 3,
+        description = "Textured plate temperature per extruder",
+        units = "deg_c"
+    )]
     pub textured_plate_temp: Vec<f64>,
     /// Smooth/hot plate first layer temperatures per extruder (degrees C).
     /// OrcaSlicer: `hot_plate_temp_initial_layer`. Default: empty.
-    #[setting(tier = 3, description = "Hot plate first layer temperature per extruder", units = "deg_c")]
+    #[setting(
+        tier = 3,
+        description = "Hot plate first layer temperature per extruder",
+        units = "deg_c"
+    )]
     pub hot_plate_temp_initial_layer: Vec<f64>,
     /// Cool plate first layer temperatures per extruder (degrees C).
     /// OrcaSlicer: `cool_plate_temp_initial_layer`. Default: empty.
-    #[setting(tier = 3, description = "Cool plate first layer temperature per extruder", units = "deg_c")]
+    #[setting(
+        tier = 3,
+        description = "Cool plate first layer temperature per extruder",
+        units = "deg_c"
+    )]
     pub cool_plate_temp_initial_layer: Vec<f64>,
     /// Engineering plate first layer temperatures per extruder (degrees C).
     /// OrcaSlicer: `eng_plate_temp_initial_layer`. Default: empty.
-    #[setting(tier = 3, description = "Engineering plate first layer temperature per extruder", units = "deg_c")]
+    #[setting(
+        tier = 3,
+        description = "Engineering plate first layer temperature per extruder",
+        units = "deg_c"
+    )]
     pub eng_plate_temp_initial_layer: Vec<f64>,
     /// Textured plate first layer temperatures per extruder (degrees C).
     /// OrcaSlicer: `textured_plate_temp_initial_layer`. Default: empty.
-    #[setting(tier = 3, description = "Textured plate first layer temperature per extruder", units = "deg_c")]
+    #[setting(
+        tier = 3,
+        description = "Textured plate first layer temperature per extruder",
+        units = "deg_c"
+    )]
     pub textured_plate_temp_initial_layer: Vec<f64>,
 }
 
@@ -1182,15 +1655,14 @@ impl FilamentPropsConfig {
     pub fn resolve_bed_temperatures(&self, bed_type: BedType) -> (f64, f64) {
         let (temps, fl_temps) = match bed_type {
             BedType::CoolPlate => (&self.cool_plate_temp, &self.cool_plate_temp_initial_layer),
-            BedType::EngineeringPlate => {
-                (&self.eng_plate_temp, &self.eng_plate_temp_initial_layer)
-            }
+            BedType::EngineeringPlate => (&self.eng_plate_temp, &self.eng_plate_temp_initial_layer),
             BedType::HighTempPlate | BedType::SmoothPei => {
                 (&self.hot_plate_temp, &self.hot_plate_temp_initial_layer)
             }
-            BedType::TexturedPei | BedType::SatinPei => {
-                (&self.textured_plate_temp, &self.textured_plate_temp_initial_layer)
-            }
+            BedType::TexturedPei | BedType::SatinPei => (
+                &self.textured_plate_temp,
+                &self.textured_plate_temp_initial_layer,
+            ),
         };
         let normal = temps.first().copied().unwrap_or_else(|| self.bed_temp());
         let first_layer = fl_temps
@@ -1250,7 +1722,12 @@ pub struct PrintConfig {
     #[setting(tier = 2, description = "Number of skirt loops", category = "Adhesion")]
     pub skirt_loops: u32,
     /// Distance of skirt from object in mm.
-    #[setting(tier = 2, description = "Skirt distance from object", units = "mm", category = "Adhesion")]
+    #[setting(
+        tier = 2,
+        description = "Skirt distance from object",
+        units = "mm",
+        category = "Adhesion"
+    )]
     pub skirt_distance: f64,
     /// Brim width in mm (0.0 = disabled).
     #[setting(tier = 1, description = "Brim width", units = "mm", min = 0.0, max = 50.0, affects = ["adhesion"], category = "Adhesion")]
@@ -1266,13 +1743,33 @@ pub struct PrintConfig {
     #[setting(tier = 2, description = "Enable adaptive layer heights", affects = ["quality", "print_time"])]
     pub adaptive_layer_height: bool,
     /// Minimum layer height for adaptive layers (mm).
-    #[setting(tier = 3, description = "Adaptive minimum layer height", units = "mm", min = 0.01, max = 1.0, depends_on = "adaptive_layer_height")]
+    #[setting(
+        tier = 3,
+        description = "Adaptive minimum layer height",
+        units = "mm",
+        min = 0.01,
+        max = 1.0,
+        depends_on = "adaptive_layer_height"
+    )]
     pub adaptive_min_layer_height: f64,
     /// Maximum layer height for adaptive layers (mm).
-    #[setting(tier = 3, description = "Adaptive maximum layer height", units = "mm", min = 0.01, max = 1.0, depends_on = "adaptive_layer_height")]
+    #[setting(
+        tier = 3,
+        description = "Adaptive maximum layer height",
+        units = "mm",
+        min = 0.01,
+        max = 1.0,
+        depends_on = "adaptive_layer_height"
+    )]
     pub adaptive_max_layer_height: f64,
     /// Adaptive layer quality (0.0 = speed, 1.0 = quality).
-    #[setting(tier = 3, description = "Adaptive layer quality factor", min = 0.0, max = 1.0, depends_on = "adaptive_layer_height")]
+    #[setting(
+        tier = 3,
+        description = "Adaptive layer quality factor",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "adaptive_layer_height"
+    )]
     pub adaptive_layer_quality: f64,
 
     // --- Gap Fill ---
@@ -1280,15 +1777,28 @@ pub struct PrintConfig {
     #[setting(tier = 3, description = "Enable gap fill between perimeters")]
     pub gap_fill_enabled: bool,
     /// Minimum gap width to fill (mm).
-    #[setting(tier = 3, description = "Minimum gap width to fill", units = "mm", depends_on = "gap_fill_enabled")]
+    #[setting(
+        tier = 3,
+        description = "Minimum gap width to fill",
+        units = "mm",
+        depends_on = "gap_fill_enabled"
+    )]
     pub gap_fill_min_width: f64,
 
     // --- Polyhole Conversion ---
     /// Enable polyhole conversion for circular holes (dimensional accuracy).
-    #[setting(tier = 3, description = "Enable polyhole conversion for circular holes")]
+    #[setting(
+        tier = 3,
+        description = "Enable polyhole conversion for circular holes"
+    )]
     pub polyhole_enabled: bool,
     /// Minimum hole diameter (mm) for polyhole conversion (skip very small holes).
-    #[setting(tier = 3, description = "Minimum hole diameter for polyhole conversion", units = "mm", depends_on = "polyhole_enabled")]
+    #[setting(
+        tier = 3,
+        description = "Minimum hole diameter for polyhole conversion",
+        units = "mm",
+        depends_on = "polyhole_enabled"
+    )]
     pub polyhole_min_diameter: f64,
 
     // --- Arachne Variable-Width Perimeters ---
@@ -1331,18 +1841,35 @@ pub struct PrintConfig {
     #[setting(tier = 3, description = "Enable arc fitting G2/G3 conversion")]
     pub arc_fitting_enabled: bool,
     /// Maximum deviation (mm) for arc fitting tolerance.
-    #[setting(tier = 3, description = "Arc fitting deviation tolerance", units = "mm", depends_on = "arc_fitting_enabled")]
+    #[setting(
+        tier = 3,
+        description = "Arc fitting deviation tolerance",
+        units = "mm",
+        depends_on = "arc_fitting_enabled"
+    )]
     pub arc_fitting_tolerance: f64,
     /// Minimum number of consecutive G1 moves to consider for arc fitting.
-    #[setting(tier = 4, description = "Minimum points for arc detection", depends_on = "arc_fitting_enabled")]
+    #[setting(
+        tier = 4,
+        description = "Minimum points for arc detection",
+        depends_on = "arc_fitting_enabled"
+    )]
     pub arc_fitting_min_points: usize,
 
     // --- Cross-cutting flags (stay flat) ---
     /// Pressure advance value (0.0 = disabled).
-    #[setting(tier = 2, description = "Pressure advance value", category = "Calibration")]
+    #[setting(
+        tier = 2,
+        description = "Pressure advance value",
+        category = "Calibration"
+    )]
     pub pressure_advance: f64,
     /// Enable acceleration command emission at feature transitions.
-    #[setting(tier = 3, description = "Enable acceleration commands at feature transitions", category = "Acceleration")]
+    #[setting(
+        tier = 3,
+        description = "Enable acceleration commands at feature transitions",
+        category = "Acceleration"
+    )]
     pub acceleration_enabled: bool,
 
     // --- Multi-Material ---
@@ -1440,10 +1967,21 @@ pub struct PrintConfig {
     #[setting(tier = 3, description = "Bridge flow ratio", min = 0.1, max = 2.0, affects = ["bridging"])]
     pub bridge_flow: f64,
     /// Infill line direction in degrees.
-    #[setting(tier = 3, description = "Infill line direction angle", units = "deg", category = "Infill")]
+    #[setting(
+        tier = 3,
+        description = "Infill line direction angle",
+        units = "deg",
+        category = "Infill"
+    )]
     pub infill_direction: f64,
     /// Infill-wall overlap as a fraction (0-1).
-    #[setting(tier = 3, description = "Infill-wall overlap fraction", min = 0.0, max = 1.0, category = "Infill")]
+    #[setting(
+        tier = 3,
+        description = "Infill-wall overlap fraction",
+        min = 0.0,
+        max = 1.0,
+        category = "Infill"
+    )]
     pub infill_wall_overlap: f64,
     /// Enable spiral (vase) mode.
     #[setting(tier = 2, description = "Enable spiral vase mode")]
@@ -1526,23 +2064,50 @@ pub struct PrintConfig {
     // --- Infill Combination (Phase 33) ---
     /// Combine infill every N layers (0 or 1 = disabled).
     /// OrcaSlicer: `infill_combination`. Range: 0-10. Default: 0.
-    #[setting(tier = 3, description = "Combine infill every N layers", min = 0.0, max = 10.0, category = "Infill")]
+    #[setting(
+        tier = 3,
+        description = "Combine infill every N layers",
+        min = 0.0,
+        max = 10.0,
+        category = "Infill"
+    )]
     pub infill_combination: u32,
 
     // --- Infill Anchor (Phase 33) ---
     /// Maximum length of infill anchor in mm.
     /// OrcaSlicer: `infill_anchor_max`. PrusaSlicer: `infill_anchor_max`. Range: 0-50. Default: 12.0.
-    #[setting(tier = 3, description = "Maximum infill anchor length", units = "mm", min = 0.0, max = 50.0, category = "Infill")]
+    #[setting(
+        tier = 3,
+        description = "Maximum infill anchor length",
+        units = "mm",
+        min = 0.0,
+        max = 50.0,
+        category = "Infill"
+    )]
     pub infill_anchor_max: f64,
 
     // --- Arachne Parameters (Phase 33) ---
     /// Minimum bead width for Arachne wall generation in mm.
     /// OrcaSlicer: `min_bead_width`. Range: 0.0-1.0. Default: 0.315.
-    #[setting(tier = 3, description = "Minimum Arachne bead width", units = "mm", min = 0.0, max = 1.0, depends_on = "arachne_enabled")]
+    #[setting(
+        tier = 3,
+        description = "Minimum Arachne bead width",
+        units = "mm",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "arachne_enabled"
+    )]
     pub min_bead_width: f64,
     /// Minimum feature size for Arachne detection in mm.
     /// OrcaSlicer: `min_feature_size`. Range: 0.0-1.0. Default: 0.25.
-    #[setting(tier = 3, description = "Minimum Arachne feature size", units = "mm", min = 0.0, max = 1.0, depends_on = "arachne_enabled")]
+    #[setting(
+        tier = 3,
+        description = "Minimum Arachne feature size",
+        units = "mm",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "arachne_enabled"
+    )]
     pub min_feature_size: f64,
 
     // --- P2 Niche Fields (Phase 34) ---
@@ -1579,12 +2144,20 @@ pub struct PrintConfig {
     /// Reduce retraction on infill-to-infill travel.
     /// OrcaSlicer: `reduce_infill_retraction`. Default: false.
     #[serde(default)]
-    #[setting(tier = 3, description = "Reduce retraction on infill-to-infill travel", category = "Infill")]
+    #[setting(
+        tier = 3,
+        description = "Reduce retraction on infill-to-infill travel",
+        category = "Infill"
+    )]
     pub reduce_infill_retraction: bool,
     /// Reduce wall crossing during travel moves.
     /// OrcaSlicer: `reduce_crossing_wall`. Default: false.
     #[serde(default)]
-    #[setting(tier = 3, description = "Reduce wall crossing during travel moves", category = "Retraction")]
+    #[setting(
+        tier = 3,
+        description = "Reduce wall crossing during travel moves",
+        category = "Retraction"
+    )]
     pub reduce_crossing_wall: bool,
 }
 
@@ -1613,10 +2186,18 @@ pub struct PostProcessConfig {
     #[setting(tier = 3, description = "Enable post-processing pipeline")]
     pub enabled: bool,
     /// Layer indices (zero-based) at which to insert a pause command.
-    #[setting(tier = 3, description = "Layer indices at which to pause", depends_on = "post_process.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Layer indices at which to pause",
+        depends_on = "post_process.enabled"
+    )]
     pub pause_at_layers: Vec<usize>,
     /// G-code command to insert for pause (typically "M0" or "M600").
-    #[setting(tier = 4, description = "G-code command for pause insertion", depends_on = "post_process.enabled")]
+    #[setting(
+        tier = 4,
+        description = "G-code command for pause insertion",
+        depends_on = "post_process.enabled"
+    )]
     pub pause_command: String,
     /// Timelapse camera configuration.
     #[setting(flatten)]
@@ -1639,7 +2220,10 @@ pub struct PostProcessConfig {
     /// Label objects in G-code output (Exclude Object support).
     /// OrcaSlicer: `gcode_label_objects`. Default: false.
     #[serde(default)]
-    #[setting(tier = 3, description = "Label objects in G-code for exclude object support")]
+    #[setting(
+        tier = 3,
+        description = "Label objects in G-code for exclude object support"
+    )]
     pub gcode_label_objects: bool,
     /// Include comments in G-code output.
     /// OrcaSlicer: `gcode_comments`. Default: false.
@@ -1689,19 +2273,44 @@ pub struct TimelapseConfig {
     #[setting(tier = 3, description = "Enable timelapse camera support")]
     pub enabled: bool,
     /// X position to park at for the snapshot (mm).
-    #[setting(tier = 3, description = "Timelapse park X position", units = "mm", depends_on = "post_process.timelapse.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Timelapse park X position",
+        units = "mm",
+        depends_on = "post_process.timelapse.enabled"
+    )]
     pub park_x: f64,
     /// Y position to park at for the snapshot (mm).
-    #[setting(tier = 3, description = "Timelapse park Y position", units = "mm", depends_on = "post_process.timelapse.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Timelapse park Y position",
+        units = "mm",
+        depends_on = "post_process.timelapse.enabled"
+    )]
     pub park_y: f64,
     /// Dwell time at park position for camera capture (ms).
-    #[setting(tier = 3, description = "Timelapse dwell time at park position", units = "ms", depends_on = "post_process.timelapse.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Timelapse dwell time at park position",
+        units = "ms",
+        depends_on = "post_process.timelapse.enabled"
+    )]
     pub dwell_ms: u32,
     /// Retraction distance before moving to park position (mm).
-    #[setting(tier = 4, description = "Retraction distance before timelapse park", units = "mm", depends_on = "post_process.timelapse.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Retraction distance before timelapse park",
+        units = "mm",
+        depends_on = "post_process.timelapse.enabled"
+    )]
     pub retract_distance: f64,
     /// Retraction speed (mm/min).
-    #[setting(tier = 4, description = "Retraction speed before timelapse park", units = "mm/min", depends_on = "post_process.timelapse.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Retraction speed before timelapse park",
+        units = "mm/min",
+        depends_on = "post_process.timelapse.enabled"
+    )]
     pub retract_speed: f64,
 }
 
@@ -1739,22 +2348,34 @@ pub struct FanOverrideRule {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum CustomGcodeTrigger {
     /// Inject after every N layers.
-    #[setting(display = "Every N Layers", description = "Inject G-code after every N layers")]
+    #[setting(
+        display = "Every N Layers",
+        description = "Inject G-code after every N layers"
+    )]
     EveryNLayers {
         /// Injection interval in layers.
         n: usize,
     },
     /// Inject at specific layer indices.
-    #[setting(display = "At Layers", description = "Inject G-code at specific layer indices")]
+    #[setting(
+        display = "At Layers",
+        description = "Inject G-code at specific layer indices"
+    )]
     AtLayers {
         /// Layer indices (zero-based) at which to inject.
         layers: Vec<usize>,
     },
     /// Inject immediately before each retraction.
-    #[setting(display = "Before Retraction", description = "Inject G-code before each retraction")]
+    #[setting(
+        display = "Before Retraction",
+        description = "Inject G-code before each retraction"
+    )]
     BeforeRetraction,
     /// Inject immediately after each unretraction.
-    #[setting(display = "After Retraction", description = "Inject G-code after each unretraction")]
+    #[setting(
+        display = "After Retraction",
+        description = "Inject G-code after each unretraction"
+    )]
     AfterRetraction,
 }
 
@@ -1784,55 +2405,130 @@ pub struct ScarfJointConfig {
     #[setting(tier = 3, description = "Enable scarf joint seam")]
     pub enabled: bool,
     /// Apply to contours and/or holes.
-    #[setting(tier = 3, description = "Scarf joint contour/hole selection", depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Scarf joint contour/hole selection",
+        depends_on = "scarf_joint.enabled"
+    )]
     pub scarf_joint_type: ScarfJointType,
     /// Only apply on smooth perimeters (no sharp corners near seam).
-    #[setting(tier = 3, description = "Only apply scarf on smooth perimeters", depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Only apply scarf on smooth perimeters",
+        depends_on = "scarf_joint.enabled"
+    )]
     pub conditional_scarf: bool,
     /// Speed during scarf region (mm/s, 0 = use wall speed).
-    #[setting(tier = 3, description = "Speed during scarf region", units = "mm/s", min = 0.0, max = 1000.0, depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Speed during scarf region",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0,
+        depends_on = "scarf_joint.enabled"
+    )]
     pub scarf_speed: f64,
     /// Z offset at ramp start as fraction of layer height (0.0-1.0).
-    #[setting(tier = 3, description = "Z offset at ramp start as fraction of layer height", min = 0.0, max = 1.0, depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Z offset at ramp start as fraction of layer height",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "scarf_joint.enabled"
+    )]
     pub scarf_start_height: f64,
     /// Apply scarf around entire wall (not just seam region).
-    #[setting(tier = 3, description = "Apply scarf around entire wall", depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Apply scarf around entire wall",
+        depends_on = "scarf_joint.enabled"
+    )]
     pub scarf_around_entire_wall: bool,
     /// Horizontal length of the scarf ramp in mm.
-    #[setting(tier = 3, description = "Horizontal scarf ramp length", units = "mm", min = 0.0, max = 100.0, depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Horizontal scarf ramp length",
+        units = "mm",
+        min = 0.0,
+        max = 100.0,
+        depends_on = "scarf_joint.enabled"
+    )]
     pub scarf_length: f64,
     /// Number of discrete steps in the ramp.
-    #[setting(tier = 3, description = "Number of discrete ramp steps", depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Number of discrete ramp steps",
+        depends_on = "scarf_joint.enabled"
+    )]
     pub scarf_steps: u32,
     /// Extrusion flow ratio during scarf (1.0 = normal).
-    #[setting(tier = 3, description = "Scarf extrusion flow ratio", min = 0.1, max = 2.0, depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Scarf extrusion flow ratio",
+        min = 0.1,
+        max = 2.0,
+        depends_on = "scarf_joint.enabled"
+    )]
     pub scarf_flow_ratio: f64,
     /// Apply scarf to inner walls (not just outer).
-    #[setting(tier = 3, description = "Apply scarf to inner walls", depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Apply scarf to inner walls",
+        depends_on = "scarf_joint.enabled"
+    )]
     pub scarf_inner_walls: bool,
     /// Use role-based wipe speed at seam.
-    #[setting(tier = 4, description = "Use role-based speed for wipe at seam", depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Use role-based speed for wipe at seam",
+        depends_on = "scarf_joint.enabled"
+    )]
     pub role_based_wipe_speed: bool,
     /// Wipe speed at seam end (mm/s).
-    #[setting(tier = 3, description = "Wipe speed at seam end", units = "mm/s", min = 0.0, max = 1000.0, depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Wipe speed at seam end",
+        units = "mm/s",
+        min = 0.0,
+        max = 1000.0,
+        depends_on = "scarf_joint.enabled"
+    )]
     pub wipe_speed: f64,
     /// Enable inward wipe at seam close.
-    #[setting(tier = 3, description = "Enable inward wipe at seam close", depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Enable inward wipe at seam close",
+        depends_on = "scarf_joint.enabled"
+    )]
     pub wipe_on_loop: bool,
     /// Gap between scarf ramp end and next layer start in mm.
     /// OrcaSlicer: `seam_slope_gap`.
     #[serde(default)]
-    #[setting(tier = 4, description = "Gap between scarf end and next layer", units = "mm", depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Gap between scarf end and next layer",
+        units = "mm",
+        depends_on = "scarf_joint.enabled"
+    )]
     pub seam_gap: f64,
     /// Minimum angle (degrees) at which scarf joint activates.
     /// OrcaSlicer: `scarf_angle_threshold`.
     #[serde(default)]
-    #[setting(tier = 4, description = "Minimum angle for scarf activation", units = "deg", depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Minimum angle for scarf activation",
+        units = "deg",
+        depends_on = "scarf_joint.enabled"
+    )]
     pub scarf_angle_threshold: f64,
     /// Overhang percentage threshold at which scarf joint is disabled.
     /// OrcaSlicer: `scarf_overhang_threshold`.
     #[serde(default)]
-    #[setting(tier = 4, description = "Overhang threshold to disable scarf", depends_on = "scarf_joint.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Overhang threshold to disable scarf",
+        depends_on = "scarf_joint.enabled"
+    )]
     pub scarf_overhang_threshold: f64,
     /// Override filament-level scarf seam settings with process-level.
     /// OrcaSlicer: `override_filament_scarf_seam_setting`.
@@ -1874,13 +2570,22 @@ impl Default for ScarfJointConfig {
 pub enum SlicingTolerance {
     /// Slice at the midpoint of each layer (default, balanced accuracy).
     #[default]
-    #[setting(display = "Middle", description = "Slice at layer midpoint for balanced accuracy")]
+    #[setting(
+        display = "Middle",
+        description = "Slice at layer midpoint for balanced accuracy"
+    )]
     Middle,
     /// Slice at the nearest point to the original mesh surface.
-    #[setting(display = "Nearest", description = "Slice at nearest point to mesh surface")]
+    #[setting(
+        display = "Nearest",
+        description = "Slice at nearest point to mesh surface"
+    )]
     Nearest,
     /// Use Gaussian averaging for smoother contour transitions.
-    #[setting(display = "Gauss", description = "Gaussian averaging for smoother contour transitions")]
+    #[setting(
+        display = "Gauss",
+        description = "Gaussian averaging for smoother contour transitions"
+    )]
     Gauss,
 }
 
@@ -1890,10 +2595,16 @@ pub enum SlicingTolerance {
 pub enum ScarfJointType {
     /// Apply scarf to contours (outer boundaries) only.
     #[default]
-    #[setting(display = "Contour", description = "Apply scarf joint to outer contours only")]
+    #[setting(
+        display = "Contour",
+        description = "Apply scarf joint to outer contours only"
+    )]
     Contour,
     /// Apply scarf to both contours and holes.
-    #[setting(display = "Contour And Hole", description = "Apply scarf joint to both contours and holes")]
+    #[setting(
+        display = "Contour And Hole",
+        description = "Apply scarf joint to both contours and holes"
+    )]
     ContourAndHole,
 }
 
@@ -2146,38 +2857,78 @@ pub struct MultiMaterialConfig {
     #[setting(tier = 3, description = "Enable multi-material printing")]
     pub enabled: bool,
     /// Number of tools (extruders) available.
-    #[setting(tier = 3, description = "Number of tools/extruders available", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Number of tools/extruders available",
+        depends_on = "multi_material.enabled"
+    )]
     pub tool_count: u8,
     /// Per-tool configuration.
     #[setting(skip)]
     pub tools: Vec<ToolConfig>,
     /// Purge tower position [x, y] in mm.
-    #[setting(tier = 3, description = "Purge tower XY position", units = "mm", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Purge tower XY position",
+        units = "mm",
+        depends_on = "multi_material.enabled"
+    )]
     pub purge_tower_position: [f64; 2],
     /// Purge tower width in mm.
-    #[setting(tier = 3, description = "Purge tower width", units = "mm", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Purge tower width",
+        units = "mm",
+        depends_on = "multi_material.enabled"
+    )]
     pub purge_tower_width: f64,
     /// Purge volume per tool change in mm^3.
-    #[setting(tier = 3, description = "Purge volume per tool change", units = "mm^3", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Purge volume per tool change",
+        units = "mm^3",
+        depends_on = "multi_material.enabled"
+    )]
     pub purge_volume: f64,
     /// Wipe length across the purge tower in mm.
-    #[setting(tier = 3, description = "Wipe length across purge tower", units = "mm", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Wipe length across purge tower",
+        units = "mm",
+        depends_on = "multi_material.enabled"
+    )]
     pub wipe_length: f64,
     /// Filament/tool index for wall perimeters (0-based, None = use default).
     /// OrcaSlicer: `wall_filament` (1-based). Import mapper translates to 0-based.
-    #[setting(tier = 3, description = "Filament index for wall perimeters", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Filament index for wall perimeters",
+        depends_on = "multi_material.enabled"
+    )]
     pub wall_filament: Option<usize>,
     /// Filament/tool index for solid infill (0-based, None = use default).
     /// OrcaSlicer: `solid_infill_filament` (1-based).
-    #[setting(tier = 3, description = "Filament index for solid infill", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Filament index for solid infill",
+        depends_on = "multi_material.enabled"
+    )]
     pub solid_infill_filament: Option<usize>,
     /// Filament/tool index for support structures (0-based, None = use default).
     /// OrcaSlicer: `support_filament` (1-based).
-    #[setting(tier = 3, description = "Filament index for support structures", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Filament index for support structures",
+        depends_on = "multi_material.enabled"
+    )]
     pub support_filament: Option<usize>,
     /// Filament/tool index for support interface layers (0-based, None = use default).
     /// OrcaSlicer: `support_interface_filament` (1-based).
-    #[setting(tier = 3, description = "Filament index for support interface layers", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Filament index for support interface layers",
+        depends_on = "multi_material.enabled"
+    )]
     pub support_interface_filament: Option<usize>,
     /// Tool change retraction configuration.
     #[setting(flatten)]
@@ -2185,47 +2936,85 @@ pub struct MultiMaterialConfig {
     /// Rotation angle for the purge tower in degrees.
     /// OrcaSlicer/PrusaSlicer: `wipe_tower_rotation_angle`.
     #[serde(default)]
-    #[setting(tier = 4, description = "Purge tower rotation angle", units = "deg", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Purge tower rotation angle",
+        units = "deg",
+        depends_on = "multi_material.enabled"
+    )]
     pub wipe_tower_rotation_angle: f64,
     /// Purge tower bridging flow rate.
     /// PrusaSlicer: `wipe_tower_bridging`.
     #[serde(default)]
-    #[setting(tier = 4, description = "Purge tower bridging flow rate", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Purge tower bridging flow rate",
+        depends_on = "multi_material.enabled"
+    )]
     pub wipe_tower_bridging: f64,
     /// Cone angle for tapered purge tower (degrees).
     /// PrusaSlicer: `wipe_tower_cone_angle`.
     #[serde(default)]
-    #[setting(tier = 4, description = "Tapered purge tower cone angle", units = "deg", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Tapered purge tower cone angle",
+        units = "deg",
+        depends_on = "multi_material.enabled"
+    )]
     pub wipe_tower_cone_angle: f64,
     /// Skip sparse (empty) purge tower layers.
     /// PrusaSlicer: `wipe_tower_no_sparse_layers`.
     #[serde(default)]
-    #[setting(tier = 4, description = "Skip empty purge tower layers", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Skip empty purge tower layers",
+        depends_on = "multi_material.enabled"
+    )]
     pub wipe_tower_no_sparse_layers: bool,
     /// Single extruder multi-material mode (e.g., MMU2).
     /// Shared: `single_extruder_multi_material`.
     #[serde(default)]
-    #[setting(tier = 4, description = "Single extruder multi-material mode", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Single extruder multi-material mode",
+        depends_on = "multi_material.enabled"
+    )]
     pub single_extruder_mmu: bool,
     /// Flush/purge excess filament into infill regions.
     /// OrcaSlicer: `flush_into_infill`.
     #[serde(default)]
-    #[setting(tier = 3, description = "Flush excess filament into infill regions", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Flush excess filament into infill regions",
+        depends_on = "multi_material.enabled"
+    )]
     pub flush_into_infill: bool,
     /// Flush/purge excess filament into printed objects.
     /// OrcaSlicer: `flush_into_objects`.
     #[serde(default)]
-    #[setting(tier = 3, description = "Flush excess filament into printed objects", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Flush excess filament into printed objects",
+        depends_on = "multi_material.enabled"
+    )]
     pub flush_into_objects: bool,
     /// Flush/purge excess filament into support structures.
     /// OrcaSlicer: `flush_into_support`.
     #[serde(default)]
-    #[setting(tier = 3, description = "Flush excess filament into support structures", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Flush excess filament into support structures",
+        depends_on = "multi_material.enabled"
+    )]
     pub flush_into_support: bool,
     /// Use the prime tower for purging.
     /// OrcaSlicer: `purge_in_prime_tower`.
     #[serde(default = "default_true")]
-    #[setting(tier = 3, description = "Use prime tower for purging", depends_on = "multi_material.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Use prime tower for purging",
+        depends_on = "multi_material.enabled"
+    )]
     pub purge_in_prime_tower: bool,
 }
 
@@ -2284,23 +3073,43 @@ pub struct SequentialConfig {
     pub enabled: bool,
     /// Extruder clearance radius in mm (XY distance from nozzle to widest
     /// part of the print head assembly). Used for the cylinder gantry model.
-    #[setting(tier = 3, description = "Extruder clearance radius for collision avoidance", units = "mm", depends_on = "sequential.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Extruder clearance radius for collision avoidance",
+        units = "mm",
+        depends_on = "sequential.enabled"
+    )]
     pub extruder_clearance_radius: f64,
     /// Extruder clearance height in mm (height above nozzle tip to the
     /// bottom of the X carriage / gantry).
-    #[setting(tier = 3, description = "Extruder clearance height for collision avoidance", units = "mm", depends_on = "sequential.enabled")]
+    #[setting(
+        tier = 3,
+        description = "Extruder clearance height for collision avoidance",
+        units = "mm",
+        depends_on = "sequential.enabled"
+    )]
     pub extruder_clearance_height: f64,
     /// Width of gantry/carriage in mm (X direction).
     ///
     /// A value of 0.0 means the rectangular gantry model is not used and
     /// the cylinder model with [`extruder_clearance_radius`](Self::extruder_clearance_radius)
     /// is used instead.
-    #[setting(tier = 4, description = "Gantry width for rectangular clearance model", units = "mm", depends_on = "sequential.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Gantry width for rectangular clearance model",
+        units = "mm",
+        depends_on = "sequential.enabled"
+    )]
     pub gantry_width: f64,
     /// Depth of gantry/carriage in mm (Y direction).
     ///
     /// Only used when [`gantry_width`](Self::gantry_width) > 0 (rectangular model).
-    #[setting(tier = 4, description = "Gantry depth for rectangular clearance model", units = "mm", depends_on = "sequential.enabled")]
+    #[setting(
+        tier = 4,
+        description = "Gantry depth for rectangular clearance model",
+        units = "mm",
+        depends_on = "sequential.enabled"
+    )]
     pub gantry_depth: f64,
     /// Custom polygon for the extruder clearance zone.
     ///
@@ -2346,10 +3155,18 @@ pub struct PaCalibrationConfig {
     #[setting(tier = 4, description = "Pressure advance step increment")]
     pub pa_step: f64,
     /// Slow extrusion speed in mm/s (reveals PA artifacts at transitions).
-    #[setting(tier = 4, description = "Calibration slow extrusion speed", units = "mm/s")]
+    #[setting(
+        tier = 4,
+        description = "Calibration slow extrusion speed",
+        units = "mm/s"
+    )]
     pub slow_speed: f64,
     /// Fast extrusion speed in mm/s (reveals PA artifacts at transitions).
-    #[setting(tier = 4, description = "Calibration fast extrusion speed", units = "mm/s")]
+    #[setting(
+        tier = 4,
+        description = "Calibration fast extrusion speed",
+        units = "mm/s"
+    )]
     pub fast_speed: f64,
     /// Extrusion line width in mm.
     #[setting(tier = 4, description = "Calibration line width", units = "mm")]
@@ -2367,7 +3184,11 @@ pub struct PaCalibrationConfig {
     #[setting(tier = 4, description = "Calibration pattern width", units = "mm")]
     pub pattern_width: f64,
     /// Nozzle temperature in degrees Celsius.
-    #[setting(tier = 4, description = "Calibration nozzle temperature", units = "deg_c")]
+    #[setting(
+        tier = 4,
+        description = "Calibration nozzle temperature",
+        units = "deg_c"
+    )]
     pub nozzle_temp: f64,
     /// Bed temperature in degrees Celsius.
     #[setting(tier = 4, description = "Calibration bed temperature", units = "deg_c")]

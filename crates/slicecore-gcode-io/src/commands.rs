@@ -91,10 +91,7 @@ pub enum GcodeCommand {
     },
 
     /// Set acceleration: `M204 P{print_accel} T{travel_accel}` (Marlin default)
-    SetAcceleration {
-        print_accel: f64,
-        travel_accel: f64,
-    },
+    SetAcceleration { print_accel: f64, travel_accel: f64 },
 
     /// Set jerk: `M205 X{x} Y{y} Z{z}` (Marlin default)
     SetJerk { x: f64, y: f64, z: f64 },
@@ -434,10 +431,7 @@ mod tests {
 
     #[test]
     fn dwell() {
-        assert_eq!(
-            GcodeCommand::Dwell { ms: 500 }.to_string(),
-            "G4 P500"
-        );
+        assert_eq!(GcodeCommand::Dwell { ms: 500 }.to_string(), "G4 P500");
     }
 
     #[test]

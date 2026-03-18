@@ -301,7 +301,12 @@ fn apply_taper_to_arena(
                     let contacts_above = (0..arena.len())
                         .filter(|&j| arena.get_node(j).is_contact && arena.get_node(j).z > z)
                         .count();
-                    compute_taper_load_based(base_radius, tip_radius, contacts_above, total_contacts)
+                    compute_taper_load_based(
+                        base_radius,
+                        tip_radius,
+                        contacts_above,
+                        total_contacts,
+                    )
                 }
                 _ => compute_taper(base_radius, tip_radius, z, max_z, config.taper_method),
             }
@@ -466,12 +471,9 @@ pub fn slice_tree_to_layers(
             // Check if node is at this layer's Z height (within tolerance).
             if (node.z - layer_z).abs() <= tolerance && node.radius > 0.001 {
                 // Generate circular polygon for this node.
-                if let Some(circle) = make_circle_polygon(
-                    node.position.0,
-                    node.position.1,
-                    node.radius,
-                    16,
-                ) {
+                if let Some(circle) =
+                    make_circle_polygon(node.position.0, node.position.1, node.radius, 16)
+                {
                     layer_circles.push(circle);
                 }
             }
@@ -641,20 +643,15 @@ fn model_bbox_center(contours: &[ValidPolygon]) -> Option<(f64, f64)> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::config::SupportPattern;
+    use super::*;
     use slicecore_geo::polygon::Polygon;
 
     /// Helper to create a validated CCW square at a given position and size.
     fn make_square(x: f64, y: f64, size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (x, y),
-            (x + size, y),
-            (x + size, y + size),
-            (x, y + size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(x, y), (x + size, y), (x + size, y + size), (x, y + size)])
+            .validate()
+            .unwrap()
     }
 
     /// Helper to create a SliceLayer with the given contours.
@@ -675,7 +672,13 @@ mod tests {
         let layer_heights: Vec<f64> = (0..10).map(|i| 0.2 * (i as f64 + 0.5)).collect();
 
         let config = TreeSupportConfig::default();
-        let arena = grow_tree(&contact_points, &model_contours, &layer_heights, &config, 0.4);
+        let arena = grow_tree(
+            &contact_points,
+            &model_contours,
+            &layer_heights,
+            &config,
+            0.4,
+        );
 
         assert!(
             !arena.is_empty(),
@@ -684,25 +687,14 @@ mod tests {
 
         // Should have at least one root and one contact.
         let roots = arena.root_indices();
-        assert!(
-            !roots.is_empty(),
-            "Should have at least one root node"
-        );
+        assert!(!roots.is_empty(), "Should have at least one root node");
 
         let contacts = arena.contact_indices();
-        assert_eq!(
-            contacts.len(),
-            1,
-            "Should have exactly one contact node"
-        );
+        assert_eq!(contacts.len(), 1, "Should have exactly one contact node");
 
         // Root should be at z=0.
         let root = arena.get_node(roots[0]);
-        assert!(
-            root.z.abs() < 1e-9,
-            "Root should be at z=0, got {}",
-            root.z,
-        );
+        assert!(root.z.abs() < 1e-9, "Root should be at z=0, got {}", root.z,);
 
         // Contact should be at z=2.0.
         let contact = arena.get_node(contacts[0]);
@@ -727,7 +719,13 @@ mod tests {
             ..Default::default()
         };
 
-        let arena = grow_tree(&contact_points, &model_contours, &layer_heights, &config, 0.4);
+        let arena = grow_tree(
+            &contact_points,
+            &model_contours,
+            &layer_heights,
+            &config,
+            0.4,
+        );
 
         let roots = arena.root_indices();
         // With merge_distance = 3.0 * 10.0 = 30mm, roots 2mm apart should merge.
@@ -749,10 +747,19 @@ mod tests {
         let contact_points = vec![(50.0, 50.0, 2.0)];
         let config = TreeSupportConfig::default();
 
-        let arena = grow_tree(&contact_points, &model_contours, &layer_heights, &config, 0.4);
+        let arena = grow_tree(
+            &contact_points,
+            &model_contours,
+            &layer_heights,
+            &config,
+            0.4,
+        );
 
         // The tree should still have nodes, even if collision avoidance moved them.
-        assert!(!arena.is_empty(), "Arena should have nodes even with collision");
+        assert!(
+            !arena.is_empty(),
+            "Arena should have nodes even with collision"
+        );
 
         // Check that intermediate nodes are not exactly at the model center.
         // (Collision avoidance should have moved them.)
@@ -851,11 +858,23 @@ mod tests {
             ..Default::default()
         };
 
-        let geo_arena = grow_tree(&contact_points, &model_contours, &layer_heights, &config, 0.4);
+        let geo_arena = grow_tree(
+            &contact_points,
+            &model_contours,
+            &layer_heights,
+            &config,
+            0.4,
+        );
         let geo_count = geo_arena.len();
 
         // Now grow with organic style.
-        let mut org_arena = grow_tree(&contact_points, &model_contours, &layer_heights, &config, 0.4);
+        let mut org_arena = grow_tree(
+            &contact_points,
+            &model_contours,
+            &layer_heights,
+            &config,
+            0.4,
+        );
         apply_branch_style(&mut org_arena, TreeBranchStyle::Organic);
         let org_count = org_arena.len();
 

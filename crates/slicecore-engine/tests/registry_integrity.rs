@@ -25,10 +25,8 @@ fn test_all_affects_keys_resolve() {
     // "quality", "print_time") rather than actual setting keys. These are
     // acceptable as documentation hints. We check that no DependsOn
     // constraints reference missing keys (which would be a real bug).
-    let depends_on_errors: Vec<&String> = errors
-        .iter()
-        .filter(|e| e.contains("DependsOn"))
-        .collect();
+    let depends_on_errors: Vec<&String> =
+        errors.iter().filter(|e| e.contains("DependsOn")).collect();
     assert!(
         depends_on_errors.is_empty(),
         "DependsOn constraint errors found: {depends_on_errors:?}"
@@ -54,22 +52,13 @@ fn test_tier_distribution() {
     let registry = setting_registry();
 
     let simple_count = registry.filter_by_tier(Tier::Simple).len()
-        - registry
-            .all()
-            .filter(|d| d.tier < Tier::Simple)
-            .count();
+        - registry.all().filter(|d| d.tier < Tier::Simple).count();
     let intermediate_count = registry
         .all()
         .filter(|d| d.tier == Tier::Intermediate)
         .count();
-    let advanced_count = registry
-        .all()
-        .filter(|d| d.tier == Tier::Advanced)
-        .count();
-    let developer_count = registry
-        .all()
-        .filter(|d| d.tier == Tier::Developer)
-        .count();
+    let advanced_count = registry.all().filter(|d| d.tier == Tier::Advanced).count();
+    let developer_count = registry.all().filter(|d| d.tier == Tier::Developer).count();
 
     eprintln!("Tier distribution:");
     eprintln!("  Simple:       {simple_count}");
@@ -160,14 +149,20 @@ fn test_default_values_populated() {
 
     // Specific default value checks
     let lh = registry.get_by_str("layer_height").unwrap();
-    let lh_val = lh.default_value.as_f64().expect("layer_height default should be a number");
+    let lh_val = lh
+        .default_value
+        .as_f64()
+        .expect("layer_height default should be a number");
     assert!(
         (lh_val - 0.2).abs() < 0.01,
         "layer_height default should be ~0.2, got {lh_val}"
     );
 
     let id = registry.get_by_str("infill_density").unwrap();
-    let id_val = id.default_value.as_f64().expect("infill_density default should be a number");
+    let id_val = id
+        .default_value
+        .as_f64()
+        .expect("infill_density default should be a number");
     assert!(
         id_val > 0.0 && id_val <= 1.0,
         "infill_density default should be between 0 and 1, got {id_val}"
@@ -222,7 +217,9 @@ fn test_json_schema_valid_structure() {
         "JSON Schema should have properties key"
     );
 
-    let props = schema["properties"].as_object().expect("properties should be an object");
+    let props = schema["properties"]
+        .as_object()
+        .expect("properties should be an object");
     assert!(
         props.len() >= 5,
         "Expected at least 5 top-level property groups, got {}",

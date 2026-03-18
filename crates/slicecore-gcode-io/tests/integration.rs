@@ -166,10 +166,7 @@ fn each_dialect_has_distinct_output() {
 
     // Not all identical: at least Klipper should differ (extended commands)
     let all_same = outputs.windows(2).all(|w| w[0] == w[1]);
-    assert!(
-        !all_same,
-        "dialect outputs should not all be identical"
-    );
+    assert!(!all_same, "dialect outputs should not all be identical");
 
     // Specifically, Klipper should be different from Marlin
     assert_ne!(
@@ -186,10 +183,7 @@ fn each_dialect_has_distinct_output() {
 fn validator_catches_invalid_temperature() {
     let gcode = "M109 S500\n";
     let result = validate_gcode(gcode);
-    assert!(
-        !result.valid,
-        "temperature 500 should be invalid"
-    );
+    assert!(!result.valid, "temperature 500 should be invalid");
     assert!(
         result.errors.iter().any(|e| e.contains("temperature")),
         "error should mention temperature: {:?}",

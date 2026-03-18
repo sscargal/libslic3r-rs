@@ -112,7 +112,11 @@ pub fn extract_geometry_features(mesh: &TriangleMesh) -> GeometryFeatures {
     // 3. Compute aspect ratio (max_dim / min_dim), clamping min to avoid division by zero.
     let dims = [width, depth, height];
     let max_dim = dims.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-    let min_dim = dims.iter().cloned().fold(f64::INFINITY, f64::min).max(0.001);
+    let min_dim = dims
+        .iter()
+        .cloned()
+        .fold(f64::INFINITY, f64::min)
+        .max(0.001);
     let aspect_ratio = max_dim / min_dim;
 
     // 4. Overhang analysis.
@@ -453,10 +457,7 @@ mod tests {
 
     #[test]
     fn classify_difficulty_easy() {
-        assert_eq!(
-            classify_difficulty(0.03, 5.0, 50.0),
-            PrintDifficulty::Easy
-        );
+        assert_eq!(classify_difficulty(0.03, 5.0, 50.0), PrintDifficulty::Easy);
     }
 
     #[test]
@@ -477,25 +478,16 @@ mod tests {
 
     #[test]
     fn classify_difficulty_hard_by_overhang() {
-        assert_eq!(
-            classify_difficulty(0.20, 5.0, 50.0),
-            PrintDifficulty::Hard
-        );
+        assert_eq!(classify_difficulty(0.20, 5.0, 50.0), PrintDifficulty::Hard);
     }
 
     #[test]
     fn classify_difficulty_hard_by_height() {
-        assert_eq!(
-            classify_difficulty(0.03, 5.0, 200.0),
-            PrintDifficulty::Hard
-        );
+        assert_eq!(classify_difficulty(0.03, 5.0, 200.0), PrintDifficulty::Hard);
     }
 
     #[test]
     fn classify_difficulty_hard_by_thin() {
-        assert_eq!(
-            classify_difficulty(0.03, 0.3, 50.0),
-            PrintDifficulty::Hard
-        );
+        assert_eq!(classify_difficulty(0.03, 0.3, 50.0), PrintDifficulty::Hard);
     }
 }

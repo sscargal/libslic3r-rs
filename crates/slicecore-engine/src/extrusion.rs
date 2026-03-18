@@ -111,13 +111,13 @@ mod tests {
         // filament_area = PI * (1.75/2)^2 = PI * 0.765625 = 2.40528 mm^2
         // e = 0.79416 / 2.40528 = 0.33017
         let e = compute_e_value(10.0, 0.44, 0.2, 1.75, 1.0);
+        assert!((e - 0.33017).abs() < 0.002, "Expected ~0.330, got {}", e);
+        // Sanity: reasonable E value for a 10mm move (not too large, not too small).
         assert!(
-            (e - 0.33017).abs() < 0.002,
-            "Expected ~0.330, got {}",
+            e > 0.1 && e < 1.0,
+            "E value should be reasonable, got {}",
             e
         );
-        // Sanity: reasonable E value for a 10mm move (not too large, not too small).
-        assert!(e > 0.1 && e < 1.0, "E value should be reasonable, got {}", e);
     }
 
     #[test]
@@ -159,11 +159,7 @@ mod tests {
     #[test]
     fn move_length_3_4_5_triangle() {
         let d = move_length((0.0, 0.0), (3.0, 4.0));
-        assert!(
-            (d - 5.0).abs() < 1e-9,
-            "Expected 5.0, got {}",
-            d
-        );
+        assert!((d - 5.0).abs() < 1e-9, "Expected 5.0, got {}", d);
     }
 
     #[test]
@@ -175,11 +171,7 @@ mod tests {
     #[test]
     fn move_length_negative_coords() {
         let d = move_length((-3.0, -4.0), (0.0, 0.0));
-        assert!(
-            (d - 5.0).abs() < 1e-9,
-            "Expected 5.0, got {}",
-            d
-        );
+        assert!((d - 5.0).abs() < 1e-9, "Expected 5.0, got {}", d);
     }
 
     #[test]

@@ -40,10 +40,7 @@ impl CameraAngle {
             CameraAngle::Isometric => {
                 // Looking from upper-right-front toward origin
                 let inv_sqrt3 = 1.0 / 3.0f32.sqrt();
-                (
-                    [-inv_sqrt3, -inv_sqrt3, -inv_sqrt3],
-                    [0.0, 0.0, 1.0],
-                )
+                ([-inv_sqrt3, -inv_sqrt3, -inv_sqrt3], [0.0, 0.0, 1.0])
             }
         }
     }
@@ -59,12 +56,7 @@ pub(crate) fn look_at(eye: Vec3f, target: Vec3f, up: Vec3f) -> Mat4f {
         data: [
             [right.x, right.y, right.z, -right.dot(eye)],
             [true_up.x, true_up.y, true_up.z, -true_up.dot(eye)],
-            [
-                -forward.x,
-                -forward.y,
-                -forward.z,
-                forward.dot(eye),
-            ],
+            [-forward.x, -forward.y, -forward.z, forward.dot(eye)],
             [0.0, 0.0, 0.0, 1.0],
         ],
     }
@@ -136,10 +128,7 @@ pub(crate) fn build_camera(
 /// Computes area-weighted vertex normals from face normals.
 /// For each vertex, accumulates the cross product (area-weighted normal) of all
 /// adjacent faces, then normalizes.
-pub(crate) fn compute_vertex_normals(
-    vertices: &[Point3],
-    indices: &[[u32; 3]],
-) -> Vec<Vec3f> {
+pub(crate) fn compute_vertex_normals(vertices: &[Point3], indices: &[[u32; 3]]) -> Vec<Vec3f> {
     let mut normals = vec![Vec3f::zero(); vertices.len()];
 
     for tri in indices {
@@ -230,10 +219,7 @@ mod tests {
 
     #[test]
     fn build_camera_letterboxing() {
-        let aabb = BBox3::new(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(20.0, 20.0, 20.0),
-        );
+        let aabb = BBox3::new(Point3::new(0.0, 0.0, 0.0), Point3::new(20.0, 20.0, 20.0));
         // Non-square viewport
         let (view, proj) = build_camera(&CameraAngle::Front, &aabb, 400, 200);
         assert!(view.determinant().abs() > 1e-5);

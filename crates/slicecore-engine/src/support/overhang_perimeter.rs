@@ -118,7 +118,7 @@ pub fn overhang_speed_factor(tier: OverhangTier) -> f64 {
 pub fn overhang_fan_override(tier: OverhangTier, base_fan: u8) -> u8 {
     match tier {
         OverhangTier::None => base_fan,
-        OverhangTier::Mild => base_fan.max(180),    // ~70%
+        OverhangTier::Mild => base_fan.max(180),     // ~70%
         OverhangTier::Moderate => base_fan.max(220), // ~86%
         OverhangTier::Steep => 255,                  // 100%
         OverhangTier::Severe => 255,                 // 100%
@@ -169,9 +169,8 @@ pub fn classify_perimeter_overhangs(
 
             // Compute the overhang portion: contour minus expanded below.
             // We use 0-offset (no expansion) to get exact overhang.
-            let overhang_polys =
-                polygon_difference(std::slice::from_ref(contour), below_contours)
-                    .unwrap_or_default();
+            let overhang_polys = polygon_difference(std::slice::from_ref(contour), below_contours)
+                .unwrap_or_default();
 
             if overhang_polys.is_empty() {
                 return OverhangTier::None;
@@ -422,8 +421,8 @@ mod tests {
     fn auto_select_mixed_regions_chooses_auto() {
         let extrusion_width = 0.44;
         // Mix of small and large regions.
-        let small = make_square(0.0, 0.0, 1.0);    // 1 mm^2
-        let large = make_square(10.0, 0.0, 20.0);  // 400 mm^2
+        let small = make_square(0.0, 0.0, 1.0); // 1 mm^2
+        let large = make_square(10.0, 0.0, 20.0); // 400 mm^2
 
         let overhang_regions = vec![vec![small, large]];
         let result = auto_select_support_type(&overhang_regions, extrusion_width);
@@ -455,11 +454,7 @@ mod tests {
     #[test]
     fn classify_perimeter_overhangs_identical_layers_all_none() {
         let contour = make_square(50.0, 50.0, 10.0);
-        let tiers = classify_perimeter_overhangs(
-            &[contour.clone()],
-            &[contour],
-            0.2,
-        );
+        let tiers = classify_perimeter_overhangs(&[contour.clone()], &[contour], 0.2);
         assert_eq!(tiers.len(), 1);
         assert_eq!(
             tiers[0],

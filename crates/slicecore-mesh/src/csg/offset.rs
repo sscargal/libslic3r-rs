@@ -58,8 +58,7 @@ pub fn mesh_offset(
     // Keep the same indices.
     let new_indices = indices.to_vec();
 
-    let result = TriangleMesh::new(new_verts, new_indices)
-        .map_err(CsgError::ResultConstruction)?;
+    let result = TriangleMesh::new(new_verts, new_indices).map_err(CsgError::ResultConstruction)?;
 
     let mut report = CsgReport {
         input_triangles_a: mesh.triangle_count(),
@@ -67,14 +66,8 @@ pub fn mesh_offset(
         ..CsgReport::default()
     };
 
-    report.volume = Some(volume::signed_volume(
-        result.vertices(),
-        result.indices(),
-    ));
-    report.surface_area = Some(volume::surface_area(
-        result.vertices(),
-        result.indices(),
-    ));
+    report.volume = Some(volume::signed_volume(result.vertices(), result.indices()));
+    report.surface_area = Some(volume::surface_area(result.vertices(), result.indices()));
     report.duration_ms = start.elapsed().as_millis() as u64;
 
     Ok((result, report))

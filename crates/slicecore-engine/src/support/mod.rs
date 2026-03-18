@@ -19,8 +19,8 @@ pub mod config;
 pub mod conflict;
 pub mod detect;
 pub mod interface;
-pub mod override_system;
 pub mod overhang_perimeter;
+pub mod override_system;
 pub mod traditional;
 pub mod tree;
 pub mod tree_node;
@@ -35,7 +35,9 @@ use crate::infill::InfillLine;
 use self::bridge::detect_bridges;
 use self::config::{SupportConfig, SupportType};
 use self::detect::detect_all_overhangs;
-use self::interface::{apply_quality_preset, apply_z_gap, generate_interface_infill, identify_interface_layers};
+use self::interface::{
+    apply_quality_preset, apply_z_gap, generate_interface_infill, identify_interface_layers,
+};
 use self::overhang_perimeter::auto_select_support_type;
 use self::traditional::generate_traditional_supports;
 use self::tree::generate_tree_supports;
@@ -154,8 +156,7 @@ pub fn generate_supports(
         if config.bridge_detection {
             let below = &layer_contours[layer_idx - 1];
             let z = layer_heights.get(layer_idx).copied().unwrap_or(0.0);
-            let (bridges, non_bridges) =
-                detect_bridges(layer_overhangs, below, layer_idx, z, 5.0);
+            let (bridges, non_bridges) = detect_bridges(layer_overhangs, below, layer_idx, z, 5.0);
             regular_overhangs.push(non_bridges);
             all_bridge_regions.push(bridges);
         } else {

@@ -18,7 +18,9 @@ pub(crate) fn encode_png(width: u32, height: u32, pixels: &[[u8; 4]]) -> Vec<u8>
         let flat: &[u8] =
             unsafe { std::slice::from_raw_parts(pixels.as_ptr() as *const u8, pixels.len() * 4) };
 
-        writer.write_image_data(flat).expect("PNG data write failed");
+        writer
+            .write_image_data(flat)
+            .expect("PNG data write failed");
     }
     buf
 }

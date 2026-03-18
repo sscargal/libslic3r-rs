@@ -42,19 +42,17 @@ pub(crate) fn rasterize_triangle(
 
     // Bounding box, clamped to framebuffer
     let min_x = v0.x.min(v1.x).min(v2.x).max(0.0) as u32;
-    let max_x = v0
-        .x
-        .max(v1.x)
-        .max(v2.x)
-        .min(fb.width() as f32 - 1.0)
-        .max(0.0) as u32;
+    let max_x =
+        v0.x.max(v1.x)
+            .max(v2.x)
+            .min(fb.width() as f32 - 1.0)
+            .max(0.0) as u32;
     let min_y = v0.y.min(v1.y).min(v2.y).max(0.0) as u32;
-    let max_y = v0
-        .y
-        .max(v1.y)
-        .max(v2.y)
-        .min(fb.height() as f32 - 1.0)
-        .max(0.0) as u32;
+    let max_y =
+        v0.y.max(v1.y)
+            .max(v2.y)
+            .min(fb.height() as f32 - 1.0)
+            .max(0.0) as u32;
 
     for y in min_y..=max_y {
         for x in min_x..=max_x {
@@ -122,7 +120,11 @@ mod tests {
 
         // Check that some interior pixel is filled
         let idx = 10 * 20 + 10; // (10, 10) should be inside
-        assert_ne!(fb.pixels()[idx], [0, 0, 0, 0], "Interior pixel should be filled");
+        assert_ne!(
+            fb.pixels()[idx],
+            [0, 0, 0, 0],
+            "Interior pixel should be filled"
+        );
     }
 
     #[test]

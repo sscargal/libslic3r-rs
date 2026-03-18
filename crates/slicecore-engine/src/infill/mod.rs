@@ -64,34 +64,64 @@ pub struct LayerInfill {
 pub enum InfillPattern {
     /// Parallel lines alternating between 0 and 90 degrees per layer.
     #[default]
-    #[setting(display = "Rectilinear", description = "Parallel lines alternating direction each layer")]
+    #[setting(
+        display = "Rectilinear",
+        description = "Parallel lines alternating direction each layer"
+    )]
     Rectilinear,
     /// Crosshatch pattern: lines at both 0 and 90 degrees on the same layer.
-    #[setting(display = "Grid", description = "Crosshatch pattern with lines at 0 and 90 degrees")]
+    #[setting(
+        display = "Grid",
+        description = "Crosshatch pattern with lines at 0 and 90 degrees"
+    )]
     Grid,
     /// Hexagonal honeycomb pattern for high strength-to-weight ratio.
-    #[setting(display = "Honeycomb", description = "Hexagonal pattern for high strength-to-weight ratio")]
+    #[setting(
+        display = "Honeycomb",
+        description = "Hexagonal pattern for high strength-to-weight ratio"
+    )]
     Honeycomb,
     /// Triply periodic minimal surface pattern for isotropic strength.
-    #[setting(display = "Gyroid", description = "TPMS gyroid curves for isotropic strength")]
+    #[setting(
+        display = "Gyroid",
+        description = "TPMS gyroid curves for isotropic strength"
+    )]
     Gyroid,
     /// Adaptive cubic infill that increases density near surfaces.
-    #[setting(display = "Adaptive Cubic", description = "Variable density cubic that increases near surfaces")]
+    #[setting(
+        display = "Adaptive Cubic",
+        description = "Variable density cubic that increases near surfaces"
+    )]
     AdaptiveCubic,
     /// Regular cubic infill pattern.
-    #[setting(display = "Cubic", description = "3-angle cycling cubic pattern for 3D strength")]
+    #[setting(
+        display = "Cubic",
+        description = "3-angle cycling cubic pattern for 3D strength"
+    )]
     Cubic,
     /// Tree-like support structure that uses minimal material.
-    #[setting(display = "Lightning", description = "Tree-like minimal material for top surface support")]
+    #[setting(
+        display = "Lightning",
+        description = "Tree-like minimal material for top surface support"
+    )]
     Lightning,
     /// Unidirectional lines (left-to-right) for smooth top surfaces.
-    #[setting(display = "Monotonic", description = "Unidirectional lines for smooth top surfaces")]
+    #[setting(
+        display = "Monotonic",
+        description = "Unidirectional lines for smooth top surfaces"
+    )]
     Monotonic,
     /// TPMS Schwarz Diamond surface for tetrahedral stress distribution.
-    #[setting(display = "TPMS Diamond", description = "Schwarz Diamond surface for tetrahedral stress distribution")]
+    #[setting(
+        display = "TPMS Diamond",
+        description = "Schwarz Diamond surface for tetrahedral stress distribution"
+    )]
     TpmsD,
     /// TPMS Fischer-Koch S surface for interconnected channel topology.
-    #[setting(display = "TPMS Fischer-Koch", description = "Fischer-Koch S surface for interconnected channels")]
+    #[setting(
+        display = "TPMS Fischer-Koch",
+        description = "Fischer-Koch S surface for interconnected channels"
+    )]
     TpmsFk,
     /// A plugin-provided infill pattern, identified by registered name.
     ///
@@ -154,9 +184,13 @@ pub fn generate_infill(
         InfillPattern::Cubic => {
             cubic::generate(infill_region, density, layer_index, layer_z, line_width)
         }
-        InfillPattern::Lightning => {
-            lightning::generate(infill_region, density, layer_index, line_width, lightning_context)
-        }
+        InfillPattern::Lightning => lightning::generate(
+            infill_region,
+            density,
+            layer_index,
+            line_width,
+            lightning_context,
+        ),
         InfillPattern::TpmsD => {
             tpms_d::generate(infill_region, density, layer_index, layer_z, line_width)
         }

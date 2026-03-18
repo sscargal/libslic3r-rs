@@ -68,7 +68,11 @@ pub fn project_support_regions(
         let mut current_support = overhangs.clone();
 
         // Start from the layer just below the overhang and go downward.
-        let start = if layer_idx > 0 { layer_idx - 1 } else { continue };
+        let start = if layer_idx > 0 {
+            layer_idx - 1
+        } else {
+            continue;
+        };
 
         for below_idx in (0..=start).rev() {
             if current_support.is_empty() {
@@ -329,14 +333,9 @@ mod tests {
 
     /// Helper to create a validated CCW square at a given position and size.
     fn make_square(x: f64, y: f64, size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (x, y),
-            (x + size, y),
-            (x + size, y + size),
-            (x, y + size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(x, y), (x + size, y), (x + size, y + size), (x, y + size)])
+            .validate()
+            .unwrap()
     }
 
     /// Helper to create a SliceLayer with the given contours.
@@ -364,7 +363,11 @@ mod tests {
 
         let projected = project_support_regions(&overhang_regions, &layers, true);
 
-        assert_eq!(projected.len(), 6, "Should have 6 layers of projected support");
+        assert_eq!(
+            projected.len(),
+            6,
+            "Should have 6 layers of projected support"
+        );
 
         // Layer 5 itself should NOT have support (support goes below overhang).
         assert!(
@@ -396,17 +399,11 @@ mod tests {
         let support = vec![make_square(50.0, 50.0, 10.0)];
         let model = vec![make_square(40.0, 50.0, 10.0)]; // Adjacent model at left
 
-        let original_area: f64 = support
-            .iter()
-            .map(|p| p.area_mm2())
-            .sum();
+        let original_area: f64 = support.iter().map(|p| p.area_mm2()).sum();
 
         let gapped = apply_xy_gap(&support, &model, 0.4);
 
-        let gapped_area: f64 = gapped
-            .iter()
-            .map(|p| p.area_mm2())
-            .sum();
+        let gapped_area: f64 = gapped.iter().map(|p| p.area_mm2()).sum();
 
         assert!(
             gapped_area < original_area,
@@ -466,11 +463,9 @@ mod tests {
         // Support at layer 0 should not overlap with model contours.
         if !projected[0].is_empty() {
             // Intersect support with model -- should be empty.
-            let overlap = slicecore_geo::polygon_intersection(
-                &projected[0],
-                &[model_square.clone()],
-            )
-            .unwrap_or_default();
+            let overlap =
+                slicecore_geo::polygon_intersection(&projected[0], &[model_square.clone()])
+                    .unwrap_or_default();
 
             let overlap_area: f64 = overlap.iter().map(|p| p.area_mm2()).sum();
             assert!(
@@ -573,8 +568,7 @@ mod tests {
     fn rectilinear_pattern_generates_infill() {
         let region = vec![make_square(50.0, 50.0, 10.0)];
 
-        let lines =
-            generate_support_infill(&region, 0.15, SupportPattern::Rectilinear, 0, 0.4);
+        let lines = generate_support_infill(&region, 0.15, SupportPattern::Rectilinear, 0, 0.4);
 
         assert!(
             !lines.is_empty(),

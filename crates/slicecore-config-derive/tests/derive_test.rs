@@ -1,6 +1,4 @@
-use slicecore_config_schema::{
-    Constraint, HasSettingSchema, SettingCategory, Tier, ValueType,
-};
+use slicecore_config_schema::{Constraint, HasSettingSchema, SettingCategory, Tier, ValueType};
 
 // Test enum
 #[derive(slicecore_config_derive::SettingSchema)]
@@ -121,10 +119,26 @@ fn test_skip_field() {
 fn test_flatten_prefix() {
     let defs = TestParentConfig::setting_definitions("");
     let keys: Vec<&str> = defs.iter().map(|d| d.key.0.as_str()).collect();
-    assert!(keys.contains(&"speed.perimeter"), "missing speed.perimeter, got: {:?}", keys);
-    assert!(keys.contains(&"speed.infill"), "missing speed.infill, got: {:?}", keys);
-    assert!(keys.contains(&"speed.gap_fill"), "missing speed.gap_fill, got: {:?}", keys);
-    assert!(keys.contains(&"layer_height"), "missing layer_height, got: {:?}", keys);
+    assert!(
+        keys.contains(&"speed.perimeter"),
+        "missing speed.perimeter, got: {:?}",
+        keys
+    );
+    assert!(
+        keys.contains(&"speed.infill"),
+        "missing speed.infill, got: {:?}",
+        keys
+    );
+    assert!(
+        keys.contains(&"speed.gap_fill"),
+        "missing speed.gap_fill, got: {:?}",
+        keys
+    );
+    assert!(
+        keys.contains(&"layer_height"),
+        "missing layer_height, got: {:?}",
+        keys
+    );
     // 3 from speed (skip excluded) + 1 layer_height = 4
     assert_eq!(defs.len(), 4);
 }

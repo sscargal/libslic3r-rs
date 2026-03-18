@@ -14,8 +14,8 @@ use slicecore_engine::profile_import_ini::{
     resolve_ini_inheritance,
 };
 use slicecore_engine::{
-    batch_convert_prusaslicer_profiles, load_index, write_index, write_merged_index,
-    ProfileIndex, ProfileIndexEntry,
+    batch_convert_prusaslicer_profiles, load_index, write_index, write_merged_index, ProfileIndex,
+    ProfileIndexEntry,
 };
 
 use tempfile::TempDir;
@@ -276,10 +276,7 @@ fn test_prusaslicer_field_mapping_filament() {
     fields.insert("temperature".to_string(), "210".to_string());
     fields.insert("first_layer_temperature".to_string(), "215".to_string());
     fields.insert("bed_temperature".to_string(), "60".to_string());
-    fields.insert(
-        "first_layer_bed_temperature".to_string(),
-        "65".to_string(),
-    );
+    fields.insert("first_layer_bed_temperature".to_string(), "65".to_string());
     fields.insert("filament_density".to_string(), "1.24".to_string());
     fields.insert("filament_diameter".to_string(), "1.75".to_string());
     fields.insert("extrusion_multiplier".to_string(), "1".to_string());
@@ -439,17 +436,9 @@ gcode_flavor = marlin
     let process_files: Vec<_> = std::fs::read_dir(&process_dir)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "toml")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
         .collect();
-    assert_eq!(
-        process_files.len(),
-        1,
-        "Should have 1 process TOML file"
-    );
+    assert_eq!(process_files.len(), 1, "Should have 1 process TOML file");
 
     let filament_dir = output.path().join("TestVendor").join("filament");
     assert!(filament_dir.exists(), "filament directory should exist");
@@ -646,8 +635,7 @@ fn test_real_prusaresearch_conversion() {
 
     // Convert a subset via batch converter.
     let output = TempDir::new().unwrap();
-    let source_dir =
-        Path::new("/home/steve/slicer-analysis/PrusaSlicer/resources/profiles");
+    let source_dir = Path::new("/home/steve/slicer-analysis/PrusaSlicer/resources/profiles");
 
     // Convert just PrusaResearch (it is the single file used by batch converter).
     let result =
@@ -672,11 +660,7 @@ fn test_real_prusaresearch_conversion() {
         let toml_files: Vec<_> = std::fs::read_dir(&prusa_process_dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .is_some_and(|ext| ext == "toml")
-            })
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
             .collect();
 
         assert!(
@@ -785,10 +769,8 @@ fn test_real_small_vendor_conversion() {
 #[test]
 #[ignore]
 fn test_real_combined_index() {
-    let orca_source =
-        Path::new("/home/steve/slicer-analysis/OrcaSlicer/resources/profiles");
-    let prusa_source =
-        Path::new("/home/steve/slicer-analysis/PrusaSlicer/resources/profiles");
+    let orca_source = Path::new("/home/steve/slicer-analysis/OrcaSlicer/resources/profiles");
+    let prusa_source = Path::new("/home/steve/slicer-analysis/PrusaSlicer/resources/profiles");
 
     assert!(
         orca_source.is_dir(),
@@ -838,11 +820,8 @@ fn test_real_combined_index() {
     eprintln!("Merged index: {} total profiles", index.profiles.len());
 
     // Verify both sources present.
-    let sources: std::collections::HashSet<&str> = index
-        .profiles
-        .iter()
-        .map(|p| p.source.as_str())
-        .collect();
+    let sources: std::collections::HashSet<&str> =
+        index.profiles.iter().map(|p| p.source.as_str()).collect();
     assert!(
         sources.contains("orcaslicer"),
         "Merged index should contain OrcaSlicer entries"

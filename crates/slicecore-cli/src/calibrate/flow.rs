@@ -13,8 +13,8 @@ use slicecore_engine::calibrate::{
 use slicecore_engine::engine::Engine;
 
 use super::common::{
-    display_dry_run, format_calibration_header, resolve_calibration_config,
-    save_calibration_model, write_instructions,
+    display_dry_run, format_calibration_header, resolve_calibration_config, save_calibration_model,
+    write_instructions,
 };
 
 /// Arguments for the flow rate calibration command, extracted from CLI.
@@ -89,7 +89,10 @@ pub fn cmd_flow(args: FlowArgs) -> Result<(), Box<dyn std::error::Error>> {
     // Dry run: show model info and parameters without slicing
     if args.dry_run {
         let mut dry_params: Vec<(&str, String)> = vec![
-            ("Baseline Multiplier", format!("{:.2}", params.baseline_multiplier)),
+            (
+                "Baseline Multiplier",
+                format!("{:.2}", params.baseline_multiplier),
+            ),
             ("Step", format!("{:.0}%", params.step * 100.0)),
             ("Start Flow", format!("{start_pct:.0}%")),
             ("End Flow", format!("{end_pct:.0}%")),
@@ -129,7 +132,10 @@ pub fn cmd_flow(args: FlowArgs) -> Result<(), Box<dyn std::error::Error>> {
     let header = format_calibration_header(
         "Flow Rate Test",
         &[
-            ("Baseline Multiplier", format!("{:.2}", params.baseline_multiplier)),
+            (
+                "Baseline Multiplier",
+                format!("{:.2}", params.baseline_multiplier),
+            ),
             ("Step", format!("{:.0}%", params.step * 100.0)),
             ("Start Flow", format!("{start_pct:.0}%")),
             ("End Flow", format!("{end_pct:.0}%")),
@@ -140,7 +146,9 @@ pub fn cmd_flow(args: FlowArgs) -> Result<(), Box<dyn std::error::Error>> {
     let output_gcode = inject_flow_changes_text(&gcode_text, &schedule, &header);
 
     // 8. Write G-code
-    let output_path = args.output.unwrap_or_else(|| PathBuf::from("flow_test.gcode"));
+    let output_path = args
+        .output
+        .unwrap_or_else(|| PathBuf::from("flow_test.gcode"));
     std::fs::write(&output_path, output_gcode)?;
 
     // 9. Write companion instructions
@@ -160,10 +168,7 @@ pub fn cmd_flow(args: FlowArgs) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 /// Builds companion instruction sections for the flow rate test.
-fn build_flow_instructions(
-    params: &FlowParams,
-    schedule: &[(f64, f64)],
-) -> Vec<(String, String)> {
+fn build_flow_instructions(params: &FlowParams, schedule: &[(f64, f64)]) -> Vec<(String, String)> {
     let mut sections = Vec::new();
 
     let start_pct = schedule.first().map_or(100.0, |s| s.1);

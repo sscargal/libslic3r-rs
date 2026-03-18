@@ -135,11 +135,13 @@ fn msgpack_flag_produces_decodable_output() {
         String::from_utf8_lossy(&output.stderr)
     );
 
-    assert!(!output.stdout.is_empty(), "MessagePack output should not be empty");
+    assert!(
+        !output.stdout.is_empty(),
+        "MessagePack output should not be empty"
+    );
 
     // Decode with rmp-serde (same as from_msgpack).
-    let metadata: slicecore_engine::SliceMetadata =
-        rmp_serde::from_slice(&output.stdout).unwrap();
+    let metadata: slicecore_engine::SliceMetadata = rmp_serde::from_slice(&output.stdout).unwrap();
 
     assert!(metadata.layer_count > 0);
     assert!(metadata.time_estimate.total_seconds > 0.0);
@@ -178,5 +180,8 @@ fn no_flag_produces_human_summary_on_stdout() {
         &stdout[..stdout.len().min(500)]
     );
     assert!(stdout.contains("Layers:"), "stdout should mention layers");
-    assert!(stdout.contains("Output:"), "stdout should mention output path");
+    assert!(
+        stdout.contains("Output:"),
+        "stdout should mention output path"
+    );
 }

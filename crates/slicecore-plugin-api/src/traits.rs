@@ -180,10 +180,7 @@ pub trait CsgOperationPlugin: Send + Sync + Debug {
     ///
     /// Returns `RErr(RString)` if the primitive type is unsupported or
     /// the parameters are invalid.
-    fn create_primitive(
-        &self,
-        params: &CsgPrimitiveParams,
-    ) -> RResult<CsgMeshData, RString>;
+    fn create_primitive(&self, params: &CsgPrimitiveParams) -> RResult<CsgMeshData, RString>;
 
     /// Applies a custom boolean operation to two meshes.
     ///
@@ -294,16 +291,9 @@ mod tests {
             "test-csg".into()
         }
 
-        fn create_primitive(
-            &self,
-            _params: &CsgPrimitiveParams,
-        ) -> RResult<CsgMeshData, RString> {
+        fn create_primitive(&self, _params: &CsgPrimitiveParams) -> RResult<CsgMeshData, RString> {
             ROk(CsgMeshData {
-                vertices: RVec::from(vec![
-                    [0.0, 0.0, 0.0],
-                    [1.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                ]),
+                vertices: RVec::from(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),
                 indices: RVec::from(vec![[0u32, 1, 2]]),
             })
         }

@@ -36,12 +36,12 @@ pub use boolean::{
     mesh_union_many, mesh_union_with, mesh_xor, mesh_xor_with,
 };
 pub use error::CsgError;
+pub use hollow::{hollow_mesh, DrainHole, HollowOptions};
+pub use offset::mesh_offset;
 pub use primitives::{
     primitive_box, primitive_cone, primitive_cylinder, primitive_ngon_prism, primitive_plane,
     primitive_rounded_box, primitive_sphere, primitive_torus, primitive_wedge,
 };
 pub use report::CsgReport;
-pub use hollow::{hollow_mesh, DrainHole, HollowOptions};
-pub use offset::mesh_offset;
 pub use split::{mesh_split_at_plane, SplitOptions, SplitPlane, SplitResult};
 pub use types::{BooleanOp, CsgCancellationToken, CsgOptions, TriangleAttributes};

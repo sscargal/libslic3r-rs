@@ -174,8 +174,14 @@ fn sc1_layer_boundaries_and_metrics() {
     );
 
     // Find layers at expected Z heights
-    let z02_layer = analysis.layers.iter().find(|l| (l.z_height - 0.2).abs() < 0.01);
-    let z04_layer = analysis.layers.iter().find(|l| (l.z_height - 0.4).abs() < 0.01);
+    let z02_layer = analysis
+        .layers
+        .iter()
+        .find(|l| (l.z_height - 0.2).abs() < 0.01);
+    let z04_layer = analysis
+        .layers
+        .iter()
+        .find(|l| (l.z_height - 0.4).abs() < 0.01);
     assert!(z02_layer.is_some(), "Should have a layer at Z=0.2");
     assert!(z04_layer.is_some(), "Should have a layer at Z=0.4");
 
@@ -399,10 +405,7 @@ fn sc4_header_metadata_prusaslicer() {
 
     assert_eq!(analysis.slicer, slicecore_engine::SlicerType::PrusaSlicer);
     assert!(analysis.header.slicer_name.is_some());
-    assert_eq!(
-        analysis.header.slicer_name.as_deref(),
-        Some("PrusaSlicer")
-    );
+    assert_eq!(analysis.header.slicer_name.as_deref(), Some("PrusaSlicer"));
 
     // Estimated time: 2m 15s = 135s
     assert!(
@@ -451,7 +454,10 @@ fn sc5_analysis_json_serializable() {
     // Verify deserialization round-trip
     let deserialized: slicecore_engine::GcodeAnalysis = serde_json::from_str(&json).unwrap();
     assert_eq!(deserialized.filename, "test.gcode");
-    assert_eq!(deserialized.slicer, slicecore_engine::SlicerType::BambuStudio);
+    assert_eq!(
+        deserialized.slicer,
+        slicecore_engine::SlicerType::BambuStudio
+    );
     assert_eq!(deserialized.layers.len(), analysis.layers.len());
     assert!(
         (deserialized.total_filament_mm - analysis.total_filament_mm).abs() < 0.001,
@@ -600,10 +606,7 @@ fn sc7_real_bambustudio_gcode() {
         "  Total time (header): {:?}",
         analysis.header.estimated_time_s
     );
-    println!(
-        "  Filament (computed): {:.1}mm",
-        analysis.total_filament_mm
-    );
+    println!("  Filament (computed): {:.1}mm", analysis.total_filament_mm);
     println!(
         "  Filament (header): {:?}",
         analysis.header.filament_length_mm
@@ -656,10 +659,7 @@ fn sc7_real_comparison_two_files() {
         "  Filament delta: {:.1}mm",
         result.deltas[0].filament_delta_mm
     );
-    println!(
-        "  Time delta: {:.1}s",
-        result.deltas[0].total_time_delta_s
-    );
+    println!("  Time delta: {:.1}s", result.deltas[0].total_time_delta_s);
 }
 
 // =============================================================================
@@ -829,8 +829,5 @@ fn edge_case_line_count() {
     let analysis = slicecore_engine::parse_gcode_file(reader, "test.gcode", 1.75, 1.24);
 
     // Line count should be > 0 for non-empty file
-    assert!(
-        analysis.line_count > 0,
-        "Should count lines in the file"
-    );
+    assert!(analysis.line_count > 0, "Should count lines in the file");
 }

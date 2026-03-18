@@ -84,7 +84,10 @@ pub struct CustomGcodeHooks {
     pub pause_print_original: String,
     /// G-code injected between objects in sequential printing mode.
     /// PrusaSlicer: `between_objects_gcode`.
-    #[setting(tier = 3, description = "G-code injected between objects in sequential mode")]
+    #[setting(
+        tier = 3,
+        description = "G-code injected between objects in sequential mode"
+    )]
     pub between_objects: String,
     /// Verbatim G-code from upstream profile before variable translation.
     #[serde(default)]

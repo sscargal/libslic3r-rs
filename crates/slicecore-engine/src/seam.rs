@@ -29,13 +29,19 @@ pub enum SeamPosition {
     /// Otherwise, starts at the rear (maximum Y). This creates a consistent
     /// vertical seam line across all layers.
     #[default]
-    #[setting(display = "Aligned", description = "Align seam points vertically across layers")]
+    #[setting(
+        display = "Aligned",
+        description = "Align seam points vertically across layers"
+    )]
     Aligned,
     /// Deterministic pseudo-random placement.
     ///
     /// Uses the layer index as a seed for deterministic vertex selection.
     /// Same layer index always produces the same seam index.
-    #[setting(display = "Random", description = "Scatter seam points pseudo-randomly for less visible seam")]
+    #[setting(
+        display = "Random",
+        description = "Scatter seam points pseudo-randomly for less visible seam"
+    )]
     Random,
     /// Place seam at the rear (maximum Y) of the model.
     ///
@@ -50,7 +56,10 @@ pub enum SeamPosition {
     /// (which hide the seam better). Adds an alignment bonus if a previous
     /// seam point is available. Falls back to Aligned strategy on smooth
     /// curves with no sharp corners.
-    #[setting(display = "Nearest Corner", description = "Hide seam in concave corners for best appearance")]
+    #[setting(
+        display = "Nearest Corner",
+        description = "Hide seam in concave corners for best appearance"
+    )]
     NearestCorner,
 }
 
@@ -291,14 +300,9 @@ mod tests {
 
     /// Helper to create a validated CCW square at the origin with given size (mm).
     fn make_square(size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (0.0, 0.0),
-            (size, 0.0),
-            (size, size),
-            (0.0, size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(0.0, 0.0), (size, 0.0), (size, size), (0.0, size)])
+            .validate()
+            .unwrap()
     }
 
     /// Helper to create an L-shaped polygon with one obvious concave corner.
@@ -438,8 +442,7 @@ mod tests {
 
         let corner_idx =
             select_seam_point(&square, SeamPosition::NearestCorner, Some(prev_seam), 0);
-        let aligned_idx =
-            select_seam_point(&square, SeamPosition::Aligned, Some(prev_seam), 0);
+        let aligned_idx = select_seam_point(&square, SeamPosition::Aligned, Some(prev_seam), 0);
 
         assert_eq!(
             corner_idx, aligned_idx,
@@ -487,11 +490,7 @@ mod tests {
         for pos in &positions {
             let json = serde_json::to_string(pos).unwrap();
             let deserialized: SeamPosition = serde_json::from_str(&json).unwrap();
-            assert_eq!(
-                *pos, deserialized,
-                "Serde round-trip failed for {:?}",
-                pos
-            );
+            assert_eq!(*pos, deserialized, "Serde round-trip failed for {:?}", pos);
         }
     }
 

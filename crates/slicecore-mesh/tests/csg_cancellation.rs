@@ -4,9 +4,8 @@ use std::thread;
 use std::time::Duration;
 
 use slicecore_mesh::csg::{
-    boolean::mesh_union_with, CsgCancellationToken, CsgError, CsgOptions,
-    primitives::primitive_box,
-    primitives::primitive_sphere,
+    boolean::mesh_union_with, primitives::primitive_box, primitives::primitive_sphere,
+    CsgCancellationToken, CsgError, CsgOptions,
 };
 
 #[test]

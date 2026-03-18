@@ -137,10 +137,7 @@ fn map_finish_reason(reason: &str) -> FinishReason {
 
 #[async_trait]
 impl AiProvider for OpenAiProvider {
-    async fn complete(
-        &self,
-        request: &CompletionRequest,
-    ) -> Result<CompletionResponse, AiError> {
+    async fn complete(&self, request: &CompletionRequest) -> Result<CompletionResponse, AiError> {
         // Build messages: system prompt first, then conversation messages
         let mut messages = Vec::with_capacity(request.messages.len() + 1);
         messages.push(OpenAiMessage {

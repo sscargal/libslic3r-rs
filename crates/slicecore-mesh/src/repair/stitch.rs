@@ -24,11 +24,7 @@ pub const STITCH_TOLERANCE: f64 = 1e-4;
 /// After merging, removes any degenerate triangles created by the merge.
 ///
 /// Returns the number of edges stitched (vertex pairs merged).
-pub fn stitch_edges(
-    vertices: &[Point3],
-    indices: &mut Vec<[u32; 3]>,
-    tolerance: f64,
-) -> usize {
+pub fn stitch_edges(vertices: &[Point3], indices: &mut Vec<[u32; 3]>, tolerance: f64) -> usize {
     if vertices.is_empty() || indices.is_empty() {
         return 0;
     }
@@ -178,8 +174,8 @@ mod tests {
             Point3::new(0.0, 0.0, 0.0),
             Point3::new(1.0, 0.0, 0.0),
             Point3::new(0.5, 1.0, 0.0),
-            Point3::new(10.0, 0.0, 0.0),  // Far from all triangle 0 vertices
-            Point3::new(11.0, 0.0, 0.0),  // Far from all triangle 0 vertices
+            Point3::new(10.0, 0.0, 0.0), // Far from all triangle 0 vertices
+            Point3::new(11.0, 0.0, 0.0), // Far from all triangle 0 vertices
             Point3::new(10.5, -1.0, 0.0), // Far from all triangle 0 vertices
         ];
         let mut indices = vec![[0, 1, 2], [3, 4, 5]];

@@ -33,12 +33,12 @@ use std::process;
 use clap::{Parser, Subcommand};
 
 use slicecore_ai::AiConfig;
+use slicecore_engine::profile_resolve::{ProfileResolver, ProfileSource};
 use slicecore_engine::{
     batch_convert_profiles, batch_convert_prusaslicer_profiles, config::PostProcessConfig,
     create_builtin_postprocessors, load_index, write_merged_index, Engine, PrintConfig,
     ProfileIndexEntry,
 };
-use slicecore_engine::profile_resolve::{ProfileResolver, ProfileSource};
 use slicecore_fileio::{load_mesh, save_mesh};
 use slicecore_gcode_io::validate_gcode;
 use slicecore_mesh::{compute_stats, repair};
@@ -978,10 +978,8 @@ fn cmd_slice(
 
         match slice_workflow::run_slice_workflow(&workflow_options) {
             Ok(result) => {
-                let header = slice_workflow::generate_gcode_header(
-                    &result.composed,
-                    &workflow_options,
-                );
+                let header =
+                    slice_workflow::generate_gcode_header(&result.composed, &workflow_options);
                 (result.composed.config, Some(header))
             }
             Err(code) => process::exit(code),
@@ -1302,9 +1300,10 @@ fn cmd_slice(
 
     // Summary line for profile-based workflow.
     if use_profile_workflow {
-        let filament_m = result.statistics.as_ref().map_or(0.0, |s| {
-            s.summary.total_filament_m
-        });
+        let filament_m = result
+            .statistics
+            .as_ref()
+            .map_or(0.0, |s| s.summary.total_filament_m);
         let time_min = result.estimated_time_seconds / 60.0;
         eprintln!(
             "Sliced {} -> {} ({} layers, {:.1}m filament, est. {:.1}min)",
@@ -2121,7 +2120,8 @@ fn cmd_search_profiles(
         let mut suggestions = Vec::new();
         for profile_type in &["machine", "filament", "process"] {
             if let Err(slicecore_engine::profile_resolve::ProfileError::NotFound {
-                suggestions: s, ..
+                suggestions: s,
+                ..
             }) = resolver.resolve(query, profile_type)
             {
                 for sug in s {
@@ -2139,7 +2139,11 @@ fn cmd_search_profiles(
             eprintln!("No profiles found matching '{}'.", query);
             eprintln!(
                 "Did you mean: {}?",
-                suggestions.into_iter().take(5).collect::<Vec<_>>().join(", ")
+                suggestions
+                    .into_iter()
+                    .take(5)
+                    .collect::<Vec<_>>()
+                    .join(", ")
             );
         }
         return;
@@ -2194,7 +2198,10 @@ fn cmd_show_profile(id: &str, raw: bool, profiles_dir_override: Option<&std::pat
     // Try to resolve using ProfileResolver -- accept any type.
     // First try file-path style (with /), then each type.
     let resolved = if id.contains('/') || id.ends_with(".toml") {
-        resolver.resolve(id, "machine").or_else(|_| resolver.resolve(id, "filament")).or_else(|_| resolver.resolve(id, "process"))
+        resolver
+            .resolve(id, "machine")
+            .or_else(|_| resolver.resolve(id, "filament"))
+            .or_else(|_| resolver.resolve(id, "process"))
     } else {
         // Try each type.
         resolver
@@ -2534,7 +2541,8 @@ fn cmd_analyze_gcode(
             });
             println!(
                 "{}",
-                serde_json::to_string_pretty(&combined).unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}")),
+                serde_json::to_string_pretty(&combined)
+                    .unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}")),
             );
         } else if csv {
             analysis_display::display_volume_estimate_csv(&vol_est);
@@ -2609,7 +2617,8 @@ fn cmd_analyze_gcode(
             });
             println!(
                 "{}",
-                serde_json::to_string_pretty(&combined).unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}")),
+                serde_json::to_string_pretty(&combined)
+                    .unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}")),
             );
         } else {
             analysis_display::display_analysis_json(&analysis);
@@ -2665,24 +2674,22 @@ fn cmd_analyze_gcode(
         for fil_name in compare_filament {
             // Try to resolve filament profile and extract density/price
             let (comp_density, comp_price) = match resolver.resolve(fil_name, "filament") {
-                Ok(resolved) => {
-                    match std::fs::read_to_string(&resolved.path) {
-                        Ok(toml_str) => {
-                            let partial: PrintConfig = toml::from_str(&toml_str).unwrap_or_default();
-                            let d = partial.filament.density;
-                            let p = if partial.filament.cost_per_kg > 0.0 {
-                                Some(partial.filament.cost_per_kg)
-                            } else {
-                                filament_price
-                            };
-                            (d, p)
-                        }
-                        Err(e) => {
-                            eprintln!("Warning: Could not read filament profile '{fil_name}': {e}");
-                            (density, filament_price)
-                        }
+                Ok(resolved) => match std::fs::read_to_string(&resolved.path) {
+                    Ok(toml_str) => {
+                        let partial: PrintConfig = toml::from_str(&toml_str).unwrap_or_default();
+                        let d = partial.filament.density;
+                        let p = if partial.filament.cost_per_kg > 0.0 {
+                            Some(partial.filament.cost_per_kg)
+                        } else {
+                            filament_price
+                        };
+                        (d, p)
                     }
-                }
+                    Err(e) => {
+                        eprintln!("Warning: Could not read filament profile '{fil_name}': {e}");
+                        (density, filament_price)
+                    }
+                },
                 Err(e) => {
                     eprintln!("Warning: Could not resolve filament profile '{fil_name}': {e}");
                     (density, filament_price)

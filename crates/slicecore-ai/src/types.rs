@@ -161,7 +161,10 @@ mod tests {
         };
         let json = serde_json::to_value(&request).unwrap();
         // f32 -> f64 conversion introduces floating-point imprecision
-        assert!(json["temperature"].as_f64().unwrap() > 0.69 && json["temperature"].as_f64().unwrap() < 0.71);
+        assert!(
+            json["temperature"].as_f64().unwrap() > 0.69
+                && json["temperature"].as_f64().unwrap() < 0.71
+        );
         assert_eq!(json["max_tokens"], 1024);
         assert!(json["response_format"].is_object());
     }

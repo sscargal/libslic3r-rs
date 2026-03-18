@@ -296,10 +296,7 @@ mod tests {
         ];
 
         let result = order_objects(&objects, 35.0, 40.0);
-        assert!(
-            result.is_err(),
-            "Should return error for colliding objects"
-        );
+        assert!(result.is_err(), "Should return error for colliding objects");
         let err = result.unwrap_err();
         assert!(
             err.contains("Collision"),
@@ -405,7 +402,10 @@ extruder_clearance_height = 50.0
 
         // Diagonal gap = sqrt(30^2 + 30^2) = ~42.4mm > 35mm
         let collision = detect_collision(&obj_a, &obj_b, 35.0, 40.0);
-        assert!(!collision, "Diagonal gap of ~42mm should not collide with 35mm radius");
+        assert!(
+            !collision,
+            "Diagonal gap of ~42mm should not collide with 35mm radius"
+        );
     }
 
     #[test]

@@ -84,10 +84,7 @@ fn slice_plugin_dir_flag_accepted() {
     );
 
     // G-code file should be produced.
-    assert!(
-        gcode_path.exists(),
-        "gcode output should be created"
-    );
+    assert!(gcode_path.exists(), "gcode output should be created");
 }
 
 #[test]
@@ -99,11 +96,7 @@ fn slice_plugin_infill_without_plugin_dir_fails() {
 
     // Create a config that requests a plugin infill pattern but has no plugin_dir.
     let config_path = dir.path().join("config.toml");
-    std::fs::write(
-        &config_path,
-        "infill_pattern = { plugin = \"zigzag\" }\n",
-    )
-    .unwrap();
+    std::fs::write(&config_path, "infill_pattern = { plugin = \"zigzag\" }\n").unwrap();
 
     let output = Command::new(cli_binary())
         .args([
@@ -139,11 +132,7 @@ fn slice_plugin_dir_overrides_config() {
 
     // Config with a plugin_dir that does not exist.
     let config_path = dir.path().join("config.toml");
-    std::fs::write(
-        &config_path,
-        "plugin_dir = \"/original/path\"\n",
-    )
-    .unwrap();
+    std::fs::write(&config_path, "plugin_dir = \"/original/path\"\n").unwrap();
 
     let output = Command::new(cli_binary())
         .args([
@@ -168,10 +157,7 @@ fn slice_plugin_dir_overrides_config() {
     );
 
     // G-code file should be produced.
-    assert!(
-        gcode_path.exists(),
-        "gcode output should be created"
-    );
+    assert!(gcode_path.exists(), "gcode output should be created");
 }
 
 #[test]
@@ -219,10 +205,7 @@ fn help_text_documents_plugins_and_ai() {
         .output()
         .expect("failed to run slicecore CLI");
 
-    assert!(
-        output.status.success(),
-        "--help should exit 0"
-    );
+    assert!(output.status.success(), "--help should exit 0");
 
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(

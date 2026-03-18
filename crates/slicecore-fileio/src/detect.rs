@@ -67,8 +67,7 @@ pub fn detect_format(data: &[u8]) -> Result<MeshFormat, FileIOError> {
 
     // 3. Check for binary STL: >= 84 bytes, size matches 84 + tri_count * 50.
     if data.len() >= 84 {
-        let num_triangles =
-            u32::from_le_bytes([data[80], data[81], data[82], data[83]]) as usize;
+        let num_triangles = u32::from_le_bytes([data[80], data[81], data[82], data[83]]) as usize;
         let expected_size = 84 + num_triangles * 50;
         // Allow +/- 1 byte tolerance for trailing newline or padding.
         if data.len() >= expected_size && data.len() <= expected_size + 1 {
@@ -86,10 +85,7 @@ pub fn detect_format(data: &[u8]) -> Result<MeshFormat, FileIOError> {
             if trimmed.is_empty() || trimmed.starts_with('#') {
                 continue;
             }
-            if trimmed.starts_with("v ")
-                || trimmed.starts_with("g ")
-                || trimmed.starts_with("o ")
-            {
+            if trimmed.starts_with("v ") || trimmed.starts_with("g ") || trimmed.starts_with("o ") {
                 return Ok(MeshFormat::Obj);
             }
             checked += 1;

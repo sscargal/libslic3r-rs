@@ -105,10 +105,7 @@ fn find_innermost_shell(shells: &[PerimeterShell]) -> Option<&PerimeterShell> {
 }
 
 /// Computes the gap region between two polygon sets (subject minus clip).
-fn compute_gap_region(
-    subject: &[ValidPolygon],
-    clip: &[ValidPolygon],
-) -> Vec<ValidPolygon> {
+fn compute_gap_region(subject: &[ValidPolygon], clip: &[ValidPolygon]) -> Vec<ValidPolygon> {
     if subject.is_empty() || clip.is_empty() {
         return Vec::new();
     }
@@ -306,14 +303,9 @@ mod tests {
 
     /// Helper to create a validated CCW rectangle.
     fn make_rect(x: f64, y: f64, w: f64, h: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (x, y),
-            (x + w, y),
-            (x + w, y + h),
-            (x, y + h),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(x, y), (x + w, y), (x + w, y + h), (x, y + h)])
+            .validate()
+            .unwrap()
     }
 
     /// Helper to create a validated CCW square.
@@ -438,15 +430,11 @@ mod tests {
     fn gap_fill_disabled_returns_empty() {
         // When gap fill is disabled, detect_and_fill_gaps should not be called.
         // But we can verify that an empty shell list returns empty.
-        let gap_fills = detect_and_fill_gaps(
-            &[],
-            &[],
-            &[],
-            0.1,
-            0.4,
-            default_line_width(),
+        let gap_fills = detect_and_fill_gaps(&[], &[], &[], 0.1, 0.4, default_line_width());
+        assert!(
+            gap_fills.is_empty(),
+            "Empty shells should produce no gap fills"
         );
-        assert!(gap_fills.is_empty(), "Empty shells should produce no gap fills");
     }
 
     #[test]
@@ -463,7 +451,8 @@ mod tests {
                 assert!(
                     x >= -1.0 && x <= 16.0 && y >= -1.0 && y <= 1.3,
                     "Gap fill point ({}, {}) should be near the gap polygon",
-                    x, y
+                    x,
+                    y
                 );
             }
         }
@@ -516,7 +505,8 @@ mod tests {
         assert!(
             (mx - 5.0).abs() < 0.001 && (my - 5.0).abs() < 0.001,
             "Midpoint of (0,0)-(10,10) should be (5,5), got ({}, {})",
-            mx, my
+            mx,
+            my
         );
     }
 }

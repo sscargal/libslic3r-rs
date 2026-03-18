@@ -110,22 +110,22 @@ fn compute_delta(baseline: &GcodeAnalysis, other: &GcodeAnalysis) -> ComparisonD
         pct_delta(baseline.total_time_estimate_s, other.total_time_estimate_s);
 
     // Header time deltas (only if both have header time)
-    let (header_time_delta_s, header_time_delta_pct) =
-        match (baseline.header.estimated_time_s, other.header.estimated_time_s) {
-            (Some(bt), Some(ot)) => (Some(ot - bt), Some(pct_delta(bt, ot))),
-            _ => (None, None),
-        };
+    let (header_time_delta_s, header_time_delta_pct) = match (
+        baseline.header.estimated_time_s,
+        other.header.estimated_time_s,
+    ) {
+        (Some(bt), Some(ot)) => (Some(ot - bt), Some(pct_delta(bt, ot))),
+        _ => (None, None),
+    };
 
     // Filament deltas
     let filament_delta_mm = other.total_filament_mm - baseline.total_filament_mm;
     let filament_delta_pct = pct_delta(baseline.total_filament_mm, other.total_filament_mm);
-    let filament_weight_delta_g =
-        other.total_filament_weight_g - baseline.total_filament_weight_g;
+    let filament_weight_delta_g = other.total_filament_weight_g - baseline.total_filament_weight_g;
 
     // Structure deltas
     let layer_count_delta = other.layers.len() as i64 - baseline.layers.len() as i64;
-    let retraction_count_delta =
-        other.retraction_count as i32 - baseline.retraction_count as i32;
+    let retraction_count_delta = other.retraction_count as i32 - baseline.retraction_count as i32;
     let total_moves_delta = other.total_moves as i64 - baseline.total_moves as i64;
     let total_travel_delta_mm = other.total_travel_mm - baseline.total_travel_mm;
     let total_extrusion_delta_mm = other.total_extrusion_mm - baseline.total_extrusion_mm;
@@ -267,8 +267,30 @@ mod tests {
 
     #[test]
     fn delta_computation_basic() {
-        let baseline = make_analysis("baseline.gcode", 600.0, 3000.0, 9.0, Some(580.0), 100, 200, 5000, 1000.0, 4000.0);
-        let other = make_analysis("other.gcode", 660.0, 3300.0, 9.9, Some(640.0), 110, 220, 5500, 1100.0, 4400.0);
+        let baseline = make_analysis(
+            "baseline.gcode",
+            600.0,
+            3000.0,
+            9.0,
+            Some(580.0),
+            100,
+            200,
+            5000,
+            1000.0,
+            4000.0,
+        );
+        let other = make_analysis(
+            "other.gcode",
+            660.0,
+            3300.0,
+            9.9,
+            Some(640.0),
+            110,
+            220,
+            5500,
+            1100.0,
+            4400.0,
+        );
 
         let result = compare_gcode_analyses(baseline, vec![other]);
         assert_eq!(result.deltas.len(), 1);
@@ -302,7 +324,18 @@ mod tests {
     #[test]
     fn delta_with_zero_baseline() {
         let baseline = make_analysis("baseline.gcode", 0.0, 0.0, 0.0, None, 0, 0, 0, 0.0, 0.0);
-        let other = make_analysis("other.gcode", 100.0, 500.0, 1.5, None, 10, 5, 100, 50.0, 200.0);
+        let other = make_analysis(
+            "other.gcode",
+            100.0,
+            500.0,
+            1.5,
+            None,
+            10,
+            5,
+            100,
+            50.0,
+            200.0,
+        );
 
         let result = compare_gcode_analyses(baseline, vec![other]);
         let delta = &result.deltas[0];
@@ -318,8 +351,30 @@ mod tests {
 
     #[test]
     fn delta_header_time_missing_on_one_side() {
-        let baseline = make_analysis("baseline.gcode", 600.0, 3000.0, 9.0, Some(580.0), 100, 200, 5000, 1000.0, 4000.0);
-        let other = make_analysis("other.gcode", 660.0, 3300.0, 9.9, None, 110, 220, 5500, 1100.0, 4400.0);
+        let baseline = make_analysis(
+            "baseline.gcode",
+            600.0,
+            3000.0,
+            9.0,
+            Some(580.0),
+            100,
+            200,
+            5000,
+            1000.0,
+            4000.0,
+        );
+        let other = make_analysis(
+            "other.gcode",
+            660.0,
+            3300.0,
+            9.9,
+            None,
+            110,
+            220,
+            5500,
+            1100.0,
+            4400.0,
+        );
 
         let result = compare_gcode_analyses(baseline, vec![other]);
         let delta = &result.deltas[0];
@@ -331,7 +386,18 @@ mod tests {
 
     #[test]
     fn per_feature_deltas_union_of_keys() {
-        let mut baseline = make_analysis("baseline.gcode", 600.0, 3000.0, 9.0, None, 100, 200, 5000, 1000.0, 4000.0);
+        let mut baseline = make_analysis(
+            "baseline.gcode",
+            600.0,
+            3000.0,
+            9.0,
+            None,
+            100,
+            200,
+            5000,
+            1000.0,
+            4000.0,
+        );
         // Add a feature only in baseline
         baseline.features.insert(
             "Bridge".to_string(),
@@ -342,7 +408,18 @@ mod tests {
             },
         );
 
-        let mut other = make_analysis("other.gcode", 660.0, 3300.0, 9.9, None, 110, 220, 5500, 1100.0, 4400.0);
+        let mut other = make_analysis(
+            "other.gcode",
+            660.0,
+            3300.0,
+            9.9,
+            None,
+            110,
+            220,
+            5500,
+            1100.0,
+            4400.0,
+        );
         // Add a feature only in other
         other.features.insert(
             "Support".to_string(),
@@ -373,9 +450,24 @@ mod tests {
 
     #[test]
     fn multiple_others() {
-        let baseline = make_analysis("baseline.gcode", 600.0, 3000.0, 9.0, None, 100, 200, 5000, 1000.0, 4000.0);
-        let other1 = make_analysis("v1.gcode", 660.0, 3300.0, 9.9, None, 110, 220, 5500, 1100.0, 4400.0);
-        let other2 = make_analysis("v2.gcode", 540.0, 2700.0, 8.1, None, 90, 180, 4500, 900.0, 3600.0);
+        let baseline = make_analysis(
+            "baseline.gcode",
+            600.0,
+            3000.0,
+            9.0,
+            None,
+            100,
+            200,
+            5000,
+            1000.0,
+            4000.0,
+        );
+        let other1 = make_analysis(
+            "v1.gcode", 660.0, 3300.0, 9.9, None, 110, 220, 5500, 1100.0, 4400.0,
+        );
+        let other2 = make_analysis(
+            "v2.gcode", 540.0, 2700.0, 8.1, None, 90, 180, 4500, 900.0, 3600.0,
+        );
 
         let result = compare_gcode_analyses(baseline, vec![other1, other2]);
         assert_eq!(result.deltas.len(), 2);

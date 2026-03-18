@@ -80,7 +80,9 @@ mod tests {
             width: 32,
             height: 32,
             rgba: vec![[128, 128, 128, 255]; 32 * 32],
-            png_data: vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4, 5],
+            png_data: vec![
+                0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4, 5,
+            ],
         }
     }
 

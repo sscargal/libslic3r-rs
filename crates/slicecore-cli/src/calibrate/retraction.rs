@@ -14,8 +14,8 @@ use slicecore_engine::calibrate::{
 use slicecore_engine::engine::Engine;
 
 use super::common::{
-    display_dry_run, format_calibration_header, resolve_calibration_config,
-    save_calibration_model, write_instructions,
+    display_dry_run, format_calibration_header, resolve_calibration_config, save_calibration_model,
+    write_instructions,
 };
 
 /// Arguments for the retraction test command, extracted from CLI.
@@ -82,10 +82,7 @@ pub fn cmd_retraction(args: RetractionArgs) -> Result<(), Box<dyn std::error::Er
     let base_depth = 30.0;
 
     // Current profile retraction distance
-    let profile_retraction = config
-        .filament
-        .filament_retraction_length
-        .unwrap_or(1.0);
+    let profile_retraction = config.filament.filament_retraction_length.unwrap_or(1.0);
 
     let tower_height = 1.0 + num_sections as f64 * block_height;
 
@@ -132,22 +129,15 @@ pub fn cmd_retraction(args: RetractionArgs) -> Result<(), Box<dyn std::error::Er
     let header = format_calibration_header(
         "Retraction Test",
         &[
-            (
-                "Start Distance",
-                format!("{:.1}mm", params.start_distance),
-            ),
+            ("Start Distance", format!("{:.1}mm", params.start_distance)),
             ("End Distance", format!("{:.1}mm", params.end_distance)),
             ("Step", format!("{:.1}mm", params.step)),
             ("Sections", format!("{num_sections}")),
-            (
-                "Profile Retraction",
-                format!("{profile_retraction:.1}mm"),
-            ),
+            ("Profile Retraction", format!("{profile_retraction:.1}mm")),
         ],
     );
 
-    let output_gcode =
-        inject_retraction_comments_text(&gcode_text, &schedule, &header);
+    let output_gcode = inject_retraction_comments_text(&gcode_text, &schedule, &header);
 
     // 8. Write G-code
     let output_path = args
@@ -158,11 +148,7 @@ pub fn cmd_retraction(args: RetractionArgs) -> Result<(), Box<dyn std::error::Er
     // 9. Write companion instructions
     let instructions_path = output_path.with_extension("instructions.md");
     let sections = build_retraction_instructions(&params, &schedule, profile_retraction);
-    write_instructions(
-        &instructions_path,
-        "Retraction Calibration Test",
-        &sections,
-    )?;
+    write_instructions(&instructions_path, "Retraction Calibration Test", &sections)?;
 
     // 10. Print summary
     eprintln!(
@@ -176,11 +162,7 @@ pub fn cmd_retraction(args: RetractionArgs) -> Result<(), Box<dyn std::error::Er
 }
 
 /// Injects retraction distance comments into raw G-code text at Z boundaries.
-fn inject_retraction_comments_text(
-    gcode: &str,
-    schedule: &[(f64, f64)],
-    header: &str,
-) -> String {
+fn inject_retraction_comments_text(gcode: &str, schedule: &[(f64, f64)], header: &str) -> String {
     let mut output = String::with_capacity(gcode.len() + header.len() + schedule.len() * 100);
     output.push_str(header);
     output.push('\n');
