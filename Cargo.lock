@@ -2962,6 +2962,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "slicecore-config-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "slicecore-config-schema",
+ "syn 2.0.115",
+]
+
+[[package]]
+name = "slicecore-config-schema"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "slicecore-engine"
 version = "0.1.0"
 dependencies = [
@@ -2975,6 +2995,8 @@ dependencies = [
  "sha2",
  "slicecore-ai",
  "slicecore-arrange",
+ "slicecore-config-derive",
+ "slicecore-config-schema",
  "slicecore-fileio",
  "slicecore-gcode-io",
  "slicecore-geo",
