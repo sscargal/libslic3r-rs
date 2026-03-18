@@ -73,15 +73,18 @@ pub mod postprocess;
 pub mod postprocess_convert;
 pub mod registry;
 pub mod sandbox;
+pub mod status;
 #[cfg(feature = "wasm-plugins")]
 pub mod wasm;
 
 // Re-export primary types
 pub use convert::{ffi_result_to_lines, regions_to_request, ConvertedInfillLine};
+pub use discovery::DiscoveredPlugin;
 pub use error::PluginSystemError;
 pub use postprocess::{run_post_processors, PostProcessorPluginAdapter};
 pub use registry::{InfillPluginAdapter, PluginInfo, PluginKind, PluginRegistry};
 pub use sandbox::SandboxConfig;
+pub use status::PluginStatus;
 
 // Re-export key types from the API crate for convenience
 pub use slicecore_plugin_api::{
