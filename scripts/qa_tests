@@ -19,7 +19,8 @@
 #   --help          Show this help message
 #
 # Groups:
-#   build       Build gates (cargo build, fmt, clippy, test)
+#   build       Build gates (cargo build, fmt, clippy, test, doc)
+#   bench       Criterion benchmarks (cargo bench --workspace)
 #   mesh        Mesh analysis commands
 #   slice       Slicing operations
 #   gcode       G-code analysis and comparison
@@ -62,7 +63,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Default: use debug binary after build
 SLICECORE="${SLICECORE_BIN:-}"
 
-ALL_GROUPS="build mesh slice gcode csg convert thumbnail arrange profile postprocess calibrate schema ai plugin errors coverage"
+ALL_GROUPS="build bench mesh slice gcode csg convert thumbnail arrange profile postprocess calibrate schema ai plugin errors coverage"
 
 # ---------------------------------------------------------------------------
 # Color helpers
@@ -500,6 +501,19 @@ group_build() {
     RUSTDOCFLAGS="-D warnings" \
     run_test "cargo doc --no-deps --workspace" \
         cargo doc --no-deps --workspace
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: bench
+# ---------------------------------------------------------------------------
+group_bench() {
+    should_run_group "bench" || return 0
+    group_header "Benchmarks"
+
+    cd "$PROJECT_ROOT"
+
+    run_test "cargo bench --workspace" \
+        cargo bench --workspace
 }
 
 # ---------------------------------------------------------------------------
@@ -1148,6 +1162,9 @@ main() {
 
     # Build group first (if requested)
     group_build
+
+    # Benchmarks (after build, before functional tests)
+    group_bench
 
     # Ensure binary is available
     ensure_binary || { print_summary; exit 1; }
