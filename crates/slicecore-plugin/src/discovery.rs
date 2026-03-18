@@ -85,9 +85,7 @@ pub struct DiscoveredPlugin {
 /// Returns `Err` only for top-level I/O failures (e.g., permission denied on
 /// the directory itself). Per-plugin errors are captured in
 /// [`DiscoveredPlugin::error`].
-pub fn discover_all_with_status(
-    dir: &Path,
-) -> Result<Vec<DiscoveredPlugin>, PluginSystemError> {
+pub fn discover_all_with_status(dir: &Path) -> Result<Vec<DiscoveredPlugin>, PluginSystemError> {
     if !dir.exists() || !dir.is_dir() {
         return Ok(Vec::new());
     }

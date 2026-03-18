@@ -46,12 +46,11 @@ pub fn read_status(plugin_dir: &Path) -> Result<PluginStatus, PluginSystemError>
         return Ok(default_status);
     }
 
-    let contents = std::fs::read_to_string(&status_path).map_err(|e| {
-        PluginSystemError::StatusFileError {
+    let contents =
+        std::fs::read_to_string(&status_path).map_err(|e| PluginSystemError::StatusFileError {
             path: status_path.clone(),
             reason: format!("Failed to read: {e}"),
-        }
-    })?;
+        })?;
 
     serde_json::from_str(&contents).map_err(|e| PluginSystemError::StatusFileError {
         path: status_path,

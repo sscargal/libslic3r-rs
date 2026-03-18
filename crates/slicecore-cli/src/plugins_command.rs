@@ -168,7 +168,12 @@ fn to_list_entry(plugin: &DiscoveredPlugin) -> PluginListEntry {
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| "???".to_string());
-            (dir_name, "???".to_string(), "???".to_string(), "???".to_string())
+            (
+                dir_name,
+                "???".to_string(),
+                "???".to_string(),
+                "???".to_string(),
+            )
         }
     };
 
@@ -201,9 +206,8 @@ fn to_list_entry(plugin: &DiscoveredPlugin) -> PluginListEntry {
 /// Enables a plugin after validation.
 fn cmd_enable(plugin_dir: &Path, name: &str) -> Result<(), anyhow::Error> {
     let plugins = discovery::discover_all_with_status(plugin_dir)?;
-    let plugin = find_plugin_by_name(&plugins, name).ok_or_else(|| {
-        anyhow::anyhow!("Plugin '{name}' not found in {}", plugin_dir.display())
-    })?;
+    let plugin = find_plugin_by_name(&plugins, name)
+        .ok_or_else(|| anyhow::anyhow!("Plugin '{name}' not found in {}", plugin_dir.display()))?;
 
     if plugin.status.enabled {
         println!("Plugin '{name}' is already enabled");
@@ -215,9 +219,7 @@ fn cmd_enable(plugin_dir: &Path, name: &str) -> Result<(), anyhow::Error> {
     // only valid plugins (errors propagate immediately).
     match discovery::discover_plugins(plugin_dir) {
         Ok(valid_plugins) => {
-            let found = valid_plugins
-                .iter()
-                .any(|(dir, _)| *dir == plugin.dir);
+            let found = valid_plugins.iter().any(|(dir, _)| *dir == plugin.dir);
             if !found {
                 // Plugin exists in discover_all_with_status but not in
                 // discover_plugins -- means it has a validation error.
@@ -225,15 +227,11 @@ fn cmd_enable(plugin_dir: &Path, name: &str) -> Result<(), anyhow::Error> {
                     .error
                     .as_deref()
                     .unwrap_or("unknown validation error");
-                anyhow::bail!(
-                    "Plugin '{name}' failed validation: {err_msg}. Remains disabled."
-                );
+                anyhow::bail!("Plugin '{name}' failed validation: {err_msg}. Remains disabled.");
             }
         }
         Err(e) => {
-            anyhow::bail!(
-                "Plugin '{name}' failed validation: {e}. Remains disabled."
-            );
+            anyhow::bail!("Plugin '{name}' failed validation: {e}. Remains disabled.");
         }
     }
 
@@ -245,9 +243,8 @@ fn cmd_enable(plugin_dir: &Path, name: &str) -> Result<(), anyhow::Error> {
 /// Disables a plugin after verifying its manifest is parseable.
 fn cmd_disable(plugin_dir: &Path, name: &str) -> Result<(), anyhow::Error> {
     let plugins = discovery::discover_all_with_status(plugin_dir)?;
-    let plugin = find_plugin_by_name(&plugins, name).ok_or_else(|| {
-        anyhow::anyhow!("Plugin '{name}' not found in {}", plugin_dir.display())
-    })?;
+    let plugin = find_plugin_by_name(&plugins, name)
+        .ok_or_else(|| anyhow::anyhow!("Plugin '{name}' not found in {}", plugin_dir.display()))?;
 
     // Validate plugin identity: manifest must be parseable
     if plugin.manifest.is_none() {
@@ -270,9 +267,8 @@ fn cmd_disable(plugin_dir: &Path, name: &str) -> Result<(), anyhow::Error> {
 /// Shows detailed information about a plugin.
 fn cmd_info(plugin_dir: &Path, name: &str, json: bool) -> Result<(), anyhow::Error> {
     let plugins = discovery::discover_all_with_status(plugin_dir)?;
-    let plugin = find_plugin_by_name(&plugins, name).ok_or_else(|| {
-        anyhow::anyhow!("Plugin '{name}' not found in {}", plugin_dir.display())
-    })?;
+    let plugin = find_plugin_by_name(&plugins, name)
+        .ok_or_else(|| anyhow::anyhow!("Plugin '{name}' not found in {}", plugin_dir.display()))?;
 
     if json {
         let info = build_info_json(plugin);
@@ -288,9 +284,8 @@ fn cmd_info(plugin_dir: &Path, name: &str, json: bool) -> Result<(), anyhow::Err
 /// Validates a plugin by checking manifest, version, and attempting to load.
 fn cmd_validate(plugin_dir: &Path, name: &str) -> Result<(), anyhow::Error> {
     let plugins = discovery::discover_all_with_status(plugin_dir)?;
-    let plugin = find_plugin_by_name(&plugins, name).ok_or_else(|| {
-        anyhow::anyhow!("Plugin '{name}' not found in {}", plugin_dir.display())
-    })?;
+    let plugin = find_plugin_by_name(&plugins, name)
+        .ok_or_else(|| anyhow::anyhow!("Plugin '{name}' not found in {}", plugin_dir.display()))?;
 
     let mut all_ok = true;
 
@@ -311,10 +306,7 @@ fn cmd_validate(plugin_dir: &Path, name: &str) -> Result<(), anyhow::Error> {
             }
         }
         None => {
-            let err_msg = plugin
-                .error
-                .as_deref()
-                .unwrap_or("unknown parse error");
+            let err_msg = plugin.error.as_deref().unwrap_or("unknown parse error");
             println!("Manifest:    FAIL ({err_msg})");
             all_ok = false;
         }
