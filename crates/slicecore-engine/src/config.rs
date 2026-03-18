@@ -1303,7 +1303,7 @@ pub struct PrintConfig {
 
     // --- Support Structures ---
     /// Support structure generation configuration.
-    #[setting(skip)]
+    #[setting(flatten)]
     pub support: SupportConfig,
 
     // --- Ironing ---
