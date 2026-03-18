@@ -8,6 +8,7 @@
 pub mod json_schema;
 pub mod metadata_json;
 pub mod registry;
+pub mod search;
 pub mod types;
 
 pub use registry::SettingRegistry;

@@ -138,3 +138,38 @@ pub use slicecore_ai::{
     extract_geometry_features, AiConfig, AiError as AiIntegrationError, AiProvider,
     GeometryFeatures, ProfileSuggestion, ProviderType,
 };
+
+// ---------------------------------------------------------------------------
+// Global setting registry singleton
+// ---------------------------------------------------------------------------
+
+use std::sync::LazyLock;
+
+use slicecore_config_schema::{HasSettingSchema, SettingRegistry};
+
+static GLOBAL_REGISTRY: LazyLock<SettingRegistry> = LazyLock::new(|| {
+    let mut registry = SettingRegistry::new();
+
+    // Register all setting definitions from PrintConfig (recursively includes all sub-structs)
+    for def in config::PrintConfig::setting_definitions("") {
+        registry.register(def);
+    }
+
+    // Extract default values from PrintConfig::default() via serde serialization
+    let defaults = serde_json::to_value(config::PrintConfig::default()).unwrap_or_default();
+    registry.populate_defaults(&defaults);
+
+    // Compute affected_by as inverse of affects
+    registry.compute_affected_by();
+
+    registry
+});
+
+/// Returns the global setting registry containing metadata for all config fields.
+///
+/// The registry is lazily initialized on first access with all setting definitions
+/// derived from [`PrintConfig`] and its nested structs.
+#[must_use]
+pub fn setting_registry() -> &'static SettingRegistry {
+    &GLOBAL_REGISTRY
+}

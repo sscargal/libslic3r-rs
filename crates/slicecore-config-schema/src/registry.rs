@@ -157,6 +157,31 @@ impl SettingRegistry {
 
         errors
     }
+
+    /// Populates default values from a serialized config JSON object.
+    ///
+    /// Traverses nested JSON paths matching each setting's dotted key
+    /// (e.g., `speed.perimeter` maps to `json["speed"]["perimeter"]`).
+    /// Only overwrites `default_value` when a matching path is found.
+    pub fn populate_defaults(&mut self, defaults_json: &serde_json::Value) {
+        for def in self.definitions.values_mut() {
+            let parts: Vec<&str> = def.key.0.split('.').collect();
+            let mut current = defaults_json;
+            let mut found = true;
+            for part in &parts {
+                match current.get(part) {
+                    Some(next) => current = next,
+                    None => {
+                        found = false;
+                        break;
+                    }
+                }
+            }
+            if found {
+                def.default_value = current.clone();
+            }
+        }
+    }
 }
 
 #[cfg(test)]
