@@ -312,7 +312,9 @@ mod tests {
         let lines = generate(&[square], 0.2, 0, 0.4);
 
         // Honeycomb should include segments that are neither horizontal nor vertical.
-        let has_diagonal = lines.iter().any(|l| l.start.x != l.end.x && l.start.y != l.end.y);
+        let has_diagonal = lines
+            .iter()
+            .any(|l| l.start.x != l.end.x && l.start.y != l.end.y);
 
         assert!(
             has_diagonal,

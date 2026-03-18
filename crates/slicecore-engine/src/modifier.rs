@@ -96,16 +96,14 @@ pub fn split_by_modifiers(
         }
 
         // Compute intersection: model contours that overlap with this modifier.
-        let intersection = polygon_intersection(&remainder, &modifier.contours)
-            .unwrap_or_default();
+        let intersection = polygon_intersection(&remainder, &modifier.contours).unwrap_or_default();
 
         if !intersection.is_empty() {
             let effective_config = modifier.overrides.merge_into(base_config);
             regions.push((intersection, effective_config));
 
             // Subtract this modifier's footprint from the remainder.
-            let diff = polygon_difference(&remainder, &modifier.contours)
-                .unwrap_or_default();
+            let diff = polygon_difference(&remainder, &modifier.contours).unwrap_or_default();
             remainder = diff;
         }
     }
@@ -225,16 +223,25 @@ mod tests {
         let regions = split_by_modifiers(&[model_contour], &[modifier_region], &base);
 
         // Should produce 2 regions: the modified overlap and the remainder.
-        assert_eq!(regions.len(), 2, "Expected 2 regions (modified + remainder)");
+        assert_eq!(
+            regions.len(),
+            2,
+            "Expected 2 regions (modified + remainder)"
+        );
 
         // One region should have the overridden density.
-        let has_modified = regions.iter().any(|(_, cfg)| (cfg.infill_density - 0.9).abs() < 1e-9);
-        assert!(has_modified, "One region should have modified infill density");
+        let has_modified = regions
+            .iter()
+            .any(|(_, cfg)| (cfg.infill_density - 0.9).abs() < 1e-9);
+        assert!(
+            has_modified,
+            "One region should have modified infill density"
+        );
 
         // The other should have the base density.
-        let has_base = regions.iter().any(|(_, cfg)| {
-            (cfg.infill_density - base.infill_density).abs() < 1e-9
-        });
+        let has_base = regions
+            .iter()
+            .any(|(_, cfg)| (cfg.infill_density - base.infill_density).abs() < 1e-9);
         assert!(has_base, "One region should have base infill density");
     }
 

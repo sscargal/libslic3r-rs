@@ -13,8 +13,11 @@ path = "src/main.rs"
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 comfy-table = "7"
+serde = { workspace = true }
 serde_json = { workspace = true }
+toml = { workspace = true }
 slicecore-engine = { path = "../slicecore-engine", features = ["plugins", "ai", "arrange"] }
+slicecore-config-schema = { path = "../slicecore-config-schema" }
 slicecore-fileio = { path = "../slicecore-fileio" }
 slicecore-mesh = { path = "../slicecore-mesh" }
 slicecore-gcode-io = { path = "../slicecore-gcode-io" }
@@ -24,6 +27,8 @@ slicecore-plugin-api = { path = "../slicecore-plugin-api" }
 slicecore-render = { path = "../slicecore-render" }
 slicecore-arrange = { path = "../slicecore-arrange" }
 slicecore-math = { path = "../slicecore-math" }
+indicatif = "0.17"
+anyhow = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

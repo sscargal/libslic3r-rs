@@ -30,9 +30,7 @@ fn create_3mf(objects: Vec<Object>) -> Vec<u8> {
     }
 
     let mut buffer = Cursor::new(Vec::new());
-    model
-        .write(&mut buffer)
-        .expect("failed to write test 3MF");
+    model.write(&mut buffer).expect("failed to write test 3MF");
     buffer.into_inner()
 }
 
@@ -128,7 +126,10 @@ fn threemf_module_publicly_accessible() {
     let data = create_3mf(vec![tetrahedron_object(1)]);
     let result: Result<slicecore_mesh::TriangleMesh, FileIOError> =
         slicecore_fileio::threemf::parse(&data);
-    assert!(result.is_ok(), "threemf::parse is accessible and functional");
+    assert!(
+        result.is_ok(),
+        "threemf::parse is accessible and functional"
+    );
 }
 
 // ---------------------------------------------------------------------------

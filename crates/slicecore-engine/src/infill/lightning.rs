@@ -141,11 +141,7 @@ pub fn build_lightning_context(
 
                     if needs_support {
                         // Grow column downward from this layer.
-                        let end_layer = grow_column_down(
-                            pt,
-                            layer_idx,
-                            layer_contours,
-                        );
+                        let end_layer = grow_column_down(pt, layer_idx, layer_contours);
 
                         columns.push(SupportColumn {
                             position: pt,
@@ -318,13 +314,11 @@ fn merge_columns(columns: &mut Vec<SupportColumn>, merge_distance: Coord) {
 
                     if len_j > len_i {
                         // Extend i to cover j's range.
-                        columns[i].start_layer =
-                            columns[i].start_layer.max(columns[j].start_layer);
+                        columns[i].start_layer = columns[i].start_layer.max(columns[j].start_layer);
                         columns[i].end_layer = columns[i].end_layer.min(columns[j].end_layer);
                     } else {
                         // Keep i as-is, extend to cover j's range.
-                        columns[i].start_layer =
-                            columns[i].start_layer.max(columns[j].start_layer);
+                        columns[i].start_layer = columns[i].start_layer.max(columns[j].start_layer);
                         columns[i].end_layer = columns[i].end_layer.min(columns[j].end_layer);
                     }
 
@@ -531,8 +525,7 @@ mod tests {
         let mut rectilinear_length = 0.0;
         for layer_idx in 0..5 {
             let angle = if layer_idx % 2 == 0 { 0.0 } else { 90.0 };
-            let lines =
-                super::super::rectilinear::generate(&[square.clone()], 0.2, angle, 0.4);
+            let lines = super::super::rectilinear::generate(&[square.clone()], 0.2, angle, 0.4);
             rectilinear_length += total_length(&lines);
         }
 
@@ -579,10 +572,7 @@ mod tests {
         let square = make_square(20.0);
         let ctx = build_lightning_context(&[vec![square.clone()]], 0.0, 0.4);
         let lines = generate(&[square], 0.0, 0, 0.4, Some(&ctx));
-        assert!(
-            lines.is_empty(),
-            "Zero density should return empty lines"
-        );
+        assert!(lines.is_empty(), "Zero density should return empty lines");
     }
 
     #[test]
@@ -625,10 +615,6 @@ mod tests {
         let merge_distance = mm_to_coord(0.8); // 0.8mm > 0.1mm distance
         merge_columns(&mut columns, merge_distance);
 
-        assert_eq!(
-            columns.len(),
-            1,
-            "Nearby columns should merge into one"
-        );
+        assert_eq!(columns.len(), 1, "Nearby columns should merge into one");
     }
 }

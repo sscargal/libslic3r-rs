@@ -27,8 +27,12 @@ use std::collections::HashMap;
 use slicecore_gcode_io::GcodeDialect;
 
 use crate::config::PrintConfig;
+use crate::gcode_template;
 use crate::infill::InfillPattern;
-use crate::profile_import::{ImportResult, ProfileMetadata};
+use crate::profile_import::{
+    map_brim_type, map_interface_pattern, map_support_pattern, map_support_type,
+    map_surface_pattern, ImportResult, ProfileMetadata,
+};
 use crate::seam::SeamPosition;
 
 // ---------------------------------------------------------------------------
@@ -177,8 +181,7 @@ pub fn resolve_ini_inheritance(
             let key = (section.section_type.clone(), parent_name);
             if let Some(&parent_idx) = lookup.get(&key) {
                 let parent = &sections[parent_idx];
-                let parent_resolved =
-                    resolve_ini_inheritance(parent, sections, lookup, depth + 1);
+                let parent_resolved = resolve_ini_inheritance(parent, sections, lookup, depth + 1);
                 // Merge parent fields into resolved (left-to-right overlay).
                 for (k, v) in parent_resolved {
                     resolved.insert(k, v);
@@ -358,6 +361,90 @@ pub fn prusaslicer_key_to_config_field(key: &str) -> Option<&'static str> {
         "raft_layers" => Some("raft_layers"),
         "thin_walls" | "detect_thin_wall" => Some("detect_thin_wall"),
 
+        // --- P0 config gap closure: PrusaSlicer key name translations ---
+        "xy_size_compensation" => Some("xy_contour_compensation"),
+        "top_fill_pattern" => Some("top_surface_pattern"),
+        "bottom_fill_pattern" => Some("bottom_surface_pattern"),
+        "solid_fill_pattern" => Some("internal_solid_infill_pattern"),
+        "extra_perimeters_over_overhangs" => Some("extra_perimeters_on_overhangs"),
+        "z_offset" => Some("z_offset"),
+
+        // P1 config gap closure fields.
+        "fuzzy_skin" => Some("fuzzy_skin.enabled"),
+        "fuzzy_skin_thickness" => Some("fuzzy_skin.thickness"),
+        "fuzzy_skin_point_distance" => Some("fuzzy_skin.point_distance"),
+        "brim_type" => Some("brim_skirt.brim_type"),
+        "skirt_height" => Some("brim_skirt.skirt_height"),
+        "draft_shield" => Some("draft_shield"),
+        "ooze_prevention" => Some("ooze_prevention"),
+        "infill_every_layers" => Some("infill_combination"),
+        "infill_anchor_max" => Some("infill_anchor_max"),
+        "min_bead_width" => Some("min_bead_width"),
+        "min_feature_size" => Some("min_feature_size"),
+        "support_material_bottom_interface_layers" => {
+            Some("support.support_bottom_interface_layers")
+        }
+        "filament_colour" => Some("filament.filament_colour"),
+
+        // Support config fields (PrusaSlicer).
+        "support_material" => Some("support.enabled"),
+        "support_material_auto" => Some("support.support_type"),
+        "support_material_style" => Some("support.support_type"),
+        "support_material_threshold" => Some("support.overhang_angle"),
+        "support_material_pattern" => Some("support.support_pattern"),
+        "support_material_buildplate_only" => Some("support.build_plate_only"),
+        "support_material_contact_distance" => Some("support.z_gap"),
+        "support_material_bottom_contact_distance" => Some("support.bottom_z_gap"),
+        "support_material_xy_spacing" => Some("support.xy_gap"),
+        "support_material_interface_layers" => Some("support.interface_layers"),
+        "support_material_interface_pattern" => Some("support.interface_pattern"),
+        "support_material_spacing" => Some("support.support_density"),
+        "support_material_interface_spacing" => Some("support.interface_density"),
+        "support_material_flow" => Some("support.flow_ratio"),
+        "support_material_interface_flow" => Some("support.interface_flow_ratio"),
+        "support_material_synchronize_layers" => Some("support.synchronize_layers"),
+        "support_material_enforce_layers" => Some("support.enforce_layers"),
+        "support_material_closing_radius" => Some("support.closing_radius"),
+
+        // Custom G-code hook fields (PrusaSlicer).
+        "before_layer_gcode" => Some("custom_gcode.before_layer_change"),
+        "toolchange_gcode" => Some("custom_gcode.tool_change_gcode"),
+        "color_change_gcode" => Some("custom_gcode.color_change"),
+        "pause_print_gcode" => Some("custom_gcode.pause_print"),
+        "between_objects_gcode" => Some("custom_gcode.between_objects"),
+
+        // Multi-material config fields (PrusaSlicer).
+        "wipe_tower" => Some("multi_material.enabled"),
+        "wipe_tower_x" => Some("multi_material.purge_tower_position"),
+        "wipe_tower_y" => Some("multi_material.purge_tower_position"),
+        "wipe_tower_width" => Some("multi_material.purge_tower_width"),
+        "wipe_tower_rotation_angle" => Some("multi_material.wipe_tower_rotation_angle"),
+        "wipe_tower_bridging" => Some("multi_material.wipe_tower_bridging"),
+        "wipe_tower_cone_angle" => Some("multi_material.wipe_tower_cone_angle"),
+        "wipe_tower_no_sparse_layers" => Some("multi_material.wipe_tower_no_sparse_layers"),
+        "single_extruder_multi_material" => Some("multi_material.single_extruder_mmu"),
+        "support_material_extruder" => Some("multi_material.support_filament"),
+        "support_material_interface_extruder" => Some("multi_material.support_interface_filament"),
+
+        // PostProcess/P2/Straggler fields (Phase 34).
+        "post_process" => Some("post_process.scripts"),
+        "slicing_tolerance" => Some("slicing_tolerance"),
+        "thumbnails" => Some("thumbnails"),
+        "silent_mode" => Some("machine.silent_mode"),
+        "bed_custom_texture" => Some("machine.bed_custom_texture"),
+        "bed_custom_model" => Some("machine.bed_custom_model"),
+        "cooling_tube_length" => Some("machine.cooling_tube_length"),
+        "cooling_tube_retraction" => Some("machine.cooling_tube_retraction"),
+        "parking_pos_retraction" => Some("machine.parking_pos_retraction"),
+        "extra_loading_move" => Some("machine.extra_loading_move"),
+        "retract_length_toolchange" => Some("machine.retract_length_toolchange"),
+        "retract_restart_extra" => Some("machine.retract_restart_extra"),
+        "retract_restart_extra_toolchange" => Some("machine.retract_restart_extra_toolchange"),
+        "ironing_type" => Some("ironing.enabled"),
+        "ironing_angle" => Some("ironing.angle"),
+        "ironing_speed" => Some("ironing.speed"),
+        "ironing_spacing" => Some("ironing.spacing"),
+
         _ => None,
     }
 }
@@ -412,11 +499,7 @@ fn parse_bool(value: &str) -> Option<bool> {
 /// - Percentage speed/width values (ending with `%`): skipped (not absolute)
 /// - Boolean fields (`0`/`1`): parsed to bool
 /// - Unmapped fields: stored in `config.passthrough` BTreeMap
-pub fn apply_prusaslicer_field_mapping(
-    config: &mut PrintConfig,
-    key: &str,
-    value: &str,
-) -> bool {
+pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> bool {
     match key {
         // =====================================================================
         // Process fields (existing flat fields)
@@ -485,9 +568,7 @@ pub fn apply_prusaslicer_field_mapping(
             }
             parse_and_set_f64(value, &mut config.speeds.solid_infill)
         }
-        "support_material_speed" => {
-            parse_and_set_f64(value, &mut config.speeds.support)
-        }
+        "support_material_speed" => parse_and_set_f64(value, &mut config.speeds.support),
         "support_material_interface_speed" => {
             if value.ends_with('%') {
                 return false;
@@ -636,22 +717,28 @@ pub fn apply_prusaslicer_field_mapping(
 
         // =====================================================================
         // Machine sub-config fields (PrusaSlicer names)
+        // Dual storage: original (verbatim) + translated (our variable names).
         // =====================================================================
         "start_gcode" => {
-            config.machine.start_gcode = value.to_string();
+            config.machine.start_gcode_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.machine.start_gcode = gcode_template::translate_gcode_template(value, &table);
             true
         }
         "end_gcode" => {
-            config.machine.end_gcode = value.to_string();
+            config.machine.end_gcode_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.machine.end_gcode = gcode_template::translate_gcode_template(value, &table);
             true
         }
         "layer_gcode" => {
-            config.machine.layer_change_gcode = value.to_string();
+            config.machine.layer_change_gcode_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.machine.layer_change_gcode =
+                gcode_template::translate_gcode_template(value, &table);
             true
         }
-        "max_print_height" => {
-            parse_and_set_f64(value, &mut config.machine.printable_height)
-        }
+        "max_print_height" => parse_and_set_f64(value, &mut config.machine.printable_height),
         "machine_max_acceleration_x" => {
             let first = first_comma_value(value);
             parse_and_set_f64(first, &mut config.machine.max_acceleration_x)
@@ -761,37 +848,25 @@ pub fn apply_prusaslicer_field_mapping(
             true
         }
         "first_layer_temperature" => {
-            config.filament.first_layer_nozzle_temperatures =
-                parse_comma_separated_f64(value);
+            config.filament.first_layer_nozzle_temperatures = parse_comma_separated_f64(value);
             true
         }
         "first_layer_bed_temperature" => {
-            config.filament.first_layer_bed_temperatures =
-                parse_comma_separated_f64(value);
+            config.filament.first_layer_bed_temperatures = parse_comma_separated_f64(value);
             true
         }
 
         // =====================================================================
         // Acceleration sub-config fields (PrusaSlicer names)
         // =====================================================================
-        "external_perimeter_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.outer_wall)
-        }
-        "perimeter_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.inner_wall)
-        }
+        "external_perimeter_acceleration" => parse_and_set_f64(value, &mut config.accel.outer_wall),
+        "perimeter_acceleration" => parse_and_set_f64(value, &mut config.accel.inner_wall),
         "first_layer_acceleration" | "first_layer_acceleration_over_raft" => {
             parse_and_set_f64(value, &mut config.accel.initial_layer)
         }
-        "top_solid_infill_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.top_surface)
-        }
-        "infill_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.sparse_infill)
-        }
-        "bridge_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.bridge)
-        }
+        "top_solid_infill_acceleration" => parse_and_set_f64(value, &mut config.accel.top_surface),
+        "infill_acceleration" => parse_and_set_f64(value, &mut config.accel.sparse_infill),
+        "bridge_acceleration" => parse_and_set_f64(value, &mut config.accel.bridge),
 
         // =====================================================================
         // Filament sub-config fields (PrusaSlicer names)
@@ -896,20 +971,17 @@ pub fn apply_prusaslicer_field_mapping(
         // Process misc flat fields (PrusaSlicer names)
         // =====================================================================
         "bridge_flow_ratio" => parse_and_set_f64(value, &mut config.bridge_flow),
-        "elefant_foot_compensation" | "elephant_foot_compensation" => {
-            parse_and_set_f64(value, &mut config.elefant_foot_compensation)
-        }
+        "elefant_foot_compensation" | "elephant_foot_compensation" => parse_and_set_f64(
+            value,
+            &mut config.dimensional_compensation.elephant_foot_compensation,
+        ),
         "fill_angle" => parse_and_set_f64(value, &mut config.infill_direction),
         "infill_overlap" => {
             // PrusaSlicer may use percentage format (e.g., "25%").
             let cleaned = value.trim_end_matches('%');
             if let Ok(v) = cleaned.parse::<f64>() {
                 // If it had a %, convert from percentage to fraction.
-                config.infill_wall_overlap = if value.ends_with('%') {
-                    v / 100.0
-                } else {
-                    v
-                };
+                config.infill_wall_overlap = if value.ends_with('%') { v / 100.0 } else { v };
                 true
             } else {
                 false
@@ -941,6 +1013,433 @@ pub fn apply_prusaslicer_field_mapping(
                 false
             }
         }
+
+        // =====================================================================
+        // P0 config gap closure fields (PrusaSlicer-applicable subset)
+        // =====================================================================
+        "xy_size_compensation" => {
+            // PrusaSlicer has a single xy_size_compensation for both hole and contour.
+            parse_and_set_f64(
+                value,
+                &mut config.dimensional_compensation.xy_contour_compensation,
+            )
+        }
+        "top_fill_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.top_surface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "bottom_fill_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.bottom_surface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "solid_fill_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.solid_infill_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "extra_perimeters_over_overhangs" => {
+            config.extra_perimeters_on_overhangs =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "z_offset" => parse_and_set_f64(value, &mut config.z_offset),
+
+        // =====================================================================
+        // P1 config gap closure fields (PrusaSlicer-applicable subset)
+        // =====================================================================
+
+        // Fuzzy skin (PrusaSlicer uses "fuzzy_skin_point_distance" not "_dist").
+        "fuzzy_skin" => {
+            if let Some(b) = parse_bool(value) {
+                config.fuzzy_skin.enabled = b;
+                true
+            } else {
+                false
+            }
+        }
+        "fuzzy_skin_thickness" => parse_and_set_f64(value, &mut config.fuzzy_skin.thickness),
+        "fuzzy_skin_point_distance" => {
+            parse_and_set_f64(value, &mut config.fuzzy_skin.point_distance)
+        }
+
+        // Brim/skirt.
+        "brim_type" => {
+            if let Some(bt) = map_brim_type(value) {
+                config.brim_skirt.brim_type = bt;
+                true
+            } else {
+                false
+            }
+        }
+        "skirt_height" => parse_and_set_u32(value, &mut config.brim_skirt.skirt_height),
+
+        // Top-level fields.
+        "draft_shield" => {
+            if let Some(b) = parse_bool(value) {
+                config.draft_shield = b;
+                true
+            } else {
+                false
+            }
+        }
+        "ooze_prevention" => {
+            if let Some(b) = parse_bool(value) {
+                config.ooze_prevention = b;
+                true
+            } else {
+                false
+            }
+        }
+        "infill_every_layers" => parse_and_set_u32(value, &mut config.infill_combination),
+        "infill_anchor_max" => parse_and_set_f64(value, &mut config.infill_anchor_max),
+        "min_bead_width" => parse_and_set_f64(value, &mut config.min_bead_width),
+        "min_feature_size" => parse_and_set_f64(value, &mut config.min_feature_size),
+
+        // =====================================================================
+        // Support config fields (PrusaSlicer names)
+        // =====================================================================
+        "support_material" => {
+            if let Some(b) = parse_bool(value) {
+                config.support.enabled = b;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_auto" => {
+            if let Some(b) = parse_bool(value) {
+                if b {
+                    config.support.support_type = crate::support::config::SupportType::Auto;
+                }
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_style" => {
+            if let Some(st) = map_support_type(value) {
+                config.support.support_type = st;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_threshold" => {
+            parse_and_set_f64(value, &mut config.support.overhang_angle)
+        }
+        "support_material_pattern" => {
+            if let Some(p) = map_support_pattern(value) {
+                config.support.support_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_buildplate_only" => {
+            if let Some(b) = parse_bool(value) {
+                config.support.build_plate_only = b;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_contact_distance" => parse_and_set_f64(value, &mut config.support.z_gap),
+        "support_material_bottom_contact_distance" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.support.bottom_z_gap = Some(v);
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_xy_spacing" => parse_and_set_f64(value, &mut config.support.xy_gap),
+        "support_material_interface_layers" => {
+            parse_and_set_u32(value, &mut config.support.interface_layers)
+        }
+        "support_material_bottom_interface_layers" => {
+            parse_and_set_u32(value, &mut config.support.support_bottom_interface_layers)
+        }
+        "support_material_interface_pattern" => {
+            if let Some(p) = map_interface_pattern(value) {
+                config.support.interface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_spacing" => {
+            // Convert spacing to density: density = line_width / spacing.
+            if let Ok(spacing) = value.parse::<f64>() {
+                if spacing > 0.0 {
+                    let line_width = config
+                        .passthrough
+                        .get("extrusion_width")
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .unwrap_or(0.4);
+                    config.support.support_density = (line_width / spacing).clamp(0.0, 1.0);
+                }
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_interface_spacing" => {
+            // Convert spacing to density: density = line_width / spacing.
+            if let Ok(spacing) = value.parse::<f64>() {
+                if spacing > 0.0 {
+                    let line_width = config
+                        .passthrough
+                        .get("extrusion_width")
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .unwrap_or(0.4);
+                    config.support.interface_density = (line_width / spacing).clamp(0.0, 1.0);
+                } else {
+                    config.support.interface_density = 1.0;
+                }
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_with_sheath" => {
+            // Store in passthrough (no direct typed field).
+            config
+                .passthrough
+                .insert(key.to_string(), value.to_string());
+            true
+        }
+        "support_material_flow" => parse_and_set_f64(value, &mut config.support.flow_ratio),
+        "support_material_interface_flow" => {
+            parse_and_set_f64(value, &mut config.support.interface_flow_ratio)
+        }
+        "support_material_synchronize_layers" => {
+            if let Some(b) = parse_bool(value) {
+                config.support.synchronize_layers = b;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_enforce_layers" => {
+            parse_and_set_u32(value, &mut config.support.enforce_layers)
+        }
+        "support_material_closing_radius" => {
+            parse_and_set_f64(value, &mut config.support.closing_radius)
+        }
+        // Note: "raft_layers" and "bridge_fan_speed" handled earlier in this match
+
+        // Filament colour.
+        "filament_colour" => {
+            let first = first_comma_value(value);
+            config.filament.filament_colour = first.to_string();
+            true
+        }
+
+        // =====================================================================
+        // Custom G-code hook fields (PrusaSlicer names)
+        // Dual storage: original (verbatim) + translated (our variable names).
+        // =====================================================================
+        "before_layer_gcode" => {
+            config.custom_gcode.before_layer_change_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.custom_gcode.before_layer_change =
+                gcode_template::translate_gcode_template(value, &table);
+            true
+        }
+        "toolchange_gcode" => {
+            config.custom_gcode.tool_change_gcode_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.custom_gcode.tool_change_gcode =
+                gcode_template::translate_gcode_template(value, &table);
+            true
+        }
+        "color_change_gcode" => {
+            config.custom_gcode.color_change_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.custom_gcode.color_change =
+                gcode_template::translate_gcode_template(value, &table);
+            true
+        }
+        "pause_print_gcode" => {
+            config.custom_gcode.pause_print_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.custom_gcode.pause_print =
+                gcode_template::translate_gcode_template(value, &table);
+            true
+        }
+        "between_objects_gcode" => {
+            config.custom_gcode.between_objects_original = value.to_string();
+            let table = gcode_template::build_prusaslicer_translation_table();
+            config.custom_gcode.between_objects =
+                gcode_template::translate_gcode_template(value, &table);
+            true
+        }
+
+        // =====================================================================
+        // Scarf joint fields
+        // =====================================================================
+        // PrusaSlicer has no scarf joint equivalent -- skip.
+
+        // =====================================================================
+        // Multi-material config fields (PrusaSlicer names)
+        // =====================================================================
+        "wipe_tower" => {
+            if let Some(b) = parse_bool(value) {
+                config.multi_material.enabled = b;
+                true
+            } else {
+                false
+            }
+        }
+        "wipe_tower_x" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.multi_material.purge_tower_position[0] = v;
+                true
+            } else {
+                false
+            }
+        }
+        "wipe_tower_y" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.multi_material.purge_tower_position[1] = v;
+                true
+            } else {
+                false
+            }
+        }
+        "wipe_tower_width" => {
+            parse_and_set_f64(value, &mut config.multi_material.purge_tower_width)
+        }
+        "wipe_tower_rotation_angle" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_rotation_angle)
+        }
+        "wipe_tower_bridging" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_bridging)
+        }
+        "wipe_tower_cone_angle" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_cone_angle)
+        }
+        "wipe_tower_no_sparse_layers" => {
+            if let Some(b) = parse_bool(value) {
+                config.multi_material.wipe_tower_no_sparse_layers = b;
+                true
+            } else {
+                false
+            }
+        }
+        "single_extruder_multi_material" => {
+            if let Some(b) = parse_bool(value) {
+                config.multi_material.single_extruder_mmu = b;
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_extruder" => {
+            // PrusaSlicer: 1-based extruder index for support.
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.support_filament = if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
+        }
+        "support_material_interface_extruder" => {
+            // PrusaSlicer: 1-based extruder index for support interface.
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.support_interface_filament =
+                    if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
+        }
+
+        // =====================================================================
+        // PostProcess/P2/Straggler fields (Phase 34)
+        // =====================================================================
+        "post_process" => {
+            let scripts: Vec<String> = value
+                .split([';', '\n'])
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            config.post_process.scripts = scripts;
+            true
+        }
+        "slicing_tolerance" => {
+            config.slicing_tolerance = match value.to_lowercase().as_str() {
+                "middle" => crate::config::SlicingTolerance::Middle,
+                "nearest" => crate::config::SlicingTolerance::Nearest,
+                "gauss" => crate::config::SlicingTolerance::Gauss,
+                _ => crate::config::SlicingTolerance::Middle,
+            };
+            true
+        }
+        "thumbnails" => {
+            let specs: Vec<String> = value
+                .split([',', ';'])
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            config.thumbnails = specs;
+            true
+        }
+        "silent_mode" => {
+            if let Some(b) = parse_bool(value) {
+                config.machine.silent_mode = b;
+                true
+            } else {
+                false
+            }
+        }
+        "bed_custom_texture" => {
+            config.machine.bed_custom_texture = value.to_string();
+            true
+        }
+        "bed_custom_model" => {
+            config.machine.bed_custom_model = value.to_string();
+            true
+        }
+        "cooling_tube_length" => parse_and_set_f64(value, &mut config.machine.cooling_tube_length),
+        "cooling_tube_retraction" => {
+            parse_and_set_f64(value, &mut config.machine.cooling_tube_retraction)
+        }
+        "parking_pos_retraction" => {
+            parse_and_set_f64(value, &mut config.machine.parking_pos_retraction)
+        }
+        "extra_loading_move" => parse_and_set_f64(value, &mut config.machine.extra_loading_move),
+        "retract_length_toolchange" => {
+            let first = first_comma_value(value);
+            parse_and_set_f64(first, &mut config.machine.retract_length_toolchange)
+        }
+        "retract_restart_extra" => {
+            let first = first_comma_value(value);
+            parse_and_set_f64(first, &mut config.machine.retract_restart_extra)
+        }
+        "retract_restart_extra_toolchange" => {
+            let first = first_comma_value(value);
+            parse_and_set_f64(first, &mut config.machine.retract_restart_extra_toolchange)
+        }
+        "ironing_type" => {
+            config.ironing.enabled =
+                !value.is_empty() && value != "no ironing" && value != "neironing";
+            true
+        }
+        "ironing_angle" => parse_and_set_f64(value, &mut config.ironing.angle),
+        "ironing_speed" => parse_and_set_f64(value, &mut config.ironing.speed),
+        "ironing_spacing" => parse_and_set_f64(value, &mut config.ironing.spacing),
 
         // =====================================================================
         // Default: store unmapped fields in passthrough
@@ -1510,8 +2009,7 @@ fill_density = 10%
         resolved.insert("some_unknown_field".to_string(), "value".to_string());
         resolved.insert("inherits".to_string(), "*common*".to_string());
 
-        let result =
-            import_prusaslicer_ini_profile(&resolved, "0.15mm QUALITY @MK4S", "print");
+        let result = import_prusaslicer_ini_profile(&resolved, "0.15mm QUALITY @MK4S", "print");
 
         assert!((result.config.layer_height - 0.15).abs() < 1e-9);
         assert_eq!(result.config.wall_count, 4);
@@ -1630,10 +2128,7 @@ fill_density = 10%
             prusaslicer_key_to_config_field("retract_before_travel"),
             Some("min_travel_for_retract")
         );
-        assert_eq!(
-            prusaslicer_key_to_config_field("unknown_field"),
-            None
-        );
+        assert_eq!(prusaslicer_key_to_config_field("unknown_field"), None);
     }
 
     #[test]
@@ -1805,7 +2300,13 @@ fill_density = 10%
             "layer_gcode",
             ";LAYER:[layer_num]"
         ));
-        assert_eq!(config.machine.layer_change_gcode, ";LAYER:[layer_num]");
+        // Translation converts [layer_num] -> {layer_num}
+        assert_eq!(config.machine.layer_change_gcode, ";LAYER:{layer_num}");
+        // Original preserved verbatim
+        assert_eq!(
+            config.machine.layer_change_gcode_original,
+            ";LAYER:[layer_num]"
+        );
 
         assert!(apply_prusaslicer_field_mapping(
             &mut config,
@@ -1840,7 +2341,10 @@ fill_density = 10%
             "some_value"
         ));
         assert_eq!(
-            config.passthrough.get("some_totally_unknown_field").unwrap(),
+            config
+                .passthrough
+                .get("some_totally_unknown_field")
+                .unwrap(),
             "some_value"
         );
 
@@ -1859,7 +2363,10 @@ fill_density = 10%
             "50"
         ));
         assert_eq!(
-            config.passthrough.get("first_layer_speed_over_raft").unwrap(),
+            config
+                .passthrough
+                .get("first_layer_speed_over_raft")
+                .unwrap(),
             "50"
         );
     }
@@ -2029,18 +2536,10 @@ fill_density = 10%
         ));
         assert_eq!(config.cooling.full_fan_speed_layer, 4);
 
-        assert!(apply_prusaslicer_field_mapping(
-            &mut config,
-            "cooling",
-            "1"
-        ));
+        assert!(apply_prusaslicer_field_mapping(&mut config, "cooling", "1"));
         assert!(config.cooling.slow_down_for_layer_cooling);
 
-        assert!(apply_prusaslicer_field_mapping(
-            &mut config,
-            "cooling",
-            "0"
-        ));
+        assert!(apply_prusaslicer_field_mapping(&mut config, "cooling", "0"));
         assert!(!config.cooling.slow_down_for_layer_cooling);
     }
 
@@ -2069,18 +2568,10 @@ fill_density = 10%
         ));
         assert!(config.retraction.retract_when_changing_layer);
 
-        assert!(apply_prusaslicer_field_mapping(
-            &mut config,
-            "wipe",
-            "1"
-        ));
+        assert!(apply_prusaslicer_field_mapping(&mut config, "wipe", "1"));
         assert!(config.retraction.wipe);
 
-        assert!(apply_prusaslicer_field_mapping(
-            &mut config,
-            "wipe",
-            "0"
-        ));
+        assert!(apply_prusaslicer_field_mapping(&mut config, "wipe", "0"));
         assert!(!config.retraction.wipe);
     }
 
@@ -2218,7 +2709,7 @@ fill_density = 10%
             "elefant_foot_compensation",
             "0.2"
         ));
-        assert!((config.elefant_foot_compensation - 0.2).abs() < 1e-9);
+        assert!((config.dimensional_compensation.elephant_foot_compensation - 0.2).abs() < 1e-9);
 
         // Alternate spelling.
         assert!(apply_prusaslicer_field_mapping(
@@ -2226,7 +2717,7 @@ fill_density = 10%
             "elephant_foot_compensation",
             "0.15"
         ));
-        assert!((config.elefant_foot_compensation - 0.15).abs() < 1e-9);
+        assert!((config.dimensional_compensation.elephant_foot_compensation - 0.15).abs() < 1e-9);
 
         assert!(apply_prusaslicer_field_mapping(
             &mut config,
@@ -2416,10 +2907,7 @@ fill_density = 10%
             "some_unknown_prusaslicer_field".to_string(),
             "123".to_string(),
         );
-        resolved.insert(
-            "another_unknown_field".to_string(),
-            "abc".to_string(),
-        );
+        resolved.insert("another_unknown_field".to_string(), "abc".to_string());
 
         let result = import_prusaslicer_ini_profile(&resolved, "Test", "print");
 
@@ -2436,7 +2924,11 @@ fill_density = 10%
             "123"
         );
         assert_eq!(
-            result.config.passthrough.get("another_unknown_field").unwrap(),
+            result
+                .config
+                .passthrough
+                .get("another_unknown_field")
+                .unwrap(),
             "abc"
         );
 

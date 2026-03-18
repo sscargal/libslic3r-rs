@@ -191,12 +191,8 @@ pub fn assemble_layer_toolpath(
                 let n = pts.len();
 
                 // Select the seam point (starting vertex) for this polygon.
-                let seam_idx = select_seam_point(
-                    polygon,
-                    config.seam_position,
-                    last_seam,
-                    layer_index,
-                );
+                let seam_idx =
+                    select_seam_point(polygon, config.seam_position, last_seam, layer_index);
 
                 // Update the seam tracking point.
                 last_seam = Some(pts[seam_idx]);
@@ -519,14 +515,9 @@ mod tests {
 
     /// Helper to create a validated CCW square.
     fn make_square(size: f64) -> slicecore_geo::polygon::ValidPolygon {
-        Polygon::from_mm(&[
-            (0.0, 0.0),
-            (size, 0.0),
-            (size, size),
-            (0.0, size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(0.0, 0.0), (size, 0.0), (size, size), (0.0, size)])
+            .validate()
+            .unwrap()
     }
 
     fn default_config() -> PrintConfig {
@@ -541,13 +532,15 @@ mod tests {
         let perimeters = generate_perimeters(&[square.clone()], &config);
         let inner_contour = &perimeters[0].inner_contour;
 
-        let infill_lines = generate_rectilinear_infill(inner_contour, 0.2, 0.0, config.extrusion_width());
+        let infill_lines =
+            generate_rectilinear_infill(inner_contour, 0.2, 0.0, config.extrusion_width());
         let infill = LayerInfill {
             lines: infill_lines,
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
+        let (toolpath, _) =
+            assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // Should have segments.
         assert!(
@@ -556,19 +549,12 @@ mod tests {
         );
 
         // Find the first perimeter and first infill segment indices.
-        let first_perim_idx = toolpath
-            .segments
-            .iter()
-            .position(|s| {
-                s.feature == FeatureType::OuterPerimeter
-                    || s.feature == FeatureType::InnerPerimeter
-            });
-        let first_infill_idx = toolpath
-            .segments
-            .iter()
-            .position(|s| {
-                s.feature == FeatureType::SparseInfill || s.feature == FeatureType::SolidInfill
-            });
+        let first_perim_idx = toolpath.segments.iter().position(|s| {
+            s.feature == FeatureType::OuterPerimeter || s.feature == FeatureType::InnerPerimeter
+        });
+        let first_infill_idx = toolpath.segments.iter().position(|s| {
+            s.feature == FeatureType::SparseInfill || s.feature == FeatureType::SolidInfill
+        });
 
         if let (Some(perim), Some(infill)) = (first_perim_idx, first_infill_idx) {
             assert!(
@@ -588,13 +574,15 @@ mod tests {
         let perimeters = generate_perimeters(&[square.clone()], &config);
         let inner_contour = &perimeters[0].inner_contour;
 
-        let infill_lines = generate_rectilinear_infill(inner_contour, 0.2, 0.0, config.extrusion_width());
+        let infill_lines =
+            generate_rectilinear_infill(inner_contour, 0.2, 0.0, config.extrusion_width());
         let infill = LayerInfill {
             lines: infill_lines,
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
+        let (toolpath, _) =
+            assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         let travel_count = toolpath
             .segments
@@ -616,13 +604,15 @@ mod tests {
         let perimeters = generate_perimeters(&[square.clone()], &config);
         let inner_contour = &perimeters[0].inner_contour;
 
-        let infill_lines = generate_rectilinear_infill(inner_contour, 0.2, 0.0, config.extrusion_width());
+        let infill_lines =
+            generate_rectilinear_infill(inner_contour, 0.2, 0.0, config.extrusion_width());
         let infill = LayerInfill {
             lines: infill_lines,
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
+        let (toolpath, _) =
+            assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         for seg in &toolpath.segments {
             match seg.feature {
@@ -657,7 +647,8 @@ mod tests {
         };
 
         // Layer 0 (first layer).
-        let (toolpath, _) = assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &[], &infill, &config, None);
+        let (toolpath, _) =
+            assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &[], &infill, &config, None);
         let first_layer_speed_mmmin = 20.0 * 60.0;
 
         for seg in &toolpath.segments {
@@ -680,14 +671,16 @@ mod tests {
         let perimeters = generate_perimeters(&[square.clone()], &config);
         let inner_contour = &perimeters[0].inner_contour;
 
-        let infill_lines = generate_rectilinear_infill(inner_contour, 0.2, 0.0, config.extrusion_width());
+        let infill_lines =
+            generate_rectilinear_infill(inner_contour, 0.2, 0.0, config.extrusion_width());
         let infill = LayerInfill {
             lines: infill_lines,
             is_solid: false,
         };
 
         // Layer 2 (not first layer).
-        let (toolpath, _) = assemble_layer_toolpath(2, 0.7, 0.2, &perimeters, &[], &infill, &config, None);
+        let (toolpath, _) =
+            assemble_layer_toolpath(2, 0.7, 0.2, &perimeters, &[], &infill, &config, None);
 
         let perim_speed_mmmin = 45.0 * 60.0;
         let infill_speed_mmmin = 80.0 * 60.0;
@@ -732,13 +725,15 @@ mod tests {
         let perimeters = generate_perimeters(&[square.clone()], &config);
         let inner_contour = &perimeters[0].inner_contour;
 
-        let infill_lines = generate_rectilinear_infill(inner_contour, 0.2, 0.0, config.extrusion_width());
+        let infill_lines =
+            generate_rectilinear_infill(inner_contour, 0.2, 0.0, config.extrusion_width());
         let infill = LayerInfill {
             lines: infill_lines,
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
+        let (toolpath, _) =
+            assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         let time = toolpath.estimated_time_seconds();
         assert!(
@@ -776,7 +771,7 @@ mod tests {
             e_value: 0.0,
             feedrate: 9000.0,
             z: 0.2,
-        extrusion_width: None,
+            extrusion_width: None,
         };
         assert!(
             (seg.length() - 5.0).abs() < 1e-9,
@@ -823,12 +818,14 @@ mod tests {
         };
 
         // Layer 0 -- no previous seam.
-        let (tp0, seam0) = assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &[], &infill, &config, None);
+        let (tp0, seam0) =
+            assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &[], &infill, &config, None);
         assert!(!tp0.segments.is_empty(), "Layer 0 should have segments");
         assert!(seam0.is_some(), "Layer 0 should have a seam point");
 
         // Layer 1 -- pass previous seam from layer 0.
-        let (tp1, seam1) = assemble_layer_toolpath(1, 0.5, 0.2, &perimeters, &[], &infill, &config, seam0);
+        let (tp1, seam1) =
+            assemble_layer_toolpath(1, 0.5, 0.2, &perimeters, &[], &infill, &config, seam0);
         assert!(!tp1.segments.is_empty(), "Layer 1 should have segments");
         assert!(seam1.is_some(), "Layer 1 should have a seam point");
 
@@ -857,7 +854,8 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
+        let (toolpath, _) =
+            assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // Find the first perimeter extrusion segment.
         let first_perim = toolpath.segments.iter().find(|s| {
@@ -886,15 +884,15 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
+        let (toolpath, _) =
+            assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // Count total perimeter extrusion length.
         let total_perim_len: f64 = toolpath
             .segments
             .iter()
             .filter(|s| {
-                s.feature == FeatureType::OuterPerimeter
-                    || s.feature == FeatureType::InnerPerimeter
+                s.feature == FeatureType::OuterPerimeter || s.feature == FeatureType::InnerPerimeter
             })
             .map(|s| s.length())
             .sum();
@@ -981,7 +979,8 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
+        let (toolpath, _) =
+            assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // With scarf enabled, some perimeter segments should have Z != 0.4.
         let has_z_variation = toolpath
@@ -1013,7 +1012,8 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
+        let (toolpath, _) =
+            assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // With scarf disabled, all perimeter segments should have Z == 0.4.
         for seg in &toolpath.segments {
@@ -1036,9 +1036,8 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(
-            1, 0.4, 0.2, &perimeters, &[], &infill, &config, None,
-        );
+        let (toolpath, _) =
+            assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         for seg in &toolpath.segments {
             assert!(

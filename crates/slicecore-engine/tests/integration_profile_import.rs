@@ -251,7 +251,11 @@ fn test_toml_still_works() {
 
     {
         let mut f = std::fs::File::create(&path).unwrap();
-        write!(f, "layer_height = 0.1\nwall_count = 5\ninfill_density = 0.4").unwrap();
+        write!(
+            f,
+            "layer_height = 0.1\nwall_count = 5\ninfill_density = 0.4"
+        )
+        .unwrap();
     }
 
     let config = PrintConfig::from_file(&path).unwrap();
@@ -337,6 +341,129 @@ fn test_import_result_reports_unmapped_fields() {
 }
 
 // ---------------------------------------------------------------------------
+// P0 Config Gap Closure: OrcaSlicer JSON import tests
+// ---------------------------------------------------------------------------
+
+use slicecore_engine::config::{BedType, InternalBridgeMode, SurfacePattern};
+
+#[test]
+fn test_p0_json_import_dimensional_compensation() {
+    let json = r#"{
+        "type": "process",
+        "name": "P0 DimComp Test",
+        "xy_hole_compensation": "-0.1",
+        "xy_contour_compensation": "0.05",
+        "elefant_foot_compensation": "0.2"
+    }"#;
+
+    let config = PrintConfig::from_json(json).unwrap();
+    assert!(
+        (config.dimensional_compensation.xy_hole_compensation - (-0.1)).abs() < 1e-9,
+        "xy_hole_compensation should be -0.1, got {}",
+        config.dimensional_compensation.xy_hole_compensation
+    );
+    assert!(
+        (config.dimensional_compensation.xy_contour_compensation - 0.05).abs() < 1e-9,
+        "xy_contour_compensation should be 0.05, got {}",
+        config.dimensional_compensation.xy_contour_compensation
+    );
+    assert!(
+        (config.dimensional_compensation.elephant_foot_compensation - 0.2).abs() < 1e-9,
+        "elephant_foot_compensation should be 0.2, got {}",
+        config.dimensional_compensation.elephant_foot_compensation
+    );
+}
+
+#[test]
+fn test_p0_json_import_surface_patterns() {
+    let json = r#"{
+        "type": "process",
+        "name": "P0 Surface Test",
+        "top_surface_pattern": "monotonic",
+        "bottom_surface_pattern": "concentric",
+        "internal_solid_infill_pattern": "rectilinear"
+    }"#;
+
+    let config = PrintConfig::from_json(json).unwrap();
+    assert_eq!(config.top_surface_pattern, SurfacePattern::Monotonic);
+    assert_eq!(config.bottom_surface_pattern, SurfacePattern::Concentric);
+    assert_eq!(config.solid_infill_pattern, SurfacePattern::Rectilinear);
+}
+
+#[test]
+fn test_p0_json_import_bed_type_and_temps() {
+    let json = r#"{
+        "type": "filament",
+        "name": "P0 BedType Test",
+        "curr_bed_type": "Cool Plate",
+        "hot_plate_temp": ["70"],
+        "cool_plate_temp": ["40"],
+        "cool_plate_temp_initial_layer": ["45"]
+    }"#;
+
+    let config = PrintConfig::from_json(json).unwrap();
+    assert_eq!(config.machine.curr_bed_type, BedType::CoolPlate);
+    assert_eq!(config.filament.cool_plate_temp, vec![40.0]);
+    assert_eq!(config.filament.cool_plate_temp_initial_layer, vec![45.0]);
+}
+
+#[test]
+fn test_p0_json_import_misc_fields() {
+    let json = r#"{
+        "type": "process",
+        "name": "P0 Misc Test",
+        "extra_perimeters_on_overhangs": "1",
+        "internal_bridge_speed": "25",
+        "internal_bridge_support_enabled": "1",
+        "z_offset": "0.05",
+        "precise_z_height": "1",
+        "min_length_factor": "50"
+    }"#;
+
+    let config = PrintConfig::from_json(json).unwrap();
+    assert!(config.extra_perimeters_on_overhangs);
+    assert!(
+        (config.speeds.internal_bridge_speed - 25.0).abs() < 1e-9,
+        "internal_bridge_speed should be 25.0, got {}",
+        config.speeds.internal_bridge_speed
+    );
+    assert_eq!(config.internal_bridge_support, InternalBridgeMode::Auto);
+    assert!(
+        (config.z_offset - 0.05).abs() < 1e-9,
+        "z_offset should be 0.05, got {}",
+        config.z_offset
+    );
+    assert!(config.precise_z_height);
+    assert!(
+        (config.accel.min_length_factor - 50.0).abs() < 1e-9,
+        "min_length_factor should be 50.0, got {}",
+        config.accel.min_length_factor
+    );
+}
+
+#[test]
+fn test_p0_json_import_filament_fields() {
+    let json = r#"{
+        "type": "filament",
+        "name": "P0 Filament Test",
+        "chamber_temperature": "45",
+        "filament_shrinkage_compensation": "99.5"
+    }"#;
+
+    let config = PrintConfig::from_json(json).unwrap();
+    assert!(
+        (config.filament.chamber_temperature - 45.0).abs() < 1e-9,
+        "chamber_temperature should be 45.0, got {}",
+        config.filament.chamber_temperature
+    );
+    assert!(
+        (config.filament.filament_shrink - 99.5).abs() < 1e-9,
+        "filament_shrink should be 99.5, got {}",
+        config.filament.filament_shrink
+    );
+}
+
+// ---------------------------------------------------------------------------
 // Real upstream profile tests (require /home/steve/slicer-analysis/)
 // ---------------------------------------------------------------------------
 
@@ -418,7 +545,8 @@ fn test_real_orcaslicer_filament_profile() {
     // Sanity check: nozzle_temp or bed_temp should be non-default.
     // ABS typically has bed_temp ~100, so check it's been loaded.
     let defaults = PrintConfig::default();
-    let has_non_default = (config.filament.nozzle_temp() - defaults.filament.nozzle_temp()).abs() > 1.0
+    let has_non_default = (config.filament.nozzle_temp() - defaults.filament.nozzle_temp()).abs()
+        > 1.0
         || (config.filament.bed_temp() - defaults.filament.bed_temp()).abs() > 1.0;
 
     assert!(
@@ -429,7 +557,10 @@ fn test_real_orcaslicer_filament_profile() {
 
     eprintln!(
         "  nozzle_temp={}, bed_temp={}, filament_density={}, extrusion_multiplier={}",
-        config.filament.nozzle_temp(), config.filament.bed_temp(), config.filament.density, config.extrusion_multiplier
+        config.filament.nozzle_temp(),
+        config.filament.bed_temp(),
+        config.filament.density,
+        config.extrusion_multiplier
     );
 }
 

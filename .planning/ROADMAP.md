@@ -595,7 +595,7 @@ Plans:
 **Goal:** True 3D mesh boolean operations (union, difference, intersection, XOR) plus 9 mesh primitives, plane splitting, hollowing, mesh offset, CLI subcommand, plugin API, benchmarks, and fuzz targets -- enabling multi-part assembly merging, modifier mesh cutting, and model splitting
 **Requirements**: CSG-01 through CSG-13
 **Depends on:** Phase 28
-**Plans:** 7 plans
+**Plans:** 7/7 plans complete
 
 Plans:
 - [ ] 29-01-PLAN.md -- CSG module foundation: types, error, report, per-triangle attributes, 9 mesh primitives
@@ -605,3 +605,116 @@ Plans:
 - [ ] 29-05-PLAN.md -- CancellationToken support, rayon parallelism, plugin API traits
 - [ ] 29-06-PLAN.md -- CLI csg subcommand with info command and integration tests
 - [ ] 29-07-PLAN.md -- Criterion benchmarks, fuzz target, full workspace verification
+
+### Phase 30: CLI profile composition and slice workflow
+
+**Goal:** CLI users can compose multiple profile layers (machine + filament + process) into a final PrintConfig with provenance tracking, use the enhanced slice command with real-world multi-profile workflow, and get progress feedback, log files, and embedded config in G-code output
+**Requirements**: N/A-01, N/A-02, N/A-03, N/A-04, N/A-05, N/A-06, N/A-07, N/A-08, N/A-09, N/A-10, N/A-11, N/A-12
+**Depends on:** Phase 29
+**Plans:** 6/6 plans complete
+
+Plans:
+- [ ] 30-01-PLAN.md -- ProfileComposer core: TOML value tree merge with provenance tracking
+- [ ] 30-02-PLAN.md -- ProfileResolver: name-to-path resolution with type-constrained search
+- [ ] 30-03-PLAN.md -- Built-in profiles and config validation with severity levels
+- [ ] 30-04-PLAN.md -- CLI flags and slice workflow orchestrator (resolve->compose->validate->slice)
+- [ ] 30-05-PLAN.md -- Progress bar module and existing profile command migration to ProfileResolver
+- [ ] 30-06-PLAN.md -- E2E integration tests for profile composition slice workflow
+
+
+
+
+
+
+
+
+
+
+### Phase 31: CLI utility commands calibrate and estimate
+
+**Goal:** CLI users can generate printer-specific calibration G-code (temperature tower, retraction test, flow rate, first layer) and get cost estimation breakdowns from G-code analysis, with multi-config comparison and volume-based rough estimation for model files
+**Requirements**: TBD
+**Depends on:** Phase 30
+**Plans:** 6/6 plans complete
+
+Plans:
+- [ ] 31-01-PLAN.md -- Infrastructure: calibrate CLI skeleton, cost model, config additions
+- [ ] 31-02-PLAN.md -- Extend analyze-gcode with cost estimation and volume-based rough estimation
+- [ ] 31-03-PLAN.md -- Temperature tower and retraction test calibration commands
+- [ ] 31-04-PLAN.md -- Flow rate and first layer calibration commands
+- [ ] 31-05-PLAN.md -- Multi-config comparison, dry-run, save-model, output formats
+- [ ] 31-06-PLAN.md -- E2E integration tests for all calibrate and estimate features
+
+### Phase 32: P0 config gap closure - critical missing fields
+
+**Goal:** Add ~16 critical config fields (dimensional compensation, surface patterns, bed types, chamber temperature, z offset, etc.) with full profile import mapping, template variables, validation, and G-code integration -- config-only, no engine behavior changes
+**Requirements**: P32-01, P32-02, P32-03, P32-04, P32-05, P32-06, P32-07, P32-08, P32-09, P32-10
+**Depends on:** Phase 31
+**Plans:** 4/4 plans complete
+
+Plans:
+- [ ] 32-01-PLAN.md -- New enums, sub-structs, and all P0 fields in config.rs
+- [ ] 32-02-PLAN.md -- OrcaSlicer JSON and PrusaSlicer INI profile import mappings
+- [ ] 32-03-PLAN.md -- Template variables, validation rules, G-code comments and M-codes
+- [ ] 32-04-PLAN.md -- Tests and profile re-conversion
+
+### Phase 33: P1 config gap closure - profile fidelity fields
+
+**Goal:** Add ~30 P1-priority config fields (FuzzySkinConfig, BrimSkirtConfig, InputShapingConfig, ToolChangeRetractionConfig sub-structs + extensions to AccelerationConfig, CoolingConfig, SpeedConfig, FilamentPropsConfig, MultiMaterialConfig) with OrcaSlicer JSON and PrusaSlicer INI import mappings, G-code template variables, and range validation -- config + mapping only, no engine behavior changes
+**Requirements**: P33-01 through P33-16
+**Depends on:** Phase 32
+**Plans:** 4/4 plans complete
+
+Plans:
+- [ ] 33-01-PLAN.md -- New sub-structs, BrimType enum, extend existing sub-structs, top-level fields
+- [ ] 33-02-PLAN.md -- OrcaSlicer JSON and PrusaSlicer INI field mappings
+- [ ] 33-03-PLAN.md -- G-code template variables and range validation
+- [ ] 33-04-PLAN.md -- Integration tests and profile re-conversion
+
+### Phase 34: Support config and advanced feature profile import mapping
+
+**Goal:** Map ALL remaining unmapped config sections from upstream profiles (OrcaSlicer/BambuStudio/PrusaSlicer) to achieve 100% typed field coverage. Covers SupportConfig, ScarfJointConfig, MultiMaterialConfig, CustomGcodeHooks, PostProcessConfig, ~20 P2 niche fields, G-code template variable translation, and coverage reporting.
+**Requirements**: SUPPORT-MAP, SCARF-MAP, MULTI-MAP, GCODE-MAP, POST-MAP, P2-FIELDS, GCODE-TRANSLATE, PASSTHROUGH-THRESHOLD, ROUND-TRIP, RECONVERT
+**Depends on:** Phase 33
+**Success Criteria** (what must be TRUE):
+  1. All 5 previously-0% sub-structs (SupportConfig, ScarfJoint, MultiMaterial, CustomGcode, PostProcess) have upstream field mappings in both JSON and INI importers
+  2. All ~20 P2 niche fields have typed config representation with upstream mappings
+  3. G-code template variable translation table exists and is wired into import pipeline
+  4. Passthrough ratio is below 5% on representative profiles
+  5. CONFIG_PARITY_AUDIT.md Section 4 reflects final coverage numbers
+**Plans:** 6/6 plans complete
+
+Plans:
+- [ ] 34-01-PLAN.md -- Comprehensive field inventory from real profile scanning
+- [ ] 34-02-PLAN.md -- SupportConfig + BridgeConfig + TreeSupportConfig field mapping (JSON + INI)
+- [ ] 34-03-PLAN.md -- ScarfJoint + MultiMaterial + CustomGcode field mapping (JSON + INI)
+- [ ] 34-04-PLAN.md -- PostProcess + P2 niche fields + straggler fields
+- [ ] 34-05-PLAN.md -- G-code template variable translation table and dual storage
+- [ ] 34-06-PLAN.md -- Integration tests, re-conversion, coverage report, audit update
+
+### Phase 35: ConfigSchema system with setting metadata and JSON Schema generation
+
+**Goal:** Build a per-field metadata system for all config settings using a proc-macro derive, populate a runtime SettingRegistry, and generate JSON Schema 2020-12 + flat metadata JSON output. Replace ad-hoc validation with schema-driven validation. Deliver a CLI schema command for querying and exporting. Annotate ALL ~387 fields with tier, description, units, constraints, affects, and category.
+**Requirements**: TBD
+**Depends on:** Phase 34
+**Plans:** 7/7 plans complete
+
+Plans:
+- [ ] 35-01-PLAN.md -- Runtime types crate (SettingDefinition, SettingKey, ValueType, Tier, SettingCategory, SettingRegistry)
+- [ ] 35-02-PLAN.md -- Proc-macro derive crate (#[derive(SettingSchema)] for structs and enums)
+- [ ] 35-03-PLAN.md -- TIER_MAP.md design artifact with user review gate
+- [ ] 35-04-PLAN.md -- Annotate all config structs and enums in config.rs
+- [ ] 35-05-PLAN.md -- Annotate support/config.rs and cross-module enums
+- [ ] 35-06-PLAN.md -- JSON Schema generation, flat metadata JSON, search API, global registry
+- [ ] 35-07-PLAN.md -- CLI schema subcommand, schema-driven validation, integrity tests
+
+### Phase 36: Add a plugins subcommand to allow users to list and manage installed plugins, such as enable or disable
+
+**Goal:** Working `slicecore plugins` CLI subcommand with list, enable, disable, info, and validate commands; per-plugin .status files for state management; status-aware plugin discovery pipeline
+**Requirements**: [PLG-STATUS, PLG-DISCOVERY, PLG-REGISTRY, PLG-CLI-LIST, PLG-CLI-ENABLE, PLG-CLI-DISABLE, PLG-CLI-INFO, PLG-CLI-VALIDATE, PLG-GLOBAL-PLUGINDIR, PLG-QA-TESTS, PLG-DISABLED-SLICE-ERROR]
+**Depends on:** Phase 35
+**Plans:** 3/3 plans complete
+
+- [ ] 36-01-PLAN.md -- Plugin status module and status-aware discovery pipeline
+- [ ] 36-02-PLAN.md -- CLI plugins subcommand and global --plugin-dir promotion
+- [ ] 36-03-PLAN.md -- QA tests for plugins subcommand

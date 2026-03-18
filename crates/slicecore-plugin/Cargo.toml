@@ -20,6 +20,7 @@ serde = { workspace = true }
 toml = { workspace = true }
 semver = { workspace = true }
 thiserror = { workspace = true }
+serde_json = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 abi_stable = { workspace = true }

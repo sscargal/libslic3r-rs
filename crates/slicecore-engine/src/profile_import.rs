@@ -35,10 +35,14 @@
 
 use slicecore_gcode_io::GcodeDialect;
 
-use crate::config::PrintConfig;
+use crate::config::{
+    BedType, BrimType, InternalBridgeMode, PrintConfig, SlicingTolerance, SurfacePattern,
+};
 use crate::error::EngineError;
+use crate::gcode_template;
 use crate::infill::InfillPattern;
 use crate::seam::SeamPosition;
+use crate::support::config::{InterfacePattern, SupportPattern, SupportType};
 
 /// Detected configuration file format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,14 +133,8 @@ pub fn import_upstream_profile(value: &serde_json::Value) -> Result<ImportResult
 
     // Extract metadata.
     let metadata = ProfileMetadata {
-        name: obj
-            .get("name")
-            .and_then(|v| v.as_str())
-            .map(String::from),
-        profile_type: obj
-            .get("type")
-            .and_then(|v| v.as_str())
-            .map(String::from),
+        name: obj.get("name").and_then(|v| v.as_str()).map(String::from),
+        profile_type: obj.get("type").and_then(|v| v.as_str()).map(String::from),
         inherits: obj
             .get("inherits")
             .and_then(|v| v.as_str())
@@ -297,9 +295,7 @@ fn extract_array_f64(value: &serde_json::Value) -> Vec<f64> {
                 _ => None,
             })
             .collect(),
-        serde_json::Value::String(s) if s != "nil" => {
-            s.parse::<f64>().ok().into_iter().collect()
-        }
+        serde_json::Value::String(s) if s != "nil" => s.parse::<f64>().ok().into_iter().collect(),
         serde_json::Value::Number(n) => n.as_f64().into_iter().collect(),
         _ => Vec::new(),
     }
@@ -352,18 +348,54 @@ fn apply_array_field_mapping(
             config.filament.nozzle_temperatures = extract_array_f64(value);
             true
         }
-        "bed_temperature" | "hot_plate_temp" => {
+        "bed_temperature" => {
             config.filament.bed_temperatures = extract_array_f64(value);
+            true
+        }
+        "hot_plate_temp" => {
+            let temps = extract_array_f64(value);
+            config.filament.bed_temperatures = temps.clone();
+            config.filament.hot_plate_temp = temps;
             true
         }
         "nozzle_temperature_initial_layer" | "first_layer_temperature" => {
             config.filament.first_layer_nozzle_temperatures = extract_array_f64(value);
             true
         }
-        "bed_temperature_initial_layer"
-        | "first_layer_bed_temperature"
-        | "hot_plate_temp_initial_layer" => {
+        "bed_temperature_initial_layer" | "first_layer_bed_temperature" => {
             config.filament.first_layer_bed_temperatures = extract_array_f64(value);
+            true
+        }
+        "hot_plate_temp_initial_layer" => {
+            let temps = extract_array_f64(value);
+            config.filament.first_layer_bed_temperatures = temps.clone();
+            config.filament.hot_plate_temp_initial_layer = temps;
+            true
+        }
+
+        // --- Per-bed-type temperature arrays (OrcaSlicer-specific) ---
+        "cool_plate_temp" => {
+            config.filament.cool_plate_temp = extract_array_f64(value);
+            true
+        }
+        "eng_plate_temp" => {
+            config.filament.eng_plate_temp = extract_array_f64(value);
+            true
+        }
+        "textured_plate_temp" => {
+            config.filament.textured_plate_temp = extract_array_f64(value);
+            true
+        }
+        "cool_plate_temp_initial_layer" => {
+            config.filament.cool_plate_temp_initial_layer = extract_array_f64(value);
+            true
+        }
+        "eng_plate_temp_initial_layer" => {
+            config.filament.eng_plate_temp_initial_layer = extract_array_f64(value);
+            true
+        }
+        "textured_plate_temp_initial_layer" => {
+            config.filament.textured_plate_temp_initial_layer = extract_array_f64(value);
             true
         }
         _ => false,
@@ -434,9 +466,7 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "slow_down_min_speed" | "min_print_speed" => Some("cooling.slow_down_min_speed"),
         "overhang_fan_speed" => Some("cooling.overhang_fan_speed"),
         "overhang_fan_threshold" => Some("cooling.overhang_fan_threshold"),
-        "full_fan_speed_layer" | "disable_fan_first_layers" => {
-            Some("cooling.full_fan_speed_layer")
-        }
+        "full_fan_speed_layer" | "disable_fan_first_layers" => Some("cooling.full_fan_speed_layer"),
         "slow_down_for_layer_cooling" => Some("cooling.slow_down_for_layer_cooling"),
 
         // --- Retraction sub-config fields ---
@@ -472,7 +502,8 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "extruder_clearance_radius" | "extruder_clearance_max_radius" => {
             Some("sequential.extruder_clearance_radius")
         }
-        "extruder_clearance_height_to_rod" | "extruder_clearance_height_to_lid"
+        "extruder_clearance_height_to_rod"
+        | "extruder_clearance_height_to_lid"
         | "extruder_clearance_height" => Some("sequential.extruder_clearance_height"),
         "gantry_width" => Some("sequential.gantry_width"),
 
@@ -536,6 +567,229 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "resolution" => Some("resolution"),
         "raft_layers" => Some("raft_layers"),
         "detect_thin_wall" | "thin_walls" => Some("detect_thin_wall"),
+
+        // --- P0 config gap closure fields ---
+        "xy_hole_compensation" => Some("dimensional_compensation.xy_hole_compensation"),
+        "xy_contour_compensation" => Some("dimensional_compensation.xy_contour_compensation"),
+        "top_surface_pattern" => Some("top_surface_pattern"),
+        "bottom_surface_pattern" => Some("bottom_surface_pattern"),
+        "internal_solid_infill_pattern" => Some("solid_infill_pattern"),
+        "extra_perimeters_on_overhangs" => Some("extra_perimeters_on_overhangs"),
+        "internal_bridge_speed" => Some("speeds.internal_bridge_speed"),
+        "internal_bridge_support_enabled" => Some("internal_bridge_support"),
+        "filament_shrinkage_compensation" => Some("filament.filament_shrink"),
+        "z_offset" => Some("z_offset"),
+        "precise_z_height" => Some("precise_z_height"),
+        "min_length_factor" => Some("accel.min_length_factor"),
+        "chamber_temperature" => Some("filament.chamber_temperature"),
+        "curr_bed_type" => Some("machine.curr_bed_type"),
+        "cool_plate_temp" => Some("filament.cool_plate_temp"),
+        "eng_plate_temp" => Some("filament.eng_plate_temp"),
+        "textured_plate_temp" => Some("filament.textured_plate_temp"),
+        "cool_plate_temp_initial_layer" => Some("filament.cool_plate_temp_initial_layer"),
+        "eng_plate_temp_initial_layer" => Some("filament.eng_plate_temp_initial_layer"),
+        "textured_plate_temp_initial_layer" => Some("filament.textured_plate_temp_initial_layer"),
+
+        // --- P1 config gap closure fields ---
+        "fuzzy_skin" => Some("fuzzy_skin.enabled"),
+        "fuzzy_skin_thickness" => Some("fuzzy_skin.thickness"),
+        "fuzzy_skin_point_dist" => Some("fuzzy_skin.point_distance"),
+        "brim_type" => Some("brim_skirt.brim_type"),
+        "brim_ears" => Some("brim_skirt.brim_ears"),
+        "brim_ears_max_angle" => Some("brim_skirt.brim_ears_max_angle"),
+        "skirt_height" => Some("brim_skirt.skirt_height"),
+        "accel_to_decel_enable" => Some("input_shaping.accel_to_decel_enable"),
+        "accel_to_decel_factor" => Some("input_shaping.accel_to_decel_factor"),
+        "retraction_distances_when_cut" => {
+            Some("multi_material.tool_change_retraction.retraction_distance_when_cut")
+        }
+        "long_retractions_when_cut" => {
+            Some("multi_material.tool_change_retraction.long_retraction_when_cut")
+        }
+        "internal_solid_infill_acceleration" => Some("accel.internal_solid_infill_acceleration"),
+        "support_acceleration" => Some("accel.support_acceleration"),
+        "support_interface_acceleration" => Some("accel.support_interface_acceleration"),
+        "additional_cooling_fan_speed" => Some("cooling.additional_cooling_fan_speed"),
+        "auxiliary_fan" => Some("cooling.auxiliary_fan"),
+        "enable_overhang_speed" => Some("speeds.enable_overhang_speed"),
+        "filament_colour" => Some("filament.filament_colour"),
+        "wall_filament" => Some("multi_material.wall_filament"),
+        "solid_infill_filament" => Some("multi_material.solid_infill_filament"),
+        "support_filament" => Some("multi_material.support_filament"),
+        "support_interface_filament" => Some("multi_material.support_interface_filament"),
+        "precise_outer_wall" => Some("precise_outer_wall"),
+        "draft_shield" => Some("draft_shield"),
+        "ooze_prevention" => Some("ooze_prevention"),
+        "infill_combination" | "infill_every_layers" => Some("infill_combination"),
+        "infill_anchor_max" => Some("infill_anchor_max"),
+        "min_bead_width" => Some("min_bead_width"),
+        "min_feature_size" => Some("min_feature_size"),
+        "support_bottom_interface_layers" => Some("support.support_bottom_interface_layers"),
+
+        // --- Support config fields ---
+        "enable_support" | "support_material" => Some("support.enabled"),
+        "support_type" | "support_material_type" | "support_style" | "support_material_style" => {
+            Some("support.support_type")
+        }
+        "support_threshold_angle" | "support_angle" | "support_material_threshold" => {
+            Some("support.overhang_angle")
+        }
+        "support_base_pattern" | "support_material_pattern" => Some("support.support_pattern"),
+        "support_on_build_plate_only" | "support_material_buildplate_only" => {
+            Some("support.build_plate_only")
+        }
+        "support_top_z_distance" | "support_material_contact_distance" => Some("support.z_gap"),
+        "support_bottom_z_distance" | "support_material_bottom_contact_distance" => {
+            Some("support.bottom_z_gap")
+        }
+        "support_object_xy_distance" | "support_material_xy_spacing" => Some("support.xy_gap"),
+        "support_interface_top_layers" | "support_material_interface_layers" => {
+            Some("support.interface_layers")
+        }
+        "support_interface_bottom_layers" | "support_material_bottom_interface_layers" => {
+            Some("support.support_bottom_interface_layers")
+        }
+        "support_interface_pattern" | "support_material_interface_pattern" => {
+            Some("support.interface_pattern")
+        }
+        "support_base_pattern_spacing" | "support_material_spacing" => {
+            Some("support.support_density")
+        }
+        "support_interface_spacing" | "support_material_interface_spacing" => {
+            Some("support.interface_density")
+        }
+        "support_expansion" => Some("support.expansion"),
+        "support_critical_regions_only" => Some("support.critical_regions_only"),
+        "support_remove_small_overhang" => Some("support.remove_small_overhang"),
+        "support_flow_ratio" | "support_material_flow" => Some("support.flow_ratio"),
+        "support_interface_flow_ratio" | "support_material_interface_flow" => {
+            Some("support.interface_flow_ratio")
+        }
+        "support_material_synchronize_layers" => Some("support.synchronize_layers"),
+        "enforce_support_layers" | "support_material_enforce_layers" => {
+            Some("support.enforce_layers")
+        }
+        "support_closing_radius" | "support_material_closing_radius" => {
+            Some("support.closing_radius")
+        }
+        "support_material_auto" => Some("support.support_type"),
+        "raft_first_layer_expansion" => Some("support.raft_expansion"),
+        "bridge_angle" => Some("support.bridge.angle"),
+        "bridge_density" => Some("support.bridge.density"),
+        "thick_bridges" => Some("support.bridge.thick_bridges"),
+        "bridge_no_support" => Some("support.bridge.no_support"),
+        "bridge_fan_speed" => Some("support.bridge.fan_speed"),
+        "tree_support_branch_angle" | "support_tree_angle" => Some("support.tree.branch_angle"),
+        "tree_support_branch_diameter" | "support_tree_branch_diameter" => {
+            Some("support.tree.max_trunk_diameter")
+        }
+        "tree_support_tip_diameter" => Some("support.tree.tip_diameter"),
+        "tree_support_branch_distance" | "support_tree_top_rate" => {
+            Some("support.tree.branch_distance")
+        }
+        "tree_support_branch_diameter_angle" => Some("support.tree.branch_diameter_angle"),
+        "tree_support_wall_count" => Some("support.tree.wall_count"),
+        "tree_support_auto_brim" => Some("support.tree.auto_brim"),
+        "tree_support_brim_width" => Some("support.tree.brim_width"),
+        "tree_support_adaptive_layer_height" => Some("support.tree.adaptive_layer_height"),
+        "tree_support_angle_slow" => Some("support.tree.angle_slow"),
+        "tree_support_top_rate" => Some("support.tree.top_rate"),
+        "tree_support_with_infill" => Some("support.tree.with_infill"),
+
+        // --- Scarf joint config fields ---
+        "seam_slope_type" => Some("scarf_joint.enabled"),
+        "seam_slope_conditional" => Some("scarf_joint.conditional_scarf"),
+        "seam_slope_start_height" => Some("scarf_joint.scarf_start_height"),
+        "seam_slope_entire_loop" => Some("scarf_joint.scarf_around_entire_wall"),
+        "seam_slope_min_length" => Some("scarf_joint.scarf_length"),
+        "seam_slope_steps" => Some("scarf_joint.scarf_steps"),
+        "seam_slope_inner_walls" => Some("scarf_joint.scarf_inner_walls"),
+        "seam_slope_gap" => Some("scarf_joint.seam_gap"),
+        "wipe_on_loops" => Some("scarf_joint.wipe_on_loop"),
+        "role_based_wipe_speed" => Some("scarf_joint.role_based_wipe_speed"),
+        "wipe_speed" => Some("scarf_joint.wipe_speed"),
+        "scarf_joint_speed" => Some("scarf_joint.scarf_speed"),
+        "scarf_joint_flow_ratio" => Some("scarf_joint.scarf_flow_ratio"),
+        "scarf_angle_threshold" => Some("scarf_joint.scarf_angle_threshold"),
+        "scarf_overhang_threshold" => Some("scarf_joint.scarf_overhang_threshold"),
+        "override_filament_scarf_seam_setting" => Some("scarf_joint.override_filament_setting"),
+
+        // --- Multi-material config fields ---
+        "enable_prime_tower" | "wipe_tower" => Some("multi_material.enabled"),
+        "wipe_tower_x" => Some("multi_material.purge_tower_position"),
+        "wipe_tower_y" => Some("multi_material.purge_tower_position"),
+        "wipe_tower_width" | "prime_tower_width" => Some("multi_material.purge_tower_width"),
+        "prime_volume" | "purge_volume" => Some("multi_material.purge_volume"),
+        "wipe_tower_rotation_angle" => Some("multi_material.wipe_tower_rotation_angle"),
+        "wipe_tower_bridging" => Some("multi_material.wipe_tower_bridging"),
+        "wipe_tower_cone_angle" => Some("multi_material.wipe_tower_cone_angle"),
+        "wipe_tower_no_sparse_layers" => Some("multi_material.wipe_tower_no_sparse_layers"),
+        "single_extruder_multi_material" => Some("multi_material.single_extruder_mmu"),
+        "flush_into_infill" => Some("multi_material.flush_into_infill"),
+        "flush_into_objects" => Some("multi_material.flush_into_objects"),
+        "flush_into_support" => Some("multi_material.flush_into_support"),
+        "purge_in_prime_tower" => Some("multi_material.purge_in_prime_tower"),
+
+        // --- Custom G-code hook fields ---
+        "before_layer_change_gcode" | "before_layer_gcode" => {
+            Some("custom_gcode.before_layer_change")
+        }
+        "change_filament_gcode" | "toolchange_gcode" | "tool_change_gcode" => {
+            Some("custom_gcode.tool_change_gcode")
+        }
+        "color_change_gcode" => Some("custom_gcode.color_change"),
+        "machine_pause_gcode" | "pause_print_gcode" => Some("custom_gcode.pause_print"),
+        "between_objects_gcode" => Some("custom_gcode.between_objects"),
+
+        // --- PostProcess/Timelapse fields ---
+        "post_process" => Some("post_process.scripts"),
+        "timelapse_type" => Some("post_process.timelapse.enabled"),
+        "gcode_label_objects" => Some("post_process.gcode_label_objects"),
+        "gcode_comments" => Some("post_process.gcode_comments"),
+        "gcode_add_line_number" => Some("post_process.gcode_add_line_number"),
+        "filename_format" => Some("post_process.filename_format"),
+
+        // --- P2 niche fields ---
+        "slicing_tolerance" => Some("slicing_tolerance"),
+        "thumbnails" => Some("thumbnails"),
+        "silent_mode" => Some("machine.silent_mode"),
+        "nozzle_hrc" => Some("machine.nozzle_hrc"),
+        "emit_machine_limits_to_gcode" => Some("machine.emit_machine_limits_to_gcode"),
+        "bed_custom_texture" => Some("machine.bed_custom_texture"),
+        "bed_custom_model" => Some("machine.bed_custom_model"),
+        "extruder_offset" => Some("machine.extruder_offset"),
+        "cooling_tube_length" => Some("machine.cooling_tube_length"),
+        "cooling_tube_retraction" => Some("machine.cooling_tube_retraction"),
+        "parking_pos_retraction" => Some("machine.parking_pos_retraction"),
+        "extra_loading_move" => Some("machine.extra_loading_move"),
+        "compatible_printers_condition_cummulative" => Some("compatible_printers_condition"),
+        "inherits_group" => Some("inherits_group"),
+        "max_travel_detour_distance" | "max_travel_detour_length" => {
+            Some("max_travel_detour_length")
+        }
+        "exclude_object" => Some("exclude_object"),
+        "reduce_infill_retraction" => Some("reduce_infill_retraction"),
+        "reduce_crossing_wall" => Some("reduce_crossing_wall"),
+
+        // --- Straggler fields ---
+        "ironing_angle" => Some("ironing.angle"),
+        "print_sequence" => Some("sequential.enabled"),
+
+        // --- Jerk fields ---
+        "default_jerk" => Some("accel.default_jerk"),
+        "outer_wall_jerk" => Some("accel.outer_wall_jerk"),
+        "inner_wall_jerk" => Some("accel.inner_wall_jerk"),
+        "top_surface_jerk" => Some("accel.top_surface_jerk"),
+        "infill_jerk" => Some("accel.infill_jerk"),
+        "travel_jerk" => Some("accel.travel_jerk"),
+        "initial_layer_jerk" => Some("accel.initial_layer_jerk"),
+
+        // --- Machine straggler fields ---
+        "retract_length_toolchange" => Some("machine.retract_length_toolchange"),
+        "retract_restart_extra" => Some("machine.retract_restart_extra"),
+        "retract_restart_extra_toolchange" => Some("machine.retract_restart_extra_toolchange"),
+        "machine_min_extruding_rate" => Some("machine.min_extruding_rate"),
+        "machine_min_travel_rate" => Some("machine.min_travel_rate"),
 
         // Ironing sub-fields don't map to simple top-level fields.
         _ => None,
@@ -646,9 +900,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             parse_and_set_f64(value, &mut config.speeds.initial_layer_infill)
         }
         "support_speed" => parse_and_set_f64(value, &mut config.speeds.support),
-        "support_interface_speed" => {
-            parse_and_set_f64(value, &mut config.speeds.support_interface)
-        }
+        "support_interface_speed" => parse_and_set_f64(value, &mut config.speeds.support_interface),
         "small_perimeter_speed" => {
             // Handle percentage format: strip % if present, parse as raw mm/s.
             if let Some(v) = parse_percentage_or_f64(value) {
@@ -681,27 +933,17 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
                 .insert(key.to_string(), value.to_string());
             true
         }
-        "outer_wall_line_width" => {
-            parse_and_set_f64(value, &mut config.line_widths.outer_wall)
-        }
-        "inner_wall_line_width" => {
-            parse_and_set_f64(value, &mut config.line_widths.inner_wall)
-        }
-        "sparse_infill_line_width" => {
-            parse_and_set_f64(value, &mut config.line_widths.infill)
-        }
-        "top_surface_line_width" => {
-            parse_and_set_f64(value, &mut config.line_widths.top_surface)
-        }
+        "outer_wall_line_width" => parse_and_set_f64(value, &mut config.line_widths.outer_wall),
+        "inner_wall_line_width" => parse_and_set_f64(value, &mut config.line_widths.inner_wall),
+        "sparse_infill_line_width" => parse_and_set_f64(value, &mut config.line_widths.infill),
+        "top_surface_line_width" => parse_and_set_f64(value, &mut config.line_widths.top_surface),
         "initial_layer_line_width" => {
             parse_and_set_f64(value, &mut config.line_widths.initial_layer)
         }
         "internal_solid_infill_line_width" => {
             parse_and_set_f64(value, &mut config.line_widths.internal_solid_infill)
         }
-        "support_line_width" => {
-            parse_and_set_f64(value, &mut config.line_widths.support)
-        }
+        "support_line_width" => parse_and_set_f64(value, &mut config.line_widths.support),
 
         // --- Cooling sub-config fields ---
         "fan_max_speed" => {
@@ -747,9 +989,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         }
 
         // --- Retraction sub-config fields ---
-        "deretraction_speed" => {
-            parse_and_set_f64(value, &mut config.retraction.deretraction_speed)
-        }
+        "deretraction_speed" => parse_and_set_f64(value, &mut config.retraction.deretraction_speed),
         "retract_before_wipe" => {
             // Percentage value.
             if let Some(v) = parse_percentage_or_f64(value) {
@@ -767,21 +1007,27 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             config.retraction.wipe = value == "1" || value == "true";
             true
         }
-        "wipe_distance" => {
-            parse_and_set_f64(value, &mut config.retraction.wipe_distance)
-        }
+        "wipe_distance" => parse_and_set_f64(value, &mut config.retraction.wipe_distance),
 
         // --- Machine sub-config fields ---
+        // Dual storage: original (verbatim) + translated (our variable names).
         "machine_start_gcode" | "start_gcode" => {
-            config.machine.start_gcode = value.to_string();
+            config.machine.start_gcode_original = value.to_string();
+            let table = gcode_template::build_orcaslicer_translation_table();
+            config.machine.start_gcode = gcode_template::translate_gcode_template(value, &table);
             true
         }
         "machine_end_gcode" | "end_gcode" => {
-            config.machine.end_gcode = value.to_string();
+            config.machine.end_gcode_original = value.to_string();
+            let table = gcode_template::build_orcaslicer_translation_table();
+            config.machine.end_gcode = gcode_template::translate_gcode_template(value, &table);
             true
         }
         "layer_change_gcode" | "layer_gcode" => {
-            config.machine.layer_change_gcode = value.to_string();
+            config.machine.layer_change_gcode_original = value.to_string();
+            let table = gcode_template::build_orcaslicer_translation_table();
+            config.machine.layer_change_gcode =
+                gcode_template::translate_gcode_template(value, &table);
             true
         }
         "printable_height" | "max_print_height" => {
@@ -808,18 +1054,10 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "machine_max_acceleration_travel" => {
             parse_and_set_f64(value, &mut config.machine.max_acceleration_travel)
         }
-        "machine_max_speed_x" => {
-            parse_and_set_f64(value, &mut config.machine.max_speed_x)
-        }
-        "machine_max_speed_y" => {
-            parse_and_set_f64(value, &mut config.machine.max_speed_y)
-        }
-        "machine_max_speed_z" => {
-            parse_and_set_f64(value, &mut config.machine.max_speed_z)
-        }
-        "machine_max_speed_e" => {
-            parse_and_set_f64(value, &mut config.machine.max_speed_e)
-        }
+        "machine_max_speed_x" => parse_and_set_f64(value, &mut config.machine.max_speed_x),
+        "machine_max_speed_y" => parse_and_set_f64(value, &mut config.machine.max_speed_y),
+        "machine_max_speed_z" => parse_and_set_f64(value, &mut config.machine.max_speed_z),
+        "machine_max_speed_e" => parse_and_set_f64(value, &mut config.machine.max_speed_e),
         "nozzle_type" => {
             config.machine.nozzle_type = value.to_string();
             true
@@ -832,12 +1070,8 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             config.machine.bed_shape = value.to_string();
             true
         }
-        "min_layer_height" => {
-            parse_and_set_f64(value, &mut config.machine.min_layer_height)
-        }
-        "max_layer_height" => {
-            parse_and_set_f64(value, &mut config.machine.max_layer_height)
-        }
+        "min_layer_height" => parse_and_set_f64(value, &mut config.machine.min_layer_height),
+        "max_layer_height" => parse_and_set_f64(value, &mut config.machine.max_layer_height),
 
         // --- Sequential/gantry clearance fields ---
         "extruder_clearance_radius" | "extruder_clearance_max_radius" => {
@@ -857,32 +1091,18 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "extruder_clearance_height" => {
             parse_and_set_f64(value, &mut config.sequential.extruder_clearance_height)
         }
-        "gantry_width" => {
-            parse_and_set_f64(value, &mut config.sequential.gantry_width)
-        }
+        "gantry_width" => parse_and_set_f64(value, &mut config.sequential.gantry_width),
 
         // --- Acceleration sub-config fields ---
-        "outer_wall_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.outer_wall)
-        }
-        "inner_wall_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.inner_wall)
-        }
-        "initial_layer_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.initial_layer)
-        }
+        "outer_wall_acceleration" => parse_and_set_f64(value, &mut config.accel.outer_wall),
+        "inner_wall_acceleration" => parse_and_set_f64(value, &mut config.accel.inner_wall),
+        "initial_layer_acceleration" => parse_and_set_f64(value, &mut config.accel.initial_layer),
         "initial_layer_travel_acceleration" | "initial_layer_travel_speed" => {
             parse_and_set_f64(value, &mut config.accel.initial_layer_travel)
         }
-        "top_surface_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.top_surface)
-        }
-        "sparse_infill_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.sparse_infill)
-        }
-        "bridge_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.bridge)
-        }
+        "top_surface_acceleration" => parse_and_set_f64(value, &mut config.accel.top_surface),
+        "sparse_infill_acceleration" => parse_and_set_f64(value, &mut config.accel.sparse_infill),
+        "bridge_acceleration" => parse_and_set_f64(value, &mut config.accel.bridge),
 
         // --- Filament fields (original flat) ---
         // Note: temperature array fields are handled by apply_array_field_mapping.
@@ -947,9 +1167,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "retraction_length" => parse_and_set_f64(value, &mut config.retraction.length),
         "retraction_speed" => parse_and_set_f64(value, &mut config.retraction.speed),
         "z_hop" => parse_and_set_f64(value, &mut config.retraction.z_hop),
-        "retraction_minimum_travel" => {
-            parse_and_set_f64(value, &mut config.retraction.min_travel)
-        }
+        "retraction_minimum_travel" => parse_and_set_f64(value, &mut config.retraction.min_travel),
         "gcode_flavor" => {
             if let Some(dialect) = map_gcode_dialect(value) {
                 config.gcode_dialect = dialect;
@@ -960,24 +1178,17 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         }
 
         // --- Process misc flat fields ---
-        "bridge_flow" | "bridge_flow_ratio" => {
-            parse_and_set_f64(value, &mut config.bridge_flow)
-        }
-        "elefant_foot_compensation" => {
-            parse_and_set_f64(value, &mut config.elefant_foot_compensation)
-        }
-        "infill_direction" => {
-            parse_and_set_f64(value, &mut config.infill_direction)
-        }
+        "bridge_flow" | "bridge_flow_ratio" => parse_and_set_f64(value, &mut config.bridge_flow),
+        "elefant_foot_compensation" => parse_and_set_f64(
+            value,
+            &mut config.dimensional_compensation.elephant_foot_compensation,
+        ),
+        "infill_direction" => parse_and_set_f64(value, &mut config.infill_direction),
         "infill_wall_overlap" | "infill_overlap" => {
             // Handle percentage format: strip %, divide by 100.
             let cleaned = value.trim_end_matches('%');
             if let Ok(v) = cleaned.parse::<f64>() {
-                config.infill_wall_overlap = if value.contains('%') {
-                    v / 100.0
-                } else {
-                    v
-                };
+                config.infill_wall_overlap = if value.contains('%') { v / 100.0 } else { v };
                 true
             } else {
                 false
@@ -991,16 +1202,752 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             config.only_one_wall_top = value == "1" || value == "true";
             true
         }
-        "resolution" => {
-            parse_and_set_f64(value, &mut config.resolution)
-        }
-        "raft_layers" => {
-            parse_and_set_u32(value, &mut config.raft_layers)
-        }
+        "resolution" => parse_and_set_f64(value, &mut config.resolution),
+        "raft_layers" => parse_and_set_u32(value, &mut config.raft_layers),
         "detect_thin_wall" | "thin_walls" => {
             config.detect_thin_wall = value == "1" || value == "true";
             true
         }
+
+        // --- P0 config gap closure: dimensional compensation ---
+        "xy_hole_compensation" => parse_and_set_f64(
+            value,
+            &mut config.dimensional_compensation.xy_hole_compensation,
+        ),
+        "xy_contour_compensation" => parse_and_set_f64(
+            value,
+            &mut config.dimensional_compensation.xy_contour_compensation,
+        ),
+
+        // --- P0 config gap closure: surface patterns ---
+        "top_surface_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.top_surface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "bottom_surface_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.bottom_surface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "internal_solid_infill_pattern" => {
+            if let Some(p) = map_surface_pattern(value) {
+                config.solid_infill_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+
+        // --- P0 config gap closure: overhang perimeters ---
+        "extra_perimeters_on_overhangs" => {
+            config.extra_perimeters_on_overhangs =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- P0 config gap closure: bridge settings ---
+        "internal_bridge_speed" => {
+            parse_and_set_f64(value, &mut config.speeds.internal_bridge_speed)
+        }
+        "internal_bridge_support_enabled" => {
+            if let Some(mode) = map_internal_bridge_mode(value) {
+                config.internal_bridge_support = mode;
+                true
+            } else {
+                false
+            }
+        }
+
+        // --- P0 config gap closure: filament shrink ---
+        "filament_shrinkage_compensation" => {
+            parse_and_set_f64(value, &mut config.filament.filament_shrink)
+        }
+
+        // --- P0 config gap closure: z offset (global) ---
+        "z_offset" => parse_and_set_f64(value, &mut config.z_offset),
+
+        // --- P0 config gap closure: precise Z ---
+        "precise_z_height" => {
+            config.precise_z_height = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- P0 config gap closure: acceleration min_length_factor ---
+        "min_length_factor" => parse_and_set_f64(value, &mut config.accel.min_length_factor),
+
+        // --- P0 config gap closure: chamber temperature ---
+        // OrcaSlicer uses same key in both machine and filament contexts.
+        // Import as filament by default; machine profiles use separate mapping.
+        "chamber_temperature" => parse_and_set_f64(value, &mut config.filament.chamber_temperature),
+
+        // --- P0 config gap closure: bed type ---
+        "curr_bed_type" => {
+            if let Some(bt) = map_bed_type(value) {
+                config.machine.curr_bed_type = bt;
+                true
+            } else {
+                false
+            }
+        }
+
+        // --- P1 config gap closure: fuzzy skin ---
+        "fuzzy_skin" => {
+            config.fuzzy_skin.enabled = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "fuzzy_skin_thickness" => parse_and_set_f64(value, &mut config.fuzzy_skin.thickness),
+        "fuzzy_skin_point_dist" => parse_and_set_f64(value, &mut config.fuzzy_skin.point_distance),
+
+        // --- P1 config gap closure: brim/skirt ---
+        "brim_type" => {
+            if let Some(bt) = map_brim_type(value) {
+                config.brim_skirt.brim_type = bt;
+                true
+            } else {
+                false
+            }
+        }
+        "brim_ears" => {
+            config.brim_skirt.brim_ears = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "brim_ears_max_angle" => {
+            parse_and_set_f64(value, &mut config.brim_skirt.brim_ears_max_angle)
+        }
+        "skirt_height" => parse_and_set_u32(value, &mut config.brim_skirt.skirt_height),
+
+        // --- P1 config gap closure: input shaping ---
+        "accel_to_decel_enable" => {
+            config.input_shaping.accel_to_decel_enable =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "accel_to_decel_factor" => {
+            parse_and_set_f64(value, &mut config.input_shaping.accel_to_decel_factor)
+        }
+
+        // --- P1 config gap closure: tool change retraction ---
+        "retraction_distances_when_cut" => {
+            // OrcaSlicer uses plural "distances" and may be an array; take first value.
+            let first = value.split(',').next().unwrap_or(value).trim();
+            parse_and_set_f64(
+                first,
+                &mut config
+                    .multi_material
+                    .tool_change_retraction
+                    .retraction_distance_when_cut,
+            )
+        }
+        "long_retractions_when_cut" => {
+            // OrcaSlicer uses plural "retractions" and may be an array; take first value.
+            let first = value.split(',').next().unwrap_or(value).trim();
+            config
+                .multi_material
+                .tool_change_retraction
+                .long_retraction_when_cut = first == "1" || first.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- P1 config gap closure: acceleration ---
+        "internal_solid_infill_acceleration" => {
+            parse_and_set_f64(value, &mut config.accel.internal_solid_infill_acceleration)
+        }
+        "support_acceleration" => parse_and_set_f64(value, &mut config.accel.support_acceleration),
+        "support_interface_acceleration" => {
+            parse_and_set_f64(value, &mut config.accel.support_interface_acceleration)
+        }
+
+        // --- P1 config gap closure: cooling ---
+        "additional_cooling_fan_speed" => {
+            parse_and_set_f64(value, &mut config.cooling.additional_cooling_fan_speed)
+        }
+        "auxiliary_fan" => {
+            config.cooling.auxiliary_fan = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- P1 config gap closure: speed ---
+        "enable_overhang_speed" => {
+            config.speeds.enable_overhang_speed =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- P1 config gap closure: filament ---
+        "filament_colour" => {
+            // May be array for multi-extruder; take first value.
+            let first = value.split(';').next().unwrap_or(value).trim();
+            config.filament.filament_colour = first.to_string();
+            true
+        }
+
+        // --- P1 config gap closure: multi-material filament indices ---
+        "wall_filament" => {
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.wall_filament = if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
+        }
+        "solid_infill_filament" => {
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.solid_infill_filament =
+                    if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
+        }
+        "support_filament" => {
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.support_filament = if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
+        }
+        "support_interface_filament" => {
+            if let Ok(v) = value.parse::<usize>() {
+                config.multi_material.support_interface_filament =
+                    if v > 0 { Some(v - 1) } else { None };
+                true
+            } else {
+                false
+            }
+        }
+
+        // --- P1 config gap closure: top-level fields ---
+        "precise_outer_wall" => {
+            config.precise_outer_wall = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "draft_shield" => {
+            config.draft_shield = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "ooze_prevention" => {
+            config.ooze_prevention = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "infill_combination" | "infill_every_layers" => {
+            parse_and_set_u32(value, &mut config.infill_combination)
+        }
+        "infill_anchor_max" => parse_and_set_f64(value, &mut config.infill_anchor_max),
+        "min_bead_width" => parse_and_set_f64(value, &mut config.min_bead_width),
+        "min_feature_size" => parse_and_set_f64(value, &mut config.min_feature_size),
+
+        // --- P1 config gap closure: support ---
+        "support_bottom_interface_layers" => {
+            parse_and_set_u32(value, &mut config.support.support_bottom_interface_layers)
+        }
+
+        // --- Support config fields (OrcaSlicer + shared keys) ---
+        "enable_support" | "support_material" => {
+            config.support.enabled = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "support_type" | "support_material_type" | "support_style" | "support_material_style" => {
+            if let Some(st) = map_support_type(value) {
+                config.support.support_type = st;
+                true
+            } else {
+                false
+            }
+        }
+        "support_threshold_angle" | "support_angle" | "support_material_threshold" => {
+            parse_and_set_f64(value, &mut config.support.overhang_angle)
+        }
+        "support_base_pattern" | "support_material_pattern" => {
+            if let Some(p) = map_support_pattern(value) {
+                config.support.support_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "support_on_build_plate_only" | "support_material_buildplate_only" => {
+            config.support.build_plate_only = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "support_top_z_distance" | "support_material_contact_distance" => {
+            parse_and_set_f64(value, &mut config.support.z_gap)
+        }
+        "support_bottom_z_distance" | "support_material_bottom_contact_distance" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.support.bottom_z_gap = Some(v);
+                true
+            } else {
+                false
+            }
+        }
+        "support_object_xy_distance" | "support_material_xy_spacing" => {
+            parse_and_set_f64(value, &mut config.support.xy_gap)
+        }
+        "support_interface_top_layers" | "support_material_interface_layers" => {
+            parse_and_set_u32(value, &mut config.support.interface_layers)
+        }
+        "support_interface_bottom_layers" | "support_material_bottom_interface_layers" => {
+            parse_and_set_u32(value, &mut config.support.support_bottom_interface_layers)
+        }
+        "support_interface_pattern" | "support_material_interface_pattern" => {
+            if let Some(p) = map_interface_pattern(value) {
+                config.support.interface_pattern = p;
+                true
+            } else {
+                false
+            }
+        }
+        "support_base_pattern_spacing" | "support_material_spacing" => {
+            // Convert spacing to density: density = line_width / spacing.
+            if let Ok(spacing) = value.parse::<f64>() {
+                if spacing > 0.0 {
+                    let line_width = config
+                        .passthrough
+                        .get("line_width")
+                        .or_else(|| config.passthrough.get("extrusion_width"))
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .unwrap_or(0.4);
+                    config.support.support_density = (line_width / spacing).clamp(0.0, 1.0);
+                }
+                true
+            } else {
+                false
+            }
+        }
+        "support_interface_spacing" | "support_material_interface_spacing" => {
+            // Convert spacing to density: density = line_width / spacing.
+            if let Ok(spacing) = value.parse::<f64>() {
+                if spacing > 0.0 {
+                    let line_width = config
+                        .passthrough
+                        .get("line_width")
+                        .or_else(|| config.passthrough.get("extrusion_width"))
+                        .and_then(|s| s.parse::<f64>().ok())
+                        .unwrap_or(0.4);
+                    config.support.interface_density = (line_width / spacing).clamp(0.0, 1.0);
+                } else {
+                    // spacing == 0 means 100% density.
+                    config.support.interface_density = 1.0;
+                }
+                true
+            } else {
+                false
+            }
+        }
+        "support_expansion" => parse_and_set_f64(value, &mut config.support.expansion),
+        "support_critical_regions_only" => {
+            config.support.critical_regions_only =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "support_remove_small_overhang" => {
+            config.support.remove_small_overhang =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "support_flow_ratio" | "support_material_flow" => {
+            parse_and_set_f64(value, &mut config.support.flow_ratio)
+        }
+        "support_interface_flow_ratio" | "support_material_interface_flow" => {
+            parse_and_set_f64(value, &mut config.support.interface_flow_ratio)
+        }
+        "support_material_synchronize_layers" => {
+            config.support.synchronize_layers = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "enforce_support_layers" | "support_material_enforce_layers" => {
+            parse_and_set_u32(value, &mut config.support.enforce_layers)
+        }
+        "support_closing_radius" | "support_material_closing_radius" => {
+            parse_and_set_f64(value, &mut config.support.closing_radius)
+        }
+        "support_material_auto" => {
+            // PrusaSlicer: "1" means auto-detect support type.
+            if value == "1" || value.eq_ignore_ascii_case("true") {
+                config.support.support_type = SupportType::Auto;
+            }
+            true
+        }
+        "raft_first_layer_expansion" => {
+            parse_and_set_f64(value, &mut config.support.raft_expansion)
+        }
+        "support_material_with_sheath" => {
+            // Store as passthrough (no direct equivalent field needed).
+            config
+                .passthrough
+                .insert(key.to_string(), value.to_string());
+            true
+        }
+
+        // --- Bridge config fields (support sub-struct) ---
+        "bridge_angle" => parse_and_set_f64(value, &mut config.support.bridge.angle),
+        "bridge_density" => parse_and_set_f64(value, &mut config.support.bridge.density),
+        "thick_bridges" => {
+            config.support.bridge.thick_bridges =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "bridge_no_support" => {
+            config.support.bridge.no_support = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "bridge_fan_speed" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.support.bridge.fan_speed = (v.clamp(0.0, 255.0)) as u8;
+                true
+            } else {
+                false
+            }
+        }
+
+        // --- Scarf joint config fields (OrcaSlicer-only) ---
+        "seam_slope_type" => {
+            // OrcaSlicer: "none" or "0" means disabled, anything else enables.
+            config.scarf_joint.enabled = !value.is_empty() && value != "none" && value != "0";
+            true
+        }
+        "seam_slope_conditional" => {
+            config.scarf_joint.conditional_scarf =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "seam_slope_start_height" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.scarf_start_height)
+        }
+        "seam_slope_entire_loop" => {
+            config.scarf_joint.scarf_around_entire_wall =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "seam_slope_min_length" => parse_and_set_f64(value, &mut config.scarf_joint.scarf_length),
+        "seam_slope_steps" => parse_and_set_u32(value, &mut config.scarf_joint.scarf_steps),
+        "seam_slope_inner_walls" => {
+            config.scarf_joint.scarf_inner_walls =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "seam_slope_gap" => parse_and_set_f64(value, &mut config.scarf_joint.seam_gap),
+        "wipe_on_loops" => {
+            config.scarf_joint.wipe_on_loop = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "role_based_wipe_speed" => {
+            config.scarf_joint.role_based_wipe_speed =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "wipe_speed" => parse_and_set_f64(value, &mut config.scarf_joint.wipe_speed),
+        "scarf_joint_speed" => parse_and_set_f64(value, &mut config.scarf_joint.scarf_speed),
+        "scarf_joint_flow_ratio" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.scarf_flow_ratio)
+        }
+        "scarf_angle_threshold" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.scarf_angle_threshold)
+        }
+        "scarf_overhang_threshold" => {
+            parse_and_set_f64(value, &mut config.scarf_joint.scarf_overhang_threshold)
+        }
+        "override_filament_scarf_seam_setting" => {
+            config.scarf_joint.override_filament_setting =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- Multi-material config fields (OrcaSlicer/BambuStudio + shared) ---
+        "enable_prime_tower" | "wipe_tower" => {
+            config.multi_material.enabled = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "wipe_tower_x" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.multi_material.purge_tower_position[0] = v;
+                true
+            } else {
+                false
+            }
+        }
+        "wipe_tower_y" => {
+            if let Ok(v) = value.parse::<f64>() {
+                config.multi_material.purge_tower_position[1] = v;
+                true
+            } else {
+                false
+            }
+        }
+        "wipe_tower_width" | "prime_tower_width" => {
+            parse_and_set_f64(value, &mut config.multi_material.purge_tower_width)
+        }
+        "prime_volume" | "purge_volume" => {
+            parse_and_set_f64(value, &mut config.multi_material.purge_volume)
+        }
+        "wipe_tower_rotation_angle" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_rotation_angle)
+        }
+        "wipe_tower_bridging" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_bridging)
+        }
+        "wipe_tower_cone_angle" => {
+            parse_and_set_f64(value, &mut config.multi_material.wipe_tower_cone_angle)
+        }
+        "wipe_tower_no_sparse_layers" => {
+            config.multi_material.wipe_tower_no_sparse_layers =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "single_extruder_multi_material" => {
+            config.multi_material.single_extruder_mmu =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "flush_into_infill" => {
+            config.multi_material.flush_into_infill =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "flush_into_objects" => {
+            config.multi_material.flush_into_objects =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "flush_into_support" => {
+            config.multi_material.flush_into_support =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "purge_in_prime_tower" => {
+            config.multi_material.purge_in_prime_tower =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- Tree support fields ---
+        "tree_support_branch_angle" | "support_tree_angle" => {
+            parse_and_set_f64(value, &mut config.support.tree.branch_angle)
+        }
+        "tree_support_branch_diameter" | "support_tree_branch_diameter" => {
+            parse_and_set_f64(value, &mut config.support.tree.max_trunk_diameter)
+        }
+        "tree_support_tip_diameter" => {
+            parse_and_set_f64(value, &mut config.support.tree.tip_diameter)
+        }
+        "tree_support_branch_distance" | "support_tree_top_rate" => {
+            parse_and_set_f64(value, &mut config.support.tree.branch_distance)
+        }
+        "tree_support_branch_diameter_angle" => {
+            parse_and_set_f64(value, &mut config.support.tree.branch_diameter_angle)
+        }
+        "tree_support_wall_count" => parse_and_set_u32(value, &mut config.support.tree.wall_count),
+        "tree_support_auto_brim" => {
+            config.support.tree.auto_brim = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "tree_support_brim_width" => parse_and_set_f64(value, &mut config.support.tree.brim_width),
+        "tree_support_adaptive_layer_height" => {
+            config.support.tree.adaptive_layer_height =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "tree_support_angle_slow" => parse_and_set_f64(value, &mut config.support.tree.angle_slow),
+        "tree_support_top_rate" => parse_and_set_f64(value, &mut config.support.tree.top_rate),
+        "tree_support_with_infill" => {
+            config.support.tree.with_infill = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- Custom G-code hook fields ---
+        // Dual storage: original (verbatim) + translated (our variable names).
+        "before_layer_change_gcode" | "before_layer_gcode" => {
+            config.custom_gcode.before_layer_change_original = value.to_string();
+            let table = gcode_template::build_orcaslicer_translation_table();
+            config.custom_gcode.before_layer_change =
+                gcode_template::translate_gcode_template(value, &table);
+            true
+        }
+        "change_filament_gcode" | "toolchange_gcode" | "tool_change_gcode" => {
+            config.custom_gcode.tool_change_gcode_original = value.to_string();
+            let table = gcode_template::build_orcaslicer_translation_table();
+            config.custom_gcode.tool_change_gcode =
+                gcode_template::translate_gcode_template(value, &table);
+            true
+        }
+        "color_change_gcode" => {
+            config.custom_gcode.color_change_original = value.to_string();
+            let table = gcode_template::build_orcaslicer_translation_table();
+            config.custom_gcode.color_change =
+                gcode_template::translate_gcode_template(value, &table);
+            true
+        }
+        "machine_pause_gcode" | "pause_print_gcode" => {
+            config.custom_gcode.pause_print_original = value.to_string();
+            let table = gcode_template::build_orcaslicer_translation_table();
+            config.custom_gcode.pause_print =
+                gcode_template::translate_gcode_template(value, &table);
+            true
+        }
+        "between_objects_gcode" => {
+            config.custom_gcode.between_objects_original = value.to_string();
+            let table = gcode_template::build_orcaslicer_translation_table();
+            config.custom_gcode.between_objects =
+                gcode_template::translate_gcode_template(value, &table);
+            true
+        }
+
+        // --- PostProcess config fields ---
+        "post_process" => {
+            // Split by semicolon or newline to get individual script paths.
+            let scripts: Vec<String> = value
+                .split([';', '\n'])
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            config.post_process.scripts = scripts;
+            true
+        }
+        "timelapse_type" => {
+            // "none" or empty -> disabled, anything else -> enabled.
+            config.post_process.timelapse.enabled =
+                !value.is_empty() && value != "none" && value != "0";
+            true
+        }
+        "gcode_label_objects" => {
+            config.post_process.gcode_label_objects =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "gcode_comments" => {
+            config.post_process.gcode_comments = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "gcode_add_line_number" => {
+            config.post_process.gcode_add_line_number =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "filename_format" => {
+            config.post_process.filename_format = value.to_string();
+            true
+        }
+
+        // --- P2 niche fields ---
+        "slicing_tolerance" => {
+            config.slicing_tolerance = match value.to_lowercase().as_str() {
+                "middle" => SlicingTolerance::Middle,
+                "nearest" => SlicingTolerance::Nearest,
+                "gauss" => SlicingTolerance::Gauss,
+                _ => SlicingTolerance::Middle,
+            };
+            true
+        }
+        "thumbnails" => {
+            // Parse as comma-separated or semicolon-separated size specs.
+            let specs: Vec<String> = value
+                .split([',', ';'])
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            config.thumbnails = specs;
+            true
+        }
+        "silent_mode" => {
+            config.machine.silent_mode = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "nozzle_hrc" => parse_and_set_u32(value, &mut config.machine.nozzle_hrc),
+        "emit_machine_limits_to_gcode" => {
+            config.machine.emit_machine_limits_to_gcode =
+                value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "bed_custom_texture" => {
+            config.machine.bed_custom_texture = value.to_string();
+            true
+        }
+        "bed_custom_model" => {
+            config.machine.bed_custom_model = value.to_string();
+            true
+        }
+        "extruder_offset" => {
+            // Store as passthrough; complex parsing handled elsewhere.
+            config
+                .passthrough
+                .insert(key.to_string(), value.to_string());
+            true
+        }
+        "cooling_tube_length" => parse_and_set_f64(value, &mut config.machine.cooling_tube_length),
+        "cooling_tube_retraction" => {
+            parse_and_set_f64(value, &mut config.machine.cooling_tube_retraction)
+        }
+        "parking_pos_retraction" => {
+            parse_and_set_f64(value, &mut config.machine.parking_pos_retraction)
+        }
+        "extra_loading_move" => parse_and_set_f64(value, &mut config.machine.extra_loading_move),
+        "compatible_printers_condition_cummulative" => {
+            let conditions: Vec<String> = value
+                .split(';')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            config.compatible_printers_condition = conditions;
+            true
+        }
+        "inherits_group" => {
+            config.inherits_group = value.to_string();
+            true
+        }
+        "max_travel_detour_distance" | "max_travel_detour_length" => {
+            parse_and_set_f64(value, &mut config.max_travel_detour_length)
+        }
+        "exclude_object" => {
+            config.exclude_object = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "reduce_infill_retraction" => {
+            config.reduce_infill_retraction = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+        "reduce_crossing_wall" => {
+            config.reduce_crossing_wall = value == "1" || value.eq_ignore_ascii_case("true");
+            true
+        }
+
+        // --- Straggler fields from partially-mapped sections ---
+        "ironing_angle" => parse_and_set_f64(value, &mut config.ironing.angle),
+        "print_sequence" => {
+            config.sequential.enabled = value.eq_ignore_ascii_case("by object");
+            true
+        }
+
+        // --- Jerk fields (AccelerationConfig stragglers) ---
+        "default_jerk" => parse_and_set_f64(value, &mut config.accel.default_jerk),
+        "outer_wall_jerk" => parse_and_set_f64(value, &mut config.accel.outer_wall_jerk),
+        "inner_wall_jerk" => parse_and_set_f64(value, &mut config.accel.inner_wall_jerk),
+        "top_surface_jerk" => parse_and_set_f64(value, &mut config.accel.top_surface_jerk),
+        "infill_jerk" => parse_and_set_f64(value, &mut config.accel.infill_jerk),
+        "travel_jerk" => parse_and_set_f64(value, &mut config.accel.travel_jerk),
+        "initial_layer_jerk" => parse_and_set_f64(value, &mut config.accel.initial_layer_jerk),
+
+        // --- Machine straggler fields ---
+        "retract_length_toolchange" => {
+            parse_and_set_f64(value, &mut config.machine.retract_length_toolchange)
+        }
+        "retract_restart_extra" => {
+            parse_and_set_f64(value, &mut config.machine.retract_restart_extra)
+        }
+        "retract_restart_extra_toolchange" => {
+            parse_and_set_f64(value, &mut config.machine.retract_restart_extra_toolchange)
+        }
+        "machine_min_extruding_rate" => {
+            parse_and_set_f64(value, &mut config.machine.min_extruding_rate)
+        }
+        "machine_min_travel_rate" => parse_and_set_f64(value, &mut config.machine.min_travel_rate),
 
         // --- Default: store unmapped fields in passthrough ---
         _ => {
@@ -1043,6 +1990,58 @@ fn parse_and_set_u32(value: &str, target: &mut u32) -> bool {
 // Enum mapping helpers (private)
 // ---------------------------------------------------------------------------
 
+/// Map an upstream surface pattern name to our `SurfacePattern` enum.
+///
+/// Handles OrcaSlicer and PrusaSlicer naming conventions.
+pub(crate) fn map_surface_pattern(value: &str) -> Option<SurfacePattern> {
+    match value.to_lowercase().as_str() {
+        "rectilinear" | "zig-zag" | "line" => Some(SurfacePattern::Rectilinear),
+        "monotonic" => Some(SurfacePattern::Monotonic),
+        "monotonicline" | "monotonic_line" => Some(SurfacePattern::MonotonicLine),
+        "concentric" => Some(SurfacePattern::Concentric),
+        "hilbertcurve" | "hilbert" => Some(SurfacePattern::Hilbert),
+        "archimedeanchords" | "archimedean" => Some(SurfacePattern::Archimedean),
+        _ => None,
+    }
+}
+
+/// Map an upstream bed type name to our `BedType` enum.
+pub(crate) fn map_bed_type(value: &str) -> Option<BedType> {
+    match value.to_lowercase().replace(' ', "").as_str() {
+        "coolplate" | "cool_plate" => Some(BedType::CoolPlate),
+        "engineeringplate" | "engineering_plate" | "epplate" => Some(BedType::EngineeringPlate),
+        "hightempplate" | "high_temp_plate" | "hotplate" => Some(BedType::HighTempPlate),
+        "texturedpeiplate" | "textured_pei" | "texturedpei" => Some(BedType::TexturedPei),
+        "smoothpeiplate" | "smooth_pei" | "smoothpei" => Some(BedType::SmoothPei),
+        "satinpeiplate" | "satin_pei" | "satinpei" => Some(BedType::SatinPei),
+        _ => None,
+    }
+}
+
+/// Map an upstream internal bridge mode value to our `InternalBridgeMode` enum.
+pub(crate) fn map_internal_bridge_mode(value: &str) -> Option<InternalBridgeMode> {
+    match value.to_lowercase().as_str() {
+        "0" | "false" | "off" | "disabled" => Some(InternalBridgeMode::Off),
+        "1" | "true" | "auto" => Some(InternalBridgeMode::Auto),
+        "2" | "always" => Some(InternalBridgeMode::Always),
+        _ => None,
+    }
+}
+
+/// Map an upstream brim type name to our `BrimType` enum.
+///
+/// Handles OrcaSlicer and PrusaSlicer naming conventions including underscore
+/// and space-separated variants.
+pub(crate) fn map_brim_type(value: &str) -> Option<BrimType> {
+    match value.to_lowercase().replace(' ', "").as_str() {
+        "no_brim" | "nobrim" | "none" => Some(BrimType::None),
+        "outer_only" | "outeronly" | "outer" => Some(BrimType::Outer),
+        "inner_only" | "inneronly" | "inner" => Some(BrimType::Inner),
+        "outer_and_inner" | "outerandinner" | "both" => Some(BrimType::Both),
+        _ => None,
+    }
+}
+
 /// Map an OrcaSlicer infill pattern name to our InfillPattern enum.
 fn map_infill_pattern(value: &str) -> Option<InfillPattern> {
     match value.to_lowercase().as_str() {
@@ -1079,6 +2078,49 @@ fn map_gcode_dialect(value: &str) -> Option<GcodeDialect> {
     }
 }
 
+/// Map an upstream support type value to our `SupportType` enum.
+///
+/// Handles both OrcaSlicer and PrusaSlicer naming conventions:
+/// - OrcaSlicer: "none"/"disable", "normal(auto)"/"normal(manual)"/"grid", "tree(auto)"/"organic"/"tree_slim"
+/// - PrusaSlicer: "0" (none), "1" (auto), "snug", "grid", "organic"
+pub(crate) fn map_support_type(value: &str) -> Option<SupportType> {
+    match value.to_lowercase().as_str() {
+        "none" | "disable" | "0" => Some(SupportType::None),
+        "auto" | "default" | "1" => Some(SupportType::Auto),
+        "normal" | "normal(auto)" | "normal(manual)" | "grid" | "snug" | "traditional" => {
+            Some(SupportType::Traditional)
+        }
+        "tree" | "tree(auto)" | "tree_slim" | "organic" => Some(SupportType::Tree),
+        _ => None,
+    }
+}
+
+/// Map an upstream support pattern value to our `SupportPattern` enum.
+///
+/// Handles both OrcaSlicer and PrusaSlicer pattern names.
+pub(crate) fn map_support_pattern(value: &str) -> Option<SupportPattern> {
+    match value.to_lowercase().as_str() {
+        "default" | "line" => Some(SupportPattern::Line),
+        "rectilinear" => Some(SupportPattern::Rectilinear),
+        "grid" => Some(SupportPattern::Grid),
+        "honeycomb" => Some(SupportPattern::Honeycomb),
+        "lightning" => Some(SupportPattern::Lightning),
+        _ => None,
+    }
+}
+
+/// Map an upstream support interface pattern value to our `InterfacePattern` enum.
+///
+/// Handles both OrcaSlicer and PrusaSlicer interface pattern names.
+pub(crate) fn map_interface_pattern(value: &str) -> Option<InterfacePattern> {
+    match value.to_lowercase().as_str() {
+        "default" | "rectilinear" | "auto" => Some(InterfacePattern::Rectilinear),
+        "grid" => Some(InterfacePattern::Grid),
+        "concentric" => Some(InterfacePattern::Concentric),
+        _ => None,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -1101,10 +2143,7 @@ mod tests {
             ConfigFormat::Json
         );
         // Whitespace before opening brace.
-        assert_eq!(
-            detect_config_format(b"\n\t  {\"a\":1}"),
-            ConfigFormat::Json
-        );
+        assert_eq!(detect_config_format(b"\n\t  {\"a\":1}"), ConfigFormat::Json);
     }
 
     #[test]
@@ -1376,10 +2415,7 @@ mod tests {
             map_infill_pattern("rectilinear"),
             Some(InfillPattern::Rectilinear)
         );
-        assert_eq!(
-            map_infill_pattern("line"),
-            Some(InfillPattern::Rectilinear)
-        );
+        assert_eq!(map_infill_pattern("line"), Some(InfillPattern::Rectilinear));
         assert_eq!(map_infill_pattern("unknown_pattern"), None);
     }
 
@@ -1672,7 +2708,9 @@ mod tests {
 
         // All should be mapped.
         assert!(result.mapped_fields.contains(&"bridge_speed".to_string()));
-        assert!(result.mapped_fields.contains(&"gap_infill_speed".to_string()));
+        assert!(result
+            .mapped_fields
+            .contains(&"gap_infill_speed".to_string()));
     }
 
     #[test]
@@ -1891,7 +2929,7 @@ mod tests {
         let config = &result.config;
 
         assert!((config.bridge_flow - 0.95).abs() < 1e-9);
-        assert!((config.elefant_foot_compensation - 0.1).abs() < 1e-9);
+        assert!((config.dimensional_compensation.elephant_foot_compensation - 0.1).abs() < 1e-9);
         assert!((config.infill_direction - 45.0).abs() < 1e-9);
         assert!((config.infill_wall_overlap - 0.15).abs() < 1e-9);
         assert!(config.spiral_mode);
@@ -2047,78 +3085,125 @@ mod tests {
 
         // Process basics (19)
         for key in &[
-            "layer_height", "initial_layer_print_height", "wall_loops",
-            "sparse_infill_density", "top_shell_layers", "bottom_shell_layers",
-            "outer_wall_speed", "sparse_infill_speed", "travel_speed",
-            "initial_layer_speed", "skirt_loops", "skirt_distance",
-            "brim_width", "default_acceleration", "travel_acceleration",
-            "enable_arc_fitting", "adaptive_layer_height",
-            "wall_generator", "seam_position",
+            "layer_height",
+            "initial_layer_print_height",
+            "wall_loops",
+            "sparse_infill_density",
+            "top_shell_layers",
+            "bottom_shell_layers",
+            "outer_wall_speed",
+            "sparse_infill_speed",
+            "travel_speed",
+            "initial_layer_speed",
+            "skirt_loops",
+            "skirt_distance",
+            "brim_width",
+            "default_acceleration",
+            "travel_acceleration",
+            "enable_arc_fitting",
+            "adaptive_layer_height",
+            "wall_generator",
+            "seam_position",
         ] {
             obj.insert((*key).into(), json!("10"));
         }
         // Speed sub-config (15)
         for key in &[
-            "bridge_speed", "inner_wall_speed", "gap_infill_speed",
-            "top_surface_speed", "internal_solid_infill_speed",
-            "initial_layer_infill_speed", "support_speed",
-            "support_interface_speed", "small_perimeter_speed",
-            "solid_infill_speed", "overhang_1_4_speed", "overhang_2_4_speed",
-            "overhang_3_4_speed", "overhang_4_4_speed", "travel_speed_z",
+            "bridge_speed",
+            "inner_wall_speed",
+            "gap_infill_speed",
+            "top_surface_speed",
+            "internal_solid_infill_speed",
+            "initial_layer_infill_speed",
+            "support_speed",
+            "support_interface_speed",
+            "small_perimeter_speed",
+            "solid_infill_speed",
+            "overhang_1_4_speed",
+            "overhang_2_4_speed",
+            "overhang_3_4_speed",
+            "overhang_4_4_speed",
+            "travel_speed_z",
         ] {
             obj.insert((*key).into(), json!("50"));
         }
         // Line widths (7)
         for key in &[
-            "outer_wall_line_width", "inner_wall_line_width",
-            "sparse_infill_line_width", "top_surface_line_width",
-            "initial_layer_line_width", "internal_solid_infill_line_width",
+            "outer_wall_line_width",
+            "inner_wall_line_width",
+            "sparse_infill_line_width",
+            "top_surface_line_width",
+            "initial_layer_line_width",
+            "internal_solid_infill_line_width",
             "support_line_width",
         ] {
             obj.insert((*key).into(), json!("0.45"));
         }
         // Cooling (8)
         for key in &[
-            "fan_max_speed", "fan_min_speed", "slow_down_layer_time",
-            "slow_down_min_speed", "overhang_fan_speed",
-            "overhang_fan_threshold", "full_fan_speed_layer",
+            "fan_max_speed",
+            "fan_min_speed",
+            "slow_down_layer_time",
+            "slow_down_min_speed",
+            "overhang_fan_speed",
+            "overhang_fan_threshold",
+            "full_fan_speed_layer",
             "slow_down_for_layer_cooling",
         ] {
             obj.insert((*key).into(), json!("10"));
         }
         // Retraction (5)
         for key in &[
-            "deretraction_speed", "retract_before_wipe",
-            "retract_when_changing_layer", "wipe", "wipe_distance",
+            "deretraction_speed",
+            "retract_before_wipe",
+            "retract_when_changing_layer",
+            "wipe",
+            "wipe_distance",
         ] {
             obj.insert((*key).into(), json!("1"));
         }
         // Machine limits (14)
         for key in &[
-            "printable_height", "machine_max_acceleration_x",
-            "machine_max_acceleration_y", "machine_max_acceleration_z",
-            "machine_max_acceleration_e", "machine_max_acceleration_extruding",
-            "machine_max_acceleration_retracting", "machine_max_acceleration_travel",
-            "machine_max_speed_x", "machine_max_speed_y",
-            "machine_max_speed_z", "machine_max_speed_e",
-            "min_layer_height", "max_layer_height",
+            "printable_height",
+            "machine_max_acceleration_x",
+            "machine_max_acceleration_y",
+            "machine_max_acceleration_z",
+            "machine_max_acceleration_e",
+            "machine_max_acceleration_extruding",
+            "machine_max_acceleration_retracting",
+            "machine_max_acceleration_travel",
+            "machine_max_speed_x",
+            "machine_max_speed_y",
+            "machine_max_speed_z",
+            "machine_max_speed_e",
+            "min_layer_height",
+            "max_layer_height",
         ] {
             obj.insert((*key).into(), json!("100"));
         }
         // Acceleration (7)
         for key in &[
-            "outer_wall_acceleration", "inner_wall_acceleration",
-            "initial_layer_acceleration", "initial_layer_travel_acceleration",
-            "top_surface_acceleration", "sparse_infill_acceleration",
+            "outer_wall_acceleration",
+            "inner_wall_acceleration",
+            "initial_layer_acceleration",
+            "initial_layer_travel_acceleration",
+            "top_surface_acceleration",
+            "sparse_infill_acceleration",
             "bridge_acceleration",
         ] {
             obj.insert((*key).into(), json!("5000"));
         }
         // Process misc (9)
         for key in &[
-            "bridge_flow", "elefant_foot_compensation", "infill_direction",
-            "infill_wall_overlap", "resolution", "spiral_mode",
-            "only_one_wall_top", "raft_layers", "detect_thin_wall",
+            "bridge_flow",
+            "elefant_foot_compensation",
+            "infill_direction",
+            "infill_wall_overlap",
+            "resolution",
+            "spiral_mode",
+            "only_one_wall_top",
+            "raft_layers",
+            "detect_thin_wall",
         ] {
             obj.insert((*key).into(), json!("0"));
         }

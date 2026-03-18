@@ -103,10 +103,7 @@ fn make_ascii_stl_cube() -> Vec<u8> {
         ));
         s.push_str("    outer loop\n");
         for v in verts {
-            s.push_str(&format!(
-                "      vertex {} {} {}\n",
-                v[0], v[1], v[2]
-            ));
+            s.push_str(&format!("      vertex {} {} {}\n", v[0], v[1], v[2]));
         }
         s.push_str("    endloop\n");
         s.push_str("  endfacet\n");
@@ -217,11 +214,8 @@ fn load_binary_stl_then_repair_produces_valid_mesh() {
     let mesh = load_mesh(&data).expect("load binary STL");
 
     // Pass through repair pipeline
-    let (repaired, report) = repair(
-        mesh.vertices().to_vec(),
-        mesh.indices().to_vec(),
-    )
-    .expect("repair should succeed");
+    let (repaired, report) =
+        repair(mesh.vertices().to_vec(), mesh.indices().to_vec()).expect("repair should succeed");
 
     // A clean cube should report already clean (or very minimal changes)
     assert_eq!(

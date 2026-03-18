@@ -23,7 +23,7 @@ pub struct GcodeParserState {
     feedrate_mm_min: f64,
 
     // Extrusion mode.
-    absolute_extrusion: bool,  // M82=true, M83=false, default true
+    absolute_extrusion: bool,   // M82=true, M83=false, default true
     absolute_positioning: bool, // G90=true, G91=false, default true
 
     // Layer tracking.
@@ -253,13 +253,12 @@ fn parse_line(
         "M82" => state.absolute_extrusion = true,
         "M83" => state.absolute_extrusion = false,
         // Common M-codes we recognize but don't need to track.
-        "M104" | "M109" | "M140" | "M190" | "M106" | "M107" | "M84" | "M204" | "M205"
-        | "M220" | "M221" | "M400" | "M900" | "M862" | "M862.3" | "M201" | "M203"
-        | "M206" | "M207" | "M208" | "M302" | "M73" | "T0" | "T1" | "T2" | "T3" => {}
+        "M104" | "M109" | "M140" | "M190" | "M106" | "M107" | "M84" | "M204" | "M205" | "M220"
+        | "M221" | "M400" | "M900" | "M862" | "M862.3" | "M201" | "M203" | "M206" | "M207"
+        | "M208" | "M302" | "M73" | "T0" | "T1" | "T2" | "T3" => {}
         _ => {
             // Check for M-codes and T-codes we don't explicitly list.
-            if parts[0].starts_with('M') || parts[0].starts_with('T') || parts[0].starts_with('G')
-            {
+            if parts[0].starts_with('M') || parts[0].starts_with('T') || parts[0].starts_with('G') {
                 // Known command classes, just skip.
             } else {
                 state.unknown_command_count += 1;
@@ -464,10 +463,7 @@ fn parse_move(
     }
 
     // Z-hop end: returning to layer Z.
-    if has_z
-        && state.zhop_z.is_some()
-        && new_z <= state.zhop_z.unwrap() + 1e-6
-    {
+    if has_z && state.zhop_z.is_some() && new_z <= state.zhop_z.unwrap() + 1e-6 {
         let zhop_dist = state.z - new_z;
         if zhop_dist > 0.0 {
             state.zhop_count += 1;
@@ -754,7 +750,8 @@ fn parse_header_comment(line: &str, header: &mut HeaderMetadata) {
         }
     }
     // Handle combined line: "; model printing time: 9m 48s; total estimated time: 18m 1s"
-    if trimmed.contains("total estimated time:") && !trimmed.starts_with("; total estimated time:") {
+    if trimmed.contains("total estimated time:") && !trimmed.starts_with("; total estimated time:")
+    {
         if let Some(pos) = trimmed.find("total estimated time:") {
             let rest = &trimmed[pos + "total estimated time:".len()..];
             if let Some(time) = parse_time_string(rest.trim()) {
@@ -1019,23 +1016,12 @@ G28
         let reader = Cursor::new(gcode);
         let result = parse_gcode_file(reader, "test.gcode", 1.75, 1.24);
         assert_eq!(result.slicer, SlicerType::BambuStudio);
-        assert_eq!(
-            result.header.slicer_name.as_deref(),
-            Some("BambuStudio")
-        );
+        assert_eq!(result.header.slicer_name.as_deref(), Some("BambuStudio"));
         assert_eq!(result.header.layer_count, Some(100));
-        assert!(
-            (result.header.filament_length_mm.unwrap() - 1393.21).abs() < 0.01,
-        );
-        assert!(
-            (result.header.filament_weight_g.unwrap() - 4.22).abs() < 0.01,
-        );
-        assert!(
-            (result.header.filament_density.unwrap() - 1.26).abs() < 0.01,
-        );
-        assert!(
-            (result.header.max_z_height.unwrap() - 20.0).abs() < 0.01,
-        );
+        assert!((result.header.filament_length_mm.unwrap() - 1393.21).abs() < 0.01,);
+        assert!((result.header.filament_weight_g.unwrap() - 4.22).abs() < 0.01,);
+        assert!((result.header.filament_density.unwrap() - 1.26).abs() < 0.01,);
+        assert!((result.header.max_z_height.unwrap() - 20.0).abs() < 0.01,);
         // Total estimated time: 18m 1s = 1081s
         assert!(
             (result.header.estimated_time_s.unwrap() - 1081.0).abs() < 1.0,
@@ -1057,25 +1043,16 @@ G28
         let reader = Cursor::new(gcode);
         let result = parse_gcode_file(reader, "test.gcode", 1.75, 1.24);
         assert_eq!(result.slicer, SlicerType::PrusaSlicer);
-        assert_eq!(
-            result.header.slicer_name.as_deref(),
-            Some("PrusaSlicer"),
-        );
+        assert_eq!(result.header.slicer_name.as_deref(), Some("PrusaSlicer"),);
         // Time: 1h 15m 30s = 3600 + 900 + 30 = 4530s
         assert!(
             (result.header.estimated_time_s.unwrap() - 4530.0).abs() < 1.0,
             "estimated_time_s={} expected ~4530",
             result.header.estimated_time_s.unwrap(),
         );
-        assert!(
-            (result.header.filament_length_mm.unwrap() - 3870.0).abs() < 0.01,
-        );
-        assert!(
-            (result.header.filament_volume_cm3.unwrap() - 9.31).abs() < 0.01,
-        );
-        assert!(
-            (result.header.filament_weight_g.unwrap() - 11.73).abs() < 0.01,
-        );
+        assert!((result.header.filament_length_mm.unwrap() - 3870.0).abs() < 0.01,);
+        assert!((result.header.filament_volume_cm3.unwrap() - 9.31).abs() < 0.01,);
+        assert!((result.header.filament_weight_g.unwrap() - 11.73).abs() < 0.01,);
     }
 
     #[test]
@@ -1185,11 +1162,7 @@ G1 X60 Y50 E0.5 F3000
         // Cross-check with standalone functions.
         let expected_volume = filament_mm_to_volume_mm3(10.0, 1.75);
         let expected_weight = filament_mm_to_weight_g(10.0, 1.75, 1.24);
-        assert!(
-            (result.total_filament_volume_mm3 - expected_volume).abs() < 0.01,
-        );
-        assert!(
-            (result.total_filament_weight_g - expected_weight).abs() < 0.001,
-        );
+        assert!((result.total_filament_volume_mm3 - expected_volume).abs() < 0.01,);
+        assert!((result.total_filament_weight_g - expected_weight).abs() < 0.001,);
     }
 }

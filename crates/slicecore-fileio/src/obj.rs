@@ -43,11 +43,10 @@ pub fn parse(data: &[u8]) -> Result<TriangleMesh, FileIOError> {
 
     // Pass a material loader that returns an empty material set.
     // OBJ materials are not relevant for mesh geometry.
-    let (models, _materials) =
-        tobj::load_obj_buf(&mut reader, &load_options, |_path: &Path| {
-            Ok((Vec::new(), std::collections::HashMap::new()))
-        })
-        .map_err(|e| FileIOError::ObjError(e.to_string()))?;
+    let (models, _materials) = tobj::load_obj_buf(&mut reader, &load_options, |_path: &Path| {
+        Ok((Vec::new(), std::collections::HashMap::new()))
+    })
+    .map_err(|e| FileIOError::ObjError(e.to_string()))?;
 
     let mut all_vertices: Vec<Point3> = Vec::new();
     let mut all_indices: Vec<[u32; 3]> = Vec::new();

@@ -56,8 +56,8 @@ pub fn convert_to_toml(result: &ImportResult) -> ConvertResult {
     let default_config = PrintConfig::default();
 
     // Serialize both configs to toml::Value::Table for comparison.
-    let result_value = toml::Value::try_from(&result.config)
-        .expect("PrintConfig should serialize to toml::Value");
+    let result_value =
+        toml::Value::try_from(&result.config).expect("PrintConfig should serialize to toml::Value");
     let default_value = toml::Value::try_from(&default_config)
         .expect("PrintConfig default should serialize to toml::Value");
 
@@ -123,9 +123,7 @@ pub fn convert_to_toml(result: &ImportResult) -> ConvertResult {
     let mut footer = String::new();
     if !result.unmapped_fields.is_empty() {
         footer.push('\n');
-        footer.push_str(
-            "# Unmapped fields from source (no equivalent in PrintConfig):\n",
-        );
+        footer.push_str("# Unmapped fields from source (no equivalent in PrintConfig):\n");
         for field in &result.unmapped_fields {
             footer.push_str(&format!("# - {}\n", field));
         }
@@ -217,10 +215,12 @@ pub fn merge_import_results(results: &[ImportResult]) -> ImportResult {
 
     // Deserialize the merged table back into PrintConfig.
     let merged_config: PrintConfig =
-        toml::Value::Table(merged_table).try_into().unwrap_or_else(|e| {
-            eprintln!("Warning: failed to deserialize merged config: {}", e);
-            PrintConfig::default()
-        });
+        toml::Value::Table(merged_table)
+            .try_into()
+            .unwrap_or_else(|e| {
+                eprintln!("Warning: failed to deserialize merged config: {}", e);
+                PrintConfig::default()
+            });
 
     // Merge metadata: join names with " + ", use last result for type/inherits.
     let names: Vec<String> = results
@@ -466,9 +466,7 @@ mod tests {
         assert!(converted
             .toml_output
             .contains("# Unmapped fields from source"));
-        assert!(converted
-            .toml_output
-            .contains("# - ams_drying_temperature"));
+        assert!(converted.toml_output.contains("# - ams_drying_temperature"));
         assert!(converted.toml_output.contains("# - scan_first_layer"));
     }
 

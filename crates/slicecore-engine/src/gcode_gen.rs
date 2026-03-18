@@ -40,12 +40,8 @@ pub fn generate_layer_gcode(
     // 0. Custom G-code: before layer change.
     let before_layer = config.custom_gcode.effective_before_layer();
     if !before_layer.is_empty() {
-        let substituted = substitute_placeholders(
-            before_layer,
-            toolpath.layer_index,
-            toolpath.z,
-            total_layers,
-        );
+        let substituted =
+            substitute_placeholders(before_layer, toolpath.layer_index, toolpath.z, total_layers);
         for line in substituted.lines() {
             let trimmed = line.trim();
             if !trimmed.is_empty() {
@@ -71,12 +67,8 @@ pub fn generate_layer_gcode(
     // 2b. Custom G-code: after layer change.
     let after_layer = &config.custom_gcode.after_layer_change;
     if !after_layer.is_empty() {
-        let substituted = substitute_placeholders(
-            after_layer,
-            toolpath.layer_index,
-            toolpath.z,
-            total_layers,
-        );
+        let substituted =
+            substitute_placeholders(after_layer, toolpath.layer_index, toolpath.z, total_layers);
         for line in substituted.lines() {
             let trimmed = line.trim();
             if !trimmed.is_empty() {
@@ -88,12 +80,8 @@ pub fn generate_layer_gcode(
     // 2c. Custom G-code: per-Z injection (within 0.001mm tolerance).
     for (z_height, gcode) in &config.custom_gcode.custom_gcode_per_z {
         if (toolpath.z - z_height).abs() < 0.001 {
-            let substituted = substitute_placeholders(
-                gcode,
-                toolpath.layer_index,
-                toolpath.z,
-                total_layers,
-            );
+            let substituted =
+                substitute_placeholders(gcode, toolpath.layer_index, toolpath.z, total_layers);
             for line in substituted.lines() {
                 let trimmed = line.trim();
                 if !trimmed.is_empty() {
@@ -131,9 +119,7 @@ pub fn generate_layer_gcode(
             // Emit acceleration commands at feature transitions when enabled.
             if config.acceleration_enabled {
                 let (print_accel, travel_accel) = match seg.feature {
-                    FeatureType::Travel => {
-                        (config.accel.travel, config.accel.travel)
-                    }
+                    FeatureType::Travel => (config.accel.travel, config.accel.travel),
                     _ => (config.accel.print, config.accel.travel),
                 };
                 let accel_str =
@@ -314,7 +300,7 @@ fn feature_label(feature: FeatureType) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::toolpath::{ToolpathSegment, LayerToolpath};
+    use crate::toolpath::{LayerToolpath, ToolpathSegment};
     use slicecore_math::Point2;
 
     fn default_config() -> PrintConfig {
@@ -335,7 +321,7 @@ mod tests {
                     e_value: 0.5,
                     feedrate: 2700.0,
                     z: 0.4,
-                extrusion_width: None,
+                    extrusion_width: None,
                 },
                 ToolpathSegment {
                     start: Point2::new(10.0, 0.0),
@@ -344,7 +330,7 @@ mod tests {
                     e_value: 0.5,
                     feedrate: 2700.0,
                     z: 0.4,
-                extrusion_width: None,
+                    extrusion_width: None,
                 },
             ],
         }
@@ -364,7 +350,7 @@ mod tests {
                     e_value: 0.25,
                     feedrate: 2700.0,
                     z: 0.4,
-                extrusion_width: None,
+                    extrusion_width: None,
                 },
                 ToolpathSegment {
                     start: Point2::new(5.0, 0.0),
@@ -373,7 +359,7 @@ mod tests {
                     e_value: 0.0,
                     feedrate: 9000.0,
                     z: 0.4,
-                extrusion_width: None,
+                    extrusion_width: None,
                 },
                 ToolpathSegment {
                     start: Point2::new(5.0 + travel_length, 0.0),
@@ -382,7 +368,7 @@ mod tests {
                     e_value: 0.25,
                     feedrate: 2700.0,
                     z: 0.4,
-                extrusion_width: None,
+                    extrusion_width: None,
                 },
             ],
         }
@@ -447,7 +433,9 @@ mod tests {
 
         let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
-        let has_retract = cmds.iter().any(|c| matches!(c, GcodeCommand::Retract { .. }));
+        let has_retract = cmds
+            .iter()
+            .any(|c| matches!(c, GcodeCommand::Retract { .. }));
         let has_unretract = cmds
             .iter()
             .any(|c| matches!(c, GcodeCommand::Unretract { .. }));
@@ -465,7 +453,9 @@ mod tests {
 
         let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
 
-        let has_retract = cmds.iter().any(|c| matches!(c, GcodeCommand::Retract { .. }));
+        let has_retract = cmds
+            .iter()
+            .any(|c| matches!(c, GcodeCommand::Retract { .. }));
         assert!(
             !has_retract,
             "Short travel (0.5mm) should not insert Retract"
@@ -513,8 +503,16 @@ mod tests {
         let cmds = generate_full_gcode(&layers, &config);
 
         assert!(cmds.len() >= 2);
-        assert_eq!(cmds[0], GcodeCommand::SetRelativeExtrusion, "First command should be M83");
-        assert_eq!(cmds[1], GcodeCommand::ResetExtruder, "Second command should be G92 E0");
+        assert_eq!(
+            cmds[0],
+            GcodeCommand::SetRelativeExtrusion,
+            "First command should be M83"
+        );
+        assert_eq!(
+            cmds[1],
+            GcodeCommand::ResetExtruder,
+            "Second command should be G92 E0"
+        );
     }
 
     #[test]
@@ -530,7 +528,7 @@ mod tests {
                 e_value: 0.5,
                 feedrate: 1200.0,
                 z: 0.3,
-            extrusion_width: None,
+                extrusion_width: None,
             }],
         };
 
@@ -545,7 +543,7 @@ mod tests {
                 e_value: 0.5,
                 feedrate: 2700.0,
                 z: 0.5,
-            extrusion_width: None,
+                extrusion_width: None,
             }],
         };
 
@@ -559,12 +557,18 @@ mod tests {
         let has_nozzle_temp = cmds
             .iter()
             .any(|c| matches!(c, GcodeCommand::SetExtruderTemp { .. }));
-        let has_fan = cmds.iter().any(|c| {
-            matches!(c, GcodeCommand::FanOff | GcodeCommand::SetFanSpeed(_))
-        });
+        let has_fan = cmds
+            .iter()
+            .any(|c| matches!(c, GcodeCommand::FanOff | GcodeCommand::SetFanSpeed(_)));
 
-        assert!(has_bed_temp, "Full G-code should contain bed temperature commands");
-        assert!(has_nozzle_temp, "Full G-code should contain nozzle temperature commands");
+        assert!(
+            has_bed_temp,
+            "Full G-code should contain bed temperature commands"
+        );
+        assert!(
+            has_nozzle_temp,
+            "Full G-code should contain nozzle temperature commands"
+        );
         assert!(has_fan, "Full G-code should contain fan commands");
     }
 
@@ -626,7 +630,7 @@ mod tests {
                 e_value: 0.5,
                 feedrate: 2700.0,
                 z: 0.6,
-            extrusion_width: None,
+                extrusion_width: None,
             }],
         };
 
@@ -753,17 +757,15 @@ mod tests {
             layer_index: 1,
             z: 0.4,
             layer_height: 0.2,
-            segments: vec![
-                ToolpathSegment {
-                    start: Point2::new(0.0, 0.0),
-                    end: Point2::new(5.0, 0.0),
-                    feature: FeatureType::VariableWidthPerimeter,
-                    e_value: 0.15,
-                    feedrate: 2700.0,
-                    z: 0.4,
-                    extrusion_width: Some(0.35),
-                },
-            ],
+            segments: vec![ToolpathSegment {
+                start: Point2::new(0.0, 0.0),
+                end: Point2::new(5.0, 0.0),
+                feature: FeatureType::VariableWidthPerimeter,
+                e_value: 0.15,
+                feedrate: 2700.0,
+                z: 0.4,
+                extrusion_width: Some(0.35),
+            }],
         };
         let config = default_config();
         let mut retracted = false;
@@ -884,9 +886,7 @@ mod tests {
             }],
         };
         let mut config = default_config();
-        config.custom_gcode.custom_gcode_per_z = vec![
-            (1.0, "M600 ; filament change".to_string()),
-        ];
+        config.custom_gcode.custom_gcode_per_z = vec![(1.0, "M600 ; filament change".to_string())];
         let mut retracted = false;
 
         let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 20);

@@ -91,7 +91,10 @@ mod tests {
         let text: Vec<String> = cmds.iter().map(|c| c.to_string()).collect();
         let joined = text.join("\n");
 
-        assert!(joined.contains("M0 H1"), "should contain RepRap halt command");
+        assert!(
+            joined.contains("M0 H1"),
+            "should contain RepRap halt command"
+        );
     }
 
     #[test]
@@ -106,10 +109,14 @@ mod tests {
             retract_distance: 5.0,
         };
 
-        let reprap_start: Vec<String> =
-            start_gcode(&start_config).iter().map(|c| c.to_string()).collect();
-        let reprap_end: Vec<String> =
-            end_gcode(&end_config).iter().map(|c| c.to_string()).collect();
+        let reprap_start: Vec<String> = start_gcode(&start_config)
+            .iter()
+            .map(|c| c.to_string())
+            .collect();
+        let reprap_end: Vec<String> = end_gcode(&end_config)
+            .iter()
+            .map(|c| c.to_string())
+            .collect();
         let marlin_start: Vec<String> = crate::marlin::start_gcode(&start_config)
             .iter()
             .map(|c| c.to_string())
@@ -119,7 +126,13 @@ mod tests {
             .map(|c| c.to_string())
             .collect();
 
-        assert_ne!(reprap_start, marlin_start, "RepRap and Marlin start should differ");
-        assert_ne!(reprap_end, marlin_end, "RepRap and Marlin end should differ");
+        assert_ne!(
+            reprap_start, marlin_start,
+            "RepRap and Marlin start should differ"
+        );
+        assert_ne!(
+            reprap_end, marlin_end,
+            "RepRap and Marlin end should differ"
+        );
     }
 }

@@ -214,11 +214,7 @@ endsolid cube
     fn binary_stl_with_solid_header_parses_as_binary() {
         // Binary STL with "solid" in the header -- parse_stl should detect it
         // as binary (not ASCII) because there's no "facet normal" text.
-        let v = [
-            [0.0f32, 0.0, 0.0],
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-        ];
+        let v = [[0.0f32, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
         let n0 = [0.0f32, 0.0, 1.0];
 
         let mut data = Vec::new();

@@ -113,8 +113,7 @@ pub fn detect_conflicts(
             // All auto-support was removed. Check if overhangs exist.
             if !overhangs.is_empty() {
                 if let Ok(critical_overlap) = polygon_intersection(auto, overhangs) {
-                    let critical_area: f64 =
-                        critical_overlap.iter().map(|p| p.area_mm2()).sum();
+                    let critical_area: f64 = critical_overlap.iter().map(|p| p.area_mm2()).sum();
                     if critical_area > 1.0 {
                         warnings.push(ConflictWarning {
                             layer_index: layer_idx,
@@ -223,8 +222,7 @@ pub fn smart_merge(
                 // with the critical region (effectively preserving what was there).
                 // We do NOT remove critical blocker regions from support.
                 if !critical_blocker.is_empty() {
-                    let critical_area: f64 =
-                        critical_blocker.iter().map(|p| p.area_mm2()).sum();
+                    let critical_area: f64 = critical_blocker.iter().map(|p| p.area_mm2()).sum();
                     if critical_area > 1.0 {
                         warnings.push(ConflictWarning {
                             layer_index: layer_idx,
@@ -257,14 +255,9 @@ mod tests {
 
     /// Helper to create a validated CCW square at a given position and size.
     fn make_square(x: f64, y: f64, size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (x, y),
-            (x + size, y),
-            (x + size, y + size),
-            (x, y + size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(x, y), (x + size, y), (x + size, y + size), (x, y + size)])
+            .validate()
+            .unwrap()
     }
 
     #[test]

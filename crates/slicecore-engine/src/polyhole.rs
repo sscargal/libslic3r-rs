@@ -81,10 +81,7 @@ pub fn polyhole_radius(desired_diameter: f64, sides: u32) -> f64 {
 /// # Returns
 ///
 /// `Some(((cx, cy), diameter))` if the polygon is a circular hole, `None` otherwise.
-pub fn is_circular_hole(
-    polygon: &ValidPolygon,
-    min_diameter: f64,
-) -> Option<((f64, f64), f64)> {
+pub fn is_circular_hole(polygon: &ValidPolygon, min_diameter: f64) -> Option<((f64, f64), f64)> {
     // Only consider holes (CW winding).
     if polygon.winding() != Winding::Clockwise {
         return None;
@@ -202,11 +199,7 @@ pub fn convert_to_polyhole(
 /// - `contours`: Mutable reference to the contour list.
 /// - `nozzle_diameter`: Nozzle diameter in mm for side count computation.
 /// - `min_diameter`: Minimum hole diameter to convert (skip very small holes).
-pub fn convert_polyholes(
-    contours: &mut [ValidPolygon],
-    nozzle_diameter: f64,
-    min_diameter: f64,
-) {
+pub fn convert_polyholes(contours: &mut [ValidPolygon], nozzle_diameter: f64, min_diameter: f64) {
     for contour in contours.iter_mut() {
         if contour.winding() != Winding::Clockwise {
             continue; // Skip outer boundaries (CCW).
@@ -287,7 +280,10 @@ mod tests {
             .map(|i| {
                 // CW direction (negative angle)
                 let angle = -2.0 * PI * (i as f64) / (n as f64);
-                (center.0 + radius * angle.cos(), center.1 + radius * angle.sin())
+                (
+                    center.0 + radius * angle.cos(),
+                    center.1 + radius * angle.sin(),
+                )
             })
             .collect();
 
@@ -295,7 +291,10 @@ mod tests {
         assert_eq!(poly.winding(), Winding::Clockwise, "Should be CW hole");
 
         let result = is_circular_hole(&poly, 1.0);
-        assert!(result.is_some(), "16-vertex circle should be identified as circular");
+        assert!(
+            result.is_some(),
+            "16-vertex circle should be identified as circular"
+        );
         let ((cx, cy), diam) = result.unwrap();
         assert!(
             (cx - center.0).abs() < 0.1,
@@ -319,15 +318,10 @@ mod tests {
     #[test]
     fn is_circular_hole_rejects_square() {
         // A CW square is not circular.
-        let square = Polygon::from_mm(&[
-            (10.0, 0.0),
-            (10.0, 10.0),
-            (0.0, 10.0),
-            (0.0, 0.0),
-        ])
-        .validate()
-        .unwrap()
-        .ensure_cw();
+        let square = Polygon::from_mm(&[(10.0, 0.0), (10.0, 10.0), (0.0, 10.0), (0.0, 0.0)])
+            .validate()
+            .unwrap()
+            .ensure_cw();
 
         let result = is_circular_hole(&square, 1.0);
         assert!(
@@ -352,7 +346,10 @@ mod tests {
         assert_eq!(poly.winding(), Winding::CounterClockwise);
 
         let result = is_circular_hole(&poly, 1.0);
-        assert!(result.is_none(), "CCW polygon should not be identified as hole");
+        assert!(
+            result.is_none(),
+            "CCW polygon should not be identified as hole"
+        );
     }
 
     #[test]
@@ -377,14 +374,9 @@ mod tests {
     #[test]
     fn convert_polyholes_replaces_circular_leaves_others() {
         // Create contours: one CCW outer, one CW circular hole, one CW square hole.
-        let outer = Polygon::from_mm(&[
-            (0.0, 0.0),
-            (100.0, 0.0),
-            (100.0, 100.0),
-            (0.0, 100.0),
-        ])
-        .validate()
-        .unwrap();
+        let outer = Polygon::from_mm(&[(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)])
+            .validate()
+            .unwrap();
         assert_eq!(outer.winding(), Winding::CounterClockwise);
 
         // Circular hole: 16 vertices, 5mm diameter at center (50, 50).
@@ -400,15 +392,11 @@ mod tests {
         assert_eq!(circle_hole.winding(), Winding::Clockwise);
 
         // Square hole: not circular.
-        let square_hole = Polygon::from_mm(&[
-            (80.0, 10.0),
-            (80.0, 20.0),
-            (70.0, 20.0),
-            (70.0, 10.0),
-        ])
-        .validate()
-        .unwrap()
-        .ensure_cw();
+        let square_hole =
+            Polygon::from_mm(&[(80.0, 10.0), (80.0, 20.0), (70.0, 20.0), (70.0, 10.0)])
+                .validate()
+                .unwrap()
+                .ensure_cw();
 
         let original_circle_len = circle_hole.len();
         let original_square_len = square_hole.len();
@@ -450,10 +438,16 @@ mod tests {
 
         // With min_diameter=1.0, this 0.5mm hole should be skipped.
         let result = is_circular_hole(&poly, 1.0);
-        assert!(result.is_none(), "Hole below min_diameter should be rejected");
+        assert!(
+            result.is_none(),
+            "Hole below min_diameter should be rejected"
+        );
 
         // With min_diameter=0.1, it should be detected.
         let result = is_circular_hole(&poly, 0.1);
-        assert!(result.is_some(), "Hole above min_diameter should be detected");
+        assert!(
+            result.is_some(),
+            "Hole above min_diameter should be detected"
+        );
     }
 }

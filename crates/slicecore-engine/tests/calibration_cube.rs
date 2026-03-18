@@ -177,8 +177,7 @@ fn test_gcode_has_retraction() {
             return false;
         }
         // Check for a negative E parameter.
-        line.split_whitespace()
-            .any(|param| param.starts_with("E-"))
+        line.split_whitespace().any(|param| param.starts_with("E-"))
     });
 
     assert!(

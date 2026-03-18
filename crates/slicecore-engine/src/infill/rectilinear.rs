@@ -181,10 +181,7 @@ fn generate_vertical_lines(
 ///
 /// For each edge (p1, p2) where min(p1.y, p2.y) <= y <= max(p1.y, p2.y),
 /// compute the x intersection via linear interpolation.
-pub(crate) fn find_horizontal_intersections(
-    polygons: &[ValidPolygon],
-    y: Coord,
-) -> Vec<Coord> {
+pub(crate) fn find_horizontal_intersections(polygons: &[ValidPolygon], y: Coord) -> Vec<Coord> {
     let mut intersections = Vec::new();
 
     for poly in polygons {
@@ -223,10 +220,7 @@ pub(crate) fn find_horizontal_intersections(
 }
 
 /// Finds Y-coordinates where a vertical line at `x` intersects polygon edges.
-pub(crate) fn find_vertical_intersections(
-    polygons: &[ValidPolygon],
-    x: Coord,
-) -> Vec<Coord> {
+pub(crate) fn find_vertical_intersections(polygons: &[ValidPolygon], x: Coord) -> Vec<Coord> {
     let mut intersections = Vec::new();
 
     for poly in polygons {
@@ -277,14 +271,9 @@ mod tests {
 
     /// Helper to create a validated CCW square at the origin with given size (mm).
     fn make_square(size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (0.0, 0.0),
-            (size, 0.0),
-            (size, size),
-            (0.0, size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(0.0, 0.0), (size, 0.0), (size, size), (0.0, size)])
+            .validate()
+            .unwrap()
     }
 
     #[test]
@@ -301,7 +290,10 @@ mod tests {
     fn infill_zero_density_is_empty() {
         let square = make_square(20.0);
         let lines = generate_rectilinear_infill(&[square], 0.0, 0.0, 0.4);
-        assert!(lines.is_empty(), "0% density should produce no infill lines");
+        assert!(
+            lines.is_empty(),
+            "0% density should produce no infill lines"
+        );
     }
 
     #[test]

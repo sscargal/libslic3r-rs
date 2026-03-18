@@ -13,14 +13,14 @@ use slicecore_render::{
 /// Build a cube with 8 vertices and 12 triangles (CCW winding, outward normals).
 fn make_cube() -> TriangleMesh {
     let vertices = vec![
-        Point3::new(0.0, 0.0, 0.0),  // 0
-        Point3::new(10.0, 0.0, 0.0), // 1
-        Point3::new(10.0, 10.0, 0.0), // 2
-        Point3::new(0.0, 10.0, 0.0), // 3
-        Point3::new(0.0, 0.0, 10.0), // 4
-        Point3::new(10.0, 0.0, 10.0), // 5
+        Point3::new(0.0, 0.0, 0.0),    // 0
+        Point3::new(10.0, 0.0, 0.0),   // 1
+        Point3::new(10.0, 10.0, 0.0),  // 2
+        Point3::new(0.0, 10.0, 0.0),   // 3
+        Point3::new(0.0, 0.0, 10.0),   // 4
+        Point3::new(10.0, 0.0, 10.0),  // 5
         Point3::new(10.0, 10.0, 10.0), // 6
-        Point3::new(0.0, 10.0, 10.0), // 7
+        Point3::new(0.0, 10.0, 10.0),  // 7
     ];
     let indices = vec![
         // Front (z=0)
@@ -48,11 +48,11 @@ fn make_cube() -> TriangleMesh {
 /// Build a pyramid with 5 vertices and 6 triangles.
 fn make_pyramid() -> TriangleMesh {
     let vertices = vec![
-        Point3::new(0.0, 0.0, 0.0),  // 0 base
-        Point3::new(10.0, 0.0, 0.0), // 1 base
+        Point3::new(0.0, 0.0, 0.0),   // 0 base
+        Point3::new(10.0, 0.0, 0.0),  // 1 base
         Point3::new(10.0, 10.0, 0.0), // 2 base
-        Point3::new(0.0, 10.0, 0.0), // 3 base
-        Point3::new(5.0, 5.0, 10.0), // 4 apex
+        Point3::new(0.0, 10.0, 0.0),  // 3 base
+        Point3::new(5.0, 5.0, 10.0),  // 4 apex
     ];
     let indices = vec![
         // Base (two triangles, CCW from below = CW from above)
@@ -101,7 +101,10 @@ fn render_01_framebuffer_z_test() {
 
     // Render same cube twice -- pixel output must be identical (deterministic z-test)
     let thumbs2 = render_mesh(&mesh, &config);
-    assert_eq!(thumbs[0].rgba, thumbs2[0].rgba, "Z-buffer must be deterministic");
+    assert_eq!(
+        thumbs[0].rgba, thumbs2[0].rgba,
+        "Z-buffer must be deterministic"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -361,9 +364,8 @@ fn render_07_gcode_thumbnail_prusaslicer_format() {
         .iter()
         .map(|l| l.strip_prefix("; ").unwrap())
         .collect();
-    let decoded =
-        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &b64_content)
-            .expect("Base64 decode should succeed");
+    let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &b64_content)
+        .expect("Base64 decode should succeed");
     assert_eq!(
         decoded, thumbs[0].png_data,
         "Decoded base64 should match original PNG"

@@ -132,7 +132,9 @@ fn test_no_cancellation_produces_normal_result() {
     let engine = Engine::new(config);
     let mesh = make_cube_mesh();
 
-    let result = engine.slice(&mesh, None).expect("slice with None cancel should succeed");
+    let result = engine
+        .slice(&mesh, None)
+        .expect("slice with None cancel should succeed");
 
     assert!(result.layer_count > 0, "Should have non-zero layer count");
     assert!(!result.gcode.is_empty(), "Should have non-empty gcode");

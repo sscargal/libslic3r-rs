@@ -104,8 +104,7 @@ fn test_crealityprint_batch_convert_synthetic() {
         process_json,
     );
 
-    let result =
-        batch_convert_profiles(source.path(), output.path(), "crealityprint").unwrap();
+    let result = batch_convert_profiles(source.path(), output.path(), "crealityprint").unwrap();
 
     // Verify conversion counts.
     assert_eq!(
@@ -126,23 +125,28 @@ fn test_crealityprint_batch_convert_synthetic() {
 
     // Verify output directory structure.
     let filament_dir = output.path().join("Creality").join("filament");
-    assert!(filament_dir.exists(), "Creality/filament directory should exist");
+    assert!(
+        filament_dir.exists(),
+        "Creality/filament directory should exist"
+    );
 
     let machine_dir = output.path().join("Creality").join("machine");
-    assert!(machine_dir.exists(), "Creality/machine directory should exist");
+    assert!(
+        machine_dir.exists(),
+        "Creality/machine directory should exist"
+    );
 
     let process_dir = output.path().join("Creality").join("process");
-    assert!(process_dir.exists(), "Creality/process directory should exist");
+    assert!(
+        process_dir.exists(),
+        "Creality/process directory should exist"
+    );
 
     // Verify TOML files exist.
     let filament_files: Vec<_> = std::fs::read_dir(&filament_dir)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "toml")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
         .collect();
     assert_eq!(
         filament_files.len(),
@@ -168,11 +172,7 @@ fn test_crealityprint_batch_convert_synthetic() {
     let machine_files: Vec<_> = std::fs::read_dir(&machine_dir)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "toml")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
         .collect();
     assert_eq!(machine_files.len(), 1);
     let machine_config = PrintConfig::from_file(&machine_files[0].path()).unwrap();
@@ -186,11 +186,7 @@ fn test_crealityprint_batch_convert_synthetic() {
     let process_files: Vec<_> = std::fs::read_dir(&process_dir)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "toml")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
         .collect();
     assert_eq!(process_files.len(), 1);
     let process_config = PrintConfig::from_file(&process_files[0].path()).unwrap();
@@ -436,8 +432,7 @@ fn test_crealityprint_profile_loads_into_printconfig() {
         filament_json,
     );
 
-    let result =
-        batch_convert_profiles(source.path(), output.path(), "crealityprint").unwrap();
+    let result = batch_convert_profiles(source.path(), output.path(), "crealityprint").unwrap();
 
     assert_eq!(result.converted, 1);
     assert!(result.errors.is_empty());
@@ -447,11 +442,7 @@ fn test_crealityprint_profile_loads_into_printconfig() {
     let toml_files: Vec<_> = std::fs::read_dir(&toml_dir)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "toml")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
         .collect();
     assert_eq!(toml_files.len(), 1);
 
@@ -488,8 +479,7 @@ fn test_crealityprint_profile_loads_into_printconfig() {
 #[test]
 #[ignore]
 fn test_real_crealityprint_batch_convert() {
-    let source_dir =
-        Path::new("/home/steve/slicer-analysis/CrealityPrint/resources/profiles");
+    let source_dir = Path::new("/home/steve/slicer-analysis/CrealityPrint/resources/profiles");
     assert!(
         source_dir.is_dir(),
         "CrealityPrint profiles directory not found: {}",
@@ -497,8 +487,7 @@ fn test_real_crealityprint_batch_convert() {
     );
 
     let output = TempDir::new().unwrap();
-    let result =
-        batch_convert_profiles(source_dir, output.path(), "crealityprint").unwrap();
+    let result = batch_convert_profiles(source_dir, output.path(), "crealityprint").unwrap();
 
     eprintln!(
         "CrealityPrint batch convert: converted={}, skipped={}, errors={}",
@@ -560,14 +549,10 @@ fn test_real_crealityprint_batch_convert() {
 #[test]
 #[ignore]
 fn test_real_crealityprint_combined_index() {
-    let orca_source =
-        Path::new("/home/steve/slicer-analysis/OrcaSlicer/resources/profiles");
-    let prusa_source =
-        Path::new("/home/steve/slicer-analysis/PrusaSlicer/resources/profiles");
-    let bambu_source =
-        Path::new("/home/steve/slicer-analysis/BambuStudio/resources/profiles");
-    let creality_source =
-        Path::new("/home/steve/slicer-analysis/CrealityPrint/resources/profiles");
+    let orca_source = Path::new("/home/steve/slicer-analysis/OrcaSlicer/resources/profiles");
+    let prusa_source = Path::new("/home/steve/slicer-analysis/PrusaSlicer/resources/profiles");
+    let bambu_source = Path::new("/home/steve/slicer-analysis/BambuStudio/resources/profiles");
+    let creality_source = Path::new("/home/steve/slicer-analysis/CrealityPrint/resources/profiles");
 
     assert!(orca_source.is_dir(), "OrcaSlicer profiles not found");
     assert!(prusa_source.is_dir(), "PrusaSlicer profiles not found");
@@ -577,22 +562,18 @@ fn test_real_crealityprint_combined_index() {
     let output = TempDir::new().unwrap();
 
     // Convert OrcaSlicer.
-    let orca_result = batch_convert_profiles(
-        orca_source,
-        &output.path().join("orcaslicer"),
-        "orcaslicer",
-    )
-    .unwrap();
+    let orca_result =
+        batch_convert_profiles(orca_source, &output.path().join("orcaslicer"), "orcaslicer")
+            .unwrap();
     write_merged_index(&orca_result.index, output.path()).unwrap();
 
     // Convert PrusaSlicer.
-    let prusa_result =
-        slicecore_engine::batch_convert_prusaslicer_profiles(
-            prusa_source,
-            &output.path().join("prusaslicer"),
-            "prusaslicer",
-        )
-        .unwrap();
+    let prusa_result = slicecore_engine::batch_convert_prusaslicer_profiles(
+        prusa_source,
+        &output.path().join("prusaslicer"),
+        "prusaslicer",
+    )
+    .unwrap();
     write_merged_index(&prusa_result.index, output.path()).unwrap();
 
     // Convert BambuStudio.
@@ -618,11 +599,8 @@ fn test_real_crealityprint_combined_index() {
     eprintln!("Combined index: {} total profiles", index.profiles.len());
 
     // Verify all four sources present.
-    let sources: std::collections::HashSet<&str> = index
-        .profiles
-        .iter()
-        .map(|p| p.source.as_str())
-        .collect();
+    let sources: std::collections::HashSet<&str> =
+        index.profiles.iter().map(|p| p.source.as_str()).collect();
     assert!(
         sources.contains("orcaslicer"),
         "Should contain orcaslicer entries"
@@ -698,8 +676,7 @@ fn test_real_crealityprint_combined_index() {
 #[test]
 #[ignore]
 fn test_real_crealityprint_unique_profiles() {
-    let creality_source =
-        Path::new("/home/steve/slicer-analysis/CrealityPrint/resources/profiles");
+    let creality_source = Path::new("/home/steve/slicer-analysis/CrealityPrint/resources/profiles");
     assert!(
         creality_source.is_dir(),
         "CrealityPrint profiles not found: {}",
@@ -707,8 +684,7 @@ fn test_real_crealityprint_unique_profiles() {
     );
 
     let output = TempDir::new().unwrap();
-    let result =
-        batch_convert_profiles(creality_source, output.path(), "crealityprint").unwrap();
+    let result = batch_convert_profiles(creality_source, output.path(), "crealityprint").unwrap();
 
     assert!(
         result.converted > 3500,
@@ -774,11 +750,7 @@ fn test_real_crealityprint_unique_profiles() {
         let k2_files: Vec<_> = std::fs::read_dir(&creality_filament_dir)
             .unwrap()
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.file_name()
-                    .to_string_lossy()
-                    .contains("K2")
-            })
+            .filter(|e| e.file_name().to_string_lossy().contains("K2"))
             .collect();
 
         eprintln!("K2 TOML files in Creality/filament: {}", k2_files.len());

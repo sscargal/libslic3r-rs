@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 use slicecore_plugin_api::PluginManifest;
 
 use crate::error::PluginSystemError;
+use crate::status::{self, PluginStatus};
 
 /// The current API version of the host, used for compatibility checks.
 const HOST_API_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -56,8 +57,97 @@ pub fn discover_plugins(dir: &Path) -> Result<Vec<(PathBuf, PluginManifest)>, Pl
     Ok(plugins)
 }
 
+/// A plugin discovered during directory scanning, including status and error info.
+///
+/// Unlike [`discover_plugins`] which fails on the first error,
+/// [`discover_all_with_status`] collects all plugins including broken ones
+/// so they can be listed in CLI output.
+#[derive(Debug, Clone)]
+pub struct DiscoveredPlugin {
+    /// Path to the plugin directory.
+    pub dir: PathBuf,
+    /// Parsed manifest, if available. `None` when the manifest is corrupt.
+    pub manifest: Option<PluginManifest>,
+    /// Enable/disable status from the `.status` file.
+    pub status: PluginStatus,
+    /// Error message if the plugin is broken (bad manifest, version mismatch, etc.).
+    pub error: Option<String>,
+}
+
+/// Discovers all plugins in a directory, collecting errors per-plugin instead
+/// of failing on the first error.
+///
+/// Auto-creates `.status` files for plugins that lack them. Returns an empty
+/// `Vec` if the directory does not exist.
+///
+/// # Errors
+///
+/// Returns `Err` only for top-level I/O failures (e.g., permission denied on
+/// the directory itself). Per-plugin errors are captured in
+/// [`DiscoveredPlugin::error`].
+pub fn discover_all_with_status(
+    dir: &Path,
+) -> Result<Vec<DiscoveredPlugin>, PluginSystemError> {
+    if !dir.exists() || !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut plugins = Vec::new();
+    let entries = std::fs::read_dir(dir)?;
+
+    for entry in entries {
+        let entry = entry?;
+        let plugin_dir = entry.path();
+        if !plugin_dir.is_dir() {
+            continue;
+        }
+
+        let manifest_path = plugin_dir.join("plugin.toml");
+        if !manifest_path.exists() {
+            continue;
+        }
+
+        // Read or auto-create .status file
+        let plugin_status = status::read_status(&plugin_dir).unwrap_or_default();
+
+        // Try to parse the manifest
+        let manifest = match parse_manifest(&manifest_path) {
+            Ok(m) => m,
+            Err(e) => {
+                plugins.push(DiscoveredPlugin {
+                    dir: plugin_dir,
+                    manifest: None,
+                    status: plugin_status,
+                    error: Some(e.to_string()),
+                });
+                continue;
+            }
+        };
+
+        // Try to validate version compatibility
+        if let Err(e) = validate_version_compatibility(&manifest, &manifest_path) {
+            plugins.push(DiscoveredPlugin {
+                dir: plugin_dir,
+                manifest: Some(manifest),
+                status: plugin_status,
+                error: Some(e.to_string()),
+            });
+            continue;
+        }
+
+        plugins.push(DiscoveredPlugin {
+            dir: plugin_dir,
+            manifest: Some(manifest),
+            status: plugin_status,
+            error: None,
+        });
+    }
+
+    Ok(plugins)
+}
+
 /// Parses a `plugin.toml` file into a [`PluginManifest`].
-fn parse_manifest(path: &Path) -> Result<PluginManifest, PluginSystemError> {
+pub(crate) fn parse_manifest(path: &Path) -> Result<PluginManifest, PluginSystemError> {
     let contents = std::fs::read_to_string(path).map_err(|e| PluginSystemError::ManifestError {
         path: path.to_path_buf(),
         reason: format!("Failed to read: {}", e),
@@ -70,7 +160,7 @@ fn parse_manifest(path: &Path) -> Result<PluginManifest, PluginSystemError> {
 }
 
 /// Validates that a plugin's API version requirements are compatible with the host.
-fn validate_version_compatibility(
+pub(crate) fn validate_version_compatibility(
     manifest: &PluginManifest,
     manifest_path: &Path,
 ) -> Result<(), PluginSystemError> {
@@ -218,6 +308,73 @@ max_api_version = "99.99.99"
             result.unwrap_err(),
             PluginSystemError::VersionIncompatible { .. }
         ));
+    }
+
+    #[test]
+    fn discover_all_with_status_returns_valid_plugins() {
+        let dir = TempDir::new().unwrap();
+        let plugin_dir = dir.path().join("test-infill");
+        fs::create_dir(&plugin_dir).unwrap();
+        fs::write(plugin_dir.join("plugin.toml"), create_valid_manifest_toml()).unwrap();
+
+        let plugins = discover_all_with_status(dir.path()).unwrap();
+        assert_eq!(plugins.len(), 1);
+        assert!(plugins[0].manifest.is_some());
+        assert!(plugins[0].error.is_none());
+        assert_eq!(
+            plugins[0].manifest.as_ref().unwrap().metadata.name,
+            "test-infill"
+        );
+    }
+
+    #[test]
+    fn discover_all_with_status_broken_manifest() {
+        let dir = TempDir::new().unwrap();
+        let plugin_dir = dir.path().join("bad-plugin");
+        fs::create_dir(&plugin_dir).unwrap();
+        fs::write(plugin_dir.join("plugin.toml"), "not valid toml {{{{").unwrap();
+
+        let plugins = discover_all_with_status(dir.path()).unwrap();
+        assert_eq!(plugins.len(), 1);
+        assert!(plugins[0].manifest.is_none());
+        assert!(plugins[0].error.is_some());
+    }
+
+    #[test]
+    fn discover_all_with_status_auto_creates_status_files() {
+        let dir = TempDir::new().unwrap();
+        let plugin_dir = dir.path().join("test-infill");
+        fs::create_dir(&plugin_dir).unwrap();
+        fs::write(plugin_dir.join("plugin.toml"), create_valid_manifest_toml()).unwrap();
+
+        // No .status file yet
+        assert!(!plugin_dir.join(".status").exists());
+
+        let plugins = discover_all_with_status(dir.path()).unwrap();
+        assert_eq!(plugins.len(), 1);
+        assert!(plugins[0].status.enabled);
+
+        // .status file should now exist
+        assert!(plugin_dir.join(".status").exists());
+    }
+
+    #[test]
+    fn discover_all_with_status_nonexistent_dir() {
+        let plugins = discover_all_with_status(Path::new("/nonexistent/path")).unwrap();
+        assert!(plugins.is_empty());
+    }
+
+    #[test]
+    fn discover_all_with_status_reads_existing_status() {
+        let dir = TempDir::new().unwrap();
+        let plugin_dir = dir.path().join("test-infill");
+        fs::create_dir(&plugin_dir).unwrap();
+        fs::write(plugin_dir.join("plugin.toml"), create_valid_manifest_toml()).unwrap();
+        fs::write(plugin_dir.join(".status"), r#"{"enabled": false}"#).unwrap();
+
+        let plugins = discover_all_with_status(dir.path()).unwrap();
+        assert_eq!(plugins.len(), 1);
+        assert!(!plugins[0].status.enabled);
     }
 
     #[test]

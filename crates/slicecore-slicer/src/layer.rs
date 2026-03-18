@@ -104,10 +104,7 @@ pub fn slice_mesh(
 ///
 /// * `mesh` - The triangle mesh to slice
 /// * `heights` - Pre-computed adaptive heights as `(z_position, layer_height)` pairs
-pub fn slice_mesh_adaptive(
-    mesh: &TriangleMesh,
-    heights: &[(f64, f64)],
-) -> Vec<SliceLayer> {
+pub fn slice_mesh_adaptive(mesh: &TriangleMesh, heights: &[(f64, f64)]) -> Vec<SliceLayer> {
     heights
         .iter()
         .map(|&(z, lh)| {

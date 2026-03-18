@@ -361,14 +361,8 @@ fn golden_cylinder_default() {
     );
 
     // --- Preamble and postamble ---
-    assert!(
-        has_preamble(&gcode, 30),
-        "Cylinder should have preamble"
-    );
-    assert!(
-        has_postamble(&gcode, 15),
-        "Cylinder should have postamble"
-    );
+    assert!(has_preamble(&gcode, 30), "Cylinder should have preamble");
+    assert!(has_postamble(&gcode, 15), "Cylinder should have postamble");
 
     // --- Feature type comments ---
     assert!(
@@ -404,14 +398,19 @@ fn golden_determinism_cube() {
     let mesh = build_golden_cube();
 
     let engine1 = Engine::new(config.clone());
-    let result1 = engine1.slice(&mesh, None).expect("first slice should succeed");
+    let result1 = engine1
+        .slice(&mesh, None)
+        .expect("first slice should succeed");
 
     let engine2 = Engine::new(config);
-    let result2 = engine2.slice(&mesh, None).expect("second slice should succeed");
+    let result2 = engine2
+        .slice(&mesh, None)
+        .expect("second slice should succeed");
 
     // Bit-for-bit identical output.
     assert_eq!(
-        result1.gcode, result2.gcode,
+        result1.gcode,
+        result2.gcode,
         "Determinism: identical input must produce bit-for-bit identical G-code. \
          Size: {} vs {} bytes",
         result1.gcode.len(),
@@ -421,8 +420,7 @@ fn golden_determinism_cube() {
     assert_eq!(
         result1.layer_count, result2.layer_count,
         "Determinism: layer counts must match ({} vs {})",
-        result1.layer_count,
-        result2.layer_count
+        result1.layer_count, result2.layer_count
     );
 }
 
@@ -432,13 +430,18 @@ fn golden_determinism_cylinder() {
     let mesh = build_golden_cylinder();
 
     let engine1 = Engine::new(config.clone());
-    let result1 = engine1.slice(&mesh, None).expect("first slice should succeed");
+    let result1 = engine1
+        .slice(&mesh, None)
+        .expect("first slice should succeed");
 
     let engine2 = Engine::new(config);
-    let result2 = engine2.slice(&mesh, None).expect("second slice should succeed");
+    let result2 = engine2
+        .slice(&mesh, None)
+        .expect("second slice should succeed");
 
     assert_eq!(
-        result1.gcode, result2.gcode,
+        result1.gcode,
+        result2.gcode,
         "Determinism: cylinder slices must produce identical output. \
          Size: {} vs {} bytes",
         result1.gcode.len(),
@@ -479,7 +482,9 @@ fn golden_cube_extrusion_consistency() {
         ..PrintConfig::default()
     };
     let fine_engine = Engine::new(fine_config);
-    let fine_result = fine_engine.slice(&mesh, None).expect("fine slice should succeed");
+    let fine_result = fine_engine
+        .slice(&mesh, None)
+        .expect("fine slice should succeed");
     let fine_gcode = String::from_utf8_lossy(&fine_result.gcode);
     let fine_total_e = total_extrusion(&fine_gcode);
 

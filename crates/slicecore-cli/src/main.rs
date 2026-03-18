@@ -14,8 +14,17 @@
 //! - `compare-gcode`: Compare multiple G-code files with deltas
 //! - `arrange`: Arrange multiple mesh files on a build plate
 //! - `post-process`: Post-process an existing G-code file
+//! - `csg`: CSG boolean operations, splitting, hollowing, primitives, and mesh info
+//! - `schema`: Query the setting schema registry (JSON Schema, metadata, search)
 
 mod analysis_display;
+mod calibrate;
+mod csg_command;
+mod csg_info;
+pub mod progress;
+mod plugins_command;
+mod schema_command;
+mod slice_workflow;
 mod stats_display;
 
 use std::io::{BufReader, IsTerminal, Read as _};
@@ -25,6 +34,7 @@ use std::process;
 use clap::{Parser, Subcommand};
 
 use slicecore_ai::AiConfig;
+use slicecore_engine::profile_resolve::{ProfileResolver, ProfileSource};
 use slicecore_engine::{
     batch_convert_profiles, batch_convert_prusaslicer_profiles, config::PostProcessConfig,
     create_builtin_postprocessors, load_index, write_merged_index, Engine, PrintConfig,
@@ -110,11 +120,26 @@ G-CODE ANALYSIS:
 
   Compare G-code files from different slicers:
     slicecore compare-gcode bambu.gcode orca.gcode prusa.gcode
-    slicecore compare-gcode baseline.gcode variant.gcode --json"
+    slicecore compare-gcode baseline.gcode variant.gcode --json
+
+PLUGIN MANAGEMENT:
+  List installed plugins:
+    slicecore plugins list
+    slicecore plugins list --json
+    slicecore plugins list --category infill --status enabled
+  Manage plugins:
+    slicecore plugins enable <name>
+    slicecore plugins disable <name>
+    slicecore plugins info <name>
+    slicecore plugins validate <name>"
 )]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+
+    /// Plugin directory (overrides config plugin_dir)
+    #[arg(long, global = true)]
+    plugin_dir: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
@@ -125,8 +150,60 @@ enum Commands {
         input: PathBuf,
 
         /// Print config file (TOML or JSON, auto-detected; optional -- uses defaults if not provided)
-        #[arg(short, long)]
+        #[arg(short, long, conflicts_with_all = ["machine", "filament", "process"])]
         config: Option<PathBuf>,
+
+        /// Machine profile name or path
+        #[arg(short, long, conflicts_with = "config")]
+        machine: Option<String>,
+
+        /// Filament profile name or path
+        #[arg(short, long, conflicts_with = "config")]
+        filament: Option<String>,
+
+        /// Process profile name or path
+        #[arg(short, long, conflicts_with = "config")]
+        process: Option<String>,
+
+        /// TOML/JSON override file (applied after profiles)
+        #[arg(long, conflicts_with = "config")]
+        overrides: Option<PathBuf>,
+
+        /// Override a config key (repeatable, format: key=value)
+        #[arg(long = "set", conflicts_with = "config")]
+        set_overrides: Vec<String>,
+
+        /// Resolve profiles and validate config without slicing
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Save merged config to a TOML file
+        #[arg(long, value_name = "FILE")]
+        save_config: Option<PathBuf>,
+
+        /// Print merged config with source annotations
+        #[arg(long)]
+        show_config: bool,
+
+        /// Allow slicing without profiles (dev/testing only)
+        #[arg(long)]
+        unsafe_defaults: bool,
+
+        /// Override safety validation errors
+        #[arg(long)]
+        force: bool,
+
+        /// Suppress log file creation
+        #[arg(long)]
+        no_log: bool,
+
+        /// Custom log file path
+        #[arg(long, value_name = "FILE")]
+        log_file: Option<PathBuf>,
+
+        /// Profile library directory override
+        #[arg(long, value_name = "DIR")]
+        profiles_dir: Option<PathBuf>,
 
         /// Output G-code file path (default: input with .gcode extension)
         #[arg(short, long)]
@@ -139,11 +216,6 @@ enum Commands {
         /// Output slicing metadata as MessagePack to stdout
         #[arg(long)]
         msgpack: bool,
-
-        /// Directory to load plugins from (overrides config plugin_dir).
-        /// Each subdirectory should contain a plugin.toml manifest.
-        #[arg(long)]
-        plugin_dir: Option<PathBuf>,
 
         /// Statistics output format (table, csv, json). Default: table.
         #[arg(long, default_value = "table", value_parser = ["table", "csv", "json"])]
@@ -347,6 +419,50 @@ enum Commands {
         /// Summary only (no per-layer detail)
         #[arg(long)]
         summary: bool,
+
+        /// Filament price per kg (currency units)
+        #[arg(long)]
+        filament_price: Option<f64>,
+
+        /// Printer power consumption in watts
+        #[arg(long)]
+        printer_watts: Option<f64>,
+
+        /// Electricity rate per kWh (currency units)
+        #[arg(long)]
+        electricity_rate: Option<f64>,
+
+        /// Printer purchase cost (currency units)
+        #[arg(long)]
+        printer_cost: Option<f64>,
+
+        /// Expected printer lifetime in hours
+        #[arg(long)]
+        expected_hours: Option<f64>,
+
+        /// Labor hourly rate (currency units)
+        #[arg(long)]
+        labor_rate: Option<f64>,
+
+        /// Setup/post-processing time in minutes
+        #[arg(long, default_value = "5.0")]
+        setup_time: f64,
+
+        /// Output as markdown table
+        #[arg(long)]
+        markdown: bool,
+
+        /// Treat input as model file (STL/3MF) for rough volume-based estimation
+        #[arg(long)]
+        model: bool,
+
+        /// Compare with additional filament profiles (side-by-side cost/time table)
+        #[arg(long = "compare-filament", num_args = 1..)]
+        compare_filament: Vec<String>,
+
+        /// Profile library directory for resolving filament profile names
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
     },
 
     /// Convert a mesh file between formats (STL, 3MF, OBJ).
@@ -457,6 +573,33 @@ enum Commands {
         format: String,
     },
 
+    /// Calibration test print generation.
+    ///
+    /// Generate G-code for temperature tower, retraction, flow rate, and
+    /// first layer adhesion calibration tests.
+    #[command(subcommand)]
+    Calibrate(calibrate::CalibrateCommand),
+
+    /// CSG (Constructive Solid Geometry) operations on meshes.
+    ///
+    /// Boolean operations (union, difference, intersection, xor), plane splitting,
+    /// hollowing, primitive generation, and mesh information display.
+    #[command(subcommand)]
+    Csg(csg_command::CsgCommand),
+
+    /// Query the setting schema registry.
+    ///
+    /// Outputs JSON Schema or flat metadata JSON for all registered settings.
+    /// Supports filtering by tier, category, and full-text search.
+    Schema(schema_command::SchemaArgs),
+
+    /// Manage installed plugins.
+    ///
+    /// List, enable, disable, inspect, and validate plugins from the
+    /// configured plugin directory.
+    #[command(subcommand)]
+    Plugins(plugins_command::PluginsCommand),
+
     /// Post-process an existing G-code file.
     ///
     /// Reads a G-code file, applies configured post-processors (pause-at-layer,
@@ -508,15 +651,28 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
+    let global_plugin_dir = cli.plugin_dir;
 
     match cli.command {
         Commands::Slice {
             input,
             config,
+            machine,
+            filament,
+            process,
+            overrides,
+            set_overrides,
+            dry_run,
+            save_config,
+            show_config,
+            unsafe_defaults,
+            force,
+            no_log,
+            log_file,
+            profiles_dir,
             output,
             json,
             msgpack,
-            plugin_dir,
             stats_format,
             quiet,
             stats_file,
@@ -528,10 +684,23 @@ fn main() {
         } => cmd_slice(
             &input,
             config.as_deref(),
+            machine.as_deref(),
+            filament.as_deref(),
+            process.as_deref(),
+            overrides.as_deref(),
+            &set_overrides,
+            dry_run,
+            save_config.as_deref(),
+            show_config,
+            unsafe_defaults,
+            force,
+            no_log,
+            log_file.as_deref(),
+            profiles_dir.as_deref(),
             output.as_deref(),
             json,
             msgpack,
-            plugin_dir.as_deref(),
+            global_plugin_dir.as_deref(),
             &stats_format,
             quiet,
             stats_file.as_deref(),
@@ -593,8 +762,37 @@ fn main() {
             diameter,
             filter,
             summary,
+            filament_price,
+            printer_watts,
+            electricity_rate,
+            printer_cost,
+            expected_hours,
+            labor_rate,
+            setup_time,
+            markdown,
+            model,
+            compare_filament,
+            profiles_dir,
         } => cmd_analyze_gcode(
-            &input, json, csv, no_color, density, diameter, filter, summary,
+            &input,
+            json,
+            csv,
+            no_color,
+            density,
+            diameter,
+            filter,
+            summary,
+            filament_price,
+            printer_watts,
+            electricity_rate,
+            printer_cost,
+            expected_hours,
+            labor_rate,
+            setup_time,
+            markdown,
+            model,
+            &compare_filament,
+            profiles_dir.as_deref(),
         ),
         Commands::Convert { input, output } => cmd_convert(&input, &output),
         Commands::Thumbnail {
@@ -643,6 +841,40 @@ fn main() {
             apply,
             &format,
         ),
+        Commands::Calibrate(cal_cmd) => {
+            if let Err(e) = calibrate::run_calibrate(cal_cmd) {
+                eprintln!("Error: {e}");
+                process::exit(1);
+            }
+        }
+        Commands::Csg(csg_cmd) => {
+            if let Err(e) = csg_command::run_csg(csg_cmd) {
+                eprintln!("Error: {e}");
+                process::exit(1);
+            }
+        }
+        Commands::Schema(args) => {
+            if let Err(e) = schema_command::run_schema_command(&args) {
+                eprintln!("Error: {e}");
+                process::exit(1);
+            }
+        }
+        Commands::Plugins(plugins_cmd) => {
+            let dir = match global_plugin_dir.as_deref() {
+                Some(d) => d.to_path_buf(),
+                None => {
+                    eprintln!("Error: No plugin directory configured.");
+                    eprintln!(
+                        "Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line."
+                    );
+                    process::exit(1);
+                }
+            };
+            if let Err(e) = plugins_command::run_plugins(plugins_cmd, &dir) {
+                eprintln!("Error: {e}");
+                process::exit(1);
+            }
+        }
         Commands::PostProcess {
             input,
             output,
@@ -670,10 +902,23 @@ fn main() {
 }
 
 /// Slice an STL/mesh file to G-code.
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
 fn cmd_slice(
     input: &PathBuf,
     config_path: Option<&std::path::Path>,
+    machine: Option<&str>,
+    filament: Option<&str>,
+    process: Option<&str>,
+    overrides_file: Option<&std::path::Path>,
+    set_overrides: &[String],
+    dry_run: bool,
+    save_config: Option<&std::path::Path>,
+    show_config: bool,
+    unsafe_defaults: bool,
+    force: bool,
+    no_log: bool,
+    log_file: Option<&std::path::Path>,
+    profiles_dir: Option<&std::path::Path>,
     output_path: Option<&std::path::Path>,
     json_output: bool,
     msgpack_output: bool,
@@ -687,6 +932,17 @@ fn cmd_slice(
     thumbnails: bool,
     auto_arrange: bool,
 ) {
+    // Determine if we're using the new profile-based workflow or legacy --config path.
+    let use_profile_workflow = machine.is_some()
+        || filament.is_some()
+        || process.is_some()
+        || !set_overrides.is_empty()
+        || overrides_file.is_some()
+        || dry_run
+        || save_config.is_some()
+        || show_config
+        || unsafe_defaults;
+
     // 1. Read input file.
     let data = match std::fs::read(input) {
         Ok(d) => d,
@@ -734,10 +990,37 @@ fn cmd_slice(
         );
     }
 
-    // 4. Load config.
-    let print_config = if let Some(cfg_path) = config_path {
+    // 4. Load config -- route through profile workflow or legacy path.
+    let (print_config, gcode_header_opt) = if use_profile_workflow {
+        let workflow_options = slice_workflow::SliceWorkflowOptions {
+            machine: machine.map(String::from),
+            filament: filament.map(String::from),
+            process: process.map(String::from),
+            overrides_file: overrides_file.map(PathBuf::from),
+            set_overrides: set_overrides.to_vec(),
+            dry_run,
+            save_config: save_config.map(PathBuf::from),
+            show_config,
+            unsafe_defaults,
+            force,
+            no_log,
+            log_file: log_file.map(PathBuf::from),
+            profiles_dir: profiles_dir.map(PathBuf::from),
+            input_path: input.clone(),
+            json_output,
+        };
+
+        match slice_workflow::run_slice_workflow(&workflow_options) {
+            Ok(result) => {
+                let header =
+                    slice_workflow::generate_gcode_header(&result.composed, &workflow_options);
+                (result.composed.config, Some(header))
+            }
+            Err(code) => process::exit(code),
+        }
+    } else if let Some(cfg_path) = config_path {
         match PrintConfig::from_file(cfg_path) {
-            Ok(c) => c,
+            Ok(c) => (c, None),
             Err(e) => {
                 eprintln!(
                     "Error: Failed to load config '{}': {}",
@@ -748,7 +1031,7 @@ fn cmd_slice(
             }
         }
     } else {
-        PrintConfig::default()
+        (PrintConfig::default(), None)
     };
 
     // 5. Load plugins (if applicable).
@@ -852,7 +1135,24 @@ fn cmd_slice(
         }
     }
 
+    // 5c. Create progress bar (unless --quiet).
+    let progress = if !quiet {
+        let pb = progress::create_progress(7);
+        pb.set_phase("Loading mesh");
+        pb.inc(1); // mesh already loaded
+        pb.set_phase("Repairing mesh");
+        pb.inc(1); // mesh already repaired
+        pb.set_phase("Configuring engine");
+        pb.inc(1); // config loaded
+        Some(pb)
+    } else {
+        None
+    };
+
     // 6. Slice.
+    if let Some(ref pb) = progress {
+        pb.set_phase("Slicing layers");
+    }
     let result = match engine.slice(&repaired_mesh, None) {
         Ok(r) => r,
         Err(e) => {
@@ -860,6 +1160,11 @@ fn cmd_slice(
             process::exit(1);
         }
     };
+
+    if let Some(ref pb) = progress {
+        pb.inc(1);
+        pb.set_phase("Generating G-code");
+    }
 
     // 7. Generate and embed thumbnails if requested.
     let mut gcode_output = result.gcode.clone();
@@ -884,6 +1189,18 @@ fn cmd_slice(
         }
     }
 
+    // 7b. Prepend profile composition header if available.
+    if let Some(ref header) = gcode_header_opt {
+        let mut new_output = header.as_bytes().to_vec();
+        new_output.extend_from_slice(&gcode_output);
+        gcode_output = new_output;
+    }
+
+    if let Some(ref pb) = progress {
+        pb.inc(1);
+        pb.set_phase("Writing output");
+    }
+
     // 8. Determine output path.
     let out_path = if let Some(p) = output_path {
         p.to_path_buf()
@@ -899,6 +1216,12 @@ fn cmd_slice(
             e
         );
         process::exit(1);
+    }
+
+    if let Some(ref pb) = progress {
+        pb.inc(1);
+        pb.inc(1);
+        pb.finish();
     }
 
     // 9. Structured output (JSON or MessagePack to stdout).
@@ -1007,6 +1330,45 @@ fn cmd_slice(
         eprintln!("Output: {}", out_path.display());
     } else if !quiet {
         println!("\nOutput: {}", out_path.display());
+    }
+
+    // Summary line for profile-based workflow.
+    if use_profile_workflow {
+        let filament_m = result
+            .statistics
+            .as_ref()
+            .map_or(0.0, |s| s.summary.total_filament_m);
+        let time_min = result.estimated_time_seconds / 60.0;
+        eprintln!(
+            "Sliced {} -> {} ({} layers, {:.1}m filament, est. {:.1}min)",
+            input.display(),
+            out_path.display(),
+            result.layer_count,
+            filament_m,
+            time_min,
+        );
+    }
+
+    // Log file creation (profile workflow only, unless --no-log).
+    if use_profile_workflow && !no_log {
+        let log_path = if let Some(lf) = log_file {
+            lf.to_path_buf()
+        } else {
+            out_path.with_extension("log")
+        };
+        let log_content = format!(
+            "SliceCore Slice Log\nInput: {}\nOutput: {}\nLayers: {}\nEstimated time: {:.1}s\n",
+            input.display(),
+            out_path.display(),
+            result.layer_count,
+            result.estimated_time_seconds,
+        );
+        if let Err(e) = std::fs::write(&log_path, &log_content) {
+            eprintln!(
+                "Warning: Failed to create log file '{}': {e}",
+                log_path.display()
+            );
+        }
     }
 }
 
@@ -1526,6 +1888,7 @@ fn cmd_import_profiles(
 /// 2. `SLICECORE_PROFILES_DIR` environment variable
 /// 3. Relative to binary (installed location, or cargo target dir)
 /// 4. Current working directory `./profiles`
+#[deprecated(note = "Use ProfileResolver instead for consistent profile discovery")]
 fn find_profiles_dir(cli_override: Option<&std::path::Path>) -> Option<PathBuf> {
     // 1. CLI flag override.
     if let Some(dir) = cli_override {
@@ -1566,7 +1929,7 @@ fn find_profiles_dir(cli_override: Option<&std::path::Path>) -> Option<PathBuf> 
     None
 }
 
-/// List profiles from the profile library.
+/// List profiles from the profile library using `ProfileResolver`.
 fn cmd_list_profiles(
     vendor: Option<&str>,
     profile_type: Option<&str>,
@@ -1575,28 +1938,121 @@ fn cmd_list_profiles(
     profiles_dir_override: Option<&std::path::Path>,
     json_output: bool,
 ) {
-    let profiles_dir = match find_profiles_dir(profiles_dir_override) {
-        Some(d) => d,
-        None => {
-            eprintln!("Error: Could not find profiles directory.");
-            eprintln!(
-                "Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root."
+    let resolver = ProfileResolver::new(profiles_dir_override);
+
+    // Use resolver search with empty query to get all profiles.
+    let all_profiles = resolver.search("", profile_type, usize::MAX);
+
+    if all_profiles.is_empty() {
+        // Fall back to index-based listing for vendor/material filtering.
+        #[allow(deprecated)]
+        let profiles_dir = match find_profiles_dir(profiles_dir_override) {
+            Some(d) => d,
+            None => {
+                eprintln!("Error: Could not find profiles directory.");
+                eprintln!(
+                    "Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root."
+                );
+                process::exit(1);
+            }
+        };
+
+        let index = match load_index(&profiles_dir) {
+            Ok(idx) => idx,
+            Err(e) => {
+                eprintln!("Error: Failed to load profile index: {}", e);
+                process::exit(1);
+            }
+        };
+
+        if vendors_only {
+            let mut vendors: Vec<String> =
+                index.profiles.iter().map(|p| p.vendor.clone()).collect();
+            vendors.sort();
+            vendors.dedup();
+
+            if json_output {
+                let json = serde_json::to_string_pretty(&vendors).unwrap_or_else(|e| {
+                    eprintln!("Error: Failed to serialize JSON: {}", e);
+                    process::exit(1);
+                });
+                println!("{}", json);
+            } else {
+                for v in &vendors {
+                    println!("{}", v);
+                }
+                eprintln!("{} vendor(s) found", vendors.len());
+            }
+            return;
+        }
+
+        // Filter profiles from index.
+        let filtered: Vec<&ProfileIndexEntry> = index
+            .profiles
+            .iter()
+            .filter(|p| {
+                if let Some(v) = vendor {
+                    if !p.vendor.to_lowercase().contains(&v.to_lowercase()) {
+                        return false;
+                    }
+                }
+                if let Some(t) = profile_type {
+                    if p.profile_type != t {
+                        return false;
+                    }
+                }
+                if let Some(m) = material {
+                    match &p.material {
+                        Some(mat) => {
+                            if !mat.to_lowercase().contains(&m.to_lowercase()) {
+                                return false;
+                            }
+                        }
+                        None => return false,
+                    }
+                }
+                true
+            })
+            .collect();
+
+        if json_output {
+            let json = serde_json::to_string_pretty(&filtered).unwrap_or_else(|e| {
+                eprintln!("Error: Failed to serialize JSON: {}", e);
+                process::exit(1);
+            });
+            println!("{}", json);
+        } else {
+            println!(
+                "{:<10} {:<12} {:<50} {:<10} {:<15}",
+                "TYPE", "VENDOR", "NAME", "MATERIAL", "SOURCE"
             );
-            process::exit(1);
-        }
-    };
+            println!("{}", "-".repeat(101));
 
-    let index = match load_index(&profiles_dir) {
-        Ok(idx) => idx,
-        Err(e) => {
-            eprintln!("Error: Failed to load profile index: {}", e);
-            process::exit(1);
+            for p in &filtered {
+                println!(
+                    "{:<10} {:<12} {:<50} {:<10} {:<15}",
+                    p.profile_type,
+                    p.vendor,
+                    truncate_str(&p.name, 48),
+                    p.material.as_deref().unwrap_or("-"),
+                    format!("library/{}", p.vendor),
+                );
+            }
+            eprintln!("{} profile(s) found", filtered.len());
         }
-    };
+        return;
+    }
 
+    // We have resolver results -- use them.
     if vendors_only {
-        // Collect unique vendor names, sorted.
-        let mut vendors: Vec<String> = index.profiles.iter().map(|p| p.vendor.clone()).collect();
+        // Extract unique vendors from resolved profiles.
+        let mut vendors: Vec<String> = all_profiles
+            .iter()
+            .filter_map(|p| match &p.source {
+                ProfileSource::Library { vendor } => Some(vendor.clone()),
+                _ => None,
+            })
+            .collect();
         vendors.sort();
         vendors.dedup();
 
@@ -1615,29 +2071,22 @@ fn cmd_list_profiles(
         return;
     }
 
-    // Filter profiles.
-    let filtered: Vec<&ProfileIndexEntry> = index
-        .profiles
+    // Apply vendor and material filters on resolved profiles.
+    let filtered: Vec<_> = all_profiles
         .iter()
         .filter(|p| {
             if let Some(v) = vendor {
-                if !p.vendor.to_lowercase().contains(&v.to_lowercase()) {
-                    return false;
-                }
-            }
-            if let Some(t) = profile_type {
-                if p.profile_type != t {
+                let vendor_name = match &p.source {
+                    ProfileSource::Library { vendor } => vendor.to_lowercase(),
+                    _ => String::new(),
+                };
+                if !vendor_name.contains(&v.to_lowercase()) {
                     return false;
                 }
             }
             if let Some(m) = material {
-                match &p.material {
-                    Some(mat) => {
-                        if !mat.to_lowercase().contains(&m.to_lowercase()) {
-                            return false;
-                        }
-                    }
-                    None => return false,
+                if !p.name.to_lowercase().contains(&m.to_lowercase()) {
+                    return false;
                 }
             }
             true
@@ -1645,167 +2094,237 @@ fn cmd_list_profiles(
         .collect();
 
     if json_output {
-        let json = serde_json::to_string_pretty(&filtered).unwrap_or_else(|e| {
+        // Build JSON with source field.
+        let entries: Vec<serde_json::Value> = filtered
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "name": p.name,
+                    "profile_type": p.profile_type,
+                    "source": p.source.to_string(),
+                    "path": p.path.display().to_string(),
+                })
+            })
+            .collect();
+        let json = serde_json::to_string_pretty(&entries).unwrap_or_else(|e| {
             eprintln!("Error: Failed to serialize JSON: {}", e);
             process::exit(1);
         });
         println!("{}", json);
     } else {
-        // Print header.
         println!(
-            "{:<10} {:<12} {:<50} {:<10}",
-            "TYPE", "VENDOR", "NAME", "MATERIAL"
+            "{:<10} {:<12} {:<50} {:<15}",
+            "TYPE", "VENDOR", "NAME", "SOURCE"
         );
-        println!("{}", "-".repeat(86));
+        println!("{}", "-".repeat(91));
 
         for p in &filtered {
+            let vendor_name = match &p.source {
+                ProfileSource::Library { vendor } => vendor.as_str(),
+                ProfileSource::User => "-",
+                ProfileSource::BuiltIn => "-",
+            };
             println!(
-                "{:<10} {:<12} {:<50} {:<10}",
+                "{:<10} {:<12} {:<50} {:<15}",
                 p.profile_type,
-                p.vendor,
+                vendor_name,
                 truncate_str(&p.name, 48),
-                p.material.as_deref().unwrap_or("-"),
+                p.source,
             );
         }
         eprintln!("{} profile(s) found", filtered.len());
     }
 }
 
-/// Search profiles by keyword.
+/// Search profiles by keyword using `ProfileResolver`.
 fn cmd_search_profiles(
     query: &str,
     limit: usize,
     profiles_dir_override: Option<&std::path::Path>,
     json_output: bool,
 ) {
-    let profiles_dir = match find_profiles_dir(profiles_dir_override) {
-        Some(d) => d,
-        None => {
-            eprintln!("Error: Could not find profiles directory.");
+    let resolver = ProfileResolver::new(profiles_dir_override);
+
+    // Use resolver search with the query.
+    let matching = resolver.search(query, None, limit);
+
+    if matching.is_empty() {
+        // Try to provide "did you mean?" suggestions.
+        // Attempt to resolve as each type to trigger NotFound suggestions.
+        let mut suggestions = Vec::new();
+        for profile_type in &["machine", "filament", "process"] {
+            if let Err(slicecore_engine::profile_resolve::ProfileError::NotFound {
+                suggestions: s,
+                ..
+            }) = resolver.resolve(query, profile_type)
+            {
+                for sug in s {
+                    if !suggestions.contains(&sug) {
+                        suggestions.push(sug);
+                    }
+                }
+            }
+        }
+
+        if suggestions.is_empty() {
+            eprintln!("No profiles found matching '{}'.", query);
+            eprintln!("Use 'list-profiles' to see all available profiles.");
+        } else {
+            eprintln!("No profiles found matching '{}'.", query);
             eprintln!(
-                "Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root."
+                "Did you mean: {}?",
+                suggestions
+                    .into_iter()
+                    .take(5)
+                    .collect::<Vec<_>>()
+                    .join(", ")
             );
-            process::exit(1);
         }
-    };
-
-    let index = match load_index(&profiles_dir) {
-        Ok(idx) => idx,
-        Err(e) => {
-            eprintln!("Error: Failed to load profile index: {}", e);
-            process::exit(1);
-        }
-    };
-
-    // Split query into whitespace-separated terms (lowercase).
-    let terms: Vec<String> = query.split_whitespace().map(|s| s.to_lowercase()).collect();
-
-    // Filter profiles where ALL terms match at least one field.
-    let matching: Vec<&ProfileIndexEntry> = index
-        .profiles
-        .iter()
-        .filter(|p| {
-            let fields = [
-                p.name.to_lowercase(),
-                p.vendor.to_lowercase(),
-                p.material.as_deref().unwrap_or("").to_lowercase(),
-                p.printer_model.as_deref().unwrap_or("").to_lowercase(),
-                p.profile_type.to_lowercase(),
-                p.quality.as_deref().unwrap_or("").to_lowercase(),
-            ];
-
-            terms
-                .iter()
-                .all(|term| fields.iter().any(|f| f.contains(term.as_str())))
-        })
-        .take(limit)
-        .collect();
+        return;
+    }
 
     if json_output {
-        let json = serde_json::to_string_pretty(&matching).unwrap_or_else(|e| {
+        let entries: Vec<serde_json::Value> = matching
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "name": p.name,
+                    "profile_type": p.profile_type,
+                    "source": p.source.to_string(),
+                    "path": p.path.display().to_string(),
+                })
+            })
+            .collect();
+        let json = serde_json::to_string_pretty(&entries).unwrap_or_else(|e| {
             eprintln!("Error: Failed to serialize JSON: {}", e);
             process::exit(1);
         });
         println!("{}", json);
     } else {
         println!(
-            "{:<10} {:<12} {:<50} {:<10}",
-            "TYPE", "VENDOR", "NAME", "MATERIAL"
+            "{:<10} {:<12} {:<50} {:<15}",
+            "TYPE", "VENDOR", "NAME", "SOURCE"
         );
-        println!("{}", "-".repeat(86));
+        println!("{}", "-".repeat(91));
 
         for p in &matching {
+            let vendor_name = match &p.source {
+                ProfileSource::Library { vendor } => vendor.as_str(),
+                ProfileSource::User => "-",
+                ProfileSource::BuiltIn => "-",
+            };
             println!(
-                "{:<10} {:<12} {:<50} {:<10}",
+                "{:<10} {:<12} {:<50} {:<15}",
                 p.profile_type,
-                p.vendor,
+                vendor_name,
                 truncate_str(&p.name, 48),
-                p.material.as_deref().unwrap_or("-"),
+                p.source,
             );
         }
         eprintln!("{} result(s) (showing up to {})", matching.len(), limit);
     }
 }
 
-/// Show details of a specific profile.
+/// Show details of a specific profile using `ProfileResolver`.
 fn cmd_show_profile(id: &str, raw: bool, profiles_dir_override: Option<&std::path::Path>) {
-    let profiles_dir = match find_profiles_dir(profiles_dir_override) {
-        Some(d) => d,
-        None => {
-            eprintln!("Error: Could not find profiles directory.");
-            eprintln!(
-                "Use --profiles-dir, set SLICECORE_PROFILES_DIR, or run from the project root."
-            );
-            process::exit(1);
-        }
+    let resolver = ProfileResolver::new(profiles_dir_override);
+
+    // Try to resolve using ProfileResolver -- accept any type.
+    // First try file-path style (with /), then each type.
+    let resolved = if id.contains('/') || id.ends_with(".toml") {
+        resolver
+            .resolve(id, "machine")
+            .or_else(|_| resolver.resolve(id, "filament"))
+            .or_else(|_| resolver.resolve(id, "process"))
+    } else {
+        // Try each type.
+        resolver
+            .resolve(id, "machine")
+            .or_else(|_| resolver.resolve(id, "filament"))
+            .or_else(|_| resolver.resolve(id, "process"))
     };
 
-    let index = match load_index(&profiles_dir) {
-        Ok(idx) => idx,
+    let resolved = match resolved {
+        Ok(r) => r,
         Err(e) => {
-            eprintln!("Error: Failed to load profile index: {}", e);
-            process::exit(1);
-        }
-    };
+            // Fall back to index-based lookup for backward compatibility.
+            #[allow(deprecated)]
+            let profiles_dir = match find_profiles_dir(profiles_dir_override) {
+                Some(d) => d,
+                None => {
+                    eprintln!("Error: {e}");
+                    process::exit(1);
+                }
+            };
 
-    // Find entry: exact match on id, or path without .toml extension.
-    let entry = index
-        .profiles
-        .iter()
-        .find(|e| e.id == id || e.path.trim_end_matches(".toml") == id);
+            let index = match load_index(&profiles_dir) {
+                Ok(idx) => idx,
+                Err(_) => {
+                    eprintln!("Error: {e}");
+                    process::exit(1);
+                }
+            };
 
-    let entry = match entry {
-        Some(e) => e,
-        None => {
-            // Try case-insensitive match for suggestion.
-            let id_lower = id.to_lowercase();
-            let suggestion = index.profiles.iter().find(|e| {
-                e.id.to_lowercase() == id_lower
-                    || e.path.trim_end_matches(".toml").to_lowercase() == id_lower
-            });
+            // Find entry by id in the index.
+            let entry = index
+                .profiles
+                .iter()
+                .find(|entry| entry.id == id || entry.path.trim_end_matches(".toml") == id);
 
-            if let Some(s) = suggestion {
-                eprintln!(
-                    "Error: Profile '{}' not found. Did you mean '{}'?",
-                    id, s.id
-                );
-            } else {
-                eprintln!("Error: Profile '{}' not found.", id);
-                eprintln!("Use 'list-profiles' or 'search-profiles' to find available profiles.");
+            if let Some(entry) = entry {
+                if raw {
+                    let toml_path = profiles_dir.join(&entry.path);
+                    let contents = match std::fs::read_to_string(&toml_path) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            eprintln!(
+                                "Error: Failed to read profile file '{}': {}",
+                                toml_path.display(),
+                                e
+                            );
+                            process::exit(1);
+                        }
+                    };
+                    print!("{}", contents);
+                } else {
+                    println!("Profile: {}", entry.name);
+                    println!("Source:  library/{}", entry.vendor);
+                    println!("Vendor:  {}", entry.vendor);
+                    println!("Type:    {}", entry.profile_type);
+                    if let Some(ref mat) = entry.material {
+                        println!("Material: {}", mat);
+                    }
+                    if let Some(ref model) = entry.printer_model {
+                        println!("Printer: {}", model);
+                    }
+                    if let Some(height) = entry.layer_height {
+                        println!("Layer height: {:.2}mm", height);
+                    }
+                    if let Some(nozzle) = entry.nozzle_size {
+                        println!("Nozzle: {:.1}mm", nozzle);
+                    }
+                    if let Some(ref quality) = entry.quality {
+                        println!("Quality: {}", quality);
+                    }
+                    println!("ID:      {}", entry.id);
+                    println!("Path:    {}", entry.path);
+                }
+                return;
             }
+
+            eprintln!("Error: {e}");
             process::exit(1);
         }
     };
 
     if raw {
         // Read and print the TOML file.
-        let toml_path = profiles_dir.join(&entry.path);
-        let contents = match std::fs::read_to_string(&toml_path) {
+        let contents = match std::fs::read_to_string(&resolved.path) {
             Ok(s) => s,
             Err(e) => {
                 eprintln!(
                     "Error: Failed to read profile file '{}': {}",
-                    toml_path.display(),
+                    resolved.path.display(),
                     e
                 );
                 process::exit(1);
@@ -1814,27 +2333,21 @@ fn cmd_show_profile(id: &str, raw: bool, profiles_dir_override: Option<&std::pat
         print!("{}", contents);
     } else {
         // Print structured metadata summary.
-        println!("Profile: {}", entry.name);
-        println!("Source:  {}", entry.source);
-        println!("Vendor:  {}", entry.vendor);
-        println!("Type:    {}", entry.profile_type);
-        if let Some(ref mat) = entry.material {
-            println!("Material: {}", mat);
+        println!("Profile: {}", resolved.name);
+        println!("Source:  {}", resolved.source);
+        println!("Type:    {}", resolved.profile_type);
+
+        // Show inheritance chain if available.
+        match resolver.resolve_inheritance(&resolved.path) {
+            Ok(chain) if chain.len() > 1 => {
+                let names: Vec<_> = chain.iter().map(|p| p.name.as_str()).collect();
+                println!("Inherits: {}", names.join(" -> "));
+            }
+            _ => {}
         }
-        if let Some(ref model) = entry.printer_model {
-            println!("Printer: {}", model);
-        }
-        if let Some(height) = entry.layer_height {
-            println!("Layer height: {:.2}mm", height);
-        }
-        if let Some(nozzle) = entry.nozzle_size {
-            println!("Nozzle: {:.1}mm", nozzle);
-        }
-        if let Some(ref quality) = entry.quality {
-            println!("Quality: {}", quality);
-        }
-        println!("ID:      {}", entry.id);
-        println!("Path:    {}", entry.path);
+
+        println!("Checksum: {}", resolved.checksum);
+        println!("Path:    {}", resolved.path.display());
     }
 }
 
@@ -1999,7 +2512,87 @@ fn cmd_analyze_gcode(
     diameter: f64,
     filter: Option<String>,
     summary_only: bool,
+    filament_price: Option<f64>,
+    printer_watts: Option<f64>,
+    electricity_rate: Option<f64>,
+    printer_cost: Option<f64>,
+    expected_hours: Option<f64>,
+    labor_rate: Option<f64>,
+    setup_time: f64,
+    markdown: bool,
+    model: bool,
+    compare_filament: &[String],
+    profiles_dir: Option<&std::path::Path>,
 ) {
+    use slicecore_engine::cost_model::{self, CostInputs};
+
+    let has_cost_flags = filament_price.is_some()
+        || printer_watts.is_some()
+        || electricity_rate.is_some()
+        || printer_cost.is_some()
+        || expected_hours.is_some()
+        || labor_rate.is_some();
+
+    if model {
+        // Treat input as a mesh file for rough volume-based estimation
+        let data = match std::fs::read(input) {
+            Ok(d) => d,
+            Err(e) => {
+                eprintln!("Error: Failed to read '{}': {}", input, e);
+                process::exit(1);
+            }
+        };
+        let mesh = match slicecore_fileio::load_mesh(&data) {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!("Error: Failed to parse mesh '{}': {}", input, e);
+                process::exit(1);
+            }
+        };
+        let stats = slicecore_mesh::compute_stats(&mesh);
+        let vol_est = cost_model::volume_estimate(stats.volume, diameter, density);
+
+        // Build cost inputs from volume estimate
+        let cost_inputs = CostInputs {
+            filament_weight_g: vol_est.filament_weight_g,
+            print_time_seconds: vol_est.rough_time_seconds,
+            filament_price_per_kg: filament_price,
+            electricity_rate,
+            printer_watts,
+            printer_cost,
+            expected_hours,
+            labor_rate,
+            setup_time_minutes: Some(setup_time),
+        };
+        let cost_est = cost_model::compute_cost(&cost_inputs);
+
+        // Display
+        let use_color = !no_color && std::io::stdout().is_terminal();
+        if json {
+            let combined = serde_json::json!({
+                "volume_estimate": vol_est,
+                "cost_estimate": cost_est,
+            });
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&combined)
+                    .unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}")),
+            );
+        } else if csv {
+            analysis_display::display_volume_estimate_csv(&vol_est);
+            analysis_display::display_cost_csv(&cost_est);
+        } else if markdown {
+            analysis_display::display_volume_estimate_markdown(&vol_est);
+            analysis_display::display_cost_markdown(&cost_est);
+        } else {
+            analysis_display::display_volume_estimate(&vol_est, use_color);
+            if has_cost_flags {
+                analysis_display::display_cost_table(&cost_est, use_color);
+            }
+        }
+        return;
+    }
+
     // Read input: stdin or file.
     let (contents, filename) = if input == "-" {
         let mut buf = String::new();
@@ -2031,14 +2624,143 @@ fn cmd_analyze_gcode(
             .collect()
     });
 
+    // Build cost estimate if any cost flags provided
+    let cost_est = if has_cost_flags {
+        let cost_inputs = CostInputs {
+            filament_weight_g: analysis.total_filament_weight_g,
+            print_time_seconds: analysis.total_time_estimate_s,
+            filament_price_per_kg: filament_price,
+            electricity_rate,
+            printer_watts,
+            printer_cost,
+            expected_hours,
+            labor_rate,
+            setup_time_minutes: Some(setup_time),
+        };
+        Some(cost_model::compute_cost(&cost_inputs))
+    } else {
+        None
+    };
+
     // Dispatch to output format.
     if json {
-        analysis_display::display_analysis_json(&analysis);
+        if let Some(ref cost) = cost_est {
+            let combined = serde_json::json!({
+                "analysis": analysis,
+                "cost_estimate": cost,
+            });
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&combined)
+                    .unwrap_or_else(|e| format!("{{\"error\": \"{e}\"}}")),
+            );
+        } else {
+            analysis_display::display_analysis_json(&analysis);
+        }
     } else if csv {
         analysis_display::display_analysis_csv(&analysis, summary_only);
+        if let Some(ref cost) = cost_est {
+            analysis_display::display_cost_csv(cost);
+        }
+    } else if markdown {
+        let use_color = false;
+        analysis_display::display_analysis_table(&analysis, use_color, summary_only, &filter_list);
+        if let Some(ref cost) = cost_est {
+            analysis_display::display_cost_markdown(cost);
+        }
     } else {
         let use_color = !no_color && std::io::stdout().is_terminal();
         analysis_display::display_analysis_table(&analysis, use_color, summary_only, &filter_list);
+        if let Some(ref cost) = cost_est {
+            println!();
+            analysis_display::display_cost_table(cost, use_color);
+        }
+    }
+
+    // Multi-config comparison: re-estimate with different filament profiles
+    if !compare_filament.is_empty() {
+        let format = analysis_display::determine_output_format(json, csv, markdown);
+
+        let resolver = ProfileResolver::new(profiles_dir);
+
+        // Build baseline row
+        let baseline_cost_inputs = cost_model::CostInputs {
+            filament_weight_g: analysis.total_filament_weight_g,
+            print_time_seconds: analysis.total_time_estimate_s,
+            filament_price_per_kg: filament_price,
+            electricity_rate,
+            printer_watts,
+            printer_cost,
+            expected_hours,
+            labor_rate,
+            setup_time_minutes: Some(setup_time),
+        };
+        let baseline_cost = cost_model::compute_cost(&baseline_cost_inputs);
+        let mut rows = vec![analysis_display::ComparisonRow {
+            name: "baseline".to_string(),
+            time_seconds: analysis.total_time_estimate_s,
+            filament_weight_g: analysis.total_filament_weight_g,
+            filament_cost: baseline_cost.filament_cost,
+            total_cost: baseline_cost.total_cost,
+        }];
+
+        // Build comparison rows for each filament profile
+        for fil_name in compare_filament {
+            // Try to resolve filament profile and extract density/price
+            let (comp_density, comp_price) = match resolver.resolve(fil_name, "filament") {
+                Ok(resolved) => match std::fs::read_to_string(&resolved.path) {
+                    Ok(toml_str) => {
+                        let partial: PrintConfig = toml::from_str(&toml_str).unwrap_or_default();
+                        let d = partial.filament.density;
+                        let p = if partial.filament.cost_per_kg > 0.0 {
+                            Some(partial.filament.cost_per_kg)
+                        } else {
+                            filament_price
+                        };
+                        (d, p)
+                    }
+                    Err(e) => {
+                        eprintln!("Warning: Could not read filament profile '{fil_name}': {e}");
+                        (density, filament_price)
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Warning: Could not resolve filament profile '{fil_name}': {e}");
+                    (density, filament_price)
+                }
+            };
+
+            // Recompute weight using the comparison density
+            let comp_weight = if comp_density != density && density > 0.0 {
+                analysis.total_filament_weight_g * (comp_density / density)
+            } else {
+                analysis.total_filament_weight_g
+            };
+
+            let comp_cost_inputs = cost_model::CostInputs {
+                filament_weight_g: comp_weight,
+                print_time_seconds: analysis.total_time_estimate_s,
+                filament_price_per_kg: comp_price,
+                electricity_rate,
+                printer_watts,
+                printer_cost,
+                expected_hours,
+                labor_rate,
+                setup_time_minutes: Some(setup_time),
+            };
+            let comp_cost = cost_model::compute_cost(&comp_cost_inputs);
+
+            rows.push(analysis_display::ComparisonRow {
+                name: fil_name.clone(),
+                time_seconds: analysis.total_time_estimate_s,
+                filament_weight_g: comp_weight,
+                filament_cost: comp_cost.filament_cost,
+                total_cost: comp_cost.total_cost,
+            });
+        }
+
+        println!();
+        analysis_display::display_config_comparison(&rows, format, no_color);
     }
 }
 

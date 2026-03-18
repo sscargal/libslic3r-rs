@@ -108,10 +108,7 @@ fn map_response_format(format: &ResponseFormat) -> serde_json::Value {
 
 #[async_trait]
 impl AiProvider for OllamaProvider {
-    async fn complete(
-        &self,
-        request: &CompletionRequest,
-    ) -> Result<CompletionResponse, AiError> {
+    async fn complete(&self, request: &CompletionRequest) -> Result<CompletionResponse, AiError> {
         // Build messages: system prompt first, then conversation messages
         let mut messages = Vec::with_capacity(request.messages.len() + 1);
         messages.push(OllamaMessage {
@@ -137,12 +134,7 @@ impl AiProvider for OllamaProvider {
 
         let url = format!("{}/api/chat", self.base_url);
 
-        let response = self
-            .client
-            .post(&url)
-            .json(&body)
-            .send()
-            .await?;
+        let response = self.client.post(&url).json(&body).send().await?;
 
         let status = response.status();
         if !status.is_success() {

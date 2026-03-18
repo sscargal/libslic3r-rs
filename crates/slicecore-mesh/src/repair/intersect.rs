@@ -391,7 +391,10 @@ mod tests {
         ];
         let indices = vec![[0, 1, 2], [3, 4, 5]];
         let pairs = find_intersecting_pairs(&vertices, &indices);
-        assert!(pairs.is_empty(), "Separated triangles should have no intersecting pairs");
+        assert!(
+            pairs.is_empty(),
+            "Separated triangles should have no intersecting pairs"
+        );
     }
 
     #[test]
@@ -433,7 +436,15 @@ mod tests {
         let result = intersection_z_range(&vertices, &indices, &pairs);
         assert!(result.is_some());
         let (z_min, z_max) = result.unwrap();
-        assert!((z_min - (-1.0)).abs() < 1e-9, "z_min should be -1.0, got {}", z_min);
-        assert!((z_max - 1.0).abs() < 1e-9, "z_max should be 1.0, got {}", z_max);
+        assert!(
+            (z_min - (-1.0)).abs() < 1e-9,
+            "z_min should be -1.0, got {}",
+            z_min
+        );
+        assert!(
+            (z_max - 1.0).abs() < 1e-9,
+            "z_max should be 1.0, got {}",
+            z_max
+        );
     }
 }

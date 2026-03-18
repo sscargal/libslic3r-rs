@@ -109,59 +109,79 @@ fn marching_squares(
             match case {
                 1 | 14 => {
                     segments.push(Segment {
-                        x0: bottom.0, y0: bottom.1,
-                        x1: left.0, y1: left.1,
+                        x0: bottom.0,
+                        y0: bottom.1,
+                        x1: left.0,
+                        y1: left.1,
                     });
                 }
                 2 | 13 => {
                     segments.push(Segment {
-                        x0: bottom.0, y0: bottom.1,
-                        x1: right.0, y1: right.1,
+                        x0: bottom.0,
+                        y0: bottom.1,
+                        x1: right.0,
+                        y1: right.1,
                     });
                 }
                 3 | 12 => {
                     segments.push(Segment {
-                        x0: left.0, y0: left.1,
-                        x1: right.0, y1: right.1,
+                        x0: left.0,
+                        y0: left.1,
+                        x1: right.0,
+                        y1: right.1,
                     });
                 }
                 4 | 11 => {
                     segments.push(Segment {
-                        x0: right.0, y0: right.1,
-                        x1: top.0, y1: top.1,
+                        x0: right.0,
+                        y0: right.1,
+                        x1: top.0,
+                        y1: top.1,
                     });
                 }
                 6 | 9 => {
                     segments.push(Segment {
-                        x0: bottom.0, y0: bottom.1,
-                        x1: top.0, y1: top.1,
+                        x0: bottom.0,
+                        y0: bottom.1,
+                        x1: top.0,
+                        y1: top.1,
                     });
                 }
                 7 | 8 => {
                     segments.push(Segment {
-                        x0: left.0, y0: left.1,
-                        x1: top.0, y1: top.1,
+                        x0: left.0,
+                        y0: left.1,
+                        x1: top.0,
+                        y1: top.1,
                     });
                 }
                 5 => {
                     let center = (v_bl + v_br + v_tr + v_tl) / 4.0;
                     if center > 0.0 {
                         segments.push(Segment {
-                            x0: bottom.0, y0: bottom.1,
-                            x1: right.0, y1: right.1,
+                            x0: bottom.0,
+                            y0: bottom.1,
+                            x1: right.0,
+                            y1: right.1,
                         });
                         segments.push(Segment {
-                            x0: left.0, y0: left.1,
-                            x1: top.0, y1: top.1,
+                            x0: left.0,
+                            y0: left.1,
+                            x1: top.0,
+                            y1: top.1,
                         });
                     } else {
                         segments.push(Segment {
-                            x0: bottom.0, y0: bottom.1,
-                            x1: left.0, y1: left.1,
+                            x0: bottom.0,
+                            y0: bottom.1,
+                            x1: left.0,
+                            y1: left.1,
                         });
                         segments.push(Segment {
-                            x0: right.0, y0: right.1,
-                            x1: top.0, y1: top.1,
+                            x0: right.0,
+                            y0: right.1,
+                            x1: top.0,
+                            y1: top.1,
                         });
                     }
                 }
@@ -169,21 +189,29 @@ fn marching_squares(
                     let center = (v_bl + v_br + v_tr + v_tl) / 4.0;
                     if center > 0.0 {
                         segments.push(Segment {
-                            x0: bottom.0, y0: bottom.1,
-                            x1: left.0, y1: left.1,
+                            x0: bottom.0,
+                            y0: bottom.1,
+                            x1: left.0,
+                            y1: left.1,
                         });
                         segments.push(Segment {
-                            x0: right.0, y0: right.1,
-                            x1: top.0, y1: top.1,
+                            x0: right.0,
+                            y0: right.1,
+                            x1: top.0,
+                            y1: top.1,
                         });
                     } else {
                         segments.push(Segment {
-                            x0: bottom.0, y0: bottom.1,
-                            x1: right.0, y1: right.1,
+                            x0: bottom.0,
+                            y0: bottom.1,
+                            x1: right.0,
+                            y1: right.1,
                         });
                         segments.push(Segment {
-                            x0: left.0, y0: left.1,
-                            x1: top.0, y1: top.1,
+                            x0: left.0,
+                            y0: left.1,
+                            x1: top.0,
+                            y1: top.1,
                         });
                     }
                 }
@@ -319,14 +347,9 @@ mod tests {
 
     /// Helper to create a validated CCW square at the origin with given size (mm).
     fn make_square(size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (0.0, 0.0),
-            (size, 0.0),
-            (size, size),
-            (0.0, size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(0.0, 0.0), (size, 0.0), (size, size), (0.0, size)])
+            .validate()
+            .unwrap()
     }
 
     #[test]
@@ -385,22 +408,30 @@ mod tests {
             assert!(
                 line.start.x >= min && line.start.x <= max,
                 "Line start x ({}) outside bounds [{}, {}]",
-                line.start.x, min, max
+                line.start.x,
+                min,
+                max
             );
             assert!(
                 line.end.x >= min && line.end.x <= max,
                 "Line end x ({}) outside bounds [{}, {}]",
-                line.end.x, min, max
+                line.end.x,
+                min,
+                max
             );
             assert!(
                 line.start.y >= min && line.start.y <= max,
                 "Line start y ({}) outside bounds [{}, {}]",
-                line.start.y, min, max
+                line.start.y,
+                min,
+                max
             );
             assert!(
                 line.end.y >= min && line.end.y <= max,
                 "Line end y ({}) outside bounds [{}, {}]",
-                line.end.y, min, max
+                line.end.y,
+                min,
+                max
             );
         }
     }
@@ -409,7 +440,10 @@ mod tests {
     fn tpms_d_zero_density_returns_empty() {
         let square = make_square(20.0);
         let lines = generate(&[square], 0.0, 0, 0.3, 0.4);
-        assert!(lines.is_empty(), "0% density should produce no TPMS-D lines");
+        assert!(
+            lines.is_empty(),
+            "0% density should produce no TPMS-D lines"
+        );
     }
 
     #[test]

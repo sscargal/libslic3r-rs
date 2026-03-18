@@ -83,7 +83,10 @@ pub fn init_thread_pool(thread_count: Option<usize>) {
 /// Uses atomic operations so multiple threads can increment the counter
 /// concurrently without locks.
 #[derive(Debug, Clone)]
-#[allow(dead_code, reason = "utility struct; total and percent() used in tests and future parallel features")]
+#[allow(
+    dead_code,
+    reason = "utility struct; total and percent() used in tests and future parallel features"
+)]
 pub struct AtomicProgress {
     current: Arc<AtomicUsize>,
     total: usize,
@@ -104,7 +107,10 @@ impl AtomicProgress {
     }
 
     /// Return the current progress as a percentage (0.0 to 100.0).
-    #[allow(dead_code, reason = "utility method; used in tests and future parallel features")]
+    #[allow(
+        dead_code,
+        reason = "utility method; used in tests and future parallel features"
+    )]
     pub fn percent(&self) -> f64 {
         if self.total == 0 {
             return 100.0;

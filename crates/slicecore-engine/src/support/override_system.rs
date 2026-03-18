@@ -254,10 +254,7 @@ pub fn apply_overrides(
     let mut warnings = Vec::new();
 
     for (layer_idx, layer_support) in auto_support.iter_mut().enumerate() {
-        let z = layer_heights
-            .get(layer_idx)
-            .map(|&(z, _)| z)
-            .unwrap_or(0.0);
+        let z = layer_heights.get(layer_idx).map(|&(z, _)| z).unwrap_or(0.0);
 
         // Snapshot auto-support area before overrides for conflict detection.
         let auto_area = net_area_mm2(layer_support);
@@ -279,7 +276,10 @@ pub fn apply_overrides(
         }
 
         // --- Step 2: Apply volume modifier enforcers (union) ---
-        for vm in volume_modifiers.iter().filter(|v| v.role == OverrideRole::Enforcer) {
+        for vm in volume_modifiers
+            .iter()
+            .filter(|v| v.role == OverrideRole::Enforcer)
+        {
             if let Some(cross_section) = volume_modifier_at_z(vm, z) {
                 if layer_support.is_empty() {
                     *layer_support = vec![cross_section];
@@ -295,14 +295,16 @@ pub fn apply_overrides(
         for blocker in blockers {
             if let Some(regions) = blocker.sliced_regions.get(layer_idx) {
                 if !regions.is_empty() && !layer_support.is_empty() {
-                    *layer_support =
-                        polygon_difference(layer_support, regions).unwrap_or_default();
+                    *layer_support = polygon_difference(layer_support, regions).unwrap_or_default();
                 }
             }
         }
 
         // --- Step 4: Apply volume modifier blockers (difference) ---
-        for vm in volume_modifiers.iter().filter(|v| v.role == OverrideRole::Blocker) {
+        for vm in volume_modifiers
+            .iter()
+            .filter(|v| v.role == OverrideRole::Blocker)
+        {
             if let Some(cross_section) = volume_modifier_at_z(vm, z) {
                 if !layer_support.is_empty() {
                     *layer_support =
@@ -341,14 +343,9 @@ mod tests {
     use super::*;
     /// Helper to create a validated CCW square at a given position and size.
     fn make_square(x: f64, y: f64, size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (x, y),
-            (x + size, y),
-            (x + size, y + size),
-            (x, y + size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(x, y), (x + size, y), (x + size, y + size), (x, y + size)])
+            .validate()
+            .unwrap()
     }
 
     // --- Volume modifier cross-section tests ---
@@ -365,7 +362,10 @@ mod tests {
 
         // z=5.0 is at the center -- should produce a rectangle.
         let result = volume_modifier_at_z(&modifier, 5.0);
-        assert!(result.is_some(), "Box at center Z should produce cross-section");
+        assert!(
+            result.is_some(),
+            "Box at center Z should produce cross-section"
+        );
 
         let poly = result.unwrap();
         // Rectangle should be approximately 10x10 = 100 mm^2.
@@ -444,7 +444,10 @@ mod tests {
 
         // z=5.0 is center -- should produce a circle.
         let result = volume_modifier_at_z(&modifier, 5.0);
-        assert!(result.is_some(), "Cylinder at center Z should produce circle");
+        assert!(
+            result.is_some(),
+            "Cylinder at center Z should produce circle"
+        );
 
         let poly = result.unwrap();
         // Circle area = PI * 3^2 = ~28.27 mm^2.
@@ -457,7 +460,10 @@ mod tests {
 
         // Outside range.
         let outside = volume_modifier_at_z(&modifier, 20.0);
-        assert!(outside.is_none(), "Cylinder outside Z range should return None");
+        assert!(
+            outside.is_none(),
+            "Cylinder outside Z range should return None"
+        );
     }
 
     // --- Override application tests ---
@@ -476,13 +482,7 @@ mod tests {
         };
 
         let layer_heights = vec![(0.1, 0.2)];
-        let warnings = apply_overrides(
-            &mut auto_support,
-            &[enforcer],
-            &[],
-            &[],
-            &layer_heights,
-        );
+        let warnings = apply_overrides(&mut auto_support, &[enforcer], &[], &[], &layer_heights);
 
         // Result should be larger than original auto-support.
         let result_area = net_area_mm2(&auto_support[0]);
@@ -496,7 +496,10 @@ mod tests {
         );
 
         // No conflict warnings expected (only enforcers applied).
-        assert!(warnings.is_empty(), "No conflict warnings expected for enforcers only");
+        assert!(
+            warnings.is_empty(),
+            "No conflict warnings expected for enforcers only"
+        );
     }
 
     #[test]
@@ -513,13 +516,7 @@ mod tests {
         };
 
         let layer_heights = vec![(0.1, 0.2)];
-        let warnings = apply_overrides(
-            &mut auto_support,
-            &[],
-            &[blocker],
-            &[],
-            &layer_heights,
-        );
+        let warnings = apply_overrides(&mut auto_support, &[], &[blocker], &[], &layer_heights);
 
         // Result should be smaller than original (using net area to account for holes).
         let result_area = net_area_mm2(&auto_support[0]);
@@ -532,7 +529,10 @@ mod tests {
         );
 
         // Should have conflict warnings (blocker removed >1 mm^2 of auto-support).
-        assert!(!warnings.is_empty(), "Should warn about blocker removing auto-support");
+        assert!(
+            !warnings.is_empty(),
+            "Should warn about blocker removing auto-support"
+        );
     }
 
     #[test]
@@ -609,13 +609,7 @@ mod tests {
         };
 
         let layer_heights = vec![(0.1, 0.2)];
-        let _warnings = apply_overrides(
-            &mut auto_support,
-            &[],
-            &[],
-            &[vm],
-            &layer_heights,
-        );
+        let _warnings = apply_overrides(&mut auto_support, &[], &[], &[vm], &layer_heights);
 
         assert!(
             !auto_support[0].is_empty(),
@@ -646,13 +640,7 @@ mod tests {
         };
 
         let layer_heights = vec![(0.1, 0.2)];
-        let _warnings = apply_overrides(
-            &mut auto_support,
-            &[],
-            &[],
-            &[vm],
-            &layer_heights,
-        );
+        let _warnings = apply_overrides(&mut auto_support, &[], &[], &[vm], &layer_heights);
 
         let result_area = net_area_mm2(&auto_support[0]);
         let original_area = 400.0; // 20x20.

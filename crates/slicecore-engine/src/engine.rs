@@ -20,31 +20,29 @@ use serde::{Deserialize, Serialize};
 use slicecore_gcode_io::{EndConfig, GcodeWriter, StartConfig};
 use slicecore_mesh::TriangleMesh;
 use slicecore_slicer::{
-    compute_adaptive_layer_heights, slice_mesh, slice_mesh_adaptive,
-    slice_mesh_adaptive_resolved, slice_mesh_resolved, SliceLayer,
+    compute_adaptive_layer_heights, slice_mesh, slice_mesh_adaptive, slice_mesh_adaptive_resolved,
+    slice_mesh_resolved, SliceLayer,
 };
 
 use crate::arachne::generate_arachne_perimeters;
 use crate::config::PrintConfig;
 use crate::error::EngineError;
 use crate::estimation::{estimate_print_time, PrintTimeEstimate};
+use crate::extrusion::compute_e_value;
 use crate::filament::{estimate_filament_usage, FilamentUsage};
-use crate::statistics::compute_statistics;
 use crate::gap_fill::detect_and_fill_gaps;
 use crate::gcode_gen::generate_full_gcode;
 use crate::infill::{generate_infill, lightning, InfillPattern, LayerInfill};
 use crate::ironing::generate_ironing_passes;
 use crate::modifier::{slice_modifier, split_by_modifiers, ModifierMesh};
+use crate::parallel::{maybe_par_iter, AtomicProgress};
 use crate::perimeter::generate_perimeters;
 use crate::planner::{generate_brim, generate_skirt};
 use crate::preview::{generate_preview, SlicePreview};
+use crate::statistics::compute_statistics;
 use crate::support;
 use crate::surface::classify_surfaces;
-use crate::toolpath::{
-    assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment,
-};
-use crate::extrusion::compute_e_value;
-use crate::parallel::{maybe_par_iter, AtomicProgress};
+use crate::toolpath::{assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment};
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 
@@ -569,12 +567,8 @@ fn process_single_layer(
     // 2g. Support toolpaths.
     if let Some(layer_support) = support_result.regions.get(layer_idx) {
         if !layer_support.is_empty() {
-            let support_segs = assemble_support_toolpath(
-                layer_support,
-                config,
-                layer.z,
-                layer.layer_height,
-            );
+            let support_segs =
+                assemble_support_toolpath(layer_support, config, layer.z, layer.layer_height);
             toolpath.segments.extend(support_segs);
         }
     }
@@ -582,23 +576,20 @@ fn process_single_layer(
     // 2h. Bridge toolpaths.
     if let Some(layer_bridges) = support_result.bridge_regions.get(layer_idx) {
         if !layer_bridges.is_empty() {
-            let bridge_segs = assemble_bridge_toolpath(
-                layer_bridges,
-                config,
-                layer.z,
-                layer.layer_height,
-            );
+            let bridge_segs =
+                assemble_bridge_toolpath(layer_bridges, config, layer.z, layer.layer_height);
             toolpath.segments.extend(bridge_segs);
         }
     }
 
     // 2i. Ironing passes.
     if config.ironing.enabled && !classification.solid_regions.is_empty() {
-        let is_top_layer =
-            layer_idx >= layers.len().saturating_sub(config.top_solid_layers as usize);
+        let is_top_layer = layer_idx
+            >= layers
+                .len()
+                .saturating_sub(config.top_solid_layers as usize);
         let has_top_exposure = if layer_idx + 1 < layers.len() {
-            !layers[layer_idx + 1].contours.is_empty()
-                && !classification.solid_regions.is_empty()
+            !layers[layer_idx + 1].contours.is_empty() && !classification.solid_regions.is_empty()
         } else {
             true
         };
@@ -677,10 +668,8 @@ impl Engine {
                     self.plugin_registry = Some(registry);
                 }
                 Err(e) => {
-                    self.startup_warnings.push(format!(
-                        "Failed to load plugins from '{}': {}",
-                        dir, e
-                    ));
+                    self.startup_warnings
+                        .push(format!("Failed to load plugins from '{}': {}", dir, e));
                 }
             }
         }
@@ -808,7 +797,9 @@ impl Engine {
 
         Err(EngineError::Plugin {
             plugin: name.to_string(),
-            message: "Plugin system not available (no registry attached or 'plugins' feature disabled)".to_string(),
+            message:
+                "Plugin system not available (no registry attached or 'plugins' feature disabled)"
+                    .to_string(),
         })
     }
 
@@ -915,7 +906,11 @@ impl Engine {
     /// - [`EngineError::EmptyMesh`] if the mesh has no triangles.
     /// - [`EngineError::NoLayers`] if slicing produces no layers.
     /// - [`EngineError::GcodeError`] if G-code writing fails.
-    pub fn slice(&self, mesh: &TriangleMesh, cancel: Option<CancellationToken>) -> Result<SliceResult, EngineError> {
+    pub fn slice(
+        &self,
+        mesh: &TriangleMesh,
+        cancel: Option<CancellationToken>,
+    ) -> Result<SliceResult, EngineError> {
         let mut buf = Vec::new();
         let result = self.slice_to_writer(mesh, &mut buf, cancel)?;
         Ok(SliceResult {
@@ -994,11 +989,10 @@ impl Engine {
     ///
     /// Returns `(layers, has_self_intersections)`.
     fn slice_mesh_layers(&self, mesh: &TriangleMesh) -> (Vec<SliceLayer>, bool) {
-        let has_self_intersections =
-            slicecore_mesh::repair::intersect::detect_self_intersections(
-                mesh.vertices(),
-                mesh.indices(),
-            ) > 0;
+        let has_self_intersections = slicecore_mesh::repair::intersect::detect_self_intersections(
+            mesh.vertices(),
+            mesh.indices(),
+        ) > 0;
 
         let layers = if self.config.adaptive_layer_height {
             let heights = compute_adaptive_layer_heights(
@@ -1122,10 +1116,7 @@ impl Engine {
                     .collect();
 
                 // Run collision detection and ordering.
-                let _plan = crate::sequential::plan_sequential_print(
-                    &object_bounds,
-                    &self.config,
-                )?;
+                let _plan = crate::sequential::plan_sequential_print(&object_bounds, &self.config)?;
 
                 // Emit info about sequential order.
                 if let Some(bus) = event_bus {
@@ -1167,7 +1158,8 @@ impl Engine {
                 if let Some(bus) = event_bus {
                     bus.emit(&crate::event::SliceEvent::Warning {
                         message: "multi_material.enabled is true but tool_count <= 1. \
-                                  Multi-material features require at least 2 tools.".to_string(),
+                                  Multi-material features require at least 2 tools."
+                            .to_string(),
                         layer: None,
                     });
                 }
@@ -1193,7 +1185,9 @@ impl Engine {
         if has_self_intersections {
             if let Some(bus) = event_bus {
                 bus.emit(&crate::event::SliceEvent::Warning {
-                    message: "Applying per-slice contour union to resolve self-intersecting geometry".to_string(),
+                    message:
+                        "Applying per-slice contour union to resolve self-intersecting geometry"
+                            .to_string(),
                     layer: None,
                 });
             }
@@ -1207,10 +1201,7 @@ impl Engine {
         // Lightning requires a cross-layer pre-pass to identify top surfaces
         // and grow support columns downward.
         let lightning_ctx = if self.config.infill_pattern == InfillPattern::Lightning {
-            let layer_contours: Vec<Vec<_>> = layers
-                .iter()
-                .map(|l| l.contours.clone())
-                .collect();
+            let layer_contours: Vec<Vec<_>> = layers.iter().map(|l| l.contours.clone()).collect();
             let extrusion_width = self.config.extrusion_width();
             Some(lightning::build_lightning_context(
                 &layer_contours,
@@ -1259,31 +1250,33 @@ impl Engine {
             // Pass 1: Process all layers in parallel with previous_seam = None.
             // Each layer is independent except for seam alignment.
             let progress = AtomicProgress::new(total_layers);
-            let layer_results: Result<Vec<(LayerToolpath, Option<slicecore_math::IPoint2>)>, EngineError> =
-                maybe_par_iter!(layers)
-                    .enumerate()
-                    .map(|(layer_idx, layer)| {
-                        // Check cancellation at the start of each layer.
-                        if let Some(ref token) = cancel {
-                            if token.is_cancelled() {
-                                return Err(EngineError::Cancelled);
-                            }
+            let layer_results: Result<
+                Vec<(LayerToolpath, Option<slicecore_math::IPoint2>)>,
+                EngineError,
+            > = maybe_par_iter!(layers)
+                .enumerate()
+                .map(|(layer_idx, layer)| {
+                    // Check cancellation at the start of each layer.
+                    if let Some(ref token) = cancel {
+                        if token.is_cancelled() {
+                            return Err(EngineError::Cancelled);
                         }
+                    }
 
-                        let result = process_single_layer(
-                            layer_idx,
-                            layer,
-                            &layers,
-                            &self.config,
-                            lightning_ctx.as_ref(),
-                            &support_result,
-                            None, // No previous_seam in parallel pass 1
-                        )?;
+                    let result = process_single_layer(
+                        layer_idx,
+                        layer,
+                        &layers,
+                        &self.config,
+                        lightning_ctx.as_ref(),
+                        &support_result,
+                        None, // No previous_seam in parallel pass 1
+                    )?;
 
-                        progress.increment();
-                        Ok(result)
-                    })
-                    .collect();
+                    progress.increment();
+                    Ok(result)
+                })
+                .collect();
 
             let layer_results = layer_results?;
 
@@ -1377,8 +1370,7 @@ impl Engine {
                 };
 
                 let (perimeters, arachne_segments) = if self.config.arachne_enabled {
-                    let arachne_results =
-                        generate_arachne_perimeters(&contours, &self.config);
+                    let arachne_results = generate_arachne_perimeters(&contours, &self.config);
 
                     let mut classic_perimeters = Vec::new();
                     let mut var_width_segs = Vec::new();
@@ -1396,8 +1388,7 @@ impl Engine {
                             } else {
                                 FeatureType::InnerPerimeter
                             };
-                            let perim_speed =
-                                self.config.speeds.perimeter * 60.0;
+                            let perim_speed = self.config.speeds.perimeter * 60.0;
                             for i in 1..perim.points.len() {
                                 let (sx, sy) = perim.points[i - 1].to_mm();
                                 let (ex, ey) = perim.points[i].to_mm();
@@ -1411,8 +1402,7 @@ impl Engine {
                                 if seg_len < 0.0001 {
                                     continue;
                                 }
-                                let width =
-                                    (perim.widths[i - 1] + perim.widths[i]) / 2.0;
+                                let width = (perim.widths[i - 1] + perim.widths[i]) / 2.0;
                                 let e = compute_e_value(
                                     seg_len,
                                     width,
@@ -1465,9 +1455,7 @@ impl Engine {
                     }
                 }
 
-                if !classification.sparse_regions.is_empty()
-                    && self.config.infill_density > 0.0
-                {
+                if !classification.sparse_regions.is_empty() && self.config.infill_density > 0.0 {
                     let sparse_lines = self.generate_infill_for_layer(
                         &self.config.infill_pattern,
                         &classification.sparse_regions,
@@ -1582,7 +1570,9 @@ impl Engine {
 
                 if self.config.ironing.enabled && !classification.solid_regions.is_empty() {
                     let is_top_layer = layer_idx
-                        >= layers.len().saturating_sub(self.config.top_solid_layers as usize);
+                        >= layers
+                            .len()
+                            .saturating_sub(self.config.top_solid_layers as usize);
                     let has_top_exposure = if layer_idx + 1 < layers.len() {
                         !layers[layer_idx + 1].contours.is_empty()
                             && !classification.solid_regions.is_empty()
@@ -1714,7 +1704,7 @@ impl Engine {
                                 e_value: 0.0,
                                 feedrate: travel_speed,
                                 z: first_z,
-                            extrusion_width: None,
+                                extrusion_width: None,
                             });
                         }
                     }
@@ -1743,7 +1733,7 @@ impl Engine {
                                 e_value: e,
                                 feedrate: speed,
                                 z: first_z,
-                            extrusion_width: None,
+                                extrusion_width: None,
                             });
                         }
                         prev = pt;
@@ -1768,7 +1758,7 @@ impl Engine {
                             e_value: e,
                             feedrate: speed,
                             z: first_z,
-                        extrusion_width: None,
+                            extrusion_width: None,
                         });
                         current_pos = Some(first_pt);
                     } else {
@@ -1809,33 +1799,32 @@ impl Engine {
         };
 
         // 4c. Multi-material purge tower G-code (if enabled).
-        let gcode_commands = if self.config.multi_material.enabled
-            && self.config.multi_material.tool_count > 1
-        {
-            let mut all_commands = gcode_commands;
-            // Insert purge tower commands for each layer.
-            // V1: no actual tool changes (no modifier meshes), so all layers are sparse
-            // (maintenance) layers to maintain tower structural integrity.
-            //
-            // Track which layer Z heights we've seen in the G-code to insert tower
-            // commands at the right positions.
-            for toolpath in &layer_toolpaths {
-                let tower = crate::multimaterial::generate_purge_tower_layer(
-                    toolpath.z,
-                    toolpath.layer_height,
-                    &self.config.multi_material,
-                    false, // has_tool_change: false in V1 (no modifier mesh tool assignments)
-                    self.config.machine.nozzle_diameter(),
-                );
-                // Append tower commands to the end of the G-code stream.
-                // In a full multi-material implementation, these would be interleaved
-                // per-layer. For V1 we append after all model G-code.
-                all_commands.extend(tower.commands);
-            }
-            all_commands
-        } else {
-            gcode_commands
-        };
+        let gcode_commands =
+            if self.config.multi_material.enabled && self.config.multi_material.tool_count > 1 {
+                let mut all_commands = gcode_commands;
+                // Insert purge tower commands for each layer.
+                // V1: no actual tool changes (no modifier meshes), so all layers are sparse
+                // (maintenance) layers to maintain tower structural integrity.
+                //
+                // Track which layer Z heights we've seen in the G-code to insert tower
+                // commands at the right positions.
+                for toolpath in &layer_toolpaths {
+                    let tower = crate::multimaterial::generate_purge_tower_layer(
+                        toolpath.z,
+                        toolpath.layer_height,
+                        &self.config.multi_material,
+                        false, // has_tool_change: false in V1 (no modifier mesh tool assignments)
+                        self.config.machine.nozzle_diameter(),
+                    );
+                    // Append tower commands to the end of the G-code stream.
+                    // In a full multi-material implementation, these would be interleaved
+                    // per-layer. For V1 we append after all model G-code.
+                    all_commands.extend(tower.commands);
+                }
+                all_commands
+            } else {
+                gcode_commands
+            };
 
         // 4d. Post-processing pipeline (after arc fitting and purge tower,
         //     before time estimation so estimates reflect post-processed output).
@@ -1920,7 +1909,11 @@ impl Engine {
     /// # Errors
     ///
     /// Same errors as [`Engine::slice`].
-    pub fn slice_with_preview(&self, mesh: &TriangleMesh, cancel: Option<CancellationToken>) -> Result<SliceResult, EngineError> {
+    pub fn slice_with_preview(
+        &self,
+        mesh: &TriangleMesh,
+        cancel: Option<CancellationToken>,
+    ) -> Result<SliceResult, EngineError> {
         // Validate mesh.
         if mesh.triangle_count() == 0 {
             return Err(EngineError::EmptyMesh);
@@ -1934,10 +1927,7 @@ impl Engine {
         }
 
         // Capture contours for preview.
-        let contours_per_layer: Vec<Vec<_>> = layers
-            .iter()
-            .map(|l| l.contours.clone())
-            .collect();
+        let contours_per_layer: Vec<Vec<_>> = layers.iter().map(|l| l.contours.clone()).collect();
 
         // Compute bounding box from mesh vertices.
         let vertices = mesh.vertices();
@@ -1981,26 +1971,28 @@ impl Engine {
 
         if use_parallel {
             // Parallel pass 1: process all layers without seam alignment.
-            let layer_results: Result<Vec<(LayerToolpath, Option<slicecore_math::IPoint2>)>, EngineError> =
-                maybe_par_iter!(layers)
-                    .enumerate()
-                    .map(|(layer_idx, layer)| {
-                        if let Some(ref token) = cancel {
-                            if token.is_cancelled() {
-                                return Err(EngineError::Cancelled);
-                            }
+            let layer_results: Result<
+                Vec<(LayerToolpath, Option<slicecore_math::IPoint2>)>,
+                EngineError,
+            > = maybe_par_iter!(layers)
+                .enumerate()
+                .map(|(layer_idx, layer)| {
+                    if let Some(ref token) = cancel {
+                        if token.is_cancelled() {
+                            return Err(EngineError::Cancelled);
                         }
-                        process_single_layer(
-                            layer_idx,
-                            layer,
-                            &layers,
-                            &self.config,
-                            lightning_ctx.as_ref(),
-                            &empty_support,
-                            None,
-                        )
-                    })
-                    .collect();
+                    }
+                    process_single_layer(
+                        layer_idx,
+                        layer,
+                        &layers,
+                        &self.config,
+                        lightning_ctx.as_ref(),
+                        &empty_support,
+                        None,
+                    )
+                })
+                .collect();
 
             let layer_results = layer_results?;
 
@@ -2192,9 +2184,7 @@ impl Engine {
                     }
                 }
 
-                if !classification.sparse_regions.is_empty()
-                    && region_config.infill_density > 0.0
-                {
+                if !classification.sparse_regions.is_empty() && region_config.infill_density > 0.0 {
                     let sparse_lines = self.generate_infill_for_layer(
                         &region_config.infill_pattern,
                         &classification.sparse_regions,
@@ -2307,7 +2297,9 @@ impl Engine {
                 );
                 if !classification.solid_regions.is_empty() {
                     let is_top_layer = layer_idx
-                        >= layers.len().saturating_sub(self.config.top_solid_layers as usize);
+                        >= layers
+                            .len()
+                            .saturating_sub(self.config.top_solid_layers as usize);
                     let has_top_exposure = if layer_idx + 1 < layers.len() {
                         !layers[layer_idx + 1].contours.is_empty()
                             && !classification.solid_regions.is_empty()
@@ -2764,10 +2756,14 @@ mod tests {
         let mesh = unit_cube();
 
         let engine1 = Engine::new(config.clone());
-        let result1 = engine1.slice(&mesh, None).expect("first slice should succeed");
+        let result1 = engine1
+            .slice(&mesh, None)
+            .expect("first slice should succeed");
 
         let engine2 = Engine::new(config);
-        let result2 = engine2.slice(&mesh, None).expect("second slice should succeed");
+        let result2 = engine2
+            .slice(&mesh, None)
+            .expect("second slice should succeed");
 
         assert_eq!(
             result1.gcode, result2.gcode,
@@ -2814,7 +2810,9 @@ mod tests {
         };
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh, None).expect("adaptive slice should succeed");
+        let result = engine
+            .slice(&mesh, None)
+            .expect("adaptive slice should succeed");
         assert!(
             !result.gcode.is_empty(),
             "Adaptive G-code output should be non-empty"
@@ -2849,7 +2847,9 @@ mod tests {
         };
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh, None).expect("adaptive slice should succeed");
+        let result = engine
+            .slice(&mesh, None)
+            .expect("adaptive slice should succeed");
         assert!(
             result.layer_count > 0,
             "Adaptive should produce at least 1 layer"
@@ -2954,7 +2954,9 @@ mod tests {
         };
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh, None).expect("arachne slice should succeed");
+        let result = engine
+            .slice(&mesh, None)
+            .expect("arachne slice should succeed");
         assert!(
             !result.gcode.is_empty(),
             "Arachne-enabled G-code output should be non-empty"
@@ -3018,7 +3020,9 @@ mod tests {
         };
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh, None).expect("support-enabled slice should succeed");
+        let result = engine
+            .slice(&mesh, None)
+            .expect("support-enabled slice should succeed");
         assert!(
             !result.gcode.is_empty(),
             "Support-enabled G-code output should be non-empty"
@@ -3086,7 +3090,9 @@ mod tests {
         };
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh, None).expect("arc-fitting slice should succeed");
+        let result = engine
+            .slice(&mesh, None)
+            .expect("arc-fitting slice should succeed");
         assert!(
             !result.gcode.is_empty(),
             "Arc-fitting-enabled G-code output should be non-empty"
@@ -3232,7 +3238,9 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = calibration_cube_20mm();
 
-        let result = engine.slice(&mesh, None).expect("Klipper slice should succeed");
+        let result = engine
+            .slice(&mesh, None)
+            .expect("Klipper slice should succeed");
         let gcode_str = String::from_utf8_lossy(&result.gcode);
 
         // Validate G-code passes syntax validation.
@@ -3273,7 +3281,9 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = calibration_cube_20mm();
 
-        let result = engine.slice(&mesh, None).expect("RepRap slice should succeed");
+        let result = engine
+            .slice(&mesh, None)
+            .expect("RepRap slice should succeed");
         let gcode_str = String::from_utf8_lossy(&result.gcode);
 
         // Validate G-code passes syntax validation.
@@ -3310,7 +3320,9 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = calibration_cube_20mm();
 
-        let result = engine.slice(&mesh, None).expect("Bambu slice should succeed");
+        let result = engine
+            .slice(&mesh, None)
+            .expect("Bambu slice should succeed");
         let gcode_str = String::from_utf8_lossy(&result.gcode);
 
         // Validate G-code passes syntax validation.
@@ -3344,7 +3356,7 @@ mod tests {
     #[test]
     fn test_phase_6_sc2_multi_material() {
         use crate::config::{MultiMaterialConfig, ToolConfig};
-        use crate::multimaterial::{generate_tool_change, generate_purge_tower_layer};
+        use crate::multimaterial::{generate_purge_tower_layer, generate_tool_change};
 
         let mm_config = MultiMaterialConfig {
             enabled: true,
@@ -3365,6 +3377,7 @@ mod tests {
             purge_tower_width: 15.0,
             purge_volume: 70.0,
             wipe_length: 2.0,
+            ..Default::default()
         };
 
         let print_config = PrintConfig {
@@ -3385,26 +3398,33 @@ mod tests {
         );
 
         // Should contain retract and unretract.
-        let has_retract = seq.commands.iter().any(|cmd| {
-            matches!(cmd, slicecore_gcode_io::GcodeCommand::Retract { .. })
-        });
+        let has_retract = seq
+            .commands
+            .iter()
+            .any(|cmd| matches!(cmd, slicecore_gcode_io::GcodeCommand::Retract { .. }));
         assert!(has_retract, "Tool change should include retraction");
 
-        let has_unretract = seq.commands.iter().any(|cmd| {
-            matches!(cmd, slicecore_gcode_io::GcodeCommand::Unretract { .. })
-        });
-        assert!(has_unretract, "Tool change should include prime (unretract)");
+        let has_unretract = seq
+            .commands
+            .iter()
+            .any(|cmd| matches!(cmd, slicecore_gcode_io::GcodeCommand::Unretract { .. }));
+        assert!(
+            has_unretract,
+            "Tool change should include prime (unretract)"
+        );
 
         // 2. Generate a dense purge tower layer (tool change layer).
         let tower_layer = generate_purge_tower_layer(
-            0.4,  // layer_z
-            0.2,  // layer_height
-            &mm_config,
-            true, // has_tool_change
+            0.4, // layer_z
+            0.2, // layer_height
+            &mm_config, true, // has_tool_change
             0.4,  // nozzle_diameter
         );
 
-        assert!(tower_layer.is_dense, "Tool-change layer should produce dense tower");
+        assert!(
+            tower_layer.is_dense,
+            "Tool-change layer should produce dense tower"
+        );
         let tower_lines: Vec<String> = tower_layer.commands.iter().map(|c| c.to_string()).collect();
         let tower_joined = tower_lines.join("\n");
 
@@ -3421,7 +3441,8 @@ mod tests {
         // 3. Validate the combined output as valid G-code.
         // Build a minimal full G-code with tool change.
         let mut full_gcode = String::new();
-        full_gcode.push_str("; start\nG28\nM83\nM104 S200\nM140 S60\nM190 S60\nM109 S200\nG92 E0\n");
+        full_gcode
+            .push_str("; start\nG28\nM83\nM104 S200\nM140 S60\nM190 S60\nM109 S200\nG92 E0\n");
         full_gcode.push_str(&joined);
         full_gcode.push('\n');
         full_gcode.push_str(&tower_joined);
@@ -3491,17 +3512,16 @@ mod tests {
         use crate::modifier::{slice_modifier, split_by_modifiers};
 
         let mid_z = 10.0;
-        let model_layers = slicecore_slicer::slice_mesh(
-            &model_mesh,
-            0.2,
-            0.3,
-        );
+        let model_layers = slicecore_slicer::slice_mesh(&model_mesh, 0.2, 0.3);
 
         // Find a layer near mid_z.
         let mid_layer = model_layers
             .iter()
             .min_by(|a, b| {
-                (a.z - mid_z).abs().partial_cmp(&(b.z - mid_z).abs()).unwrap()
+                (a.z - mid_z)
+                    .abs()
+                    .partial_cmp(&(b.z - mid_z).abs())
+                    .unwrap()
             })
             .expect("should have layers");
 
@@ -3829,7 +3849,9 @@ mod tests {
         };
         let engine = Engine::new(cube_config);
         let mesh = calibration_cube_20mm();
-        let cube_result = engine.slice(&mesh, None).expect("arc-fitting engine slice should succeed");
+        let cube_result = engine
+            .slice(&mesh, None)
+            .expect("arc-fitting engine slice should succeed");
         assert!(
             !cube_result.gcode.is_empty(),
             "Arc-fitting enabled should still produce valid G-code"
@@ -3875,7 +3897,10 @@ mod tests {
         let engine = Engine::new(config);
         let mesh = calibration_cube_20mm();
         let result = engine.slice(&mesh, None);
-        assert!(result.is_err(), "Plugin pattern without registry should fail");
+        assert!(
+            result.is_err(),
+            "Plugin pattern without registry should fail"
+        );
         let err = result.unwrap_err();
         match &err {
             EngineError::Plugin { plugin, message } => {
@@ -3886,10 +3911,7 @@ mod tests {
                     message
                 );
             }
-            other => panic!(
-                "Expected EngineError::Plugin, got: {:?}",
-                other
-            ),
+            other => panic!("Expected EngineError::Plugin, got: {:?}", other),
         }
     }
 
@@ -3947,8 +3969,7 @@ mod tests {
             "time_estimate.total_seconds should roundtrip"
         );
         assert!(
-            (result.filament_usage.length_mm - deserialized.filament_usage.length_mm).abs()
-                < 1e-9,
+            (result.filament_usage.length_mm - deserialized.filament_usage.length_mm).abs() < 1e-9,
             "filament_usage.length_mm should roundtrip"
         );
 
@@ -3973,12 +3994,18 @@ mod tests {
             Point3::new(min.x, max.y, max.z), // 7
         ];
         let indices = vec![
-            [4, 5, 6], [4, 6, 7], // Front (z=max)
-            [1, 0, 3], [1, 3, 2], // Back (z=min)
-            [1, 2, 6], [1, 6, 5], // Right (x=max)
-            [0, 4, 7], [0, 7, 3], // Left (x=min)
-            [3, 7, 6], [3, 6, 2], // Top (y=max)
-            [0, 1, 5], [0, 5, 4], // Bottom (y=min)
+            [4, 5, 6],
+            [4, 6, 7], // Front (z=max)
+            [1, 0, 3],
+            [1, 3, 2], // Back (z=min)
+            [1, 2, 6],
+            [1, 6, 5], // Right (x=max)
+            [0, 4, 7],
+            [0, 7, 3], // Left (x=min)
+            [3, 7, 6],
+            [3, 6, 2], // Top (y=max)
+            [0, 1, 5],
+            [0, 5, 4], // Bottom (y=min)
         ];
         (vertices, indices)
     }
@@ -3991,14 +4018,10 @@ mod tests {
     /// The overlapping region (x: 5-10, y: 5-10) creates self-intersecting
     /// triangles, which tests the contour resolution pipeline.
     fn make_two_overlapping_cubes() -> TriangleMesh {
-        let (verts_a, indices_a) = make_cube(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(10.0, 10.0, 10.0),
-        );
-        let (verts_b, indices_b) = make_cube(
-            Point3::new(5.0, 5.0, 0.0),
-            Point3::new(15.0, 15.0, 10.0),
-        );
+        let (verts_a, indices_a) =
+            make_cube(Point3::new(0.0, 0.0, 0.0), Point3::new(10.0, 10.0, 10.0));
+        let (verts_b, indices_b) =
+            make_cube(Point3::new(5.0, 5.0, 0.0), Point3::new(15.0, 15.0, 10.0));
 
         let offset = verts_a.len() as u32;
         let mut vertices = verts_a;
@@ -4021,14 +4044,10 @@ mod tests {
     ///
     /// Self-intersections only in Z-range 3-10.
     fn make_overlapping_offset_cubes() -> TriangleMesh {
-        let (verts_a, indices_a) = make_cube(
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(10.0, 10.0, 10.0),
-        );
-        let (verts_b, indices_b) = make_cube(
-            Point3::new(5.0, 5.0, 3.0),
-            Point3::new(15.0, 15.0, 13.0),
-        );
+        let (verts_a, indices_a) =
+            make_cube(Point3::new(0.0, 0.0, 0.0), Point3::new(10.0, 10.0, 10.0));
+        let (verts_b, indices_b) =
+            make_cube(Point3::new(5.0, 5.0, 3.0), Point3::new(15.0, 15.0, 13.0));
 
         let offset = verts_a.len() as u32;
         let mut vertices = verts_a;
@@ -4050,7 +4069,9 @@ mod tests {
         let config = PrintConfig::default();
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh, None).expect("self-intersecting mesh should slice successfully");
+        let result = engine
+            .slice(&mesh, None)
+            .expect("self-intersecting mesh should slice successfully");
 
         assert!(
             !result.gcode.is_empty(),
@@ -4101,16 +4122,12 @@ mod tests {
         let config = PrintConfig::default();
         let engine = Engine::new(config);
 
-        let result = engine.slice(&mesh, None).expect("offset overlapping cubes should slice successfully");
+        let result = engine
+            .slice(&mesh, None)
+            .expect("offset overlapping cubes should slice successfully");
 
-        assert!(
-            !result.gcode.is_empty(),
-            "G-code should be non-empty"
-        );
-        assert!(
-            result.layer_count > 0,
-            "Layer count should be positive"
-        );
+        assert!(!result.gcode.is_empty(), "G-code should be non-empty");
+        assert!(result.layer_count > 0, "Layer count should be positive");
     }
 
     #[test]
@@ -4169,8 +4186,7 @@ mod tests {
 
         // Summary should have correct layer count.
         assert_eq!(
-            stats.summary.layer_count,
-            result.layer_count,
+            stats.summary.layer_count, result.layer_count,
             "Statistics layer count should match SliceResult layer count"
         );
 
@@ -4181,7 +4197,11 @@ mod tests {
         );
 
         // At least some features should have non-zero data.
-        let nonzero_features = stats.features.iter().filter(|f| f.segment_count > 0).count();
+        let nonzero_features = stats
+            .features
+            .iter()
+            .filter(|f| f.segment_count > 0)
+            .count();
         assert!(
             nonzero_features > 0,
             "At least some features should have segments"

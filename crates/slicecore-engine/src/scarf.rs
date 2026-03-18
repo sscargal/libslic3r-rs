@@ -145,7 +145,15 @@ fn apply_leading_ramp(
 
     // Sub-divide leading ramp segments into scarf_steps if needed.
     if steps > 1 {
-        subdivide_ramp_region(segments, scarf_length, steps, layer_z, z_drop, flow_ratio, true);
+        subdivide_ramp_region(
+            segments,
+            scarf_length,
+            steps,
+            layer_z,
+            z_drop,
+            flow_ratio,
+            true,
+        );
     }
 }
 
@@ -217,7 +225,15 @@ fn apply_trailing_ramp(
 
     // Sub-divide trailing ramp segments into scarf_steps if needed.
     if steps > 1 {
-        subdivide_ramp_region(segments, scarf_length, steps, layer_z, z_drop, flow_ratio, false);
+        subdivide_ramp_region(
+            segments,
+            scarf_length,
+            steps,
+            layer_z,
+            z_drop,
+            flow_ratio,
+            false,
+        );
     }
 }
 
@@ -245,7 +261,11 @@ fn subdivide_ramp_region(
     } else {
         total_length - scarf_length
     };
-    let ramp_end = if is_leading { scarf_length } else { total_length };
+    let ramp_end = if is_leading {
+        scarf_length
+    } else {
+        total_length
+    };
 
     // Collect new segments by splitting existing ones at step boundaries.
     let mut new_segments = Vec::new();
@@ -358,7 +378,7 @@ pub(crate) fn split_segment_at_distance(
         e_value: segment.e_value * ratio,
         feedrate: segment.feedrate,
         z: segment.z,
-    extrusion_width: None,
+        extrusion_width: None,
     };
 
     let second = ToolpathSegment {
@@ -368,7 +388,7 @@ pub(crate) fn split_segment_at_distance(
         e_value: segment.e_value * (1.0 - ratio),
         feedrate: segment.feedrate,
         z: segment.z,
-    extrusion_width: None,
+        extrusion_width: None,
     };
 
     (first, second)
@@ -643,7 +663,7 @@ mod tests {
             e_value: 1.0,
             feedrate: 2700.0,
             z: 0.4,
-        extrusion_width: None,
+            extrusion_width: None,
         };
 
         let (first, second) = split_segment_at_distance(&seg, 3.0);
@@ -675,7 +695,7 @@ mod tests {
             e_value: 1.0,
             feedrate: 2700.0,
             z: 0.4,
-        extrusion_width: None,
+            extrusion_width: None,
         };
 
         let (first, second) = split_segment_at_distance(&seg, 7.0);

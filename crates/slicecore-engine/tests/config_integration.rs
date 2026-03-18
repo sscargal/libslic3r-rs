@@ -221,9 +221,9 @@ fn sc2_sequential_enabled_multi_object_validates_clearance() {
     );
 
     let captured = warnings.lock().unwrap();
-    let has_validation_msg = captured.iter().any(|w| {
-        w.contains("Sequential") || w.contains("sequential") || w.contains("objects")
-    });
+    let has_validation_msg = captured
+        .iter()
+        .any(|w| w.contains("Sequential") || w.contains("sequential") || w.contains("objects"));
     assert!(
         has_validation_msg,
         "Should emit sequential validation info. Got warnings: {:?}",
@@ -464,4 +464,225 @@ fn sc5_plugin_dir_empty_dir_warns_user() {
 
     // Clean up.
     let _ = std::fs::remove_dir_all(&tmp_dir);
+}
+
+// ---------------------------------------------------------------------------
+// P0 Config Gap Closure: Field defaults, round-trip, enum mapping, migration
+// ---------------------------------------------------------------------------
+
+use slicecore_engine::config::{
+    BedType, DimensionalCompensationConfig, FilamentPropsConfig, InternalBridgeMode, SurfacePattern,
+};
+
+#[test]
+fn test_p0_field_defaults() {
+    let config = PrintConfig::default();
+
+    // Dimensional compensation defaults
+    assert_eq!(config.dimensional_compensation.xy_hole_compensation, 0.0);
+    assert_eq!(config.dimensional_compensation.xy_contour_compensation, 0.0);
+    assert_eq!(
+        config.dimensional_compensation.elephant_foot_compensation,
+        0.0
+    );
+
+    // Surface pattern defaults
+    assert_eq!(config.top_surface_pattern, SurfacePattern::Monotonic);
+    assert_eq!(config.bottom_surface_pattern, SurfacePattern::Monotonic);
+    assert_eq!(config.solid_infill_pattern, SurfacePattern::Monotonic);
+
+    // Bool/enum defaults
+    assert!(!config.extra_perimeters_on_overhangs);
+    assert_eq!(config.internal_bridge_support, InternalBridgeMode::Off);
+    assert!(!config.precise_z_height);
+
+    // Z offset defaults
+    assert_eq!(config.z_offset, 0.0);
+    assert_eq!(config.filament.z_offset, 0.0);
+
+    // Filament defaults
+    assert_eq!(config.filament.chamber_temperature, 0.0);
+    assert_eq!(config.filament.filament_shrink, 100.0);
+
+    // Machine defaults
+    assert_eq!(config.machine.chamber_temperature, 0.0);
+    assert_eq!(config.machine.curr_bed_type, BedType::TexturedPei);
+
+    // Speed/accel defaults
+    assert_eq!(config.speeds.internal_bridge_speed, 0.0);
+    assert_eq!(config.accel.min_length_factor, 0.0);
+}
+
+#[test]
+fn test_p0_toml_round_trip() {
+    let mut config = PrintConfig::default();
+    config.dimensional_compensation.xy_hole_compensation = -0.1;
+    config.dimensional_compensation.xy_contour_compensation = 0.05;
+    config.dimensional_compensation.elephant_foot_compensation = 0.2;
+    config.top_surface_pattern = SurfacePattern::Concentric;
+    config.bottom_surface_pattern = SurfacePattern::Rectilinear;
+    config.solid_infill_pattern = SurfacePattern::MonotonicLine;
+    config.extra_perimeters_on_overhangs = true;
+    config.internal_bridge_support = InternalBridgeMode::Auto;
+    config.z_offset = 0.05;
+    config.precise_z_height = true;
+    config.filament.chamber_temperature = 45.0;
+    config.filament.filament_shrink = 99.5;
+    config.filament.z_offset = -0.02;
+    config.machine.chamber_temperature = 60.0;
+    config.machine.curr_bed_type = BedType::EngineeringPlate;
+    config.speeds.internal_bridge_speed = 25.0;
+    config.accel.min_length_factor = 50.0;
+
+    let toml_str = toml::to_string_pretty(&config).unwrap();
+    let parsed: PrintConfig = toml::from_str(&toml_str).unwrap();
+
+    assert!((parsed.dimensional_compensation.xy_hole_compensation - (-0.1)).abs() < 1e-9);
+    assert!((parsed.dimensional_compensation.xy_contour_compensation - 0.05).abs() < 1e-9);
+    assert!((parsed.dimensional_compensation.elephant_foot_compensation - 0.2).abs() < 1e-9);
+    assert_eq!(parsed.top_surface_pattern, SurfacePattern::Concentric);
+    assert_eq!(parsed.bottom_surface_pattern, SurfacePattern::Rectilinear);
+    assert_eq!(parsed.solid_infill_pattern, SurfacePattern::MonotonicLine);
+    assert!(parsed.extra_perimeters_on_overhangs);
+    assert_eq!(parsed.internal_bridge_support, InternalBridgeMode::Auto);
+    assert!((parsed.z_offset - 0.05).abs() < 1e-9);
+    assert!(parsed.precise_z_height);
+    assert!((parsed.filament.chamber_temperature - 45.0).abs() < 1e-9);
+    assert!((parsed.filament.filament_shrink - 99.5).abs() < 1e-9);
+    assert!((parsed.filament.z_offset - (-0.02)).abs() < 1e-9);
+    assert!((parsed.machine.chamber_temperature - 60.0).abs() < 1e-9);
+    assert_eq!(parsed.machine.curr_bed_type, BedType::EngineeringPlate);
+    assert!((parsed.speeds.internal_bridge_speed - 25.0).abs() < 1e-9);
+    assert!((parsed.accel.min_length_factor - 50.0).abs() < 1e-9);
+}
+
+#[test]
+fn test_surface_pattern_enum_round_trip() {
+    for variant in [
+        SurfacePattern::Rectilinear,
+        SurfacePattern::Monotonic,
+        SurfacePattern::MonotonicLine,
+        SurfacePattern::Concentric,
+        SurfacePattern::Hilbert,
+        SurfacePattern::Archimedean,
+    ] {
+        let json = serde_json::to_string(&variant).unwrap();
+        let parsed: SurfacePattern = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            variant, parsed,
+            "SurfacePattern::{variant:?} failed round-trip"
+        );
+    }
+}
+
+#[test]
+fn test_bed_type_enum_round_trip() {
+    for variant in [
+        BedType::CoolPlate,
+        BedType::EngineeringPlate,
+        BedType::HighTempPlate,
+        BedType::TexturedPei,
+        BedType::SmoothPei,
+        BedType::SatinPei,
+    ] {
+        let json = serde_json::to_string(&variant).unwrap();
+        let parsed: BedType = serde_json::from_str(&json).unwrap();
+        assert_eq!(variant, parsed, "BedType::{variant:?} failed round-trip");
+    }
+}
+
+#[test]
+fn test_internal_bridge_mode_enum_round_trip() {
+    for variant in [
+        InternalBridgeMode::Off,
+        InternalBridgeMode::Auto,
+        InternalBridgeMode::Always,
+    ] {
+        let json = serde_json::to_string(&variant).unwrap();
+        let parsed: InternalBridgeMode = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            variant, parsed,
+            "InternalBridgeMode::{variant:?} failed round-trip"
+        );
+    }
+}
+
+#[test]
+fn test_bed_type_temperature_resolution() {
+    let mut filament = FilamentPropsConfig::default();
+    filament.hot_plate_temp = vec![70.0];
+    filament.hot_plate_temp_initial_layer = vec![75.0];
+    filament.cool_plate_temp = vec![40.0];
+    filament.cool_plate_temp_initial_layer = vec![45.0];
+    filament.eng_plate_temp = vec![80.0];
+    filament.eng_plate_temp_initial_layer = vec![85.0];
+    filament.textured_plate_temp = vec![55.0];
+    filament.textured_plate_temp_initial_layer = vec![60.0];
+
+    let (normal, first) = filament.resolve_bed_temperatures(BedType::CoolPlate);
+    assert_eq!(normal, 40.0);
+    assert_eq!(first, 45.0);
+
+    let (normal, first) = filament.resolve_bed_temperatures(BedType::TexturedPei);
+    assert_eq!(normal, 55.0);
+    assert_eq!(first, 60.0);
+
+    // SmoothPei falls back to hot_plate_temp
+    let (normal, first) = filament.resolve_bed_temperatures(BedType::SmoothPei);
+    assert_eq!(normal, 70.0);
+    assert_eq!(first, 75.0);
+
+    // HighTempPlate also uses hot_plate_temp
+    let (normal, first) = filament.resolve_bed_temperatures(BedType::HighTempPlate);
+    assert_eq!(normal, 70.0);
+    assert_eq!(first, 75.0);
+
+    let (normal, first) = filament.resolve_bed_temperatures(BedType::EngineeringPlate);
+    assert_eq!(normal, 80.0);
+    assert_eq!(first, 85.0);
+
+    // SatinPei uses textured_plate_temp
+    let (normal, first) = filament.resolve_bed_temperatures(BedType::SatinPei);
+    assert_eq!(normal, 55.0);
+    assert_eq!(first, 60.0);
+
+    // Empty per-type temps fall back to bed_temperatures defaults
+    let empty_filament = FilamentPropsConfig::default();
+    let (normal, first) = empty_filament.resolve_bed_temperatures(BedType::CoolPlate);
+    assert_eq!(normal, 60.0); // default bed_temperatures
+    assert_eq!(first, 65.0); // default first_layer_bed_temperatures
+}
+
+#[test]
+fn test_elephant_foot_migration_from_old_toml() {
+    // New TOML format uses [dimensional_compensation] section.
+    let new_toml = r#"
+[dimensional_compensation]
+elephant_foot_compensation = 0.3
+xy_hole_compensation = -0.1
+"#;
+    let config: PrintConfig = toml::from_str(new_toml).unwrap();
+    assert!((config.dimensional_compensation.elephant_foot_compensation - 0.3).abs() < 1e-9);
+    assert!((config.dimensional_compensation.xy_hole_compensation - (-0.1)).abs() < 1e-9);
+}
+
+#[test]
+fn test_elephant_foot_serde_alias() {
+    // The serde alias allows "elefant_foot_compensation" (OrcaSlicer spelling)
+    // to deserialize into elephant_foot_compensation.
+    let toml_with_alias = r#"
+[dimensional_compensation]
+elefant_foot_compensation = 0.25
+"#;
+    let config: PrintConfig = toml::from_str(toml_with_alias).unwrap();
+    assert!((config.dimensional_compensation.elephant_foot_compensation - 0.25).abs() < 1e-9);
+}
+
+#[test]
+fn test_dimensional_compensation_defaults_independent() {
+    // Verify DimensionalCompensationConfig defaults directly.
+    let dc = DimensionalCompensationConfig::default();
+    assert_eq!(dc.xy_hole_compensation, 0.0);
+    assert_eq!(dc.xy_contour_compensation, 0.0);
+    assert_eq!(dc.elephant_foot_compensation, 0.0);
 }

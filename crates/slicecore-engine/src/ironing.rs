@@ -24,6 +24,7 @@
 //! ```
 
 use serde::{Deserialize, Serialize};
+use slicecore_config_derive::SettingSchema;
 use slicecore_geo::polygon::ValidPolygon;
 use slicecore_math::Point2;
 
@@ -39,18 +40,51 @@ use crate::toolpath::{FeatureType, ToolpathSegment};
 ///
 /// Serialized as a TOML section `[ironing]` within
 /// [`PrintConfig`](crate::config::PrintConfig).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SettingSchema)]
 #[serde(default)]
+#[setting(category = "Quality")]
 pub struct IroningConfig {
     /// Enable ironing passes on top surfaces.
+    #[setting(tier = 2, description = "Enable ironing passes on top surfaces")]
     pub enabled: bool,
     /// Flow rate multiplier for ironing (0.0-1.0). Default 0.1 (10%).
+    #[setting(
+        tier = 3,
+        description = "Flow rate multiplier for ironing",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "ironing.enabled"
+    )]
     pub flow_rate: f64,
     /// Ironing speed in mm/s. Default 15.0.
+    #[setting(
+        tier = 3,
+        description = "Ironing pass speed",
+        units = "mm/s",
+        min = 1.0,
+        max = 300.0,
+        depends_on = "ironing.enabled"
+    )]
     pub speed: f64,
     /// Line spacing for ironing in mm. Default 0.1 (very tight).
+    #[setting(
+        tier = 3,
+        description = "Line spacing for ironing passes",
+        units = "mm",
+        min = 0.01,
+        max = 2.0,
+        depends_on = "ironing.enabled"
+    )]
     pub spacing: f64,
     /// Ironing angle in degrees. Default 45.0 (offset from primary infill).
+    #[setting(
+        tier = 3,
+        description = "Ironing angle offset from primary infill",
+        units = "deg",
+        min = 0.0,
+        max = 360.0,
+        depends_on = "ironing.enabled"
+    )]
     pub angle: f64,
 }
 
@@ -115,7 +149,7 @@ pub fn generate_ironing_passes(
 
     let ironing_speed = config.speed * 60.0; // mm/s -> mm/min
     let travel_speed = 150.0 * 60.0; // Use a reasonable travel speed (mm/min)
-    // Use nozzle_diameter-based extrusion width for E-value computation.
+                                     // Use nozzle_diameter-based extrusion width for E-value computation.
     let extrusion_width = nozzle_diameter * 1.1;
 
     let mut segments = Vec::new();
@@ -191,14 +225,9 @@ mod tests {
 
     /// Helper to create a validated CCW square at the origin with given size (mm).
     fn make_square(size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (0.0, 0.0),
-            (size, 0.0),
-            (size, size),
-            (0.0, size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(0.0, 0.0), (size, 0.0), (size, size), (0.0, size)])
+            .validate()
+            .unwrap()
     }
 
     #[test]
@@ -222,11 +251,11 @@ mod tests {
         let segments = generate_ironing_passes(
             &[square],
             &config,
-            1.0,   // layer_z
-            0.4,   // nozzle_diameter
-            0.2,   // layer_height
-            1.75,  // filament_diameter
-            1.0,   // extrusion_multiplier
+            1.0,  // layer_z
+            0.4,  // nozzle_diameter
+            0.2,  // layer_height
+            1.75, // filament_diameter
+            1.0,  // extrusion_multiplier
         );
 
         assert!(
@@ -255,11 +284,7 @@ mod tests {
             ..Default::default()
         };
 
-        let segments = generate_ironing_passes(
-            &[square],
-            &config,
-            1.0, 0.4, 0.2, 1.75, 1.0,
-        );
+        let segments = generate_ironing_passes(&[square], &config, 1.0, 0.4, 0.2, 1.75, 1.0);
 
         // Find ironing extrusion segments and verify E-values are very small.
         let ironing_segs: Vec<_> = segments
@@ -304,11 +329,7 @@ mod tests {
             ..Default::default()
         };
 
-        let segments = generate_ironing_passes(
-            &[square],
-            &config,
-            1.0, 0.4, 0.2, 1.75, 1.0,
-        );
+        let segments = generate_ironing_passes(&[square], &config, 1.0, 0.4, 0.2, 1.75, 1.0);
 
         let expected_feedrate = 20.0 * 60.0; // mm/s -> mm/min
 
@@ -327,11 +348,7 @@ mod tests {
     #[test]
     fn ironing_empty_regions_returns_empty() {
         let config = IroningConfig::default();
-        let segments = generate_ironing_passes(
-            &[],
-            &config,
-            1.0, 0.4, 0.2, 1.75, 1.0,
-        );
+        let segments = generate_ironing_passes(&[], &config, 1.0, 0.4, 0.2, 1.75, 1.0);
         assert!(
             segments.is_empty(),
             "Empty top regions should produce no ironing segments"
@@ -383,11 +400,7 @@ spacing = 0.15
             ..Default::default()
         };
 
-        let segments = generate_ironing_passes(
-            &[square],
-            &config,
-            1.0, 0.4, 0.2, 1.75, 1.0,
-        );
+        let segments = generate_ironing_passes(&[square], &config, 1.0, 0.4, 0.2, 1.75, 1.0);
 
         let travel_count = segments
             .iter()
@@ -418,16 +431,9 @@ spacing = 0.15
             ..Default::default()
         };
 
-        let segs_10 = generate_ironing_passes(
-            &[square.clone()],
-            &config_10,
-            1.0, 0.4, 0.2, 1.75, 1.0,
-        );
-        let segs_20 = generate_ironing_passes(
-            &[square],
-            &config_20,
-            1.0, 0.4, 0.2, 1.75, 1.0,
-        );
+        let segs_10 =
+            generate_ironing_passes(&[square.clone()], &config_10, 1.0, 0.4, 0.2, 1.75, 1.0);
+        let segs_20 = generate_ironing_passes(&[square], &config_20, 1.0, 0.4, 0.2, 1.75, 1.0);
 
         // Get total E for ironing segments.
         let total_e_10: f64 = segs_10

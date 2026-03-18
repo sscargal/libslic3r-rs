@@ -40,8 +40,8 @@ pub mod threemf;
 pub use detect::{detect_format, MeshFormat};
 pub use error::FileIOError;
 pub use export::{
-    save_mesh, save_mesh_to_writer, save_mesh_to_writer_with_thumbnail,
-    save_mesh_with_thumbnail, ExportFormat,
+    save_mesh, save_mesh_to_writer, save_mesh_to_writer_with_thumbnail, save_mesh_with_thumbnail,
+    ExportFormat,
 };
 pub use stl::parse_stl;
 
@@ -200,10 +200,7 @@ f 1 2 3
             thumbnail: None,
             geometry: Geometry::Mesh(mesh),
         };
-        model
-            .resources
-            .add_object(object)
-            .expect("add object");
+        model.resources.add_object(object).expect("add object");
         model.build.items.push(lib3mf_core::model::BuildItem {
             object_id: ResourceId(1),
             uuid: None,

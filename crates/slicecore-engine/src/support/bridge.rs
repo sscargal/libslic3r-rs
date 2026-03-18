@@ -390,9 +390,16 @@ mod tests {
         let (bridges, non_bridges) = detect_bridges(&overhangs, &below_contours, 5, 1.0, 5.0);
 
         assert_eq!(bridges.len(), 1, "Should detect exactly 1 bridge");
-        assert_eq!(non_bridges.len(), 1, "Should have exactly 1 non-bridge overhang");
+        assert_eq!(
+            non_bridges.len(),
+            1,
+            "Should have exactly 1 non-bridge overhang"
+        );
 
-        assert_eq!(bridges[0].layer_index, 5, "Bridge layer_index should be set");
+        assert_eq!(
+            bridges[0].layer_index, 5,
+            "Bridge layer_index should be set"
+        );
         assert!((bridges[0].z - 1.0).abs() < 1e-9, "Bridge z should be set");
     }
 
@@ -400,10 +407,7 @@ mod tests {
     fn no_below_contours_no_bridges() {
         let region = make_rect(5.0, 0.0, 10.0, 20.0);
         let result = is_bridge_candidate(&region, &[], 5.0);
-        assert!(
-            result.is_none(),
-            "No below contours should mean no bridge"
-        );
+        assert!(result.is_none(), "No below contours should mean no bridge");
     }
 
     #[test]
@@ -417,10 +421,7 @@ mod tests {
         let below_contours = vec![wall_top, wall_bottom];
 
         let result = is_bridge_candidate(&bridge_region, &below_contours, 5.0);
-        assert!(
-            result.is_some(),
-            "Y-direction bridge should be detected"
-        );
+        assert!(result.is_some(), "Y-direction bridge should be detected");
 
         let bridge = result.unwrap();
         // Span direction should be PI/2 (Y direction) since Y is the shorter bbox dimension.

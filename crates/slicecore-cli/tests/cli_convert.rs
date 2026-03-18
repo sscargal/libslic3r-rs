@@ -57,7 +57,10 @@ fn convert_stl_to_3mf() {
         String::from_utf8_lossy(&result.stderr)
     );
     assert!(output.exists(), "output 3MF file should exist");
-    assert!(output.metadata().unwrap().len() > 0, "output should be non-empty");
+    assert!(
+        output.metadata().unwrap().len() > 0,
+        "output should be non-empty"
+    );
 
     // Verify the output can be re-imported
     let data = std::fs::read(&output).unwrap();
@@ -128,7 +131,10 @@ fn convert_unsupported_extension_fails() {
         .output()
         .expect("failed to run slicecore");
 
-    assert!(!result.status.success(), "should fail for unsupported extension");
+    assert!(
+        !result.status.success(),
+        "should fail for unsupported extension"
+    );
     let stderr = String::from_utf8_lossy(&result.stderr);
     assert!(
         stderr.contains("Error") || stderr.contains("error"),

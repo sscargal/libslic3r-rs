@@ -6,9 +6,7 @@
 
 use comfy_table::{ContentArrangement, Table};
 
-use slicecore_engine::{
-    FeatureStatistics, PrintStatistics, StatsSortOrder, TimePrecision,
-};
+use slicecore_engine::{FeatureStatistics, PrintStatistics, StatsSortOrder, TimePrecision};
 
 /// Formats a duration in seconds to a human-readable string.
 ///
@@ -113,14 +111,20 @@ pub fn format_ascii_table(
     ));
     output.push_str(&format!(
         "Filament:       {}\n",
-        format_filament(stats.summary.total_filament_mm, stats.summary.total_filament_g)
+        format_filament(
+            stats.summary.total_filament_mm,
+            stats.summary.total_filament_g
+        )
     ));
     output.push_str(&format!(
         "Cost:           {:.2}\n",
         stats.summary.total_filament_cost
     ));
     output.push_str(&format!("Layers:         {}\n", stats.summary.layer_count));
-    output.push_str(&format!("Segments:       {}\n", stats.summary.total_segments));
+    output.push_str(&format!(
+        "Segments:       {}\n",
+        stats.summary.total_segments
+    ));
     output.push_str(&format!(
         "Travel:         {}\n",
         format_length(stats.summary.total_travel_distance_mm)
@@ -294,9 +298,8 @@ pub fn format_csv(stats: &PrintStatistics, sort_order: &StatsSortOrder) -> Strin
 ///
 /// Serializes the full [`PrintStatistics`] structure.
 pub fn format_json(stats: &PrintStatistics) -> String {
-    serde_json::to_string_pretty(stats).unwrap_or_else(|e| {
-        format!("{{\"error\": \"Failed to serialize statistics: {}\"}}", e)
-    })
+    serde_json::to_string_pretty(stats)
+        .unwrap_or_else(|e| format!("{{\"error\": \"Failed to serialize statistics: {}\"}}", e))
 }
 
 /// Parses a time precision string from CLI argument to enum.
@@ -697,10 +700,7 @@ mod tests {
             parse_sort_order("default"),
             StatsSortOrder::Default
         ));
-        assert!(matches!(
-            parse_sort_order("time"),
-            StatsSortOrder::TimeDesc
-        ));
+        assert!(matches!(parse_sort_order("time"), StatsSortOrder::TimeDesc));
         assert!(matches!(
             parse_sort_order("filament"),
             StatsSortOrder::FilamentDesc

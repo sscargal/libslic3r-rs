@@ -122,6 +122,65 @@ pub struct InfillResult {
     pub lines: RVec<FfiInfillLine>,
 }
 
+/// FFI-safe parameters for custom CSG primitive generation.
+///
+/// Describes the shape a [`CsgOperationPlugin`](crate::traits::CsgOperationPlugin)
+/// should produce, including its type, dimensions, and tessellation resolution.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_plugin_api::CsgPrimitiveParams;
+/// use abi_stable::std_types::RVec;
+///
+/// let params = CsgPrimitiveParams {
+///     primitive_type: "sphere".into(),
+///     dimensions: RVec::from(vec![1.5_f64]),
+///     segments: 32,
+/// };
+/// assert_eq!(params.segments, 32);
+/// ```
+#[repr(C)]
+#[derive(StableAbi, Clone, Debug)]
+pub struct CsgPrimitiveParams {
+    /// The type of primitive to generate (e.g., `"box"`, `"sphere"`, `"cylinder"`).
+    pub primitive_type: abi_stable::std_types::RString,
+    /// Dimension values whose meaning depends on `primitive_type`.
+    ///
+    /// For a box: `[width, height, depth]`. For a sphere: `[radius]`.
+    /// For a cylinder: `[radius, height]`.
+    pub dimensions: RVec<f64>,
+    /// Tessellation resolution (number of segments for curved surfaces).
+    pub segments: u32,
+}
+
+/// FFI-safe triangle mesh data for CSG plugin input/output.
+///
+/// Uses plain `[f64; 3]` vertex arrays and `[u32; 3]` index arrays so the
+/// host can cheaply convert between `TriangleMesh` and this type without
+/// exposing internal mesh structures across the plugin boundary.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_plugin_api::CsgMeshData;
+/// use abi_stable::std_types::RVec;
+///
+/// let mesh = CsgMeshData {
+///     vertices: RVec::from(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),
+///     indices: RVec::from(vec![[0u32, 1, 2]]),
+/// };
+/// assert_eq!(mesh.vertices.len(), 3);
+/// ```
+#[repr(C)]
+#[derive(StableAbi, Clone, Debug)]
+pub struct CsgMeshData {
+    /// Vertex positions as `[x, y, z]` triples.
+    pub vertices: RVec<[f64; 3]>,
+    /// Triangle indices as `[v0, v1, v2]` triples.
+    pub indices: RVec<[u32; 3]>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -28,7 +28,11 @@ pub fn write_thumbnail_comments<W: Write>(
     let png_size = png_data.len();
     let b64 = base64::engine::general_purpose::STANDARD.encode(png_data);
 
-    writeln!(writer, "; {} begin {}x{} {}", begin_tag, width, height, png_size)?;
+    writeln!(
+        writer,
+        "; {} begin {}x{} {}",
+        begin_tag, width, height, png_size
+    )?;
 
     for chunk in b64.as_bytes().chunks(78) {
         write!(writer, "; ")?;

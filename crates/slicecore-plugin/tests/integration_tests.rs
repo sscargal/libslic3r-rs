@@ -10,8 +10,7 @@ use std::path::PathBuf;
 
 use abi_stable::std_types::RVec;
 use slicecore_plugin::{
-    InfillPluginAdapter, InfillRequest, InfillResult, PluginKind, PluginRegistry,
-    SandboxConfig,
+    InfillPluginAdapter, InfillRequest, InfillResult, PluginKind, PluginRegistry, SandboxConfig,
 };
 use slicecore_plugin_api::{PluginCapability, PluginManifest, PluginMetadata, PluginType};
 
@@ -88,8 +87,7 @@ fn ensure_abi_stable_symlink(plugin_dir: &std::path::Path) {
     let symlink = debug_dir.join("libslicecore_infill_plugin.so");
 
     if actual.exists() && !symlink.exists() {
-        std::os::unix::fs::symlink(&actual, &symlink)
-            .expect("Failed to create abi_stable symlink");
+        std::os::unix::fs::symlink(&actual, &symlink).expect("Failed to create abi_stable symlink");
     }
 }
 
@@ -115,7 +113,11 @@ fn sc1_native_plugin_builds_successfully() {
         .join("target")
         .join("debug")
         .join("libnative_zigzag_infill.so");
-    assert!(lib_path.exists(), "Native plugin library not found at {:?}", lib_path);
+    assert!(
+        lib_path.exists(),
+        "Native plugin library not found at {:?}",
+        lib_path
+    );
 }
 
 #[test]
@@ -136,9 +138,8 @@ fn sc1_native_plugin_loads_and_generates_infill() {
 
     // Load via the native loader directly
     let manifest = zigzag_manifest();
-    let plugin =
-        slicecore_plugin::native::load_native_plugin(&plugin_dir, &manifest)
-            .expect("Failed to load native plugin");
+    let plugin = slicecore_plugin::native::load_native_plugin(&plugin_dir, &manifest)
+        .expect("Failed to load native plugin");
 
     // Verify plugin identity
     assert_eq!(plugin.name(), "zigzag");
@@ -197,9 +198,8 @@ fn sc1_native_plugin_via_registry() {
 
     // Load the plugin directly and register it
     let manifest = zigzag_manifest();
-    let plugin =
-        slicecore_plugin::native::load_native_plugin(&plugin_dir, &manifest)
-            .expect("Failed to load native plugin");
+    let plugin = slicecore_plugin::native::load_native_plugin(&plugin_dir, &manifest)
+        .expect("Failed to load native plugin");
 
     let mut registry = PluginRegistry::new();
     registry.register_infill_plugin(Box::new(plugin));
@@ -217,7 +217,11 @@ fn sc1_native_plugin_via_registry() {
     let plugin = registry.get_infill_plugin("zigzag").unwrap();
     let request = create_test_rectangle_request(50.0, 50.0, 0.3, 1, 0.4, 0.4);
     let result = plugin.generate(&request);
-    assert!(result.is_ok(), "Registry plugin generate failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Registry plugin generate failed: {:?}",
+        result.err()
+    );
     assert!(
         !result.unwrap().lines.is_empty(),
         "Registry plugin produced no infill lines"
@@ -364,7 +368,10 @@ fn sc3_registry_empty_directory_returns_empty() {
     let temp_dir = tempfile::tempdir().unwrap();
     let mut registry = PluginRegistry::new();
     let result = registry.discover_and_load(temp_dir.path());
-    assert!(result.is_ok(), "discover_and_load on empty dir should succeed");
+    assert!(
+        result.is_ok(),
+        "discover_and_load on empty dir should succeed"
+    );
     assert!(
         registry.list_infill_plugins().is_empty(),
         "Empty directory should yield no plugins"
@@ -375,7 +382,10 @@ fn sc3_registry_empty_directory_returns_empty() {
 fn sc3_registry_nonexistent_directory_returns_empty() {
     let mut registry = PluginRegistry::new();
     let result = registry.discover_and_load(std::path::Path::new("/nonexistent/path/to/plugins"));
-    assert!(result.is_ok(), "Nonexistent directory should return Ok(empty)");
+    assert!(
+        result.is_ok(),
+        "Nonexistent directory should return Ok(empty)"
+    );
     assert!(registry.list_infill_plugins().is_empty());
 }
 
@@ -415,7 +425,11 @@ fn sc3_registry_discovers_valid_manifest() {
 
     // Discover should find the manifest (but not load the library)
     let discovered = slicecore_plugin::discovery::discover_plugins(temp_dir.path());
-    assert!(discovered.is_ok(), "Discovery failed: {:?}", discovered.err());
+    assert!(
+        discovered.is_ok(),
+        "Discovery failed: {:?}",
+        discovered.err()
+    );
     let discovered = discovered.unwrap();
     assert_eq!(discovered.len(), 1);
     assert_eq!(discovered[0].1.metadata.name, "test-infill");
@@ -477,9 +491,7 @@ fn sc3_duplicate_plugin_name_overwrites() {
             &self,
             _request: &InfillRequest,
         ) -> Result<InfillResult, slicecore_plugin::PluginSystemError> {
-            Ok(InfillResult {
-                lines: RVec::new(),
-            })
+            Ok(InfillResult { lines: RVec::new() })
         }
         fn plugin_type(&self) -> PluginKind {
             PluginKind::Builtin
@@ -524,9 +536,7 @@ fn sc3_registry_lists_capabilities_and_kinds() {
             &self,
             _request: &InfillRequest,
         ) -> Result<InfillResult, slicecore_plugin::PluginSystemError> {
-            Ok(InfillResult {
-                lines: RVec::new(),
-            })
+            Ok(InfillResult { lines: RVec::new() })
         }
         fn plugin_type(&self) -> PluginKind {
             self.kind
@@ -584,7 +594,10 @@ fn sc3_registry_multiple_discovery() {
     let discovered = slicecore_plugin::discovery::discover_plugins(temp_dir.path()).unwrap();
     assert_eq!(discovered.len(), 3);
 
-    let names: Vec<&str> = discovered.iter().map(|d| d.1.metadata.name.as_str()).collect();
+    let names: Vec<&str> = discovered
+        .iter()
+        .map(|d| d.1.metadata.name.as_str())
+        .collect();
     assert!(names.contains(&"plugin-alpha"));
     assert!(names.contains(&"plugin-beta"));
     assert!(names.contains(&"plugin-gamma"));

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 29 context updated with detailed decisions
-last_updated: "2026-03-12T23:04:42.873Z"
-last_activity: "2026-03-12 - Completed 28-03: CLI Post-Process Subcommand and Integration Tests"
+stopped_at: Completed 36-03-PLAN.md
+last_updated: "2026-03-18T19:52:16.608Z"
+last_activity: "2026-03-18 - Completed 36-03-PLAN.md: QA tests for plugins subcommand"
 progress:
-  total_phases: 29
-  completed_phases: 28
-  total_plans: 122
-  completed_plans: 114
+  total_phases: 36
+  completed_phases: 36
+  total_plans: 157
+  completed_plans: 157
   percent: 100
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 28 in progress -- G-code Post-Processing Plugin Point
+**Current focus:** Phase 36 -- Add plugins subcommand for listing and managing installed plugins
 
 ## Current Position
 
-Phase: 28 of 29 (G-code Post-Processing Plugin Point)
+Phase: 36 of 36 (Add plugins subcommand)
 Plan: 3 of 3 in current phase (3 complete)
-Status: Phase 28 Complete
-Last activity: 2026-03-12 - Completed 28-03: CLI Post-Process Subcommand and Integration Tests
+Status: Phase Complete
+Last activity: 2026-03-18 - Completed 36-03-PLAN.md: QA tests for plugins subcommand
 
-Progress: [██████████] 100% (114/114 overall)
+Progress: [██████████] 100% (157/157 overall)
 
 ## Performance Metrics
 
@@ -96,6 +96,46 @@ Progress: [██████████] 100% (114/114 overall)
 | Phase 28 P01 | 7min | 2 tasks | 9 files |
 | Phase 28 P02 | 9min | 2 tasks | 5 files |
 | Phase 28 P03 | 10min | 2 tasks | 3 files |
+| Phase 29 P02 | 9min | 2 tasks | 5 files |
+| Phase 29 P03 | 5min | 2 tasks | 4 files |
+| Phase 29 P05 | 6min | 2 tasks | 9 files |
+| Phase 29 P04 | 11min | 2 tasks | 5 files |
+| Phase 29 P06 | 5min | 2 tasks | 5 files |
+| Phase 29 P07 | 11min | 2 tasks | 7 files |
+| Phase 30 P02 | 4min | 1 tasks | 2 files |
+| Phase 30 P03 | 3min | 1 tasks | 3 files |
+| Phase 30 P04 | 8min | 2 tasks | 3 files |
+| Phase 30 P05 | 4min | 2 tasks | 3 files |
+| Phase 30 P06 | 5min | 1 tasks | 1 files |
+| Phase 31 P02 | 3min | 2 tasks | 3 files |
+| Phase 31 P03 | 7 | 2 tasks | 4 files |
+| Phase 31 P04 | 4min | 2 tasks | 4 files |
+| Phase 31 P05 | 5min | 2 tasks | 8 files |
+| Phase 31 P06 | 3 | 2 tasks | 2 files |
+| Phase 32 P01 | 5 | 2 tasks | 4 files |
+| Phase 32 P02 | 3 | 2 tasks | 2 files |
+| Phase 32 P03 | 3min | 2 tasks | 3 files |
+| Phase 32 P04 | 8 | 2 tasks | 2 files |
+| Phase 33 P01 | 5min | 2 tasks | 3 files |
+| Phase 33 P02 | 3min | 2 tasks | 2 files |
+| Phase 33 P03 | 2min | 2 tasks | 1 files |
+| Phase 33 P04 | 4min | 2 tasks | 1 files |
+| Phase 34 P01 | 4min | 1 tasks | 1 files |
+| Phase 34 P02 | 4min | 2 tasks | 4 files |
+| Phase 34 P03 | 4min | 2 tasks | 4 files |
+| Phase 34 P04 | 3min | 1 tasks | 3 files |
+| Phase 34 P05 | 5min | 2 tasks | 7 files |
+| Phase 34 P06 | 6min | 2 tasks | 3 files |
+| Phase 35 P01 | 3min | 2 tasks | 4 files |
+| Phase 35 P02 | 3 | 3 tasks | 5 files |
+| Phase 35 P03 | 5min | 2 tasks | 1 files |
+| Phase 35 P04 | 12min | 2 tasks | 3 files |
+| Phase 35 P05 | 5 | 2 tasks | 7 files |
+| Phase 35 P06 | 4min | 2 tasks | 7 files |
+| Phase 35 P07 | 7 | 3 tasks | 7 files |
+| Phase 36 P01 | 6 | 2 tasks | 6 files |
+| Phase 36 P02 | 6min | 2 tasks | 4 files |
+| Phase 36 P03 | 3 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -104,6 +144,7 @@ Progress: [██████████] 100% (114/114 overall)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [30-05]: Used indicatif with hidden ProgressBar for non-TTY fallback, deprecated find_profiles_dir in favor of ProfileResolver
 - [Roadmap]: Integer coordinates (i64 Coord, COORD_SCALE) must be locked in Phase 1 before any algorithms
 - [Roadmap]: Vertical slice (Phase 3) proves pipeline before horizontal expansion
 - [Roadmap]: Plugin system (Phase 7) deferred until trait interfaces stabilize through Phases 4-6
@@ -542,11 +583,67 @@ Recent decisions affecting current work:
 - [27-01]: Polygon::validate() used for cross-crate polygon creation (from_raw_parts is pub(crate) in slicecore-geo)
 - [27-01]: Bounding box fallback (+/-1um) for degenerate single-point/collinear convex hull projections
 - [27-01]: Round join type for footprint expansion; bed_with_margin helper via Miter inward offset
+- [Phase 29]: Used NonManifold MeshError for attribute count validation; serde_json as runtime dep for CsgReport; ResultConstruction spelling preserved from RESEARCH.md
+- [Phase 29]: SoS perturbation with permutation parity for coplanar tie-breaking
+- [Phase 29]: Point registry with spatial hashing prevents T-junctions in intersection curves
+- [Phase 29]: Non-manifold edges treated as warnings in CSG output (floating-point artifacts)
+- [29-05]: CsgCancellationToken in slicecore-mesh (not slicecore-engine CancellationToken) avoids circular dependency
+- [29-05]: Refactored intersect.rs: separate raw hit collection from point canonicalization for rayon par_iter
+- [29-05]: CsgMeshData with RVec<[f64;3]> for FFI-safe mesh exchange in plugin API
+- [30-01]: Operate on toml::Value trees not PrintConfig structs to preserve not-set vs default distinction
+- [30-01]: Provenance uses Box<FieldSource> for override chain (recursive linked list of prior sources)
+- [Phase 29]: Topology-based boundary detection for cap generation in plane split
+- [Phase 29]: Ear-clipping triangulation for cap polygons on arbitrary cut planes
+- [Phase 29]: Used fn pointer type alias BooleanOpFn to share logic across union/difference/intersection/xor CLI handlers
+- [Phase 29]: Used iter_batched with rebuild() helper for CSG benchmarks since TriangleMesh lacks Clone
+- [Phase 30]: Used HOME/USERPROFILE env vars instead of dirs crate for home dir - WASM-safe
+- [Phase 30]: Built-in profiles use inline TOML const strings for self-contained binary; safety limits at 350C nozzle, 150C bed
+- [Phase 30]: Profile workflow opt-in: -m/-f/-p triggers new path, --config uses legacy
+- [Phase 30]: Used overrides file for safety validation testing instead of --set with array values
+- [Phase 31]: Progressive disclosure cost model: each component computed independently with hints for missing inputs
+- [Phase 31]: Cost table only shown when cost flags provided; JSON combines analysis+cost in single object
+- [Phase 31]: Built stacked tower mesh directly from vertices/indices instead of CSG boolean unions
+- [Phase 31]: Flow tower uses M221 flow rate override injection at Z boundaries for per-section control
+- [Phase 31]: Multi-config comparison reuses same GcodeAnalysis, re-estimates per filament profile
+- [Phase 31]: Common display_dry_run shows dimensions and bed fit status for all calibrate commands
+- [Phase 31]: Used 40mm bed for small-bed validation test since 30mm model fits exactly on 50mm bed with 10mm margins
+- [Phase 32]: Used serde alias for elefant_foot_compensation backward compat during migration to DimensionalCompensationConfig
+- [Phase 32]: Enum mapper functions (map_surface_pattern, map_bed_type, map_internal_bridge_mode) made pub(crate) for cross-module sharing between profile_import and profile_import_ini
+- [Phase 32]: Combined z_offset template variable sums global + per-filament offset
+- [Phase 32]: M141 emitted in plan_temperatures at layer 0 alongside M104/M140
+- [Phase 32]: P0 test coverage: 15 new tests for field defaults, TOML round-trip, enum round-trip, bed type temperature resolution, elephant foot migration, OrcaSlicer JSON import
+- [Phase 33]: P1 config fields follow Phase 32 sub-struct pattern with #[serde(default)]
+- [Phase 33]: Shared map_brim_type as pub(crate) between JSON and INI importers
+- [Phase 33]: Filament index template variables emit 1-based values for G-code compatibility
+- [Phase 33]: P1 config fields fully verified with 28 integration tests covering defaults, round-trip, import, templates, and validation
+- [Phase 34]: 207 total fields identified from real profile scanning across support/scarf/multi-material/gcode/P2 categories
+- [Phase 34]: Support config mapping uses spacing-to-density conversion and shared pub(crate) enum mappers across JSON and INI importers
+- [Phase 34]: PrusaSlicer has no scarf joint equivalent; OrcaSlicer-only section
+- [Phase 34]: SlicingTolerance enum (Middle/Nearest/Gauss) for type-safe slicing tolerance
+- [Phase 34]: Jerk fields in AccelerationConfig (not MachineConfig) as process-level params
+- [Phase 34]: G-code variable translation uses sequential replacement with longest-first sort for correctness
+- [Phase 34]: Dual G-code storage with _original fields preserves verbatim upstream content
+- [Phase 34]: Passthrough ratio <5% quality bar validated via inline JSON construction (profiles are TOML)
+- [Phase 35]: Used BTreeMap for SettingRegistry for deterministic sorted iteration
+- [Phase 35]: Used clippy::all instead of clippy::pedantic for proc-macro crate
+- [Phase 35]: Used OrcaSlicer tab placement as baseline for progressive disclosure tier assignments
+- [Phase 35]: Used #[setting(skip)] for external types lacking HasSettingSchema (SupportConfig, IroningConfig, PerFeatureFlow, CustomGcodeHooks)
+- [Phase 35]: Skipped _original fields in CustomGcodeHooks (internal, not user-facing)
+- [Phase 35]: Changed support/ironing/per_feature_flow/custom_gcode from skip to flatten in PrintConfig
+- [Phase 35]: Bumped workspace MSRV from 1.75 to 1.80 for std::sync::LazyLock
+- [Phase 35]: JSON Schema uses nested properties from dotted keys with x- extensions for metadata
+- [Phase 35]: Schema-driven validation alongside existing hardcoded checks (domain-specific cross-field checks preserved)
+- [Phase 36]: serde_json promoted from dev to regular dependency for status file I/O
+- [Phase 36]: require_infill_plugin does disk discovery for disabled plugins; get_infill_plugin remains for backward compat
+- [Phase 36]: Added anyhow to workspace for CLI error handling in plugins subcommand
+- [Phase 36]: Broken plugin fixture created after enable/disable cycle to avoid discover_plugins validation errors
 
 ### Roadmap Evolution
 
 - Phase 13 added: JSON Profile Support
 - Phase 14 added: Profile Conversion Tool (JSON to TOML)
+- Phase 30 added: CLI profile composition and slice workflow (--printer/--filament/--process flags with ID and path support)
+- Phase 31 added: CLI utility commands — calibrate (PA calibration prints) and estimate (standalone time/filament from gcode)
 - Phase 15 added: Printer and Filament Profile Library
 - Phase 16 added: PrusaSlicer Profile Migration
 - Phase 17 added: BambuStudio Profile Migration. Find and convert the printer/machine and filament/material profiles in /home/steve/slicer-analysis/BambuStudio to profiles/ in this project like we did in the previous phase.
@@ -562,10 +659,15 @@ Recent decisions affecting current work:
 - Phase 27 added: Build Plate Auto-Arrangement
 - Phase 28 added: G-code Post-Processing Plugin Point
 - Phase 29 added: Mesh Boolean Operations (CSG)
+- Phase 32 added: P0 config gap closure — ~15 critical missing fields (chamber temp, xy compensation, bridge speed, z offset, etc.)
+- Phase 33 added: P1 config gap closure — ~30 profile fidelity fields (input shaping, fuzzy skin, advanced fan, brim types, etc.)
+- Phase 34 added: Support config and advanced feature profile import mapping (SupportConfig, scarf joint, multi-material, custom gcode hooks)
+- Phase 35 added: ConfigSchema system — SettingDefinition metadata with tiers, JSON Schema generation, validation (from PRD Section 7)
+- Phase 36 added: Plugins subcommand — list and manage installed plugins (enable/disable)
 
 ### Pending Todos
 
-2 pending — /gsd:check-todos to review
+27 pending — /gsd:check-todos to review
 
 ### Blockers/Concerns
 
@@ -577,9 +679,12 @@ Recent decisions affecting current work:
 |---|-------------|------|--------|-----------|
 | 1 | Update lib3mf-core crates to v0.3.0 | 2026-02-26 | ff54f95 | [1-update-lib3mf-core-crates-to-v0-3-0](./quick/1-update-lib3mf-core-crates-to-v0-3-0/) |
 | 2 | Test CLI with 3MF and G-code files | 2026-02-26 | df205fa | [2-test-cli-with-3mf-and-g-code-files](./quick/2-test-cli-with-3mf-and-g-code-files/) |
+| 3 | End-to-end CLI QA test script | 2026-03-13 | 8f22674 | [3-create-end-to-end-cli-qa-test-script-wit](./quick/3-create-end-to-end-cli-qa-test-script-wit/) |
+| 260318-mtf | Review qa_tests and add coverage for recent phases 25+ | 2026-03-18 | fc832c9 | [260318-mtf-review-qa-tests-and-add-coverage-for-rec](./quick/260318-mtf-review-qa-tests-and-add-coverage-for-rec/) |
+| 260318-oau | Improve QA temp directory cleanup - keep on failure, report stale dirs | 2026-03-18 | 499da8d | [260318-oau-improve-qa-temp-directory-cleanup-keep-o](./quick/260318-oau-improve-qa-temp-directory-cleanup-keep-o/) |
 
 ## Session Continuity
 
-Last session: 2026-03-12T23:04:42.869Z
-Stopped at: Phase 29 context updated with detailed decisions
-Resume file: .planning/phases/29-mesh-boolean-operations-csg/29-CONTEXT.md
+Last session: 2026-03-18T19:46:11.442Z
+Stopped at: Completed 36-03-PLAN.md
+Resume file: None

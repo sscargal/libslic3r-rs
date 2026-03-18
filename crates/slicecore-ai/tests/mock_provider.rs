@@ -19,10 +19,7 @@ pub struct SmartMockProvider;
 
 #[async_trait::async_trait]
 impl AiProvider for SmartMockProvider {
-    async fn complete(
-        &self,
-        request: &CompletionRequest,
-    ) -> Result<CompletionResponse, AiError> {
+    async fn complete(&self, request: &CompletionRequest) -> Result<CompletionResponse, AiError> {
         // The user message contains serialized GeometryFeatures JSON.
         let user_msg = &request.messages[0].content;
 
@@ -39,9 +36,7 @@ impl AiProvider for SmartMockProvider {
         // The T-shape has difficulty "hard" due to overhang_ratio > 0.15,
         // while a simple 20mm cube on bed plate has ~0.167 (also hard due to
         // bottom face). We use has_bridges AND difficulty together.
-        let difficulty = features["estimated_difficulty"]
-            .as_str()
-            .unwrap_or("easy");
+        let difficulty = features["estimated_difficulty"].as_str().unwrap_or("easy");
         // Significant overhangs: overhang_ratio > 0.25 (well above the ~0.167
         // that any cube-on-bed has from its bottom face alone).
         let has_significant_overhangs = overhang_ratio > 0.25 && difficulty == "hard";
@@ -131,10 +126,10 @@ impl AiProvider for SmartMockProvider {
 pub fn simple_cube() -> TriangleMesh {
     let s = 10.0; // half-size = 10mm -> 20mm cube
     let vertices = vec![
-        Point3::new(-s, -s, 0.0), // 0: left-front-bottom
-        Point3::new(s, -s, 0.0),  // 1: right-front-bottom
-        Point3::new(s, s, 0.0),   // 2: right-back-bottom
-        Point3::new(-s, s, 0.0),  // 3: left-back-bottom
+        Point3::new(-s, -s, 0.0),     // 0: left-front-bottom
+        Point3::new(s, -s, 0.0),      // 1: right-front-bottom
+        Point3::new(s, s, 0.0),       // 2: right-back-bottom
+        Point3::new(-s, s, 0.0),      // 3: left-back-bottom
         Point3::new(-s, -s, 2.0 * s), // 4: left-front-top
         Point3::new(s, -s, 2.0 * s),  // 5: right-front-top
         Point3::new(s, s, 2.0 * s),   // 6: right-back-top
@@ -190,20 +185,20 @@ pub fn overhang_model() -> TriangleMesh {
         Point3::new(12.0, 12.0, 0.0), // 2
         Point3::new(8.0, 12.0, 0.0),  // 3
         // Stem top / Cap inner bottom (z = 10)
-        Point3::new(8.0, 8.0, 10.0),  // 4
-        Point3::new(12.0, 8.0, 10.0), // 5
-        Point3::new(12.0, 12.0, 10.0),// 6
-        Point3::new(8.0, 12.0, 10.0), // 7
+        Point3::new(8.0, 8.0, 10.0),   // 4
+        Point3::new(12.0, 8.0, 10.0),  // 5
+        Point3::new(12.0, 12.0, 10.0), // 6
+        Point3::new(8.0, 12.0, 10.0),  // 7
         // Cap bottom corners (z = 10)
-        Point3::new(0.0, 0.0, 10.0),  // 8
-        Point3::new(20.0, 0.0, 10.0), // 9
-        Point3::new(20.0, 20.0, 10.0),// 10
-        Point3::new(0.0, 20.0, 10.0), // 11
+        Point3::new(0.0, 0.0, 10.0),   // 8
+        Point3::new(20.0, 0.0, 10.0),  // 9
+        Point3::new(20.0, 20.0, 10.0), // 10
+        Point3::new(0.0, 20.0, 10.0),  // 11
         // Cap top (z = 14)
-        Point3::new(0.0, 0.0, 14.0),  // 12
-        Point3::new(20.0, 0.0, 14.0), // 13
-        Point3::new(20.0, 20.0, 14.0),// 14
-        Point3::new(0.0, 20.0, 14.0), // 15
+        Point3::new(0.0, 0.0, 14.0),   // 12
+        Point3::new(20.0, 0.0, 14.0),  // 13
+        Point3::new(20.0, 20.0, 14.0), // 14
+        Point3::new(0.0, 20.0, 14.0),  // 15
     ];
 
     let indices = vec![
@@ -235,11 +230,9 @@ pub fn overhang_model() -> TriangleMesh {
         // valid (the stem top and cap bottom share the z=10 plane).
         [8, 10, 9],
         [8, 11, 10],
-
         // === CAP TOP FACE (z = 14): normal (0, 0, +1) ===
         [12, 13, 14],
         [12, 14, 15],
-
         // === CAP SIDE FACES ===
         // Front face (y = 0)
         [8, 9, 13],
@@ -267,10 +260,10 @@ pub fn thin_plate() -> TriangleMesh {
     let h = 0.4; // half-height = 0.4mm -> 0.8mm plate
 
     let vertices = vec![
-        Point3::new(-w, -w, 0.0), // 0
-        Point3::new(w, -w, 0.0),  // 1
-        Point3::new(w, w, 0.0),   // 2
-        Point3::new(-w, w, 0.0),  // 3
+        Point3::new(-w, -w, 0.0),     // 0
+        Point3::new(w, -w, 0.0),      // 1
+        Point3::new(w, w, 0.0),       // 2
+        Point3::new(-w, w, 0.0),      // 3
         Point3::new(-w, -w, 2.0 * h), // 4
         Point3::new(w, -w, 2.0 * h),  // 5
         Point3::new(w, w, 2.0 * h),   // 6

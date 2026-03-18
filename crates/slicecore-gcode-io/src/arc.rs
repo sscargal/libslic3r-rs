@@ -32,11 +32,7 @@ use crate::commands::GcodeCommand;
 /// # Arguments
 ///
 /// * `p1`, `p2`, `p3` - Three 2D points (x, y).
-pub fn circumcircle(
-    p1: (f64, f64),
-    p2: (f64, f64),
-    p3: (f64, f64),
-) -> Option<((f64, f64), f64)> {
+pub fn circumcircle(p1: (f64, f64), p2: (f64, f64), p3: (f64, f64)) -> Option<((f64, f64), f64)> {
     let ax = p1.0;
     let ay = p1.1;
     let bx = p2.0;
@@ -75,10 +71,7 @@ pub fn circumcircle(
 ///
 /// * `points` - A slice of at least 3 (x, y) points.
 /// * `tolerance` - Maximum distance any point may deviate from the arc radius.
-pub fn points_fit_arc(
-    points: &[(f64, f64)],
-    tolerance: f64,
-) -> Option<((f64, f64), f64, bool)> {
+pub fn points_fit_arc(points: &[(f64, f64)], tolerance: f64) -> Option<((f64, f64), f64, bool)> {
     if points.len() < 3 {
         return None;
     }
@@ -121,12 +114,7 @@ pub fn points_fit_arc(
 /// # Returns
 ///
 /// The arc length in the same units as the input coordinates.
-pub fn arc_length(
-    center: (f64, f64),
-    start: (f64, f64),
-    end: (f64, f64),
-    is_ccw: bool,
-) -> f64 {
+pub fn arc_length(center: (f64, f64), start: (f64, f64), end: (f64, f64), is_ccw: bool) -> f64 {
     let radius = ((start.0 - center.0).powi(2) + (start.1 - center.1).powi(2)).sqrt();
     if radius < 1e-12 {
         return 0.0;
@@ -393,9 +381,7 @@ pub fn fit_arcs(
 
                 let window_points = &points[pt_start..pt_end];
 
-                if let Some((center, radius, is_ccw)) =
-                    points_fit_arc(window_points, tolerance)
-                {
+                if let Some((center, radius, is_ccw)) = points_fit_arc(window_points, tolerance) {
                     // Check radius constraints.
                     if (0.5..=1000.0).contains(&radius) {
                         best_arc_len = window_size;

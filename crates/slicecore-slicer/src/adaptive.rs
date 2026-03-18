@@ -85,8 +85,8 @@ pub fn compute_adaptive_layer_heights(
     loop {
         // Look up the desired height at the next potential Z position.
         let tentative_z = prev_top + min_h / 2.0;
-        let desired_h = lookup_desired_height(&desired_heights, tentative_z, max_h)
-            .clamp(min_h, max_h);
+        let desired_h =
+            lookup_desired_height(&desired_heights, tentative_z, max_h).clamp(min_h, max_h);
 
         // Next layer center
         let next_z = prev_top + desired_h / 2.0;
@@ -173,11 +173,8 @@ fn sample_curvature_profile(mesh: &TriangleMesh, sample_step: f64) -> Vec<(f64, 
         if tris.is_empty() {
             steepness_samples.push((z, 0.0));
         } else {
-            let avg_abs_nz: f64 = tris
-                .iter()
-                .map(|&i| normals[i].z.abs())
-                .sum::<f64>()
-                / tris.len() as f64;
+            let avg_abs_nz: f64 =
+                tris.iter().map(|&i| normals[i].z.abs()).sum::<f64>() / tris.len() as f64;
             // Steepness: 1.0 when surface is vertical (|nz|=0),
             //            0.0 when surface is horizontal (|nz|=1).
             let steepness = 1.0 - avg_abs_nz;
@@ -432,8 +429,7 @@ mod tests {
         if !equator_heights.is_empty() && !pole_heights.is_empty() {
             let avg_equator: f64 =
                 equator_heights.iter().sum::<f64>() / equator_heights.len() as f64;
-            let avg_pole: f64 =
-                pole_heights.iter().sum::<f64>() / pole_heights.len() as f64;
+            let avg_pole: f64 = pole_heights.iter().sum::<f64>() / pole_heights.len() as f64;
 
             assert!(
                 avg_equator < avg_pole,
@@ -491,8 +487,7 @@ mod tests {
     fn first_layer_height_is_preserved() {
         let mesh = unit_sphere();
         let first_layer = 0.25;
-        let heights =
-            compute_adaptive_layer_heights(&mesh, 0.05, 0.3, 0.5, first_layer);
+        let heights = compute_adaptive_layer_heights(&mesh, 0.05, 0.3, 0.5, first_layer);
 
         assert!(!heights.is_empty(), "Should produce non-empty heights");
         assert!(
@@ -518,15 +513,13 @@ mod tests {
 
         // Skip first layer (always same height).
         let avg_q0: f64 = if heights_q0.len() > 1 {
-            heights_q0.iter().skip(1).map(|&(_, h)| h).sum::<f64>()
-                / (heights_q0.len() - 1) as f64
+            heights_q0.iter().skip(1).map(|&(_, h)| h).sum::<f64>() / (heights_q0.len() - 1) as f64
         } else {
             0.0
         };
 
         let avg_q1: f64 = if heights_q1.len() > 1 {
-            heights_q1.iter().skip(1).map(|&(_, h)| h).sum::<f64>()
-                / (heights_q1.len() - 1) as f64
+            heights_q1.iter().skip(1).map(|&(_, h)| h).sum::<f64>() / (heights_q1.len() - 1) as f64
         } else {
             0.0
         };
@@ -571,8 +564,7 @@ mod tests {
         let mesh = unit_sphere();
         let min_h = 0.05;
         let max_h = 0.3;
-        let heights =
-            compute_adaptive_layer_heights(&mesh, min_h, max_h, 0.5, 0.3);
+        let heights = compute_adaptive_layer_heights(&mesh, min_h, max_h, 0.5, 0.3);
 
         for &(z, h) in heights.iter().skip(1) {
             assert!(

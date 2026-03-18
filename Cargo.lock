@@ -588,6 +588,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "console"
+version = "0.15.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "054ccb5b10f9f2cbf51eb355ca1d05c2d279ce1804688d0db74b4733a5aeafd8"
+dependencies = [
+ "encode_unicode",
+ "libc",
+ "once_cell",
+ "unicode-width",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "const_panic"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1025,6 +1038,12 @@ name = "embedded-io"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
+
+[[package]]
+name = "encode_unicode"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34aa73646ffb006b8f5147f3dc182bd4bcb190227ce861fc4a4844bf8e3cb2c0"
 
 [[package]]
 name = "encoding_rs"
@@ -1601,6 +1620,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "indicatif"
+version = "0.17.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "183b3088984b400f4cfac3620d5e076c84da5364016b4f49473de574b2586235"
+dependencies = [
+ "console",
+ "number_prefix",
+ "portable-atomic",
+ "unicode-width",
+ "web-time",
+]
+
+[[package]]
 name = "inout"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1996,6 +2028,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "number_prefix"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
+
+[[package]]
 name = "object"
 version = "0.37.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2147,6 +2185,12 @@ dependencies = [
  "flate2",
  "miniz_oxide",
 ]
+
+[[package]]
+name = "portable-atomic"
+version = "1.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
 
 [[package]]
 name = "postcard"
@@ -2572,6 +2616,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "robust"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e27ee8bb91ca0adcf0ecb116293afa12d393f9c2b9b9cd54d33e8078fe19839"
+
+[[package]]
 name = "rustc-demangle"
 version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2891,12 +2941,16 @@ dependencies = [
 name = "slicecore-cli"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "clap",
  "comfy-table",
+ "indicatif",
  "rmp-serde",
+ "serde",
  "serde_json",
  "slicecore-ai",
  "slicecore-arrange",
+ "slicecore-config-schema",
  "slicecore-engine",
  "slicecore-fileio",
  "slicecore-gcode-io",
@@ -2906,6 +2960,27 @@ dependencies = [
  "slicecore-plugin-api",
  "slicecore-render",
  "tempfile",
+ "toml 0.8.23",
+]
+
+[[package]]
+name = "slicecore-config-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "slicecore-config-schema",
+ "syn 2.0.115",
+]
+
+[[package]]
+name = "slicecore-config-schema"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2919,8 +2994,11 @@ dependencies = [
  "rmp-serde",
  "serde",
  "serde_json",
+ "sha2",
  "slicecore-ai",
  "slicecore-arrange",
+ "slicecore-config-derive",
+ "slicecore-config-schema",
  "slicecore-fileio",
  "slicecore-gcode-io",
  "slicecore-geo",
@@ -2929,6 +3007,7 @@ dependencies = [
  "slicecore-plugin",
  "slicecore-plugin-api",
  "slicecore-slicer",
+ "strsim",
  "tempfile",
  "thiserror 2.0.18",
  "toml 0.8.23",
@@ -2989,8 +3068,12 @@ dependencies = [
 name = "slicecore-mesh"
 version = "0.1.0"
 dependencies = [
+ "criterion",
  "proptest",
+ "rayon",
+ "robust",
  "serde",
+ "serde_json",
  "slicecore-math",
  "thiserror 2.0.18",
 ]

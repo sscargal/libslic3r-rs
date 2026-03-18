@@ -55,12 +55,24 @@ fn test_batch_convert_skips_non_instantiated() {
         "instantiation": "false",
         "nozzle_temperature": ["210"]
     }"#;
-    write_json_profile(source.path(), "TestVendor", "filament", "Base_PLA.json", json);
+    write_json_profile(
+        source.path(),
+        "TestVendor",
+        "filament",
+        "Base_PLA.json",
+        json,
+    );
 
     let result = batch_convert_profiles(source.path(), output.path(), "test").unwrap();
 
-    assert_eq!(result.converted, 0, "Non-instantiated profile should not be converted");
-    assert_eq!(result.skipped, 1, "Non-instantiated profile should be skipped");
+    assert_eq!(
+        result.converted, 0,
+        "Non-instantiated profile should not be converted"
+    );
+    assert_eq!(
+        result.skipped, 1,
+        "Non-instantiated profile should be skipped"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -98,11 +110,7 @@ fn test_batch_convert_single_profile() {
     let toml_files: Vec<_> = std::fs::read_dir(&toml_dir)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "toml")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
         .collect();
     assert_eq!(toml_files.len(), 1, "Should produce exactly 1 TOML file");
 
@@ -171,11 +179,7 @@ fn test_batch_convert_inheritance() {
     let toml_files: Vec<_> = std::fs::read_dir(&toml_dir)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "toml")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
         .collect();
     assert_eq!(toml_files.len(), 1);
 
@@ -329,11 +333,7 @@ fn test_sanitize_filenames_no_collision() {
     let toml_files: Vec<_> = std::fs::read_dir(&toml_dir)
         .unwrap()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "toml")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
         .collect();
 
     assert_eq!(
@@ -425,8 +425,7 @@ fn test_real_orcaslicer_batch_convert() {
     );
 
     let output = TempDir::new().unwrap();
-    let result =
-        batch_convert_profiles(source_dir, output.path(), "orcaslicer").unwrap();
+    let result = batch_convert_profiles(source_dir, output.path(), "orcaslicer").unwrap();
 
     eprintln!(
         "Batch convert: converted={}, skipped={}, errors={}",
@@ -502,8 +501,7 @@ fn test_real_profile_toml_loadable() {
     );
 
     let output = TempDir::new().unwrap();
-    let result =
-        batch_convert_profiles(source_dir, output.path(), "orcaslicer").unwrap();
+    let result = batch_convert_profiles(source_dir, output.path(), "orcaslicer").unwrap();
     assert!(
         result.converted > 10,
         "Need at least 10 profiles for sampling"
@@ -513,11 +511,7 @@ fn test_real_profile_toml_loadable() {
     let toml_files: Vec<_> = walkdir::WalkDir::new(output.path())
         .into_iter()
         .filter_map(|e| e.ok())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .is_some_and(|ext| ext == "toml")
-        })
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "toml"))
         .collect();
 
     assert!(
@@ -566,9 +560,8 @@ fn test_real_profile_toml_loadable() {
 fn test_real_inheritance_produces_richer_profiles() {
     use slicecore_engine::profile_import::import_upstream_profile;
 
-    let bbl_filament_dir = Path::new(
-        "/home/steve/slicer-analysis/OrcaSlicer/resources/profiles/BBL/filament",
-    );
+    let bbl_filament_dir =
+        Path::new("/home/steve/slicer-analysis/OrcaSlicer/resources/profiles/BBL/filament");
     assert!(
         bbl_filament_dir.is_dir(),
         "BBL filament directory not found"
@@ -581,9 +574,7 @@ fn test_real_inheritance_produces_richer_profiles() {
         .map(|e| e.path())
         .find(|p| {
             let name = p.file_name().unwrap_or_default().to_string_lossy();
-            name.contains("PLA")
-                && name.ends_with(".json")
-                && !name.contains("Base")
+            name.contains("PLA") && name.ends_with(".json") && !name.contains("Base")
         });
 
     let pla_path = match pla_path {
@@ -619,8 +610,7 @@ fn test_real_inheritance_produces_richer_profiles() {
                     return false;
                 }
                 let c = std::fs::read_to_string(p).unwrap_or_default();
-                c.contains("\"inherits\"")
-                    && c.contains("\"instantiation\": \"true\"")
+                c.contains("\"inherits\"") && c.contains("\"instantiation\": \"true\"")
             });
 
         let inheriting_path = match inheriting_path {
@@ -641,8 +631,7 @@ fn test_real_inheritance_produces_richer_profiles() {
         // Batch convert with inheritance for the whole BBL filament directory.
         let output = TempDir::new().unwrap();
         let source = Path::new("/home/steve/slicer-analysis/OrcaSlicer/resources/profiles");
-        let batch_result =
-            batch_convert_profiles(source, output.path(), "orcaslicer").unwrap();
+        let batch_result = batch_convert_profiles(source, output.path(), "orcaslicer").unwrap();
 
         // The batch result with inheritance should produce more mapped fields
         // overall than a raw child-only import. We verify by comparing the
@@ -667,8 +656,7 @@ fn test_real_inheritance_produces_richer_profiles() {
     // Batch convert the entire directory (which resolves inheritance).
     let output = TempDir::new().unwrap();
     let source = Path::new("/home/steve/slicer-analysis/OrcaSlicer/resources/profiles");
-    let batch_result =
-        batch_convert_profiles(source, output.path(), "orcaslicer").unwrap();
+    let batch_result = batch_convert_profiles(source, output.path(), "orcaslicer").unwrap();
 
     // The resolved profile should have more content than the raw child-only import.
     // We verify indirectly: the batch conversion should have converted profiles

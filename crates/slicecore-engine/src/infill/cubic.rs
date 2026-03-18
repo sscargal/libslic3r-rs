@@ -311,8 +311,14 @@ mod tests {
 
         // Verify the positions match.
         for (a, b) in lines_0.iter().zip(lines_3.iter()) {
-            assert_eq!(a.start, b.start, "Same-angle layers should have matching line starts");
-            assert_eq!(a.end, b.end, "Same-angle layers should have matching line ends");
+            assert_eq!(
+                a.start, b.start,
+                "Same-angle layers should have matching line starts"
+            );
+            assert_eq!(
+                a.end, b.end,
+                "Same-angle layers should have matching line ends"
+            );
         }
     }
 
@@ -436,7 +442,9 @@ mod tests {
         let lines = generate(&[square], 0.2, 1, 0.0, 0.4);
 
         // Layer 1 uses 60 degrees: lines should be diagonal (neither horizontal nor vertical).
-        let has_diagonal = lines.iter().any(|l| l.start.x != l.end.x && l.start.y != l.end.y);
+        let has_diagonal = lines
+            .iter()
+            .any(|l| l.start.x != l.end.x && l.start.y != l.end.y);
         assert!(
             has_diagonal,
             "60-degree cubic layer should produce diagonal lines"

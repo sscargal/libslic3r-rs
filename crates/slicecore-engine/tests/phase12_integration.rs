@@ -53,14 +53,8 @@ fn make_cube(min: Point3, max: Point3) -> (Vec<Point3>, Vec<[u32; 3]>) {
 /// The overlapping region (x: 5-10, y: 5-10) creates self-intersecting
 /// triangles. Total: 24 triangles.
 fn make_two_overlapping_cubes() -> TriangleMesh {
-    let (verts_a, indices_a) = make_cube(
-        Point3::new(0.0, 0.0, 0.0),
-        Point3::new(10.0, 10.0, 10.0),
-    );
-    let (verts_b, indices_b) = make_cube(
-        Point3::new(5.0, 5.0, 0.0),
-        Point3::new(15.0, 15.0, 10.0),
-    );
+    let (verts_a, indices_a) = make_cube(Point3::new(0.0, 0.0, 0.0), Point3::new(10.0, 10.0, 10.0));
+    let (verts_b, indices_b) = make_cube(Point3::new(5.0, 5.0, 0.0), Point3::new(15.0, 15.0, 10.0));
 
     let offset = verts_a.len() as u32;
     let mut vertices = verts_a;
@@ -85,18 +79,9 @@ fn make_two_overlapping_cubes() -> TriangleMesh {
 /// A overlaps B, B overlaps C. ~36 triangles.
 fn make_three_overlapping_cubes() -> TriangleMesh {
     let cubes = vec![
-        (
-            Point3::new(0.0, 0.0, 0.0),
-            Point3::new(10.0, 10.0, 10.0),
-        ),
-        (
-            Point3::new(5.0, 5.0, 0.0),
-            Point3::new(15.0, 15.0, 10.0),
-        ),
-        (
-            Point3::new(10.0, 10.0, 0.0),
-            Point3::new(20.0, 20.0, 10.0),
-        ),
+        (Point3::new(0.0, 0.0, 0.0), Point3::new(10.0, 10.0, 10.0)),
+        (Point3::new(5.0, 5.0, 0.0), Point3::new(15.0, 15.0, 10.0)),
+        (Point3::new(10.0, 10.0, 0.0), Point3::new(20.0, 20.0, 10.0)),
     ];
 
     let mut all_verts = Vec::new();
@@ -159,23 +144,16 @@ fn make_large_overlapping_mesh(n: usize) -> TriangleMesh {
         );
     }
 
-    TriangleMesh::new(all_verts, all_indices)
-        .expect("large overlapping mesh should be valid")
+    TriangleMesh::new(all_verts, all_indices).expect("large overlapping mesh should be valid")
 }
 
 /// Creates two offset boxes with different Z ranges to create non-axis-aligned
 /// intersections (simulating an offset shell model).
 fn make_offset_shell_model() -> TriangleMesh {
     // Box A: centered at origin, slightly rotated via offset
-    let (verts_a, indices_a) = make_cube(
-        Point3::new(0.0, 0.0, 0.0),
-        Point3::new(10.0, 10.0, 10.0),
-    );
+    let (verts_a, indices_a) = make_cube(Point3::new(0.0, 0.0, 0.0), Point3::new(10.0, 10.0, 10.0));
     // Box B: offset by half the size in X and Y, and partially overlapping in Z
-    let (verts_b, indices_b) = make_cube(
-        Point3::new(3.0, 3.0, 2.0),
-        Point3::new(13.0, 13.0, 12.0),
-    );
+    let (verts_b, indices_b) = make_cube(Point3::new(3.0, 3.0, 2.0), Point3::new(13.0, 13.0, 12.0));
 
     let offset = verts_a.len() as u32;
     let mut vertices = verts_a;
@@ -278,14 +256,8 @@ fn sc2_repair_report_shows_intersection_metrics() {
     use slicecore_mesh::repair::repair;
 
     // Build raw vertex/index data for two overlapping cubes
-    let (verts_a, indices_a) = make_cube(
-        Point3::new(0.0, 0.0, 0.0),
-        Point3::new(10.0, 10.0, 10.0),
-    );
-    let (verts_b, indices_b) = make_cube(
-        Point3::new(5.0, 5.0, 0.0),
-        Point3::new(15.0, 15.0, 10.0),
-    );
+    let (verts_a, indices_a) = make_cube(Point3::new(0.0, 0.0, 0.0), Point3::new(10.0, 10.0, 10.0));
+    let (verts_b, indices_b) = make_cube(Point3::new(5.0, 5.0, 0.0), Point3::new(15.0, 15.0, 10.0));
 
     let offset = verts_a.len() as u32;
     let mut vertices = verts_a;
@@ -344,10 +316,7 @@ fn sc2_repair_report_shows_intersection_metrics() {
 fn sc2_clean_mesh_has_zero_intersections() {
     use slicecore_mesh::repair::repair;
 
-    let (verts, indices) = make_cube(
-        Point3::new(0.0, 0.0, 0.0),
-        Point3::new(10.0, 10.0, 10.0),
-    );
+    let (verts, indices) = make_cube(Point3::new(0.0, 0.0, 0.0), Point3::new(10.0, 10.0, 10.0));
 
     let (_mesh, report) = repair(verts, indices).expect("repair should succeed");
 
@@ -474,11 +443,7 @@ fn sc4_resolved_contours_have_correct_winding() {
     // Check multiple Z-heights
     for z in [2.0, 5.0, 8.0] {
         let contours = slice_at_height_resolved(&mesh, z);
-        assert!(
-            !contours.is_empty(),
-            "Should have contours at z={:.1}",
-            z
-        );
+        assert!(!contours.is_empty(), "Should have contours at z={:.1}", z);
 
         for (i, contour) in contours.iter().enumerate() {
             let winding = contour.winding();
@@ -541,8 +506,7 @@ fn sc5_performance_under_5_seconds() {
     // Step 1: Repair (detect self-intersections)
     let vertices = mesh.vertices().to_vec();
     let indices = mesh.indices().to_vec();
-    let (_repaired_mesh, report) =
-        repair(vertices, indices).expect("repair should succeed");
+    let (_repaired_mesh, report) = repair(vertices, indices).expect("repair should succeed");
     let repair_elapsed = start.elapsed();
 
     // Step 2: Detect self-intersections on repaired mesh
@@ -561,7 +525,9 @@ fn sc5_performance_under_5_seconds() {
     // Print diagnostics
     eprintln!(
         "SC5 Performance: {} triangles, {} intersections, {} layers",
-        triangle_count, intersection_count, layers.len()
+        triangle_count,
+        intersection_count,
+        layers.len()
     );
     eprintln!(
         "  Repair: {:.2}s, Detect: {:.2}s, Slice+Resolve: {:.2}s, Total: {:.2}s",

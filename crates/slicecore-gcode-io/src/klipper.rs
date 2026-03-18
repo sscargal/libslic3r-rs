@@ -116,10 +116,14 @@ mod tests {
             retract_distance: 5.0,
         };
 
-        let klipper_start: Vec<String> =
-            start_gcode(&start_config).iter().map(|c| c.to_string()).collect();
-        let klipper_end: Vec<String> =
-            end_gcode(&end_config).iter().map(|c| c.to_string()).collect();
+        let klipper_start: Vec<String> = start_gcode(&start_config)
+            .iter()
+            .map(|c| c.to_string())
+            .collect();
+        let klipper_end: Vec<String> = end_gcode(&end_config)
+            .iter()
+            .map(|c| c.to_string())
+            .collect();
         let marlin_start: Vec<String> = crate::marlin::start_gcode(&start_config)
             .iter()
             .map(|c| c.to_string())
@@ -129,7 +133,13 @@ mod tests {
             .map(|c| c.to_string())
             .collect();
 
-        assert_ne!(klipper_start, marlin_start, "Klipper and Marlin start should differ");
-        assert_ne!(klipper_end, marlin_end, "Klipper and Marlin end should differ");
+        assert_ne!(
+            klipper_start, marlin_start,
+            "Klipper and Marlin start should differ"
+        );
+        assert_ne!(
+            klipper_end, marlin_end,
+            "Klipper and Marlin end should differ"
+        );
     }
 }

@@ -497,12 +497,7 @@ impl BVH {
         result
     }
 
-    fn query_aabb_overlaps_recursive(
-        &self,
-        node_idx: u32,
-        query: &BBox3,
-        result: &mut Vec<usize>,
-    ) {
+    fn query_aabb_overlaps_recursive(&self, node_idx: u32, query: &BBox3, result: &mut Vec<usize>) {
         match &self.nodes[node_idx as usize] {
             BVHNode::Leaf {
                 aabb,
@@ -736,13 +731,13 @@ mod tests {
         let mesh = unit_cube();
         let bvh = mesh.bvh();
         // Query with an AABB that overlaps the cube (0,0,0)-(1,1,1)
-        let query = BBox3::new(
-            Point3::new(0.4, 0.4, 0.4),
-            Point3::new(0.6, 0.6, 0.6),
-        );
+        let query = BBox3::new(Point3::new(0.4, 0.4, 0.4), Point3::new(0.6, 0.6, 0.6));
         let result = bvh.query_aabb_overlaps(&query);
         // Should find some triangles
-        assert!(!result.is_empty(), "AABB query inside cube should return triangles");
+        assert!(
+            !result.is_empty(),
+            "AABB query inside cube should return triangles"
+        );
     }
 
     #[test]
@@ -750,12 +745,12 @@ mod tests {
         let mesh = unit_cube();
         let bvh = mesh.bvh();
         // Query with an AABB far from the cube
-        let query = BBox3::new(
-            Point3::new(10.0, 10.0, 10.0),
-            Point3::new(20.0, 20.0, 20.0),
-        );
+        let query = BBox3::new(Point3::new(10.0, 10.0, 10.0), Point3::new(20.0, 20.0, 20.0));
         let result = bvh.query_aabb_overlaps(&query);
-        assert!(result.is_empty(), "AABB query far from cube should return empty");
+        assert!(
+            result.is_empty(),
+            "AABB query far from cube should return empty"
+        );
     }
 
     #[test]

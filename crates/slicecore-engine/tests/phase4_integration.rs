@@ -9,9 +9,7 @@
 //!
 //! Plus: determinism, G-code validation, and preview data verification.
 
-use slicecore_engine::{
-    Engine, InfillPattern, PrintConfig, ScarfJointConfig, SeamPosition,
-};
+use slicecore_engine::{Engine, InfillPattern, PrintConfig, ScarfJointConfig, SeamPosition};
 use slicecore_gcode_io::validate_gcode;
 use slicecore_math::Point3;
 use slicecore_mesh::TriangleMesh;
@@ -209,10 +207,7 @@ fn unit_sphere() -> TriangleMesh {
 }
 
 /// Subdivide an icosahedron by splitting each triangle into 4 sub-triangles.
-fn subdivide_sphere(
-    verts: &[[f64; 3]],
-    tris: &[[u32; 3]],
-) -> (Vec<[f64; 3]>, Vec<[u32; 3]>) {
+fn subdivide_sphere(verts: &[[f64; 3]], tris: &[[u32; 3]]) -> (Vec<[f64; 3]>, Vec<[u32; 3]>) {
     use std::collections::HashMap;
 
     let mut new_verts = verts.to_vec();
@@ -331,7 +326,9 @@ fn sc1_arachne_thin_walls() {
         ..Default::default()
     };
     let engine = Engine::new(config);
-    let result = engine.slice(&mesh, None).expect("arachne thin wall slice should succeed");
+    let result = engine
+        .slice(&mesh, None)
+        .expect("arachne thin wall slice should succeed");
 
     assert!(
         !result.gcode.is_empty(),
@@ -782,8 +779,8 @@ fn preview_data_serializes_to_json() {
 
     let json_str = json.unwrap();
     // Verify it parses back.
-    let parsed: serde_json::Value = serde_json::from_str(&json_str)
-        .expect("Preview JSON should parse back");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&json_str).expect("Preview JSON should parse back");
     assert!(parsed["total_layers"].is_number());
     assert!(parsed["layers"].is_array());
 }

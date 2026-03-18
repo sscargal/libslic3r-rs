@@ -122,9 +122,8 @@ pub fn generate_arachne_perimeters(
         let mut thin_length = 0.0_f64;
         let mut total_length = 0.0_f64;
         for seg in &medial_segments {
-            let seg_len = ((seg.end.0 - seg.start.0).powi(2)
-                + (seg.end.1 - seg.start.1).powi(2))
-            .sqrt();
+            let seg_len =
+                ((seg.end.0 - seg.start.0).powi(2) + (seg.end.1 - seg.start.1).powi(2)).sqrt();
             total_length += seg_len;
             let avg_width = (seg.start_width + seg.end_width) / 2.0;
             if avg_width < two_nozzle {
@@ -234,8 +233,7 @@ fn compute_medial_axis(polygon: &ValidPolygon) -> Vec<MedialAxisSegment> {
     }
 
     // Build the Voronoi diagram.
-    let diagram = match Builder::<i32, f64>::default()
-        .with_segments(valid_segments.iter().copied())
+    let diagram = match Builder::<i32, f64>::default().with_segments(valid_segments.iter().copied())
     {
         Ok(builder) => match builder.build() {
             Ok(d) => d,
@@ -436,14 +434,9 @@ mod tests {
 
     /// Helper to create a validated CCW rectangle.
     fn make_rectangle(width: f64, height: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (0.0, 0.0),
-            (width, 0.0),
-            (width, height),
-            (0.0, height),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(0.0, 0.0), (width, 0.0), (width, height), (0.0, height)])
+            .validate()
+            .unwrap()
     }
 
     #[test]
@@ -603,22 +596,14 @@ mod tests {
     fn point_to_segment_distance_perpendicular() {
         // Point (5, 5) to segment (0, 0)-(10, 0): distance = 5.
         let d = point_to_segment_distance(5.0, 5.0, 0.0, 0.0, 10.0, 0.0);
-        assert!(
-            (d - 5.0).abs() < 1e-9,
-            "Distance should be 5.0, got {}",
-            d
-        );
+        assert!((d - 5.0).abs() < 1e-9, "Distance should be 5.0, got {}", d);
     }
 
     #[test]
     fn point_to_segment_distance_endpoint() {
         // Point (0, 5) to segment (0, 0)-(10, 0): distance = 5.
         let d = point_to_segment_distance(0.0, 5.0, 0.0, 0.0, 10.0, 0.0);
-        assert!(
-            (d - 5.0).abs() < 1e-9,
-            "Distance should be 5.0, got {}",
-            d
-        );
+        assert!((d - 5.0).abs() < 1e-9, "Distance should be 5.0, got {}", d);
     }
 
     #[test]

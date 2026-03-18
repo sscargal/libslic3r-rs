@@ -53,6 +53,22 @@ pub enum PluginSystemError {
         name: String,
     },
 
+    /// Plugin status file could not be read or written.
+    #[error("Plugin status file error at {path}: {reason}")]
+    StatusFileError {
+        /// Path to the status file that caused the error.
+        path: PathBuf,
+        /// Human-readable reason for the failure.
+        reason: String,
+    },
+
+    /// Plugin is disabled but was explicitly referenced by name during slicing.
+    #[error("Plugin '{name}' is disabled. Enable with `slicecore plugins enable {name}`")]
+    PluginDisabled {
+        /// Name of the disabled plugin.
+        name: String,
+    },
+
     /// IO error during plugin discovery or loading.
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),

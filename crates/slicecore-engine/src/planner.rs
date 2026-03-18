@@ -7,9 +7,9 @@
 //! - **Temperature**: Nozzle and bed temperature commands per layer
 //! - **Fan control**: Fan speed commands respecting disable-first-layers and layer-time
 
+use slicecore_gcode_io::GcodeCommand;
 use slicecore_geo::polygon::ValidPolygon;
 use slicecore_geo::{convex_hull, offset_polygon, offset_polygons, JoinType};
-use slicecore_gcode_io::GcodeCommand;
 use slicecore_math::{mm_to_coord, IPoint2};
 
 use crate::config::PrintConfig;
@@ -156,7 +156,7 @@ pub fn generate_brim(
 pub fn plan_temperatures(layer_index: usize, config: &PrintConfig) -> Vec<GcodeCommand> {
     match layer_index {
         0 => {
-            vec![
+            let mut cmds = vec![
                 GcodeCommand::SetBedTemp {
                     temp: config.filament.first_layer_bed_temp(),
                     wait: true,
@@ -165,7 +165,17 @@ pub fn plan_temperatures(layer_index: usize, config: &PrintConfig) -> Vec<GcodeC
                     temp: config.filament.first_layer_nozzle_temp(),
                     wait: true,
                 },
-            ]
+            ];
+
+            // Emit M141 for chamber/enclosure temperature if configured.
+            if config.filament.chamber_temperature > 0.0 {
+                cmds.push(GcodeCommand::Raw(format!(
+                    "M141 S{:.0}",
+                    config.filament.chamber_temperature
+                )));
+            }
+
+            cmds
         }
         1 => {
             let mut cmds = Vec::new();
@@ -179,7 +189,9 @@ pub fn plan_temperatures(layer_index: usize, config: &PrintConfig) -> Vec<GcodeC
             }
 
             // Transition to normal nozzle temp if different.
-            if (config.filament.nozzle_temp() - config.filament.first_layer_nozzle_temp()).abs() > 0.1 {
+            if (config.filament.nozzle_temp() - config.filament.first_layer_nozzle_temp()).abs()
+                > 0.1
+            {
                 cmds.push(GcodeCommand::SetExtruderTemp {
                     temp: config.filament.nozzle_temp(),
                     wait: false,
@@ -244,14 +256,9 @@ mod tests {
 
     /// Helper to create a validated CCW square.
     fn make_square(size: f64) -> ValidPolygon {
-        Polygon::from_mm(&[
-            (0.0, 0.0),
-            (size, 0.0),
-            (size, size),
-            (0.0, size),
-        ])
-        .validate()
-        .unwrap()
+        Polygon::from_mm(&[(0.0, 0.0), (size, 0.0), (size, size), (0.0, size)])
+            .validate()
+            .unwrap()
     }
 
     fn default_config() -> PrintConfig {
@@ -468,7 +475,10 @@ mod tests {
     fn temperature_layer_5_returns_empty() {
         let config = default_config();
         let cmds = plan_temperatures(5, &config);
-        assert!(cmds.is_empty(), "Layer 5 should emit no temperature commands");
+        assert!(
+            cmds.is_empty(),
+            "Layer 5 should emit no temperature commands"
+        );
     }
 
     // --- Fan tests ---
@@ -503,7 +513,12 @@ mod tests {
         // Layers 0, 1, 2 should have fan off.
         for i in 0..3 {
             let cmds = plan_fan(i, 10.0, &config);
-            assert_eq!(cmds[0], GcodeCommand::FanOff, "Layer {} should have fan off", i);
+            assert_eq!(
+                cmds[0],
+                GcodeCommand::FanOff,
+                "Layer {} should have fan off",
+                i
+            );
         }
 
         // Layer 3 should enable fan.

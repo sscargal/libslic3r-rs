@@ -230,9 +230,15 @@ pub fn generate_purge_tower_layer(
             let y_pos = tower_y + y_offset.min(tower_w);
 
             let (sx, ex) = if i % 2 == 0 {
-                (tower_x + extrusion_width, tower_x + tower_w - extrusion_width)
+                (
+                    tower_x + extrusion_width,
+                    tower_x + tower_w - extrusion_width,
+                )
             } else {
-                (tower_x + tower_w - extrusion_width, tower_x + extrusion_width)
+                (
+                    tower_x + tower_w - extrusion_width,
+                    tower_x + extrusion_width,
+                )
             };
 
             let seg_len = (ex - sx).abs();
@@ -333,11 +339,9 @@ pub fn assign_tools_per_region(
                 // In practice, the engine would slice at the actual layer Z.
                 if let Some(region) = crate::modifier::slice_modifier(modifier, 1.0) {
                     // Check if any model contour intersects with the modifier contour.
-                    let intersection = slicecore_geo::polygon_intersection(
-                        region_contours,
-                        &region.contours,
-                    )
-                    .unwrap_or_default();
+                    let intersection =
+                        slicecore_geo::polygon_intersection(region_contours, &region.contours)
+                            .unwrap_or_default();
                     if !intersection.is_empty() {
                         return *tool_idx;
                     }
@@ -382,9 +386,10 @@ mod tests {
         let seq = generate_tool_change(0, 1, &config, &print_config);
 
         // Should contain a ToolChange command.
-        let has_tool_change = seq.commands.iter().any(|cmd| {
-            matches!(cmd, GcodeCommand::ToolChange(1))
-        });
+        let has_tool_change = seq
+            .commands
+            .iter()
+            .any(|cmd| matches!(cmd, GcodeCommand::ToolChange(1)));
         assert!(
             has_tool_change,
             "Tool change sequence should contain ToolChange(1)"
@@ -403,18 +408,22 @@ mod tests {
 
         let seq = generate_tool_change(0, 1, &config, &print_config);
 
-        let has_retract = seq.commands.iter().any(|cmd| {
-            matches!(cmd, GcodeCommand::Retract { .. })
-        });
-        let has_travel = seq.commands.iter().any(|cmd| {
-            matches!(cmd, GcodeCommand::RapidMove { .. })
-        });
-        let has_tcode = seq.commands.iter().any(|cmd| {
-            matches!(cmd, GcodeCommand::ToolChange(_))
-        });
-        let has_prime = seq.commands.iter().any(|cmd| {
-            matches!(cmd, GcodeCommand::Unretract { .. })
-        });
+        let has_retract = seq
+            .commands
+            .iter()
+            .any(|cmd| matches!(cmd, GcodeCommand::Retract { .. }));
+        let has_travel = seq
+            .commands
+            .iter()
+            .any(|cmd| matches!(cmd, GcodeCommand::RapidMove { .. }));
+        let has_tcode = seq
+            .commands
+            .iter()
+            .any(|cmd| matches!(cmd, GcodeCommand::ToolChange(_)));
+        let has_prime = seq
+            .commands
+            .iter()
+            .any(|cmd| matches!(cmd, GcodeCommand::Unretract { .. }));
 
         assert!(has_retract, "Should have retract command");
         assert!(has_travel, "Should have travel to purge tower");
@@ -439,9 +448,10 @@ mod tests {
 
         let seq = generate_tool_change(1, 3, &config, &print_config);
 
-        let tool_cmd = seq.commands.iter().find(|cmd| {
-            matches!(cmd, GcodeCommand::ToolChange(_))
-        });
+        let tool_cmd = seq
+            .commands
+            .iter()
+            .find(|cmd| matches!(cmd, GcodeCommand::ToolChange(_)));
         assert_eq!(
             tool_cmd,
             Some(&GcodeCommand::ToolChange(3)),
@@ -463,9 +473,10 @@ mod tests {
 
         assert!(layer.is_dense, "Tool-change layer should be dense");
         // Dense layer should have infill lines (LinearMove commands).
-        let has_linear = layer.commands.iter().any(|cmd| {
-            matches!(cmd, GcodeCommand::LinearMove { .. })
-        });
+        let has_linear = layer
+            .commands
+            .iter()
+            .any(|cmd| matches!(cmd, GcodeCommand::LinearMove { .. }));
         assert!(has_linear, "Dense tower should have infill extrusion");
     }
 
@@ -482,9 +493,11 @@ mod tests {
 
         assert!(!layer.is_dense, "Non-change layer should be sparse");
         // Sparse layer should have perimeter extrusion but fewer commands.
-        let linear_count = layer.commands.iter().filter(|cmd| {
-            matches!(cmd, GcodeCommand::LinearMove { .. })
-        }).count();
+        let linear_count = layer
+            .commands
+            .iter()
+            .filter(|cmd| matches!(cmd, GcodeCommand::LinearMove { .. }))
+            .count();
         // Sparse has 2 loops of 4 sides = 8 extrusion moves.
         assert!(
             linear_count <= 16,

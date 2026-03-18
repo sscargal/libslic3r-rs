@@ -24,6 +24,8 @@ slicecore-plugin = { path = "../slicecore-plugin", default-features = false }
 slicecore-plugin-api = { path = "../slicecore-plugin-api" }
 slicecore-ai = { path = "../slicecore-ai", optional = true }
 slicecore-arrange = { path = "../slicecore-arrange", optional = true }
+slicecore-config-schema = { path = "../slicecore-config-schema" }
+slicecore-config-derive = { path = "../slicecore-config-derive" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -32,6 +34,8 @@ boostvoronoi = "0.11.1"
 rayon = { version = "1.11", optional = true }
 rmp-serde = { workspace = true }
 walkdir = { workspace = true }
+sha2 = "0.10"
+strsim = "0.11"
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 getrandom = { version = "0.3", features = ["wasm_js"] }

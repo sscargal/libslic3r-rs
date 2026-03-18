@@ -49,8 +49,7 @@ pub fn parse(data: &[u8]) -> Result<TriangleMesh, FileIOError> {
         return Err(FileIOError::FileTooSmall(data.len()));
     }
 
-    let num_triangles =
-        u32::from_le_bytes([data[80], data[81], data[82], data[83]]) as usize;
+    let num_triangles = u32::from_le_bytes([data[80], data[81], data[82], data[83]]) as usize;
 
     if num_triangles == 0 {
         return Err(FileIOError::EmptyModel);
@@ -60,7 +59,9 @@ pub fn parse(data: &[u8]) -> Result<TriangleMesh, FileIOError> {
     if data.len() < expected_size {
         return Err(FileIOError::UnexpectedEof(format!(
             "binary STL claims {} triangles ({} bytes needed) but file is only {} bytes",
-            num_triangles, expected_size, data.len()
+            num_triangles,
+            expected_size,
+            data.len()
         )));
     }
 
@@ -261,10 +262,10 @@ mod tests {
     #[test]
     fn single_triangle_parses_correctly() {
         let triangles = vec![(
-            [0.0f32, 0.0, 1.0],  // normal
-            [0.0, 0.0, 0.0],     // v0
-            [1.0, 0.0, 0.0],     // v1
-            [0.0, 1.0, 0.0],     // v2
+            [0.0f32, 0.0, 1.0], // normal
+            [0.0, 0.0, 0.0],    // v0
+            [1.0, 0.0, 0.0],    // v1
+            [0.0, 1.0, 0.0],    // v2
         )];
         let data = build_binary_stl(&triangles);
         let mesh = parse(&data).unwrap();

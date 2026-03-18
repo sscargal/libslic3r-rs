@@ -197,10 +197,7 @@ timeout_secs = 60
         assert_eq!(config.provider, ProviderType::OpenAi);
         assert_eq!(config.model, "gpt-4o");
         assert!(config.api_key.is_some());
-        assert_eq!(
-            config.base_url.as_deref(),
-            Some("https://custom.api.com")
-        );
+        assert_eq!(config.base_url.as_deref(), Some("https://custom.api.com"));
         assert_eq!(config.timeout_secs, 60);
     }
 
@@ -236,10 +233,7 @@ base_url = "http://localhost:11434"
         let config = AiConfig::from_toml(toml).unwrap();
         assert_eq!(config.provider, ProviderType::Ollama);
         assert!(config.api_key.is_none());
-        assert_eq!(
-            config.base_url.as_deref(),
-            Some("http://localhost:11434")
-        );
+        assert_eq!(config.base_url.as_deref(), Some("http://localhost:11434"));
     }
 
     #[test]
@@ -269,10 +263,7 @@ base_url = "http://localhost:11434"
         assert_eq!(cloned.provider, ProviderType::OpenAi);
         assert_eq!(cloned.model, "gpt-4o");
         assert!(cloned.api_key.is_some());
-        assert_eq!(
-            cloned.base_url.as_deref(),
-            Some("https://api.example.com")
-        );
+        assert_eq!(cloned.base_url.as_deref(), Some("https://api.example.com"));
         assert_eq!(cloned.timeout_secs, 45);
     }
 }

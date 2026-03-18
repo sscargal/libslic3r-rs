@@ -36,10 +36,10 @@ use crate::error::FileIOError;
 pub fn parse(data: &[u8]) -> Result<TriangleMesh, FileIOError> {
     let cursor = Cursor::new(data);
 
-    let mut archiver = ZipArchiver::new(cursor)
-        .map_err(|e| FileIOError::ThreeMfError(e.to_string()))?;
-    let model_path = find_model_path(&mut archiver)
-        .map_err(|e| FileIOError::ThreeMfError(e.to_string()))?;
+    let mut archiver =
+        ZipArchiver::new(cursor).map_err(|e| FileIOError::ThreeMfError(e.to_string()))?;
+    let model_path =
+        find_model_path(&mut archiver).map_err(|e| FileIOError::ThreeMfError(e.to_string()))?;
     let model_data = archiver
         .read_entry(&model_path)
         .map_err(|e| FileIOError::ThreeMfError(e.to_string()))?;
@@ -103,9 +103,7 @@ mod tests {
         }
 
         let mut buffer = Cursor::new(Vec::new());
-        model
-            .write(&mut buffer)
-            .expect("failed to write test 3MF");
+        model.write(&mut buffer).expect("failed to write test 3MF");
         buffer.into_inner()
     }
 
@@ -231,9 +229,7 @@ mod tests {
         });
 
         let mut buffer = Cursor::new(Vec::new());
-        model
-            .write(&mut buffer)
-            .expect("failed to write test 3MF");
+        model.write(&mut buffer).expect("failed to write test 3MF");
         let data = buffer.into_inner();
 
         let result = parse(&data);

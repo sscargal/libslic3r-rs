@@ -95,13 +95,31 @@ mod tests {
         let text: Vec<String> = cmds.iter().map(|c| c.to_string()).collect();
         let joined = text.join("\n");
 
-        assert!(joined.contains("M83"), "should contain M83 (relative extrusion)");
-        assert!(joined.contains("M140 S60"), "should contain M140 (set bed temp)");
-        assert!(joined.contains("M104 S200"), "should contain M104 (set extruder temp)");
-        assert!(joined.contains("M190 S60"), "should contain M190 (wait bed temp)");
-        assert!(joined.contains("M109 S200"), "should contain M109 (wait extruder temp)");
+        assert!(
+            joined.contains("M83"),
+            "should contain M83 (relative extrusion)"
+        );
+        assert!(
+            joined.contains("M140 S60"),
+            "should contain M140 (set bed temp)"
+        );
+        assert!(
+            joined.contains("M104 S200"),
+            "should contain M104 (set extruder temp)"
+        );
+        assert!(
+            joined.contains("M190 S60"),
+            "should contain M190 (wait bed temp)"
+        );
+        assert!(
+            joined.contains("M109 S200"),
+            "should contain M109 (wait extruder temp)"
+        );
         assert!(joined.contains("G28"), "should contain G28 (home)");
-        assert!(joined.contains("G92 E0"), "should contain G92 E0 (reset extruder)");
+        assert!(
+            joined.contains("G92 E0"),
+            "should contain G92 E0 (reset extruder)"
+        );
     }
 
     #[test]

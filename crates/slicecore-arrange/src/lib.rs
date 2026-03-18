@@ -428,10 +428,12 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let mut config = ArrangeConfig::default();
-        config.sequential_mode = true;
-        config.gantry_model = GantryModel::None; // No gantry clearance for this test
-        config.part_spacing = 20.0; // Large spacing to ensure separation
+        let config = ArrangeConfig {
+            sequential_mode: true,
+            gantry_model: GantryModel::None, // No gantry clearance for this test
+            part_spacing: 20.0,              // Large spacing to ensure separation
+            ..ArrangeConfig::default()
+        };
 
         let result = arrange(&parts, &config, "", 220.0, 220.0).unwrap();
 
@@ -503,8 +505,10 @@ mod tests {
                 ..Default::default()
             },
         ];
-        let mut config = ArrangeConfig::default();
-        config.material_grouping = true;
+        let config = ArrangeConfig {
+            material_grouping: true,
+            ..ArrangeConfig::default()
+        };
         let result = arrange(&parts, &config, "", 220.0, 220.0).unwrap();
 
         let total_placed: usize = result.plates.iter().map(|p| p.placements.len()).sum();

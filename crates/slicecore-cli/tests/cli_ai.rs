@@ -139,7 +139,8 @@ fn ai_suggest_default_provider_connection_error() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("Failed to connect") || stderr.contains("AI suggestion failed")
+        stderr.contains("Failed to connect")
+            || stderr.contains("AI suggestion failed")
             || stderr.contains("error"),
         "stderr should mention connection or AI error, got: {}",
         stderr
@@ -185,12 +186,7 @@ fn ai_suggest_json_format_flag_accepted() {
     write_cube_stl(&stl_path);
 
     let output = Command::new(cli_binary())
-        .args([
-            "ai-suggest",
-            stl_path.to_str().unwrap(),
-            "--format",
-            "json",
-        ])
+        .args(["ai-suggest", stl_path.to_str().unwrap(), "--format", "json"])
         .output()
         .expect("failed to run slicecore CLI");
 

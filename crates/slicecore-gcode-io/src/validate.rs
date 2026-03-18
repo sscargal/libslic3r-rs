@@ -282,11 +282,7 @@ M84
     fn tool_change_commands_pass_validation() {
         let gcode = "T0\nT1\nT3\n";
         let result = validate_gcode(gcode);
-        assert!(
-            result.valid,
-            "T commands should pass: {:?}",
-            result.errors
-        );
+        assert!(result.valid, "T commands should pass: {:?}", result.errors);
     }
 
     #[test]

@@ -13,6 +13,7 @@ use std::sync::OnceLock;
 use slicecore_math::{BBox3, Point3, Vec3};
 
 use crate::bvh::BVH;
+use crate::csg::types::TriangleAttributes;
 use crate::error::MeshError;
 
 /// A triangle mesh stored in the arena+index pattern.
@@ -36,6 +37,8 @@ pub struct TriangleMesh {
     aabb: BBox3,
     /// Lazily-built BVH spatial index.
     bvh: OnceLock<BVH>,
+    /// Optional per-triangle attributes (material, color).
+    attributes: Option<Vec<TriangleAttributes>>,
 }
 
 impl TriangleMesh {
@@ -96,6 +99,7 @@ impl TriangleMesh {
             normals,
             aabb,
             bvh: OnceLock::new(),
+            attributes: None,
         })
     }
 
@@ -159,6 +163,48 @@ impl TriangleMesh {
     pub fn bvh(&self) -> &BVH {
         self.bvh
             .get_or_init(|| BVH::build(&self.vertices, &self.indices))
+    }
+
+    /// Returns the per-triangle attributes, if set.
+    #[inline]
+    pub fn attributes(&self) -> Option<&[TriangleAttributes]> {
+        self.attributes.as_deref()
+    }
+
+    /// Sets per-triangle attributes on this mesh.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`MeshError::NonManifold`] if the length of `attrs` does not
+    /// match the number of triangles in the mesh.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use slicecore_mesh::TriangleMesh;
+    /// use slicecore_mesh::csg::TriangleAttributes;
+    /// use slicecore_math::Point3;
+    ///
+    /// let vertices = vec![
+    ///     Point3::new(0.0, 0.0, 0.0),
+    ///     Point3::new(1.0, 0.0, 0.0),
+    ///     Point3::new(0.0, 1.0, 0.0),
+    /// ];
+    /// let mut mesh = TriangleMesh::new(vertices, vec![[0, 1, 2]]).unwrap();
+    /// let attrs = vec![TriangleAttributes { material_id: 1, color: None }];
+    /// mesh.set_attributes(attrs).unwrap();
+    /// assert_eq!(mesh.attributes().unwrap()[0].material_id, 1);
+    /// ```
+    pub fn set_attributes(&mut self, attrs: Vec<TriangleAttributes>) -> Result<(), MeshError> {
+        if attrs.len() != self.indices.len() {
+            return Err(MeshError::NonManifold(format!(
+                "attribute count {} does not match triangle count {}",
+                attrs.len(),
+                self.indices.len()
+            )));
+        }
+        self.attributes = Some(attrs);
+        Ok(())
     }
 
     /// Finds connected components (disjoint sub-meshes) by vertex connectivity.
@@ -444,10 +490,8 @@ pub(crate) mod tests {
         );
 
         // Each component should have 8 vertices and 12 triangles.
-        let mut sizes: Vec<(usize, usize)> = components
-            .iter()
-            .map(|(v, t)| (v.len(), t.len()))
-            .collect();
+        let mut sizes: Vec<(usize, usize)> =
+            components.iter().map(|(v, t)| (v.len(), t.len())).collect();
         sizes.sort();
         assert_eq!(sizes, vec![(8, 12), (8, 12)]);
     }

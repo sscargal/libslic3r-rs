@@ -78,11 +78,7 @@ pub fn intersect_triangle_z_plane(
     }
 
     // No vertices on the plane: find edges that cross
-    let edges = [
-        (v0, v1, d0, d1),
-        (v1, v2, d1, d2),
-        (v2, v0, d2, d0),
-    ];
+    let edges = [(v0, v1, d0, d1), (v1, v2, d1, d2), (v2, v0, d2, d0)];
 
     let mut intersections = Vec::with_capacity(2);
     for &(va, vb, da, db) in &edges {
@@ -123,10 +119,7 @@ pub fn chain_segments(segments: Vec<(IPoint2, IPoint2)>) -> Vec<Vec<IPoint2>> {
     let mut adjacency: HashMap<IPoint2, Vec<(IPoint2, usize)>> =
         HashMap::with_capacity(segments.len());
     for (idx, &(start, end)) in segments.iter().enumerate() {
-        adjacency
-            .entry(start)
-            .or_default()
-            .push((end, idx));
+        adjacency.entry(start).or_default().push((end, idx));
     }
 
     let mut used = vec![false; segments.len()];
@@ -152,12 +145,9 @@ pub fn chain_segments(segments: Vec<(IPoint2, IPoint2)>) -> Vec<Vec<IPoint2>> {
             }
 
             // Find an unused segment starting at `current`
-            let next = adjacency.get(&current).and_then(|neighbors| {
-                neighbors
-                    .iter()
-                    .find(|(_, idx)| !used[*idx])
-                    .copied()
-            });
+            let next = adjacency
+                .get(&current)
+                .and_then(|neighbors| neighbors.iter().find(|(_, idx)| !used[*idx]).copied());
 
             match next {
                 Some((end, idx)) => {
@@ -301,17 +291,32 @@ mod tests {
         let v2 = Point3::new(0.0, 1.0, 1.0);
 
         let result = intersect_triangle_z_plane(v0, v1, v2, 0.5);
-        assert!(result.is_some(), "Triangle crossing z=0.5 should produce a segment");
+        assert!(
+            result.is_some(),
+            "Triangle crossing z=0.5 should produce a segment"
+        );
 
         let (p0, p1) = result.unwrap();
         // At z=0.5, the intersection line should have y or x coordinates at 0.5
         // v0->v1: t=0.5, point = (0.5, 0.0)
         // v0->v2: t=0.5, point = (0.0, 0.5)
         let points = [p0, p1];
-        let has_half_x = points.iter().any(|p| (p.x - 0.5).abs() < 1e-9 && p.y.abs() < 1e-9);
-        let has_half_y = points.iter().any(|p| p.x.abs() < 1e-9 && (p.y - 0.5).abs() < 1e-9);
-        assert!(has_half_x, "Expected intersection at (0.5, 0.0), got {:?}", points);
-        assert!(has_half_y, "Expected intersection at (0.0, 0.5), got {:?}", points);
+        let has_half_x = points
+            .iter()
+            .any(|p| (p.x - 0.5).abs() < 1e-9 && p.y.abs() < 1e-9);
+        let has_half_y = points
+            .iter()
+            .any(|p| p.x.abs() < 1e-9 && (p.y - 0.5).abs() < 1e-9);
+        assert!(
+            has_half_x,
+            "Expected intersection at (0.5, 0.0), got {:?}",
+            points
+        );
+        assert!(
+            has_half_y,
+            "Expected intersection at (0.0, 0.5), got {:?}",
+            points
+        );
     }
 
     #[test]
@@ -321,7 +326,10 @@ mod tests {
         let v2 = Point3::new(0.0, 1.0, 4.0);
 
         let result = intersect_triangle_z_plane(v0, v1, v2, 0.5);
-        assert!(result.is_none(), "Triangle fully above plane should return None");
+        assert!(
+            result.is_none(),
+            "Triangle fully above plane should return None"
+        );
     }
 
     #[test]
@@ -331,7 +339,10 @@ mod tests {
         let v2 = Point3::new(0.0, 1.0, -1.0);
 
         let result = intersect_triangle_z_plane(v0, v1, v2, 0.5);
-        assert!(result.is_none(), "Triangle fully below plane should return None");
+        assert!(
+            result.is_none(),
+            "Triangle fully below plane should return None"
+        );
     }
 
     #[test]

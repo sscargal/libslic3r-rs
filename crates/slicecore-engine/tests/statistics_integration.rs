@@ -111,9 +111,7 @@ fn test_per_feature_time_percentages_sum_near_100() {
         .features
         .iter()
         .filter(|f| {
-            f.feature_type != "retract"
-                && f.feature_type != "unretract"
-                && f.feature_type != "wipe"
+            f.feature_type != "retract" && f.feature_type != "unretract" && f.feature_type != "wipe"
         })
         .map(|f| f.time_pct_total)
         .sum();
@@ -167,11 +165,9 @@ fn test_gcode_metrics_retraction_count_matches_estimate() {
 
     // Both retraction counts should come from the same source.
     assert_eq!(
-        statistics.gcode_metrics.retraction_count,
-        result.time_estimate.retraction_count as u32,
+        statistics.gcode_metrics.retraction_count, result.time_estimate.retraction_count as u32,
         "G-code metrics retraction count ({}) should match time estimate ({})",
-        statistics.gcode_metrics.retraction_count,
-        result.time_estimate.retraction_count
+        statistics.gcode_metrics.retraction_count, result.time_estimate.retraction_count
     );
 }
 
@@ -281,8 +277,7 @@ fn test_statistics_serialization_roundtrip() {
 
     // Verify key fields match.
     assert_eq!(
-        statistics.summary.total_time_seconds,
-        deserialized.summary.total_time_seconds,
+        statistics.summary.total_time_seconds, deserialized.summary.total_time_seconds,
         "Total time should survive roundtrip"
     );
     assert_eq!(
@@ -295,8 +290,7 @@ fn test_statistics_serialization_roundtrip() {
         "Feature count should survive roundtrip"
     );
     assert_eq!(
-        statistics.gcode_metrics.retraction_count,
-        deserialized.gcode_metrics.retraction_count,
+        statistics.gcode_metrics.retraction_count, deserialized.gcode_metrics.retraction_count,
         "Retraction count should survive roundtrip"
     );
 

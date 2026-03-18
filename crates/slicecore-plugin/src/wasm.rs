@@ -78,13 +78,12 @@ mod wasm_impl {
                 reason: format!("Failed to create WASM engine: {}", e),
             })?;
 
-            let component =
-                Component::from_file(&engine, wasm_path).map_err(|e| {
-                    PluginSystemError::LoadFailed {
-                        path: wasm_path.to_path_buf(),
-                        reason: format!("Failed to load WASM component: {}", e),
-                    }
-                })?;
+            let component = Component::from_file(&engine, wasm_path).map_err(|e| {
+                PluginSystemError::LoadFailed {
+                    path: wasm_path.to_path_buf(),
+                    reason: format!("Failed to load WASM component: {}", e),
+                }
+            })?;
 
             // Instantiate once to get name/description (cached)
             let (name, description) = Self::query_metadata(&engine, &component, wasm_path)?;
@@ -146,13 +145,12 @@ mod wasm_impl {
                         reason: format!("Failed to call name(): {}", e),
                     })?;
 
-            let description =
-                bindings
-                    .call_description(&mut store)
-                    .map_err(|e| PluginSystemError::LoadFailed {
-                        path: wasm_path.to_path_buf(),
-                        reason: format!("Failed to call description(): {}", e),
-                    })?;
+            let description = bindings.call_description(&mut store).map_err(|e| {
+                PluginSystemError::LoadFailed {
+                    path: wasm_path.to_path_buf(),
+                    reason: format!("Failed to call description(): {}", e),
+                }
+            })?;
 
             Ok((name, description))
         }
@@ -212,8 +210,7 @@ mod wasm_impl {
                 })
                 .collect();
 
-            let boundary_lengths: Vec<u32> =
-                request.boundary_lengths.iter().copied().collect();
+            let boundary_lengths: Vec<u32> = request.boundary_lengths.iter().copied().collect();
 
             slicecore::plugin::types::InfillRequest {
                 boundary_points,
