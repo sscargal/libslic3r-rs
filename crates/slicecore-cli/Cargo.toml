@@ -17,6 +17,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 toml = { workspace = true }
 slicecore-engine = { path = "../slicecore-engine", features = ["plugins", "ai", "arrange"] }
+slicecore-config-schema = { path = "../slicecore-config-schema" }
 slicecore-fileio = { path = "../slicecore-fileio" }
 slicecore-mesh = { path = "../slicecore-mesh" }
 slicecore-gcode-io = { path = "../slicecore-gcode-io" }

@@ -15,12 +15,14 @@
 //! - `arrange`: Arrange multiple mesh files on a build plate
 //! - `post-process`: Post-process an existing G-code file
 //! - `csg`: CSG boolean operations, splitting, hollowing, primitives, and mesh info
+//! - `schema`: Query the setting schema registry (JSON Schema, metadata, search)
 
 mod analysis_display;
 mod calibrate;
 mod csg_command;
 mod csg_info;
 pub mod progress;
+mod schema_command;
 mod slice_workflow;
 mod stats_display;
 
@@ -574,6 +576,12 @@ enum Commands {
     #[command(subcommand)]
     Csg(csg_command::CsgCommand),
 
+    /// Query the setting schema registry.
+    ///
+    /// Outputs JSON Schema or flat metadata JSON for all registered settings.
+    /// Supports filtering by tier, category, and full-text search.
+    Schema(schema_command::SchemaArgs),
+
     /// Post-process an existing G-code file.
     ///
     /// Reads a G-code file, applies configured post-processors (pause-at-layer,
@@ -823,6 +831,12 @@ fn main() {
         }
         Commands::Csg(csg_cmd) => {
             if let Err(e) = csg_command::run_csg(csg_cmd) {
+                eprintln!("Error: {e}");
+                process::exit(1);
+            }
+        }
+        Commands::Schema(args) => {
+            if let Err(e) = schema_command::run_schema_command(&args) {
                 eprintln!("Error: {e}");
                 process::exit(1);
             }
