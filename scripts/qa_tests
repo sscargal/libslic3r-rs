@@ -888,7 +888,106 @@ group_plugin() {
     should_run_group "plugin" || return 0
     group_header "Plugin Commands"
 
-    info "Plugin testing requires compiled WASM plugins -- skipped in automated QA"
+    # Create a temp fixture directory with fake plugin dirs
+    local PLUGIN_FIXTURE_DIR
+    PLUGIN_FIXTURE_DIR=$(mktemp -d)
+    trap "rm -rf '$PLUGIN_FIXTURE_DIR'" RETURN
+
+    # Create a valid plugin directory with plugin.toml
+    mkdir -p "$PLUGIN_FIXTURE_DIR/test-infill"
+    cat > "$PLUGIN_FIXTURE_DIR/test-infill/plugin.toml" << 'TOML'
+library_filename = "libtest_infill.so"
+plugin_type = "native"
+capabilities = ["infill_pattern"]
+
+[metadata]
+name = "test-infill"
+version = "1.0.0"
+description = "A test infill plugin for QA"
+author = "QA Test"
+license = "MIT"
+min_api_version = "0.0.0"
+max_api_version = "99.99.99"
+TOML
+
+    # Create a second valid plugin (postprocessor)
+    mkdir -p "$PLUGIN_FIXTURE_DIR/test-postproc"
+    cat > "$PLUGIN_FIXTURE_DIR/test-postproc/plugin.toml" << 'TOML'
+library_filename = "libtest_postproc.so"
+plugin_type = "native"
+capabilities = ["gcode_post_processor"]
+
+[metadata]
+name = "test-postproc"
+version = "2.0.0"
+description = "A test post-processor plugin"
+author = "QA Test"
+license = "MIT"
+min_api_version = "0.0.0"
+max_api_version = "99.99.99"
+TOML
+
+    # --- List commands ---
+    run_test "plugins list (table)" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" list
+
+    run_test "plugins list --json" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" list --json
+
+    run_test "plugins list --category infill" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" list --category infill
+
+    run_test "plugins list --status enabled" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" list --status enabled
+
+    # --- Info command ---
+    run_test "plugins info test-infill" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" info test-infill
+
+    run_test "plugins info --json" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" info test-infill --json
+
+    # --- Disable/Enable cycle ---
+    run_test "plugins disable test-infill" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" disable test-infill
+
+    # Verify .status file was written
+    run_test "verify .status file exists after disable" \
+        test -f "$PLUGIN_FIXTURE_DIR/test-infill/.status"
+
+    run_test "plugins list shows disabled" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" list --status disabled
+
+    # Enable succeeds (manifest + version validated, no actual .so load required)
+    run_test "plugins enable test-infill" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" enable test-infill
+
+    # --- Validate command ---
+    # validate fails on load (no .so), but runs manifest/version checks first
+    run_test_expect_fail "plugins validate (no library)" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" validate test-infill
+
+    # --- Error cases ---
+    run_test_expect_fail "plugins info nonexistent plugin" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" info nonexistent-plugin
+
+    run_test_expect_fail "plugins enable nonexistent plugin" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" enable nonexistent-plugin
+
+    run_test_expect_fail "plugins disable nonexistent plugin" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" disable nonexistent-plugin
+
+    run_test_expect_fail "plugins list no --plugin-dir" \
+        "$SLICECORE" plugins list
+
+    # --- Broken plugin listing (should not crash) ---
+    # Add a broken plugin directory AFTER enable/disable cycle (enable calls
+    # discover_plugins on parent dir, and broken manifests cause validation errors)
+    mkdir -p "$PLUGIN_FIXTURE_DIR/broken-plugin"
+    echo "this is {{{ not valid toml" > "$PLUGIN_FIXTURE_DIR/broken-plugin/plugin.toml"
+
+    run_test "plugins list includes broken plugin without crashing" \
+        "$SLICECORE" plugins --plugin-dir "$PLUGIN_FIXTURE_DIR" list
 }
 
 # ---------------------------------------------------------------------------
@@ -955,7 +1054,7 @@ group_coverage() {
     CRATE_MAP["slicecore-gcode-io"]="validate, analyze-gcode, compare-gcode"
     CRATE_MAP["slicecore-mesh"]="csg"
     CRATE_MAP["slicecore-ai"]="ai-suggest"
-    CRATE_MAP["slicecore-plugin"]="(plugin system, no direct subcommand)"
+    CRATE_MAP["slicecore-plugin"]="plugins"
     CRATE_MAP["slicecore-render"]="thumbnail"
     CRATE_MAP["slicecore-slicer"]="slice (internal)"
     CRATE_MAP["slicecore-cli"]="(the CLI itself)"
