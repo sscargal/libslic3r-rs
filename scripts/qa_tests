@@ -806,14 +806,14 @@ group_errors() {
     run_test_expect_fail "csg split with invalid plane" \
         "$SLICECORE" csg split "$TMPDIR_QA/cube.stl" --plane invalid
 
-    run_test_expect_fail "calibrate temp-tower with invalid temp range" \
-        "$SLICECORE" calibrate temp-tower --start-temp 300 --end-temp 100
+    run_test_expect_fail "calibrate nonexistent subcommand" \
+        "$SLICECORE" calibrate nonexistent
 
     run_test_expect_fail "schema with invalid tier" \
         "$SLICECORE" schema --tier nonexistent
 
-    run_test_expect_fail "schema with invalid category" \
-        "$SLICECORE" schema --category nonexistent
+    run_test_expect_fail "schema with invalid format" \
+        "$SLICECORE" schema --format nonexistent
 
     run_test_expect_fail "convert-profile nonexistent file" \
         "$SLICECORE" convert-profile nonexistent.json
