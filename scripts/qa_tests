@@ -496,6 +496,9 @@ group_build() {
 
     run_test "cargo test --all-features --workspace" \
         cargo test --all-features --workspace
+
+    run_test "cargo doc --no-deps --workspace" \
+        cargo doc --no-deps --workspace
 }
 
 # ---------------------------------------------------------------------------
