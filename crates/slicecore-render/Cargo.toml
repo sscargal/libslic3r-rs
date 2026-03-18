@@ -14,4 +14,4 @@ base64 = "0.22"
 
 [dev-dependencies]
 slicecore-fileio = { path = "../slicecore-fileio" }
-zip = "2"
+zip = "8"
