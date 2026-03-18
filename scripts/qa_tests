@@ -15,6 +15,7 @@
 #   --list-groups   Print available groups and exit
 #   --no-color      Disable ANSI color output
 #   --verbose       Show stdout/stderr from commands (default: suppress on pass)
+#   --disk-threshold N  Percent disk usage that triggers cleanup (default: 90)
 #   --help          Show this help message
 #
 # Groups:
@@ -34,7 +35,8 @@
 #   coverage    Coverage gap report
 #
 # Environment:
-#   SLICECORE_BIN   Path to pre-built slicecore binary (skips build)
+#   SLICECORE_BIN       Path to pre-built slicecore binary (skips build)
+#   DISK_THRESHOLD      Percent disk usage threshold (overridden by --disk-threshold)
 #
 # =============================================================================
 
@@ -53,6 +55,7 @@ SKIP_GROUPS=""
 NO_COLOR=false
 VERBOSE=false
 TMPDIR_QA=""
+DISK_THRESHOLD="${DISK_THRESHOLD:-90}"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -260,6 +263,8 @@ parse_args() {
                 NO_COLOR=true; shift ;;
             --verbose)
                 VERBOSE=true; shift ;;
+            --disk-threshold)
+                DISK_THRESHOLD="$2"; shift 2 ;;
             --help|-h)
                 head -38 "${BASH_SOURCE[0]}" | tail -35
                 exit 0 ;;
@@ -283,7 +288,53 @@ setup() {
 
 cleanup() {
     if [[ -n "$TMPDIR_QA" && -d "$TMPDIR_QA" ]]; then
-        rm -rf "$TMPDIR_QA"
+        if [[ $FAIL_COUNT -eq 0 ]]; then
+            rm -rf "$TMPDIR_QA"
+        else
+            printf '\n  %s Temp dir preserved for debugging: %s\n' \
+                "$(yellow "NOTE")" "$TMPDIR_QA"
+        fi
+    fi
+}
+
+# report_stale_qa_dirs - list old slicecore-qa.* temp dirs from previous runs
+report_stale_qa_dirs() {
+    local tmpbase="${TMPDIR:-/tmp}"
+    local stale_dirs
+    stale_dirs=$(find "$tmpbase" -maxdepth 1 -name "slicecore-qa.*" -type d \
+        ! -path "$TMPDIR_QA" 2>/dev/null || true)
+
+    if [[ -z "$stale_dirs" ]]; then
+        return 0
+    fi
+
+    local count=0
+    local total_kb=0
+    while IFS= read -r d; do
+        [[ -z "$d" ]] && continue
+        count=$((count + 1))
+        local kb
+        kb=$(du -sk "$d" 2>/dev/null | awk '{print $1}')
+        total_kb=$((total_kb + kb))
+    done <<< "$stale_dirs"
+
+    if [[ $count -gt 0 ]]; then
+        local total_mb=$(( (total_kb + 512) / 1024 ))
+        printf '\n  %s %d stale QA temp dir(s) found (%d MB):\n' \
+            "$(yellow "NOTE")" "$count" "$total_mb"
+        while IFS= read -r d; do
+            [[ -z "$d" ]] && continue
+            local kb
+            kb=$(du -sk "$d" 2>/dev/null | awk '{print $1}')
+            local mb=$(( (kb + 512) / 1024 ))
+            local age
+            age=$(find "$d" -maxdepth 0 -printf '%Ts\n' 2>/dev/null || stat -c '%Y' "$d" 2>/dev/null || echo "0")
+            local now
+            now=$(date +%s)
+            local age_hrs=$(( (now - age) / 3600 ))
+            printf '    %s  (%d MB, %d hours old)\n' "$d" "$mb" "$age_hrs"
+        done <<< "$stale_dirs"
+        printf '  To remove: rm -rf %s/slicecore-qa.*\n' "$tmpbase"
     fi
 }
 
@@ -309,6 +360,68 @@ ensure_binary() {
         return 1
     fi
     info "Using binary: $SLICECORE"
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# Disk space management
+# ---------------------------------------------------------------------------
+
+# get_disk_usage_percent - returns current disk usage percent for PROJECT_ROOT
+get_disk_usage_percent() {
+    df "$PROJECT_ROOT" | awk 'NR==2 {gsub(/%/,""); print $5}'
+}
+
+# get_target_size_mb - returns target/ dir size in MB (0 if absent)
+get_target_size_mb() {
+    if [[ -d "$PROJECT_ROOT/target" ]]; then
+        du -sm "$PROJECT_ROOT/target" 2>/dev/null | awk '{print $1}'
+    else
+        echo "0"
+    fi
+}
+
+# check_disk_space - check disk usage and clean if above threshold
+# Called before build and after all tests complete.
+check_disk_space() {
+    local phase="$1"  # "pre-build" or "post-test"
+    local usage
+    usage=$(get_disk_usage_percent)
+    local target_mb
+    target_mb=$(get_target_size_mb)
+
+    info "Disk: ${usage}% used, target/ is ${target_mb}MB (threshold: ${DISK_THRESHOLD}%)"
+
+    if [[ "$usage" -ge "$DISK_THRESHOLD" ]]; then
+        warn "Disk usage ${usage}% >= threshold ${DISK_THRESHOLD}%"
+
+        # Try cargo-cache first (trims old artifacts, keeps recent cache)
+        if command -v cargo-cache &>/dev/null; then
+            info "Running cargo cache --autoclean..."
+            cargo cache --autoclean 2>/dev/null || true
+            usage=$(get_disk_usage_percent)
+            info "Disk after cargo-cache: ${usage}%"
+        fi
+
+        # If still above threshold, fall back to cargo clean
+        if [[ "$usage" -ge "$DISK_THRESHOLD" ]]; then
+            if [[ "$phase" == "pre-build" ]]; then
+                warn "Running cargo clean to free space before build..."
+                cargo clean 2>/dev/null || true
+                usage=$(get_disk_usage_percent)
+                info "Disk after cargo clean: ${usage}%"
+            else
+                warn "Disk still above threshold. Run 'cargo clean' manually to reclaim space."
+            fi
+        fi
+
+        # Final check -- if still critically full (>= 98%), abort
+        usage=$(get_disk_usage_percent)
+        if [[ "$usage" -ge 98 ]]; then
+            fail "Disk critically full (${usage}%). Cannot proceed."
+            return 1
+        fi
+    fi
     return 0
 }
 
@@ -927,6 +1040,9 @@ main() {
         fi
     done
 
+    # Check disk space before build
+    check_disk_space "pre-build" || { print_summary; exit 1; }
+
     # Build group first (if requested)
     group_build
 
@@ -955,8 +1071,12 @@ main() {
     group_errors
     group_coverage
 
+    # Post-test disk space check
+    check_disk_space "post-test"
+
     # Summary
     print_summary
+    report_stale_qa_dirs
 
     if [[ $FAIL_COUNT -gt 0 ]]; then
         exit 1

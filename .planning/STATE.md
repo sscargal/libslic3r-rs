@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 35 of 35 (ConfigSchema System with Setting Metadata and JSON Schema Generation)
 Plan: 7 of 7 in current phase (7 complete)
 Status: Complete
-Last activity: 2026-03-18 - Completed quick task 260318-mtf: Review qa_tests and add coverage for recent phases 25+
+Last activity: 2026-03-18 - Completed quick task 260318-oau: Improve QA temp directory cleanup
 
 Progress: [██████████] 100% (154/154 overall)
 
@@ -673,9 +673,10 @@ Recent decisions affecting current work:
 | 2 | Test CLI with 3MF and G-code files | 2026-02-26 | df205fa | [2-test-cli-with-3mf-and-g-code-files](./quick/2-test-cli-with-3mf-and-g-code-files/) |
 | 3 | End-to-end CLI QA test script | 2026-03-13 | 8f22674 | [3-create-end-to-end-cli-qa-test-script-wit](./quick/3-create-end-to-end-cli-qa-test-script-wit/) |
 | 260318-mtf | Review qa_tests and add coverage for recent phases 25+ | 2026-03-18 | fc832c9 | [260318-mtf-review-qa-tests-and-add-coverage-for-rec](./quick/260318-mtf-review-qa-tests-and-add-coverage-for-rec/) |
+| 260318-oau | Improve QA temp directory cleanup - keep on failure, report stale dirs | 2026-03-18 | pending | [260318-oau-improve-qa-temp-directory-cleanup-keep-o](./quick/260318-oau-improve-qa-temp-directory-cleanup-keep-o/) |
 
 ## Session Continuity
 
-Last session: 2026-03-18T16:25:42.346Z
-Stopped at: Completed quick task 260318-mtf
+Last session: 2026-03-18T17:29:48.511Z
+Stopped at: Completed quick task 260318-oau
 Resume file: None
