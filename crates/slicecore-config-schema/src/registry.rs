@@ -169,12 +169,11 @@ impl SettingRegistry {
             let mut current = defaults_json;
             let mut found = true;
             for part in &parts {
-                match current.get(part) {
-                    Some(next) => current = next,
-                    None => {
-                        found = false;
-                        break;
-                    }
+                if let Some(next) = current.get(part) {
+                    current = next;
+                } else {
+                    found = false;
+                    break;
                 }
             }
             if found {
@@ -261,7 +260,11 @@ mod tests {
     fn filter_by_tier() {
         let mut reg = SettingRegistry::new();
         reg.register(make_def("simple", Tier::Simple, SettingCategory::Quality));
-        reg.register(make_def("advanced", Tier::Advanced, SettingCategory::Quality));
+        reg.register(make_def(
+            "advanced",
+            Tier::Advanced,
+            SettingCategory::Quality,
+        ));
         reg.register(make_def("dev", Tier::Developer, SettingCategory::Quality));
 
         let simple = reg.filter_by_tier(Tier::Simple);

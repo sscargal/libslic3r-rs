@@ -444,7 +444,6 @@ pub fn prusaslicer_key_to_config_field(key: &str) -> Option<&'static str> {
         "ironing_angle" => Some("ironing.angle"),
         "ironing_speed" => Some("ironing.speed"),
         "ironing_spacing" => Some("ironing.spacing"),
-        "extruder_clearance_height" => Some("sequential.extruder_clearance_height"),
 
         _ => None,
     }
@@ -723,15 +722,13 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         "start_gcode" => {
             config.machine.start_gcode_original = value.to_string();
             let table = gcode_template::build_prusaslicer_translation_table();
-            config.machine.start_gcode =
-                gcode_template::translate_gcode_template(value, &table);
+            config.machine.start_gcode = gcode_template::translate_gcode_template(value, &table);
             true
         }
         "end_gcode" => {
             config.machine.end_gcode_original = value.to_string();
             let table = gcode_template::build_prusaslicer_translation_table();
-            config.machine.end_gcode =
-                gcode_template::translate_gcode_template(value, &table);
+            config.machine.end_gcode = gcode_template::translate_gcode_template(value, &table);
             true
         }
         "layer_gcode" => {
@@ -974,9 +971,10 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         // Process misc flat fields (PrusaSlicer names)
         // =====================================================================
         "bridge_flow_ratio" => parse_and_set_f64(value, &mut config.bridge_flow),
-        "elefant_foot_compensation" | "elephant_foot_compensation" => {
-            parse_and_set_f64(value, &mut config.dimensional_compensation.elephant_foot_compensation)
-        }
+        "elefant_foot_compensation" | "elephant_foot_compensation" => parse_and_set_f64(
+            value,
+            &mut config.dimensional_compensation.elephant_foot_compensation,
+        ),
         "fill_angle" => parse_and_set_f64(value, &mut config.infill_direction),
         "infill_overlap" => {
             // PrusaSlicer may use percentage format (e.g., "25%").
@@ -1021,7 +1019,10 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         // =====================================================================
         "xy_size_compensation" => {
             // PrusaSlicer has a single xy_size_compensation for both hole and contour.
-            parse_and_set_f64(value, &mut config.dimensional_compensation.xy_contour_compensation)
+            parse_and_set_f64(
+                value,
+                &mut config.dimensional_compensation.xy_contour_compensation,
+            )
         }
         "top_fill_pattern" => {
             if let Some(p) = map_surface_pattern(value) {
@@ -1119,8 +1120,7 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         "support_material_auto" => {
             if let Some(b) = parse_bool(value) {
                 if b {
-                    config.support.support_type =
-                        crate::support::config::SupportType::Auto;
+                    config.support.support_type = crate::support::config::SupportType::Auto;
                 }
                 true
             } else {
@@ -1154,9 +1154,7 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
                 false
             }
         }
-        "support_material_contact_distance" => {
-            parse_and_set_f64(value, &mut config.support.z_gap)
-        }
+        "support_material_contact_distance" => parse_and_set_f64(value, &mut config.support.z_gap),
         "support_material_bottom_contact_distance" => {
             if let Ok(v) = value.parse::<f64>() {
                 config.support.bottom_z_gap = Some(v);
@@ -1165,9 +1163,7 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
                 false
             }
         }
-        "support_material_xy_spacing" => {
-            parse_and_set_f64(value, &mut config.support.xy_gap)
-        }
+        "support_material_xy_spacing" => parse_and_set_f64(value, &mut config.support.xy_gap),
         "support_material_interface_layers" => {
             parse_and_set_u32(value, &mut config.support.interface_layers)
         }
@@ -1191,8 +1187,7 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
                         .get("extrusion_width")
                         .and_then(|s| s.parse::<f64>().ok())
                         .unwrap_or(0.4);
-                    config.support.support_density =
-                        (line_width / spacing).clamp(0.0, 1.0);
+                    config.support.support_density = (line_width / spacing).clamp(0.0, 1.0);
                 }
                 true
             } else {
@@ -1208,8 +1203,7 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
                         .get("extrusion_width")
                         .and_then(|s| s.parse::<f64>().ok())
                         .unwrap_or(0.4);
-                    config.support.interface_density =
-                        (line_width / spacing).clamp(0.0, 1.0);
+                    config.support.interface_density = (line_width / spacing).clamp(0.0, 1.0);
                 } else {
                     config.support.interface_density = 1.0;
                 }
@@ -1225,9 +1219,7 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
                 .insert(key.to_string(), value.to_string());
             true
         }
-        "support_material_flow" => {
-            parse_and_set_f64(value, &mut config.support.flow_ratio)
-        }
+        "support_material_flow" => parse_and_set_f64(value, &mut config.support.flow_ratio),
         "support_material_interface_flow" => {
             parse_and_set_f64(value, &mut config.support.interface_flow_ratio)
         }
@@ -1245,18 +1237,7 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         "support_material_closing_radius" => {
             parse_and_set_f64(value, &mut config.support.closing_radius)
         }
-        "raft_layers" => parse_and_set_u32(value, &mut config.support.raft_layers),
-
-        // Bridge fields (PrusaSlicer names).
-        "bridge_fan_speed" => {
-            let first = first_comma_value(value);
-            if let Ok(v) = first.parse::<f64>() {
-                config.support.bridge.fan_speed = (v.clamp(0.0, 255.0)) as u8;
-                true
-            } else {
-                false
-            }
-        }
+        // Note: "raft_layers" and "bridge_fan_speed" handled earlier in this match
 
         // Filament colour.
         "filament_colour" => {
@@ -1390,7 +1371,7 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         // =====================================================================
         "post_process" => {
             let scripts: Vec<String> = value
-                .split(|c: char| c == ';' || c == '\n')
+                .split([';', '\n'])
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect();
@@ -1408,7 +1389,7 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         }
         "thumbnails" => {
             let specs: Vec<String> = value
-                .split(|c: char| c == ',' || c == ';')
+                .split([',', ';'])
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect();
@@ -1431,18 +1412,14 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
             config.machine.bed_custom_model = value.to_string();
             true
         }
-        "cooling_tube_length" => {
-            parse_and_set_f64(value, &mut config.machine.cooling_tube_length)
-        }
+        "cooling_tube_length" => parse_and_set_f64(value, &mut config.machine.cooling_tube_length),
         "cooling_tube_retraction" => {
             parse_and_set_f64(value, &mut config.machine.cooling_tube_retraction)
         }
         "parking_pos_retraction" => {
             parse_and_set_f64(value, &mut config.machine.parking_pos_retraction)
         }
-        "extra_loading_move" => {
-            parse_and_set_f64(value, &mut config.machine.extra_loading_move)
-        }
+        "extra_loading_move" => parse_and_set_f64(value, &mut config.machine.extra_loading_move),
         "retract_length_toolchange" => {
             let first = first_comma_value(value);
             parse_and_set_f64(first, &mut config.machine.retract_length_toolchange)
@@ -1456,7 +1433,8 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
             parse_and_set_f64(first, &mut config.machine.retract_restart_extra_toolchange)
         }
         "ironing_type" => {
-            config.ironing.enabled = !value.is_empty() && value != "no ironing" && value != "neironing";
+            config.ironing.enabled =
+                !value.is_empty() && value != "no ironing" && value != "neironing";
             true
         }
         "ironing_angle" => parse_and_set_f64(value, &mut config.ironing.angle),

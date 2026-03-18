@@ -35,7 +35,9 @@
 
 use slicecore_gcode_io::GcodeDialect;
 
-use crate::config::{BedType, BrimType, InternalBridgeMode, PrintConfig, SlicingTolerance, SurfacePattern};
+use crate::config::{
+    BedType, BrimType, InternalBridgeMode, PrintConfig, SlicingTolerance, SurfacePattern,
+};
 use crate::error::EngineError;
 use crate::gcode_template;
 use crate::infill::InfillPattern;
@@ -586,9 +588,7 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "textured_plate_temp" => Some("filament.textured_plate_temp"),
         "cool_plate_temp_initial_layer" => Some("filament.cool_plate_temp_initial_layer"),
         "eng_plate_temp_initial_layer" => Some("filament.eng_plate_temp_initial_layer"),
-        "textured_plate_temp_initial_layer" => {
-            Some("filament.textured_plate_temp_initial_layer")
-        }
+        "textured_plate_temp_initial_layer" => Some("filament.textured_plate_temp_initial_layer"),
 
         // --- P1 config gap closure fields ---
         "fuzzy_skin" => Some("fuzzy_skin.enabled"),
@@ -606,9 +606,7 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "long_retractions_when_cut" => {
             Some("multi_material.tool_change_retraction.long_retraction_when_cut")
         }
-        "internal_solid_infill_acceleration" => {
-            Some("accel.internal_solid_infill_acceleration")
-        }
+        "internal_solid_infill_acceleration" => Some("accel.internal_solid_infill_acceleration"),
         "support_acceleration" => Some("accel.support_acceleration"),
         "support_interface_acceleration" => Some("accel.support_interface_acceleration"),
         "additional_cooling_fan_speed" => Some("cooling.additional_cooling_fan_speed"),
@@ -630,10 +628,12 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
 
         // --- Support config fields ---
         "enable_support" | "support_material" => Some("support.enabled"),
-        "support_type" | "support_material_type" | "support_style"
-        | "support_material_style" => Some("support.support_type"),
-        "support_threshold_angle" | "support_angle"
-        | "support_material_threshold" => Some("support.overhang_angle"),
+        "support_type" | "support_material_type" | "support_style" | "support_material_style" => {
+            Some("support.support_type")
+        }
+        "support_threshold_angle" | "support_angle" | "support_material_threshold" => {
+            Some("support.overhang_angle")
+        }
         "support_base_pattern" | "support_material_pattern" => Some("support.support_pattern"),
         "support_on_build_plate_only" | "support_material_buildplate_only" => {
             Some("support.build_plate_only")
@@ -646,8 +646,7 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "support_interface_top_layers" | "support_material_interface_layers" => {
             Some("support.interface_layers")
         }
-        "support_interface_bottom_layers"
-        | "support_material_bottom_interface_layers" => {
+        "support_interface_bottom_layers" | "support_material_bottom_interface_layers" => {
             Some("support.support_bottom_interface_layers")
         }
         "support_interface_pattern" | "support_material_interface_pattern" => {
@@ -680,9 +679,7 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "thick_bridges" => Some("support.bridge.thick_bridges"),
         "bridge_no_support" => Some("support.bridge.no_support"),
         "bridge_fan_speed" => Some("support.bridge.fan_speed"),
-        "tree_support_branch_angle" | "support_tree_angle" => {
-            Some("support.tree.branch_angle")
-        }
+        "tree_support_branch_angle" | "support_tree_angle" => Some("support.tree.branch_angle"),
         "tree_support_branch_diameter" | "support_tree_branch_diameter" => {
             Some("support.tree.max_trunk_diameter")
         }
@@ -1017,15 +1014,13 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "machine_start_gcode" | "start_gcode" => {
             config.machine.start_gcode_original = value.to_string();
             let table = gcode_template::build_orcaslicer_translation_table();
-            config.machine.start_gcode =
-                gcode_template::translate_gcode_template(value, &table);
+            config.machine.start_gcode = gcode_template::translate_gcode_template(value, &table);
             true
         }
         "machine_end_gcode" | "end_gcode" => {
             config.machine.end_gcode_original = value.to_string();
             let table = gcode_template::build_orcaslicer_translation_table();
-            config.machine.end_gcode =
-                gcode_template::translate_gcode_template(value, &table);
+            config.machine.end_gcode = gcode_template::translate_gcode_template(value, &table);
             true
         }
         "layer_change_gcode" | "layer_gcode" => {
@@ -1184,9 +1179,10 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
 
         // --- Process misc flat fields ---
         "bridge_flow" | "bridge_flow_ratio" => parse_and_set_f64(value, &mut config.bridge_flow),
-        "elefant_foot_compensation" => {
-            parse_and_set_f64(value, &mut config.dimensional_compensation.elephant_foot_compensation)
-        }
+        "elefant_foot_compensation" => parse_and_set_f64(
+            value,
+            &mut config.dimensional_compensation.elephant_foot_compensation,
+        ),
         "infill_direction" => parse_and_set_f64(value, &mut config.infill_direction),
         "infill_wall_overlap" | "infill_overlap" => {
             // Handle percentage format: strip %, divide by 100.
@@ -1214,12 +1210,14 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         }
 
         // --- P0 config gap closure: dimensional compensation ---
-        "xy_hole_compensation" => {
-            parse_and_set_f64(value, &mut config.dimensional_compensation.xy_hole_compensation)
-        }
-        "xy_contour_compensation" => {
-            parse_and_set_f64(value, &mut config.dimensional_compensation.xy_contour_compensation)
-        }
+        "xy_hole_compensation" => parse_and_set_f64(
+            value,
+            &mut config.dimensional_compensation.xy_hole_compensation,
+        ),
+        "xy_contour_compensation" => parse_and_set_f64(
+            value,
+            &mut config.dimensional_compensation.xy_contour_compensation,
+        ),
 
         // --- P0 config gap closure: surface patterns ---
         "top_surface_pattern" => {
@@ -1287,9 +1285,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         // --- P0 config gap closure: chamber temperature ---
         // OrcaSlicer uses same key in both machine and filament contexts.
         // Import as filament by default; machine profiles use separate mapping.
-        "chamber_temperature" => {
-            parse_and_set_f64(value, &mut config.filament.chamber_temperature)
-        }
+        "chamber_temperature" => parse_and_set_f64(value, &mut config.filament.chamber_temperature),
 
         // --- P0 config gap closure: bed type ---
         "curr_bed_type" => {
@@ -1303,14 +1299,11 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
 
         // --- P1 config gap closure: fuzzy skin ---
         "fuzzy_skin" => {
-            config.fuzzy_skin.enabled =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.fuzzy_skin.enabled = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "fuzzy_skin_thickness" => parse_and_set_f64(value, &mut config.fuzzy_skin.thickness),
-        "fuzzy_skin_point_dist" => {
-            parse_and_set_f64(value, &mut config.fuzzy_skin.point_distance)
-        }
+        "fuzzy_skin_point_dist" => parse_and_set_f64(value, &mut config.fuzzy_skin.point_distance),
 
         // --- P1 config gap closure: brim/skirt ---
         "brim_type" => {
@@ -1322,8 +1315,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             }
         }
         "brim_ears" => {
-            config.brim_skirt.brim_ears =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.brim_skirt.brim_ears = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "brim_ears_max_angle" => {
@@ -1347,7 +1339,10 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             let first = value.split(',').next().unwrap_or(value).trim();
             parse_and_set_f64(
                 first,
-                &mut config.multi_material.tool_change_retraction.retraction_distance_when_cut,
+                &mut config
+                    .multi_material
+                    .tool_change_retraction
+                    .retraction_distance_when_cut,
             )
         }
         "long_retractions_when_cut" => {
@@ -1356,8 +1351,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             config
                 .multi_material
                 .tool_change_retraction
-                .long_retraction_when_cut =
-                first == "1" || first.eq_ignore_ascii_case("true");
+                .long_retraction_when_cut = first == "1" || first.eq_ignore_ascii_case("true");
             true
         }
 
@@ -1365,9 +1359,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "internal_solid_infill_acceleration" => {
             parse_and_set_f64(value, &mut config.accel.internal_solid_infill_acceleration)
         }
-        "support_acceleration" => {
-            parse_and_set_f64(value, &mut config.accel.support_acceleration)
-        }
+        "support_acceleration" => parse_and_set_f64(value, &mut config.accel.support_acceleration),
         "support_interface_acceleration" => {
             parse_and_set_f64(value, &mut config.accel.support_interface_acceleration)
         }
@@ -1377,8 +1369,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             parse_and_set_f64(value, &mut config.cooling.additional_cooling_fan_speed)
         }
         "auxiliary_fan" => {
-            config.cooling.auxiliary_fan =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.cooling.auxiliary_fan = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
 
@@ -1417,8 +1408,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         }
         "support_filament" => {
             if let Ok(v) = value.parse::<usize>() {
-                config.multi_material.support_filament =
-                    if v > 0 { Some(v - 1) } else { None };
+                config.multi_material.support_filament = if v > 0 { Some(v - 1) } else { None };
                 true
             } else {
                 false
@@ -1436,8 +1426,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
 
         // --- P1 config gap closure: top-level fields ---
         "precise_outer_wall" => {
-            config.precise_outer_wall =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.precise_outer_wall = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "draft_shield" => {
@@ -1445,8 +1434,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             true
         }
         "ooze_prevention" => {
-            config.ooze_prevention =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.ooze_prevention = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "infill_combination" | "infill_every_layers" => {
@@ -1463,12 +1451,10 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
 
         // --- Support config fields (OrcaSlicer + shared keys) ---
         "enable_support" | "support_material" => {
-            config.support.enabled =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.support.enabled = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
-        "support_type" | "support_material_type" | "support_style"
-        | "support_material_style" => {
+        "support_type" | "support_material_type" | "support_style" | "support_material_style" => {
             if let Some(st) = map_support_type(value) {
                 config.support.support_type = st;
                 true
@@ -1476,8 +1462,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
                 false
             }
         }
-        "support_threshold_angle" | "support_angle"
-        | "support_material_threshold" => {
+        "support_threshold_angle" | "support_angle" | "support_material_threshold" => {
             parse_and_set_f64(value, &mut config.support.overhang_angle)
         }
         "support_base_pattern" | "support_material_pattern" => {
@@ -1489,8 +1474,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             }
         }
         "support_on_build_plate_only" | "support_material_buildplate_only" => {
-            config.support.build_plate_only =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.support.build_plate_only = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "support_top_z_distance" | "support_material_contact_distance" => {
@@ -1510,12 +1494,8 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "support_interface_top_layers" | "support_material_interface_layers" => {
             parse_and_set_u32(value, &mut config.support.interface_layers)
         }
-        "support_interface_bottom_layers"
-        | "support_material_bottom_interface_layers" => {
-            parse_and_set_u32(
-                value,
-                &mut config.support.support_bottom_interface_layers,
-            )
+        "support_interface_bottom_layers" | "support_material_bottom_interface_layers" => {
+            parse_and_set_u32(value, &mut config.support.support_bottom_interface_layers)
         }
         "support_interface_pattern" | "support_material_interface_pattern" => {
             if let Some(p) = map_interface_pattern(value) {
@@ -1535,8 +1515,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
                         .or_else(|| config.passthrough.get("extrusion_width"))
                         .and_then(|s| s.parse::<f64>().ok())
                         .unwrap_or(0.4);
-                    config.support.support_density =
-                        (line_width / spacing).clamp(0.0, 1.0);
+                    config.support.support_density = (line_width / spacing).clamp(0.0, 1.0);
                 }
                 true
             } else {
@@ -1553,8 +1532,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
                         .or_else(|| config.passthrough.get("extrusion_width"))
                         .and_then(|s| s.parse::<f64>().ok())
                         .unwrap_or(0.4);
-                    config.support.interface_density =
-                        (line_width / spacing).clamp(0.0, 1.0);
+                    config.support.interface_density = (line_width / spacing).clamp(0.0, 1.0);
                 } else {
                     // spacing == 0 means 100% density.
                     config.support.interface_density = 1.0;
@@ -1564,9 +1542,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
                 false
             }
         }
-        "support_expansion" => {
-            parse_and_set_f64(value, &mut config.support.expansion)
-        }
+        "support_expansion" => parse_and_set_f64(value, &mut config.support.expansion),
         "support_critical_regions_only" => {
             config.support.critical_regions_only =
                 value == "1" || value.eq_ignore_ascii_case("true");
@@ -1584,8 +1560,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             parse_and_set_f64(value, &mut config.support.interface_flow_ratio)
         }
         "support_material_synchronize_layers" => {
-            config.support.synchronize_layers =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.support.synchronize_layers = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "enforce_support_layers" | "support_material_enforce_layers" => {
@@ -1613,20 +1588,15 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         }
 
         // --- Bridge config fields (support sub-struct) ---
-        "bridge_angle" => {
-            parse_and_set_f64(value, &mut config.support.bridge.angle)
-        }
-        "bridge_density" => {
-            parse_and_set_f64(value, &mut config.support.bridge.density)
-        }
+        "bridge_angle" => parse_and_set_f64(value, &mut config.support.bridge.angle),
+        "bridge_density" => parse_and_set_f64(value, &mut config.support.bridge.density),
         "thick_bridges" => {
             config.support.bridge.thick_bridges =
                 value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "bridge_no_support" => {
-            config.support.bridge.no_support =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.support.bridge.no_support = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "bridge_fan_speed" => {
@@ -1641,8 +1611,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         // --- Scarf joint config fields (OrcaSlicer-only) ---
         "seam_slope_type" => {
             // OrcaSlicer: "none" or "0" means disabled, anything else enables.
-            config.scarf_joint.enabled =
-                !value.is_empty() && value != "none" && value != "0";
+            config.scarf_joint.enabled = !value.is_empty() && value != "none" && value != "0";
             true
         }
         "seam_slope_conditional" => {
@@ -1658,23 +1627,16 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
                 value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
-        "seam_slope_min_length" => {
-            parse_and_set_f64(value, &mut config.scarf_joint.scarf_length)
-        }
-        "seam_slope_steps" => {
-            parse_and_set_u32(value, &mut config.scarf_joint.scarf_steps)
-        }
+        "seam_slope_min_length" => parse_and_set_f64(value, &mut config.scarf_joint.scarf_length),
+        "seam_slope_steps" => parse_and_set_u32(value, &mut config.scarf_joint.scarf_steps),
         "seam_slope_inner_walls" => {
             config.scarf_joint.scarf_inner_walls =
                 value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
-        "seam_slope_gap" => {
-            parse_and_set_f64(value, &mut config.scarf_joint.seam_gap)
-        }
+        "seam_slope_gap" => parse_and_set_f64(value, &mut config.scarf_joint.seam_gap),
         "wipe_on_loops" => {
-            config.scarf_joint.wipe_on_loop =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.scarf_joint.wipe_on_loop = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "role_based_wipe_speed" => {
@@ -1682,12 +1644,8 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
                 value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
-        "wipe_speed" => {
-            parse_and_set_f64(value, &mut config.scarf_joint.wipe_speed)
-        }
-        "scarf_joint_speed" => {
-            parse_and_set_f64(value, &mut config.scarf_joint.scarf_speed)
-        }
+        "wipe_speed" => parse_and_set_f64(value, &mut config.scarf_joint.wipe_speed),
+        "scarf_joint_speed" => parse_and_set_f64(value, &mut config.scarf_joint.scarf_speed),
         "scarf_joint_flow_ratio" => {
             parse_and_set_f64(value, &mut config.scarf_joint.scarf_flow_ratio)
         }
@@ -1705,8 +1663,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
 
         // --- Multi-material config fields (OrcaSlicer/BambuStudio + shared) ---
         "enable_prime_tower" | "wipe_tower" => {
-            config.multi_material.enabled =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.multi_material.enabled = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "wipe_tower_x" => {
@@ -1787,31 +1744,21 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "tree_support_branch_diameter_angle" => {
             parse_and_set_f64(value, &mut config.support.tree.branch_diameter_angle)
         }
-        "tree_support_wall_count" => {
-            parse_and_set_u32(value, &mut config.support.tree.wall_count)
-        }
+        "tree_support_wall_count" => parse_and_set_u32(value, &mut config.support.tree.wall_count),
         "tree_support_auto_brim" => {
-            config.support.tree.auto_brim =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.support.tree.auto_brim = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
-        "tree_support_brim_width" => {
-            parse_and_set_f64(value, &mut config.support.tree.brim_width)
-        }
+        "tree_support_brim_width" => parse_and_set_f64(value, &mut config.support.tree.brim_width),
         "tree_support_adaptive_layer_height" => {
             config.support.tree.adaptive_layer_height =
                 value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
-        "tree_support_angle_slow" => {
-            parse_and_set_f64(value, &mut config.support.tree.angle_slow)
-        }
-        "tree_support_top_rate" => {
-            parse_and_set_f64(value, &mut config.support.tree.top_rate)
-        }
+        "tree_support_angle_slow" => parse_and_set_f64(value, &mut config.support.tree.angle_slow),
+        "tree_support_top_rate" => parse_and_set_f64(value, &mut config.support.tree.top_rate),
         "tree_support_with_infill" => {
-            config.support.tree.with_infill =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.support.tree.with_infill = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
 
@@ -1857,7 +1804,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "post_process" => {
             // Split by semicolon or newline to get individual script paths.
             let scripts: Vec<String> = value
-                .split(|c: char| c == ';' || c == '\n')
+                .split([';', '\n'])
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect();
@@ -1876,8 +1823,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             true
         }
         "gcode_comments" => {
-            config.post_process.gcode_comments =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.post_process.gcode_comments = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "gcode_add_line_number" => {
@@ -1903,7 +1849,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "thumbnails" => {
             // Parse as comma-separated or semicolon-separated size specs.
             let specs: Vec<String> = value
-                .split(|c: char| c == ',' || c == ';')
+                .split([',', ';'])
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect();
@@ -1911,8 +1857,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             true
         }
         "silent_mode" => {
-            config.machine.silent_mode =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.machine.silent_mode = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "nozzle_hrc" => parse_and_set_u32(value, &mut config.machine.nozzle_hrc),
@@ -1936,18 +1881,14 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
                 .insert(key.to_string(), value.to_string());
             true
         }
-        "cooling_tube_length" => {
-            parse_and_set_f64(value, &mut config.machine.cooling_tube_length)
-        }
+        "cooling_tube_length" => parse_and_set_f64(value, &mut config.machine.cooling_tube_length),
         "cooling_tube_retraction" => {
             parse_and_set_f64(value, &mut config.machine.cooling_tube_retraction)
         }
         "parking_pos_retraction" => {
             parse_and_set_f64(value, &mut config.machine.parking_pos_retraction)
         }
-        "extra_loading_move" => {
-            parse_and_set_f64(value, &mut config.machine.extra_loading_move)
-        }
+        "extra_loading_move" => parse_and_set_f64(value, &mut config.machine.extra_loading_move),
         "compatible_printers_condition_cummulative" => {
             let conditions: Vec<String> = value
                 .split(';')
@@ -1965,28 +1906,22 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
             parse_and_set_f64(value, &mut config.max_travel_detour_length)
         }
         "exclude_object" => {
-            config.exclude_object =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.exclude_object = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "reduce_infill_retraction" => {
-            config.reduce_infill_retraction =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.reduce_infill_retraction = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
         "reduce_crossing_wall" => {
-            config.reduce_crossing_wall =
-                value == "1" || value.eq_ignore_ascii_case("true");
+            config.reduce_crossing_wall = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
 
         // --- Straggler fields from partially-mapped sections ---
-        "ironing_angle" => {
-            parse_and_set_f64(value, &mut config.ironing.angle)
-        }
+        "ironing_angle" => parse_and_set_f64(value, &mut config.ironing.angle),
         "print_sequence" => {
-            config.sequential.enabled =
-                value.eq_ignore_ascii_case("by object");
+            config.sequential.enabled = value.eq_ignore_ascii_case("by object");
             true
         }
 
@@ -2012,9 +1947,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "machine_min_extruding_rate" => {
             parse_and_set_f64(value, &mut config.machine.min_extruding_rate)
         }
-        "machine_min_travel_rate" => {
-            parse_and_set_f64(value, &mut config.machine.min_travel_rate)
-        }
+        "machine_min_travel_rate" => parse_and_set_f64(value, &mut config.machine.min_travel_rate),
 
         // --- Default: store unmapped fields in passthrough ---
         _ => {
@@ -2154,8 +2087,9 @@ pub(crate) fn map_support_type(value: &str) -> Option<SupportType> {
     match value.to_lowercase().as_str() {
         "none" | "disable" | "0" => Some(SupportType::None),
         "auto" | "default" | "1" => Some(SupportType::Auto),
-        "normal" | "normal(auto)" | "normal(manual)" | "grid" | "snug"
-        | "traditional" => Some(SupportType::Traditional),
+        "normal" | "normal(auto)" | "normal(manual)" | "grid" | "snug" | "traditional" => {
+            Some(SupportType::Traditional)
+        }
         "tree" | "tree(auto)" | "tree_slim" | "organic" => Some(SupportType::Tree),
         _ => None,
     }

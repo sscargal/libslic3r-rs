@@ -12,7 +12,7 @@ use crate::types::Constraint;
 /// Severity level for a validation issue.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ValidationSeverity {
-    /// Informational: depends_on condition not met.
+    /// Informational: `depends_on` condition not met.
     Info,
     /// Suspicious but not necessarily dangerous.
     Warning,
@@ -118,10 +118,7 @@ impl SettingRegistry {
                     if *val != def.default_value && !val.is_null() {
                         issues.push(ValidationIssue {
                             key: def.key.0.clone(),
-                            message: format!(
-                                "{} is deprecated: {deprecation_msg}",
-                                def.key
-                            ),
+                            message: format!("{} is deprecated: {deprecation_msg}", def.key),
                             severity: ValidationSeverity::Warning,
                         });
                     }
@@ -142,11 +139,10 @@ fn is_dependency_unmet(dep_val: &serde_json::Value, condition: &str) -> bool {
     if trimmed == "== true" {
         // Dependency is unmet if value is false (or not true)
         return dep_val != &serde_json::Value::Bool(true)
-            && dep_val.as_f64().map_or(true, |v| v == 0.0);
+            && (dep_val.as_f64() == Some(0.0) || dep_val.as_f64().is_none());
     }
     if trimmed == "== false" {
-        return dep_val != &serde_json::Value::Bool(false)
-            && dep_val.as_f64().map_or(true, |v| v != 0.0);
+        return dep_val != &serde_json::Value::Bool(false) && (dep_val.as_f64() != Some(0.0));
     }
     if trimmed == "> 0" {
         return dep_val.as_f64().map_or(true, |v| v <= 0.0);

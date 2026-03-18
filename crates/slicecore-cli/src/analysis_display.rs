@@ -74,11 +74,7 @@ pub struct ComparisonRow {
 ///
 /// The first row is treated as the baseline. Subsequent rows show deltas
 /// from that baseline for each numeric column.
-pub fn display_config_comparison(
-    rows: &[ComparisonRow],
-    format: OutputFormat,
-    no_color: bool,
-) {
+pub fn display_config_comparison(rows: &[ComparisonRow], format: OutputFormat, no_color: bool) {
     match format {
         OutputFormat::Table => display_config_comparison_table(rows, no_color),
         OutputFormat::Json => display_config_comparison_json(rows),
@@ -218,7 +214,9 @@ fn display_config_comparison_markdown(rows: &[ComparisonRow]) {
         let fc = row
             .filament_cost
             .map_or("N/A".to_string(), |c| format!("${c:.2}"));
-        let tc = row.total_cost.map_or("N/A".to_string(), |c| format!("${c:.2}"));
+        let tc = row
+            .total_cost
+            .map_or("N/A".to_string(), |c| format!("${c:.2}"));
         println!(
             "| {} | {} | {:.1} | {} | {} |",
             row.name,
@@ -1035,7 +1033,10 @@ fn format_cost_cell(value: Option<f64>, hint: Option<&str>) -> String {
 
 /// Find the hint associated with a cost component keyword (e.g. "filament", "electricity").
 fn find_hint<'a>(hints: &'a [String], keyword: &str) -> Option<&'a str> {
-    hints.iter().find(|h| h.contains(keyword)).map(|h| h.as_str())
+    hints
+        .iter()
+        .find(|h| h.contains(keyword))
+        .map(|h| h.as_str())
 }
 
 /// Display a cost estimate as an ASCII table.
@@ -1051,19 +1052,31 @@ pub fn display_cost_table(estimate: &CostEstimate, use_color: bool) {
 
     table.add_row(vec![
         "Filament".to_string(),
-        format_cost_cell(estimate.filament_cost, find_hint(&estimate.missing_hints, "filament-price")),
+        format_cost_cell(
+            estimate.filament_cost,
+            find_hint(&estimate.missing_hints, "filament-price"),
+        ),
     ]);
     table.add_row(vec![
         "Electricity".to_string(),
-        format_cost_cell(estimate.electricity_cost, find_hint(&estimate.missing_hints, "electricity")),
+        format_cost_cell(
+            estimate.electricity_cost,
+            find_hint(&estimate.missing_hints, "electricity"),
+        ),
     ]);
     table.add_row(vec![
         "Depreciation".to_string(),
-        format_cost_cell(estimate.depreciation_cost, find_hint(&estimate.missing_hints, "depreciation")),
+        format_cost_cell(
+            estimate.depreciation_cost,
+            find_hint(&estimate.missing_hints, "depreciation"),
+        ),
     ]);
     table.add_row(vec![
         "Labor".to_string(),
-        format_cost_cell(estimate.labor_cost, find_hint(&estimate.missing_hints, "labor")),
+        format_cost_cell(
+            estimate.labor_cost,
+            find_hint(&estimate.missing_hints, "labor"),
+        ),
     ]);
     table.add_row(vec![
         bold("Total", use_color),
@@ -1074,10 +1087,7 @@ pub fn display_cost_table(estimate: &CostEstimate, use_color: bool) {
 
     if !estimate.missing_hints.is_empty() {
         println!();
-        println!(
-            "{}",
-            dim("Hints for more accurate estimates:", use_color)
-        );
+        println!("{}", dim("Hints for more accurate estimates:", use_color));
         for hint in &estimate.missing_hints {
             println!("  - {hint}");
         }
@@ -1085,6 +1095,7 @@ pub fn display_cost_table(estimate: &CostEstimate, use_color: bool) {
 }
 
 /// Display a cost estimate as JSON.
+#[allow(dead_code)]
 pub fn display_cost_json(estimate: &CostEstimate) {
     println!(
         "{}",
@@ -1138,10 +1149,7 @@ pub fn display_cost_markdown(estimate: &CostEstimate) {
 /// Shows rough filament length, weight, and time with a disclaimer
 /// about accuracy limitations.
 pub fn display_volume_estimate(estimate: &VolumeEstimate, use_color: bool) {
-    println!(
-        "{}",
-        bold("--- Volume-Based Rough Estimate ---", use_color)
-    );
+    println!("{}", bold("--- Volume-Based Rough Estimate ---", use_color));
 
     let mut table = Table::new();
     table.set_content_arrangement(ContentArrangement::Dynamic);
@@ -1164,10 +1172,7 @@ pub fn display_volume_estimate(estimate: &VolumeEstimate, use_color: bool) {
     println!();
     println!(
         "{}",
-        dim(
-            &format!("Disclaimer: {}", estimate.disclaimer),
-            use_color
-        )
+        dim(&format!("Disclaimer: {}", estimate.disclaimer), use_color)
     );
 }
 

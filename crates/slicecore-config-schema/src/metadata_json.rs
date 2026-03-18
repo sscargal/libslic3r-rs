@@ -32,8 +32,8 @@ impl SettingRegistry {
         Value::Array(
             self.all()
                 .filter(|def| {
-                    max_tier.is_none_or(|t| def.tier <= t)
-                        && category.is_none_or(|c| def.category == c)
+                    max_tier.map_or(true, |t| def.tier <= t)
+                        && category.map_or(true, |c| def.category == c)
                 })
                 .map(|def| serde_json::to_value(def).unwrap_or_default())
                 .collect(),
@@ -79,7 +79,11 @@ mod tests {
     #[test]
     fn each_element_has_key_field() {
         let mut reg = SettingRegistry::new();
-        reg.register(make_def("layer_height", Tier::Simple, SettingCategory::Quality));
+        reg.register(make_def(
+            "layer_height",
+            Tier::Simple,
+            SettingCategory::Quality,
+        ));
 
         let meta = reg.to_metadata_json();
         let arr = meta.as_array().unwrap();

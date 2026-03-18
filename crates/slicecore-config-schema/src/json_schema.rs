@@ -1,6 +1,6 @@
 //! JSON Schema 2020-12 generation from setting definitions.
 
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 
 use crate::registry::SettingRegistry;
 use crate::types::{Constraint, ValueType};
@@ -73,6 +73,11 @@ impl SettingRegistry {
     /// - Custom `x-` extensions: `x-tier`, `x-category`, `x-units`, `x-display-name`,
     ///   `x-affects`, `x-affected-by`, `x-tags`, `x-since-version`, `x-deprecated`,
     ///   `x-description`, `x-depends-on`
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal schema structure is malformed (should not happen
+    /// with well-formed setting definitions).
     #[must_use]
     pub fn to_json_schema(&self) -> Value {
         let mut root = json!({
@@ -88,7 +93,10 @@ impl SettingRegistry {
             let obj = prop.as_object_mut().expect("schema is an object");
 
             // Standard JSON Schema fields
-            obj.insert("description".to_owned(), Value::String(def.description.clone()));
+            obj.insert(
+                "description".to_owned(),
+                Value::String(def.description.clone()),
+            );
 
             if !def.default_value.is_null() {
                 obj.insert("default".to_owned(), def.default_value.clone());
@@ -109,13 +117,19 @@ impl SettingRegistry {
 
             // x- extensions
             obj.insert("x-tier".to_owned(), json!(def.tier as u8));
-            obj.insert("x-category".to_owned(), Value::String(def.category.as_str().to_owned()));
+            obj.insert(
+                "x-category".to_owned(),
+                Value::String(def.category.as_str().to_owned()),
+            );
 
             if let Some(ref units) = def.units {
                 obj.insert("x-units".to_owned(), Value::String(units.clone()));
             }
 
-            obj.insert("x-display-name".to_owned(), Value::String(def.display_name.clone()));
+            obj.insert(
+                "x-display-name".to_owned(),
+                Value::String(def.display_name.clone()),
+            );
 
             if !def.affects.is_empty() {
                 let keys: Vec<&str> = def.affects.iter().map(|k| k.0.as_str()).collect();
@@ -131,13 +145,19 @@ impl SettingRegistry {
                 obj.insert("x-tags".to_owned(), json!(def.tags));
             }
 
-            obj.insert("x-since-version".to_owned(), Value::String(def.since_version.clone()));
+            obj.insert(
+                "x-since-version".to_owned(),
+                Value::String(def.since_version.clone()),
+            );
 
             if let Some(ref dep) = def.deprecated {
                 obj.insert("x-deprecated".to_owned(), Value::String(dep.clone()));
             }
 
-            obj.insert("x-description".to_owned(), Value::String(def.description.clone()));
+            obj.insert(
+                "x-description".to_owned(),
+                Value::String(def.description.clone()),
+            );
 
             // x-depends-on from DependsOn constraints
             for constraint in &def.constraints {

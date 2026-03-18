@@ -315,10 +315,7 @@ pub fn inject_temp_changes(
                         result.push(GcodeCommand::Comment(format!(
                             "Temperature change to {temp:.0}C at Z={sched_z:.1}"
                         )));
-                        result.push(GcodeCommand::SetExtruderTemp {
-                            temp,
-                            wait: false,
-                        });
+                        result.push(GcodeCommand::SetExtruderTemp { temp, wait: false });
                         current_schedule_idx = i;
                     }
                 }
@@ -354,7 +351,13 @@ pub fn inject_temp_changes(
 pub fn generate_temp_tower_mesh(params: &TempTowerParams) -> TriangleMesh {
     let num_blocks = ((params.end_temp - params.start_temp) / params.step).abs() as usize + 1;
     let total_height = 1.0 + num_blocks as f64 * params.block_height;
-    build_stacked_tower(params.base_width, params.base_depth, params.block_height, num_blocks, total_height)
+    build_stacked_tower(
+        params.base_width,
+        params.base_depth,
+        params.block_height,
+        num_blocks,
+        total_height,
+    )
 }
 
 /// Generates a retraction test mesh as stacked boxes.
@@ -377,12 +380,19 @@ pub fn generate_temp_tower_mesh(params: &TempTowerParams) -> TriangleMesh {
 /// ```
 #[must_use]
 pub fn generate_retraction_mesh(params: &RetractionParams) -> TriangleMesh {
-    let num_blocks = ((params.end_distance - params.start_distance) / params.step).abs() as usize + 1;
+    let num_blocks =
+        ((params.end_distance - params.start_distance) / params.step).abs() as usize + 1;
     let block_height = 8.0;
     let base_width = 30.0;
     let base_depth = 30.0;
     let total_height = 1.0 + num_blocks as f64 * block_height;
-    build_stacked_tower(base_width, base_depth, block_height, num_blocks, total_height)
+    build_stacked_tower(
+        base_width,
+        base_depth,
+        block_height,
+        num_blocks,
+        total_height,
+    )
 }
 
 /// Generates a retraction distance schedule mapping Z heights to retraction values.
@@ -490,8 +500,8 @@ pub fn inject_retraction_comments(
 /// let params = FlowParams { baseline_multiplier: 1.0, step: 0.02, steps: 5 };
 /// let schedule = flow_schedule(&params);
 /// assert_eq!(schedule.len(), 5);
-/// // First section should be lowest multiplier
-/// assert!((schedule[0].1 - 92.0).abs() < 0.1);
+/// // First section should be lowest multiplier: 1.0 + (0 - 2) * 0.02 = 0.96 → 96%
+/// assert!((schedule[0].1 - 96.0).abs() < 0.1);
 /// ```
 #[must_use]
 pub fn flow_schedule(params: &FlowParams) -> Vec<(f64, f64)> {
@@ -529,7 +539,13 @@ pub fn generate_flow_mesh(params: &FlowParams) -> TriangleMesh {
     let base_width = 30.0;
     let base_depth = 30.0;
     let total_height = 1.0 + params.steps as f64 * block_height;
-    build_stacked_tower(base_width, base_depth, block_height, params.steps, total_height)
+    build_stacked_tower(
+        base_width,
+        base_depth,
+        block_height,
+        params.steps,
+        total_height,
+    )
 }
 
 /// Injects M221 flow rate override commands into G-code text at Z boundaries.
@@ -599,7 +615,11 @@ pub fn inject_flow_changes_text(gcode: &str, schedule: &[(f64, f64)], header: &s
 /// assert!((height - 0.3).abs() < 0.01);
 /// ```
 #[must_use]
-pub fn generate_first_layer_mesh(params: &FirstLayerParams, bed_x: f64, bed_y: f64) -> TriangleMesh {
+pub fn generate_first_layer_mesh(
+    params: &FirstLayerParams,
+    bed_x: f64,
+    bed_y: f64,
+) -> TriangleMesh {
     use slicecore_math::Point3;
 
     let coverage = params.coverage_percent / 100.0;
@@ -623,21 +643,26 @@ pub fn generate_first_layer_mesh(params: &FirstLayerParams, bed_x: f64, bed_y: f
 
     let indices = vec![
         // Front (z=plate_z)
-        [4_u32, 5, 6], [4, 6, 7],
+        [4_u32, 5, 6],
+        [4, 6, 7],
         // Back (z=0)
-        [1, 0, 3], [1, 3, 2],
+        [1, 0, 3],
+        [1, 3, 2],
         // Right (x=hx)
-        [5, 1, 2], [5, 2, 6],
+        [5, 1, 2],
+        [5, 2, 6],
         // Left (x=-hx)
-        [0, 4, 7], [0, 7, 3],
+        [0, 4, 7],
+        [0, 7, 3],
         // Top (y=hy)
-        [3, 7, 6], [3, 6, 2],
+        [3, 7, 6],
+        [3, 6, 2],
         // Bottom (y=-hy)
-        [4, 0, 1], [4, 1, 5],
+        [4, 0, 1],
+        [4, 1, 5],
     ];
 
-    TriangleMesh::new(vertices, indices)
-        .expect("first layer plate mesh should be valid")
+    TriangleMesh::new(vertices, indices).expect("first layer plate mesh should be valid")
 }
 
 /// Extracts Z value from a G0/G1 G-code line.
@@ -689,17 +714,23 @@ fn build_stacked_tower(
         let b = base_idx;
         indices.extend_from_slice(&[
             // Front (z=z1)
-            [b + 4, b + 5, b + 6], [b + 4, b + 6, b + 7],
+            [b + 4, b + 5, b + 6],
+            [b + 4, b + 6, b + 7],
             // Back (z=z0)
-            [b + 1, b + 0, b + 3], [b + 1, b + 3, b + 2],
+            [b + 1, b, b + 3],
+            [b + 1, b + 3, b + 2],
             // Right (x=x1)
-            [b + 5, b + 1, b + 2], [b + 5, b + 2, b + 6],
+            [b + 5, b + 1, b + 2],
+            [b + 5, b + 2, b + 6],
             // Left (x=x0)
-            [b + 0, b + 4, b + 7], [b + 0, b + 7, b + 3],
+            [b, b + 4, b + 7],
+            [b, b + 7, b + 3],
             // Top (y=y1)
-            [b + 3, b + 7, b + 6], [b + 3, b + 6, b + 2],
+            [b + 3, b + 7, b + 6],
+            [b + 3, b + 6, b + 2],
             // Bottom (y=y0)
-            [b + 4, b + 0, b + 1], [b + 4, b + 1, b + 5],
+            [b + 4, b, b + 1],
+            [b + 4, b + 1, b + 5],
         ]);
     };
 
@@ -716,8 +747,7 @@ fn build_stacked_tower(
         add_box(-hw, -hd, z_bottom, hw, hd, z_top);
     }
 
-    TriangleMesh::new(vertices, indices)
-        .expect("stacked tower mesh should be valid")
+    TriangleMesh::new(vertices, indices).expect("stacked tower mesh should be valid")
 }
 
 #[cfg(test)]
@@ -734,12 +764,18 @@ mod tests {
     #[test]
     fn test_validate_bed_fit_rejects_oversized() {
         let machine = MachineConfig::default(); // 220x220x250
-        // 210 > 220 - 20 = 200
+                                                // 210 > 220 - 20 = 200
         let result = validate_bed_fit(210.0, 100.0, 100.0, &machine);
         assert!(result.is_err());
         let msg = result.unwrap_err();
-        assert!(msg.contains("220.0"), "error should mention bed size: {msg}");
-        assert!(msg.contains("210.0"), "error should mention model size: {msg}");
+        assert!(
+            msg.contains("220.0"),
+            "error should mention bed size: {msg}"
+        );
+        assert!(
+            msg.contains("210.0"),
+            "error should mention model size: {msg}"
+        );
     }
 
     #[test]
@@ -857,7 +893,10 @@ mod tests {
         // Check approximate height: 1mm base + 4 * 10mm = 41mm
         let aabb = mesh.aabb();
         let height = aabb.max.z - aabb.min.z;
-        assert!((height - 41.0).abs() < 0.1, "height should be ~41mm, got {height}");
+        assert!(
+            (height - 41.0).abs() < 0.1,
+            "height should be ~41mm, got {height}"
+        );
     }
 
     #[test]
@@ -887,9 +926,15 @@ mod tests {
         };
         let schedule = retraction_schedule(&params);
         assert_eq!(schedule.len(), 4);
-        assert!((schedule[0].0 - 1.0).abs() < f64::EPSILON, "first section at Z=1.0");
+        assert!(
+            (schedule[0].0 - 1.0).abs() < f64::EPSILON,
+            "first section at Z=1.0"
+        );
         assert!((schedule[0].1 - 0.5).abs() < f64::EPSILON);
-        assert!((schedule[1].0 - 9.0).abs() < f64::EPSILON, "second section at Z=9.0");
+        assert!(
+            (schedule[1].0 - 9.0).abs() < f64::EPSILON,
+            "second section at Z=9.0"
+        );
         assert!((schedule[1].1 - 1.0).abs() < f64::EPSILON);
     }
 
@@ -897,16 +942,27 @@ mod tests {
     fn test_inject_retraction_comments() {
         let commands = vec![
             GcodeCommand::LinearMove {
-                x: Some(10.0), y: None, z: Some(2.0), e: None, f: Some(600.0),
+                x: Some(10.0),
+                y: None,
+                z: Some(2.0),
+                e: None,
+                f: Some(600.0),
             },
             GcodeCommand::LinearMove {
-                x: Some(20.0), y: None, z: Some(10.0), e: None, f: Some(600.0),
+                x: Some(20.0),
+                y: None,
+                z: Some(10.0),
+                e: None,
+                f: Some(600.0),
             },
         ];
         let schedule = vec![(1.0, 1.0), (9.0, 1.5)];
         let result = inject_retraction_comments(commands, &schedule);
         // Should insert 2 comments (one at z>=1.0, one at z>=9.0)
-        let comments: Vec<_> = result.iter().filter(|c| matches!(c, GcodeCommand::Comment(_))).collect();
+        let comments: Vec<_> = result
+            .iter()
+            .filter(|c| matches!(c, GcodeCommand::Comment(_)))
+            .collect();
         assert_eq!(comments.len(), 2, "should insert 2 retraction comments");
     }
 
@@ -924,7 +980,10 @@ mod tests {
         let aabb = mesh.aabb();
         let height = aabb.max.z - aabb.min.z;
         // 1mm base + 5 * 5mm = 26mm
-        assert!((height - 26.0).abs() < 0.1, "height should be ~26mm, got {height}");
+        assert!(
+            (height - 26.0).abs() < 0.1,
+            "height should be ~26mm, got {height}"
+        );
     }
 
     #[test]
@@ -938,9 +997,21 @@ mod tests {
         assert_eq!(schedule.len(), 5);
         // With half=2, offsets are -2, -1, 0, 1, 2
         // flow_pct: 96, 98, 100, 102, 104
-        assert!((schedule[0].1 - 96.0).abs() < 0.1, "first should be 96%, got {}", schedule[0].1);
-        assert!((schedule[2].1 - 100.0).abs() < 0.1, "middle should be 100%, got {}", schedule[2].1);
-        assert!((schedule[4].1 - 104.0).abs() < 0.1, "last should be 104%, got {}", schedule[4].1);
+        assert!(
+            (schedule[0].1 - 96.0).abs() < 0.1,
+            "first should be 96%, got {}",
+            schedule[0].1
+        );
+        assert!(
+            (schedule[2].1 - 100.0).abs() < 0.1,
+            "middle should be 100%, got {}",
+            schedule[2].1
+        );
+        assert!(
+            (schedule[4].1 - 104.0).abs() < 0.1,
+            "last should be 104%, got {}",
+            schedule[4].1
+        );
     }
 
     #[test]
@@ -948,9 +1019,18 @@ mod tests {
         let gcode = "G1 Z2.0 E1.0\nG1 X10 Y10\nG1 Z7.0 E2.0\n";
         let schedule = vec![(1.0, 95.0), (6.0, 100.0)];
         let result = inject_flow_changes_text(gcode, &schedule, "");
-        assert!(result.contains("M221 S95"), "should contain M221 S95: {result}");
-        assert!(result.contains("M221 S100"), "should contain M221 S100: {result}");
-        assert!(result.contains("FLOW RATE"), "should contain flow rate comment: {result}");
+        assert!(
+            result.contains("M221 S95"),
+            "should contain M221 S95: {result}"
+        );
+        assert!(
+            result.contains("M221 S100"),
+            "should contain M221 S100: {result}"
+        );
+        assert!(
+            result.contains("FLOW RATE"),
+            "should contain flow rate comment: {result}"
+        );
     }
 
     #[test]
@@ -964,8 +1044,14 @@ mod tests {
         assert_eq!(mesh.triangle_count(), 12, "single box = 12 triangles");
         let aabb = mesh.aabb();
         let height = aabb.max.z - aabb.min.z;
-        assert!((height - 0.3).abs() < 0.01, "height should be ~0.3mm, got {height}");
+        assert!(
+            (height - 0.3).abs() < 0.01,
+            "height should be ~0.3mm, got {height}"
+        );
         let width = aabb.max.x - aabb.min.x;
-        assert!((width - 176.0).abs() < 0.1, "width should be ~176mm (80% of 220), got {width}");
+        assert!(
+            (width - 176.0).abs() < 0.1,
+            "width should be ~176mm (80% of 220), got {width}"
+        );
     }
 }
