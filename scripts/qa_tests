@@ -806,6 +806,18 @@ group_errors() {
     run_test_expect_fail "csg split with invalid plane" \
         "$SLICECORE" csg split "$TMPDIR_QA/cube.stl" --plane invalid
 
+    run_test_expect_fail "calibrate temp-tower with invalid temp range" \
+        "$SLICECORE" calibrate temp-tower --start-temp 300 --end-temp 100
+
+    run_test_expect_fail "schema with invalid tier" \
+        "$SLICECORE" schema --tier nonexistent
+
+    run_test_expect_fail "schema with invalid category" \
+        "$SLICECORE" schema --category nonexistent
+
+    run_test_expect_fail "convert-profile nonexistent file" \
+        "$SLICECORE" convert-profile nonexistent.json
+
     # slicecore with no subcommand -- should print help, may exit 0 or 2
     local output exit_code
     output=$("$SLICECORE" 2>&1) && exit_code=0 || exit_code=$?
@@ -838,6 +850,8 @@ group_coverage() {
     CRATE_MAP["slicecore-plugin-api"]="(plugin API, no direct subcommand)"
     CRATE_MAP["slicecore-geo"]="(geometry primitives, no direct subcommand)"
     CRATE_MAP["slicecore-math"]="(math utilities, no direct subcommand)"
+    CRATE_MAP["slicecore-config-schema"]="schema"
+    CRATE_MAP["slicecore-config-derive"]="(proc-macro, no direct subcommand)"
 
     # Get list of crates
     local crates_dir="$PROJECT_ROOT/crates"
