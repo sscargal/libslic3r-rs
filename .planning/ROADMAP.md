@@ -707,3 +707,14 @@ Plans:
 - [ ] 35-05-PLAN.md -- Annotate support/config.rs and cross-module enums
 - [ ] 35-06-PLAN.md -- JSON Schema generation, flat metadata JSON, search API, global registry
 - [ ] 35-07-PLAN.md -- CLI schema subcommand, schema-driven validation, integrity tests
+
+### Phase 36: Add a plugins subcommand to allow users to list and manage installed plugins, such as enable or disable
+
+**Goal:** Working `slicecore plugins` CLI subcommand with list, enable, disable, info, and validate commands; per-plugin .status files for state management; status-aware plugin discovery pipeline
+**Requirements**: [PLG-STATUS, PLG-DISCOVERY, PLG-REGISTRY, PLG-CLI-LIST, PLG-CLI-ENABLE, PLG-CLI-DISABLE, PLG-CLI-INFO, PLG-CLI-VALIDATE, PLG-GLOBAL-PLUGINDIR, PLG-QA-TESTS, PLG-DISABLED-SLICE-ERROR]
+**Depends on:** Phase 35
+**Plans:** 3 plans
+
+- [ ] 36-01-PLAN.md -- Plugin status module and status-aware discovery pipeline
+- [ ] 36-02-PLAN.md -- CLI plugins subcommand and global --plugin-dir promotion
+- [ ] 36-03-PLAN.md -- QA tests for plugins subcommand
