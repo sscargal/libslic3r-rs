@@ -1,0 +1,19 @@
+[package]
+name = "slicecore-config-derive"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Derive macro for the ConfigSchema setting metadata system"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full", "derive", "extra-traits", "parsing"] }
+quote = "1"
+proc-macro2 = "1"
+
+[dev-dependencies]
+slicecore-config-schema = { path = "../slicecore-config-schema" }
+serde = { workspace = true }
+serde_json = { workspace = true }
