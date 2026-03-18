@@ -81,7 +81,7 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --target ${{ matrix.target }} --workspace --no-default-features --exclude slicecore-plugin --exclude slicecore-plugin-api --exclude slicecore-ai --exclude slicecore-cli
+      - run: cargo build --target ${{ matrix.target }} --workspace --no-default-features --exclude slicecore-plugin --exclude slicecore-plugin-api --exclude slicecore-engine --exclude slicecore-ai --exclude slicecore-cli
 
   doc:
     name: Documentation
