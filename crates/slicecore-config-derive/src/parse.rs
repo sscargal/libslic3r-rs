@@ -1,7 +1,5 @@
 //! Attribute parsing for `#[setting(...)]` on fields, structs, and enum variants.
 
-use syn::spanned::Spanned;
-
 /// Parsed `#[setting(...)]` attributes from a struct field.
 #[derive(Debug, Default)]
 pub struct SettingAttrs {
