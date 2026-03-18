@@ -1,182 +1,205 @@
 # Architecture
 
-**Analysis Date:** 2026-02-13
+**Analysis Date:** 2026-03-18
 
 ## Pattern Overview
 
-**Overall:** Layered, data-oriented, multi-crate architecture with strict dependency rules.
+**Overall:** Layered Rust workspace with domain-separated crates
 
 **Key Characteristics:**
-- Five-layer modular design with unidirectional dependencies (no upward deps, no cycles)
-- Data-oriented design preferring flat arrays and structure-of-arrays over object hierarchies
-- Zero-cost abstractions using traits and generics over dynamic dispatch
-- Deterministic execution ensuring identical outputs from identical inputs
-- Plugin-first extensibility with built-in, dynamic, and WASM sandboxed plugins
-- Progressive complexity — simple things remain simple while complex operations are possible
+- 15-crate Cargo workspace where each crate owns one domain (math, geometry, mesh, slicing, engine, I/O, plugins, AI)
+- Strict dependency layering: foundation crates have no internal deps; upper crates compose lower ones
+- Plugin system uses a three-crate architecture (api / host / plugin-impl) with both native (ABI-stable FFI) and WASM backends
+- Feature flags (`plugins`, `ai`, `arrange`, `parallel`) allow opt-in capabilities at the engine level
+- WASM-compatible by design: no `std::time::Instant` on wasm32, pure-Rust I/O libs, cfg-gated `rayon`
 
 ## Layers
 
-**Layer 0: Foundation (`slicecore-math`, `slicecore-geo`, `slicecore-mesh`):**
-- Purpose: Provides geometric primitives and data structures for all higher layers
-- Location: `crates/slicecore-math/`, `crates/slicecore-geo/`, `crates/slicecore-mesh/`
-- Contains: 3D points, vectors, matrices, transformations, polygons, polylines, mesh representations, boolean operations, spatial indexing
-- Depends on: External crates only (serde, thiserror, bumpalo)
-- Used by: All layers above
+**Foundation Math Layer:**
+- Purpose: Shared primitive types for all geometric operations
+- Location: `crates/slicecore-math/`
+- Contains: `Point2`, `Point3`, `Vec2`, `Vec3`, `BBox2/3`, `Matrix3x3/4x4`, `IPoint2` (integer coords), `Coord`
+- Depends on: `serde`, `approx` only
+- Used by: every other crate in the workspace
+- Notes: Two coordinate spaces — float (mm) and integer (nanometers, 1mm = 1_000_000 units)
 
-**Layer 1: I/O & Data (`slicecore-fileio`, `slicecore-gcode-io`, `slicecore-config`):**
-- Purpose: File format parsing/writing and configuration management
-- Location: `crates/slicecore-fileio/`, `crates/slicecore-gcode-io/`, `crates/slicecore-config/`
-- Contains: STL/3MF/OBJ/STEP parsers, G-code parsers/writers, hierarchical config system, schema validation, profile management
-- Depends on: Layer 0 types
-- Used by: Layers 2-5
+**Geometry Layer:**
+- Purpose: 2D polygon operations used throughout the slicing pipeline
+- Location: `crates/slicecore-geo/`
+- Contains: `Polygon`, `ValidPolygon` (two-tier validation), boolean ops, offsetting, simplification, convex hull
+- Depends on: `slicecore-math`, `clipper2-rust`
+- Used by: `slicecore-slicer`, `slicecore-engine`, `slicecore-arrange`
 
-**Layer 2: Algorithms (`slicecore-slicer`, `slicecore-perimeters`, `slicecore-infill`, `slicecore-supports`, `slicecore-pathing`):**
-- Purpose: Core slicing and toolpath generation algorithms
-- Location: `crates/slicecore-slicer/`, `crates/slicecore-perimeters/`, `crates/slicecore-infill/`, `crates/slicecore-supports/`, `crates/slicecore-pathing/`
-- Contains: Layer contour extraction, region classification, perimeter generation, infill pattern generation, support structure generation, toolpath ordering and travel optimization
-- Depends on: Layers 0-1
-- Used by: Layers 3-5
+**Mesh Layer:**
+- Purpose: 3D triangle mesh representation with spatial queries
+- Location: `crates/slicecore-mesh/`
+- Contains: `TriangleMesh` (arena+index: `Vec<Point3>` + `Vec<[u32;3]>`), lazy SAH-BVH, CSG boolean ops, mesh repair, transforms
+- Depends on: `slicecore-math`, `robust`, optional `rayon`
+- Used by: `slicecore-slicer`, `slicecore-fileio`, `slicecore-render`, `slicecore-engine`
 
-**Layer 3: Planning & Generation (`slicecore-planner`, `slicecore-gcode-gen`, `slicecore-estimator`):**
-- Purpose: Motion planning, G-code emission, and resource estimation
-- Location: `crates/slicecore-planner/`, `crates/slicecore-gcode-gen/`, `crates/slicecore-estimator/`
-- Contains: Speed/acceleration planning, temperature/fan control, extrusion calculation, G-code formatting, time/material/cost estimation
-- Depends on: Layers 0-2
-- Used by: Layers 4-5
+**Slicer Layer:**
+- Purpose: Triangle-plane intersection to produce layer contours
+- Location: `crates/slicecore-slicer/`
+- Contains: `slice_mesh`, `slice_at_height`, `compute_layer_heights`, adaptive layer height, contour chaining
+- Depends on: `slicecore-math`, `slicecore-mesh`, `slicecore-geo`
+- Used by: `slicecore-engine`
 
-**Layer 4: Intelligence (`slicecore-ai`, `slicecore-optimizer`, `slicecore-analyzer`):**
-- Purpose: AI/ML integration, model analysis, and parameter optimization
-- Location: `crates/slicecore-ai/`, `crates/slicecore-optimizer/`, `crates/slicecore-analyzer/`
-- Contains: Model feature extraction, provider-agnostic AI abstraction (OpenAI, Anthropic, local Ollama), parameter optimization, printability scoring
-- Depends on: Layers 0-3
-- Used by: Layer 5
+**I/O Layer:**
+- Purpose: File format parsers and G-code output
+- Location: `crates/slicecore-fileio/`, `crates/slicecore-gcode-io/`
+- `slicecore-fileio` Contains: STL (binary + ASCII), 3MF, OBJ parsers and exporters; `load_mesh` auto-detects format
+- `slicecore-gcode-io` Contains: structured `GcodeCommand` enum, dialect-aware `GcodeWriter` (Marlin, Klipper, RepRap, Bambu), arc fitting, validation
+- Depends on: `slicecore-math`, `slicecore-mesh`, `tobj`, `lib3mf-core`, `lib3mf-converters`, `byteorder`
+- Used by: `slicecore-engine`, `slicecore-cli`
 
-**Layer 5: Integration (`slicecore-engine`, `slicecore-plugin`, `slicecore-api`):**
-- Purpose: Pipeline orchestration, plugin system, and external interfaces
-- Location: `crates/slicecore-engine/`, `crates/slicecore-plugin/`, `crates/slicecore-api/`
-- Contains: Full slicing pipeline orchestration, plugin registry/loading, REST/gRPC server, CLI interface, Python bindings, WASM interface, FFI
-- Depends on: Layers 0-4
-- Used by: External applications (CLI, desktop, cloud, browsers)
+**Config Layer:**
+- Purpose: Setting schema types, derive macro, and registry
+- Location: `crates/slicecore-config-schema/`, `crates/slicecore-config-derive/`
+- Contains: `SettingDefinition`, `SettingRegistry`, `HasSettingSchema` trait, JSON Schema generation, `#[derive(ConfigSchema)]` proc-macro
+- Depends on: `serde`, `syn`/`quote` (proc-macro only)
+- Used by: `slicecore-engine`
+
+**Engine Layer:**
+- Purpose: Full slicing pipeline orchestrator
+- Location: `crates/slicecore-engine/`
+- Contains: `Engine` struct (single entry point), `PrintConfig`, all pipeline stages (perimeter, infill, support, toolpath, gcode_gen, planner), profile management (import, library, compose, resolve), statistics, multi-material, sequential printing, event system
+- Depends on: all lower layers plus optional `slicecore-ai`, `slicecore-arrange`, `slicecore-plugin`
+- Used by: `slicecore-cli`
+- Feature flags: `plugins`, `ai`, `arrange`, `parallel`
+
+**Plugin Layer:**
+- Purpose: Extensible infill patterns and G-code post-processors
+- Location: `crates/slicecore-plugin-api/`, `crates/slicecore-plugin/`
+- `slicecore-plugin-api`: FFI-safe types (`RVec`, `RString`, `abi_stable::StableAbi`), `InfillPatternPlugin` and `GcodePostProcessorPlugin` traits, WASM WIT bindings
+- `slicecore-plugin`: `PluginRegistry`, discovery, native loader (ABI-stable cdylib), WASM loader (wasmtime component model), sandbox config
+- Depends on: `abi_stable`, `wasmtime` (optional), `semver`, `toml`
+- Used by: `slicecore-engine` (via feature flag), `slicecore-cli`
+
+**AI Layer:**
+- Purpose: LLM-based geometry analysis and print profile suggestions
+- Location: `crates/slicecore-ai/`
+- Contains: `AiProvider` async trait, providers (OpenAI, Anthropic, Ollama), `AiConfig`, geometry feature extraction, profile suggestion, secure API key storage (`secrecy`)
+- Depends on: `slicecore-mesh`, `slicecore-math`, `reqwest`, `tokio`, `async-trait`, `secrecy`
+- Used by: `slicecore-engine` (feature `ai`), `slicecore-cli`
+
+**Utility Crates:**
+- `crates/slicecore-arrange/`: Build plate auto-arrangement with material grouping, sequential mode, gantry clearance
+- `crates/slicecore-render/`: CPU software rasterizer (orthographic + z-buffer), PNG encoding for thumbnails
+
+**CLI Layer:**
+- Purpose: User-facing binary and subcommand dispatch
+- Location: `crates/slicecore-cli/`
+- Contains: `slicecore` binary, subcommands (slice, validate, analyze, ai-suggest, csg, arrange, schema, etc.)
+- Depends on: all crates (the CLI is the top-level consumer)
 
 ## Data Flow
 
-**Full Slicing Pipeline:**
+**Primary Slice Flow:**
 
-1. **Input Loading** — `slicecore-fileio` parses STL/3MF/OBJ into `TriangleMesh` (Layer 1)
-2. **Model Preparation** — `slicecore-mesh` repairs and transforms mesh to build-plate orientation (Layer 0)
-3. **Layer Generation** — `slicecore-slicer` intersects mesh with horizontal planes to produce `SliceLayer` contours (Layer 2)
-4. **Region Classification** — Each contour region classified as perimeter, infill, support, bridge, overhang, etc. (Layer 2)
-5. **Perimeter Generation** — `slicecore-perimeters` generates wall extrusions via inward offset and seam placement (Layer 2)
-6. **Infill Generation** — `slicecore-infill` generates pattern-based fill paths within classified infill regions (Layer 2)
-7. **Support Generation** — `slicecore-supports` creates support structures under overhangs (Layer 2)
-8. **Toolpath Ordering** — `slicecore-pathing` optimizes extrusion ordering and travel moves within layers (Layer 2)
-9. **Motion Planning** — `slicecore-planner` assigns speeds, accelerations, temperatures, fan speeds, retractions (Layer 3)
-10. **G-code Generation** — `slicecore-gcode-gen` emits firmware-specific G-code (Layer 3)
-11. **Metadata & Estimation** — `slicecore-estimator` computes time, filament, cost; generates JSON metadata (Layer 3)
-12. **Output** — `slicecore-gcode-io` writes G-code file; `slicecore-api` returns result via configured interface
+1. CLI reads mesh file bytes → `slicecore_fileio::load_mesh` → `TriangleMesh`
+2. CLI loads/builds `PrintConfig` (TOML files, profile library, overrides)
+3. `Engine::slice(mesh, config, writer, opts)` is called
+4. `slicecore_slicer::slice_mesh` intersects triangles with Z planes → `Vec<SliceLayer>`
+5. Per layer (optionally parallel via `rayon`): perimeters, surface classification, infill, gap fill, ironing, support, toolpath assembly
+6. First-layer extras: skirt/brim prepended to layer 0
+7. `gcode_gen::generate_full_gcode` converts `LayerToolpath` → `Vec<GcodeCommand>`
+8. `GcodeWriter` serializes to bytes with dialect-aware start/end sequences
+9. `SliceResult` returned with G-code bytes, layer count, time estimate, filament usage, statistics, preview
+
+**Plugin Dispatch Flow:**
+
+1. `PluginRegistry::discover_and_load(dir)` scans for `plugin.toml` manifests
+2. Native plugins: `abi_stable::load_root_module_in_file` verifies ABI then calls `generate()`
+3. WASM plugins: `wasmtime` instantiates component, CPU fuel/memory limits enforced
+4. Engine checks `InfillPattern::Plugin(name)` before calling `generate_infill`, routes to registry
+
+**AI Suggestion Flow:**
+
+1. `extract_geometry_features(mesh)` computes dimensions, volume, overhangs, thin walls
+2. `build_profile_prompt(features)` creates structured LLM prompt
+3. Provider sends HTTP request (Ollama/OpenAI/Anthropic)
+4. Response JSON parsed by `parse_profile_suggestion` into `ProfileSuggestion`
 
 **State Management:**
-
-- **Immutable Input:** Mesh and config are immutable throughout pipeline
-- **Per-Layer Processing:** Each layer processed independently where possible (enables parallelism via rayon)
-- **Arena Allocation:** Transient geometry objects (clipped polygons, intermediate paths) allocated in per-layer arenas with O(1) reset between layers
-- **Output Streaming:** G-code emitted per-layer as completed (enables streaming to printer before full slice completes)
+- No global mutable state except `LazyLock<SettingRegistry>` singleton in `slicecore-engine`
+- `CancellationToken` uses `Arc<AtomicBool>` for thread-safe cooperative cancellation
+- `EventBus` pattern with `EventSubscriber` trait for slice progress events
+- `TriangleMesh` BVH is built lazily via `OnceLock` (thread-safe, built once)
 
 ## Key Abstractions
 
 **TriangleMesh:**
-- Purpose: Represents 3D printable model
-- Examples: `crates/slicecore-mesh/src/lib.rs`
-- Pattern: Indexed vertex array + face indices with lazy-computed normals and cached spatial index (BVH)
+- Purpose: Core 3D model representation
+- Examples: `crates/slicecore-mesh/src/triangle_mesh.rs`
+- Pattern: Arena+index (`Vec<Point3>` vertices, `Vec<[u32;3]>` triangle indices), lazy BVH
 
-**SliceLayer:**
-- Purpose: 2D horizontal slice at a specific Z height
-- Examples: `crates/slicecore-slicer/src/lib.rs`
-- Pattern: Contains Z coordinate, layer height, outer contours, holes, and region classifications
+**PrintConfig:**
+- Purpose: All slicing parameters in one serializable struct
+- Examples: `crates/slicecore-engine/src/config.rs`
+- Pattern: Nested structs with `#[serde(default)]`, `#[derive(ConfigSchema)]` for setting metadata
 
-**ExtrusionSegment:**
-- Purpose: Single extrusion motion from point A to B
-- Examples: `crates/slicecore-gcode-gen/src/lib.rs`
-- Pattern: Start/end points, extrusion width/height, flow rate, region type, attributes (seam, bridge, etc.)
+**ValidPolygon:**
+- Purpose: Geometric invariant enforcement at type level
+- Examples: `crates/slicecore-geo/src/polygon.rs`
+- Pattern: Two-tier — `Polygon` (raw, mutable) → `Polygon::validate()` → `ValidPolygon` (guaranteed non-degenerate, known winding)
 
-**RegionType:**
-- Purpose: Semantic classification of extrusion purpose
-- Examples: Perimeter{wall_index}, Infill{density}, Support, Bridge, Overhang{angle}, TopSurface, BottomSurface
-- Pattern: Enum driving behavior decisions (speed, temperature, fan speed, preview coloring)
+**Engine:**
+- Purpose: Single entry point for the slicing pipeline
+- Examples: `crates/slicecore-engine/src/engine.rs`
+- Pattern: Takes `TriangleMesh + PrintConfig`, produces `SliceResult` with G-code bytes
 
-**PlannedMove:**
-- Purpose: Physical motion with all parameters resolved
-- Examples: `crates/slicecore-planner/src/lib.rs`
-- Pattern: Start/end points, feedrate, acceleration, extrusion amount, temperature, fan speed, move type
+**InfillPatternPlugin / GcodePostProcessorPlugin:**
+- Purpose: FFI-safe extension points for custom behaviors
+- Examples: `crates/slicecore-plugin-api/src/traits.rs`
+- Pattern: `abi_stable::sabi_trait` macro generates vtable-based trait objects safe across dylib boundaries
 
-**Plugin Trait:**
-- Purpose: Extension point for algorithm plugins
-- Examples: `slicecore-perimeters` exports `InfillPattern`, `SupportStrategy`, `GcodeDialect` traits
-- Pattern: Base `Plugin` trait + specialized extension traits (e.g., `InfillPattern::generate()`)
-
-**AiProvider:**
-- Purpose: Provider-agnostic AI/LLM abstraction
-- Examples: `crates/slicecore-ai/src/lib.rs` implements OpenAiProvider, AnthropicProvider, OllamaProvider, etc.
-- Pattern: Async trait with `complete()` for text generation, `embed()` for embeddings, `capabilities()` for feature detection
+**SettingRegistry:**
+- Purpose: Runtime metadata for all `PrintConfig` fields (display names, constraints, dependencies)
+- Examples: `crates/slicecore-engine/src/lib.rs` (global singleton), `crates/slicecore-config-schema/src/registry.rs`
+- Pattern: `LazyLock` singleton populated via `#[derive(ConfigSchema)]`-generated code
 
 ## Entry Points
 
-**CLI (`bins/slicecore-cli/`):**
-- Location: `bins/slicecore-cli/src/main.rs`
-- Triggers: User runs `slicecore slice model.stl -o output.gcode`
-- Responsibilities: Parse command-line args, load config, instantiate engine, invoke slice pipeline, write output
+**CLI Binary:**
+- Location: `crates/slicecore-cli/src/main.rs`
+- Triggers: `cargo run --bin slicecore` or installed binary
+- Responsibilities: Subcommand parsing via `clap`, orchestrating all user-facing workflows
 
-**REST API Server (`bins/slicecore-server/`):**
-- Location: `bins/slicecore-server/src/main.rs`
-- Triggers: HTTP POST to `/api/v1/slice` with multipart model + config JSON
-- Responsibilities: Listen on configured port, deserialize requests, invoke engine, return JSON response with gcode + metadata
+**Engine::slice:**
+- Location: `crates/slicecore-engine/src/engine.rs`
+- Triggers: Called by CLI `slice_workflow.rs` or any library consumer
+- Responsibilities: Full pipeline from `TriangleMesh + PrintConfig` to G-code bytes
 
-**Library Entry (`crates/slicecore-engine/`):**
-- Location: `crates/slicecore-engine/src/lib.rs` exports `pub struct Engine`
-- Triggers: External code calls `engine.slice(SliceJob { ... })?`
-- Responsibilities: Coordinate full pipeline, manage thread pool, report progress, handle cancellation
+**Plugin Entry (Native):**
+- Location: Each plugin exposes `#[export_root_module]` returning `InfillPluginMod_Ref`
+- Examples: `plugins/examples/native-zigzag-infill/`
+- Responsibilities: Implement `InfillPatternPlugin::generate(&InfillRequest) -> InfillResult`
 
-**WASM Entry (`crates/slicecore-api/src/wasm.rs`):**
-- Location: `crates/slicecore-api/src/wasm.rs` exports `#[wasm_bindgen] pub struct WasmSlicer`
-- Triggers: JavaScript calls `new WasmSlicer().slice(model_bytes, config_json)`
-- Responsibilities: Deserialize JS inputs, invoke engine, return JavaScript objects with gcode string and metadata
+**Plugin Entry (WASM):**
+- Location: Each plugin implements WIT `Guest` trait
+- Examples: `plugins/examples/wasm-spiral-infill/`
+- WIT definition: `crates/slicecore-plugin/wit/slicecore-plugin.wit`
+- Responsibilities: Compiled to `wasm32-wasip2`, loaded by wasmtime component model
 
 ## Error Handling
 
-**Strategy:** Layered error types with context, using `thiserror` for ergonomic error definitions.
+**Strategy:** `thiserror`-derived enums at each crate boundary; `anyhow` only in the CLI binary
 
 **Patterns:**
-
-- **Top-level:** `SliceCoreError` enum aggregates all crate-specific errors via `#[from]`
-- **Layer 0 (Mesh):** `MeshError` for topology issues (non-manifold, self-intersection, degenerate triangles)
-- **Layer 1 (IO):** `IoError` for parse failures with suggestions (e.g., "STL appears truncated")
-- **Layer 2 (Algorithms):** Domain-specific errors (e.g., `SlicingError` with layer number context)
-- **Layer 4 (AI):** `AiError` for provider unavailability/rate-limiting with fallback hints
-- **Recovery:** Where possible, errors include `suggestion: Option<String>` for programmatic recovery hints
-- **Warnings vs Errors:** Non-fatal issues (e.g., "thin wall below 1.2mm nozzle width") collected separately in `Vec<SliceWarning>` and returned alongside results
+- Each crate defines its own `Error` enum (e.g., `MeshError`, `GeoError`, `FileIOError`, `EngineError`, `PluginSystemError`, `AiError`, `ArrangeError`)
+- Errors propagate upward via `?` with `#[from]` for automatic conversions at crate boundaries
+- `EngineError::Cancelled` for cooperative cancellation via `CancellationToken`
+- Plugin errors wrapped as `EngineError::Plugin { plugin, message }` at engine boundary
+- `anyhow::Result` used throughout `slicecore-cli` for ergonomic error display
 
 ## Cross-Cutting Concerns
 
-**Logging:** Structured logging via `tracing` crate with span-based context.
-- All layer-level operations emit debug events
-- Slice progress reported via `Progress` trait implementation
-- Production: JSON logging to stdout; development: pretty-printed to stderr
-
-**Validation:** Schema-driven validation in `slicecore-config`.
-- All settings have declared types, ranges, constraints
-- Dependent settings validated (e.g., "outer_wall_speed must be ≤ max_print_speed")
-- Expression-based validation (e.g., "layer_height ≤ nozzle_diameter × 0.8")
-
-**Authentication:** For cloud/remote operations in Layer 5.
-- API keys handled via `secrecy` crate (never logged)
-- CORS configured permissively for WASM origin
-- JWT tokens optional for stateful API sessions
-
-**Parallelism:** Data parallelism via `rayon` in Layers 2-5.
-- Per-layer operations (`slice_layers`, `generate_perimeters`, `generate_infill`) use `rayon::par_iter()`
-- Thread pool size configurable; defaults to `num_cpus::get()`
-- Cancellation via `CancellationToken` checked between stages
+**Logging:** No logging framework — CLI uses `eprintln!` and `indicatif` progress bars; engine emits `SliceEvent` via `EventBus`
+**Validation:** `PrintConfig` validated via `config_validate::validate_config` returning `Vec<ValidationIssue>`; polygon invariants enforced by `ValidPolygon`
+**Authentication:** AI API keys stored as `secrecy::SecretString`; redacted from `Debug` output
+**Parallelism:** Optional `rayon` feature in `slicecore-engine` and `slicecore-mesh`; per-layer processing uses `maybe_par_iter` wrapper that degrades to serial when feature disabled
+**WASM Compatibility:** `cfg(target_arch = "wasm32")` gates on `Instant`, timer, and native plugin loading; `getrandom` uses `wasm_js` feature
 
 ---
 
-*Architecture analysis: 2026-02-13*
+*Architecture analysis: 2026-03-18*

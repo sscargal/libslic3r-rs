@@ -1,245 +1,255 @@
 # Codebase Structure
 
-**Analysis Date:** 2026-02-13
+**Analysis Date:** 2026-03-18
 
 ## Directory Layout
 
 ```
 libslic3r-rs/
-├── Cargo.toml                    # Workspace root manifest
-├── Cargo.lock                    # Locked dependency versions (committed)
-├── crates/                       # Layer-organized library crates
-│   ├── slicecore-math/           # Layer 0: Math primitives (Point2, Point3, Matrix, BBox)
-│   ├── slicecore-geo/            # Layer 0: Computational geometry (Polygon, Boolean ops, Voronoi)
-│   ├── slicecore-mesh/           # Layer 0: 3D mesh (TriangleMesh, BVH, repair, transforms)
-│   ├── slicecore-fileio/         # Layer 1: File parsers (STL, 3MF, OBJ, STEP)
-│   ├── slicecore-gcode-io/       # Layer 1: G-code parser and writer
-│   ├── slicecore-config/         # Layer 1: Configuration system (schema, validation, TOML loading)
-│   ├── slicecore-slicer/         # Layer 2: Core slicing (mesh → layers)
-│   ├── slicecore-perimeters/     # Layer 2: Wall generation (Arachne, seam placement)
-│   ├── slicecore-infill/         # Layer 2: Infill patterns (rectilinear, gyroid, etc.)
-│   ├── slicecore-supports/       # Layer 2: Support generation (basic, tree, interface)
-│   ├── slicecore-pathing/        # Layer 2: Toolpath optimization (travel, ordering)
-│   ├── slicecore-planner/        # Layer 3: Motion planning (speed, accel, temp, fan)
-│   ├── slicecore-gcode-gen/      # Layer 3: G-code emission (firmware dialects)
-│   ├── slicecore-estimator/      # Layer 3: Time/material/cost estimation
-│   ├── slicecore-analyzer/       # Layer 4: Model feature extraction and analysis
-│   ├── slicecore-ai/             # Layer 4: AI provider abstraction (OpenAI, Ollama, etc.)
-│   ├── slicecore-optimizer/      # Layer 4: Parameter optimization
-│   ├── slicecore-engine/         # Layer 5: Pipeline orchestrator (full slicing workflow)
-│   ├── slicecore-plugin/         # Layer 5: Plugin system (registry, loading, lifecycle)
-│   └── slicecore-api/            # Layer 5: External interfaces (REST, Python, WASM, FFI)
-├── bins/                         # Executable binaries
-│   ├── slicecore-cli/            # Command-line interface
-│   │   └── src/
-│   │       ├── main.rs           # Entry point: parse args, invoke engine
-│   │       └── commands/         # Command implementations (slice, analyze, optimize)
-│   └── slicecore-server/         # REST/gRPC API server
-│       └── src/
-│           ├── main.rs           # Server startup and route registration
-│           └── handlers/         # Route handlers (/api/v1/slice, /api/v1/analyze, etc.)
-├── plugins/                      # Example and built-in plugins
-│   ├── infill-gyroid/            # Example: Gyroid infill pattern plugin
-│   └── gcode-klipper/            # Example: Klipper G-code dialect plugin
-├── tests/                        # Integration and end-to-end tests
-│   ├── models/                   # Test 3D models (calibration_cube_20mm.stl, benchy.stl, etc.)
-│   ├── configs/                  # Test printer/filament profiles (pla_standard.toml, etc.)
-│   ├── golden/                   # Golden file expectations (deterministic output hashes)
-│   │   ├── calibration_cube_standard.gcode.sha256
-│   │   ├── benchy_fine_quality.gcode.sha256
-│   │   └── ...
-│   └── integration_tests.rs      # End-to-end slice tests
-├── benches/                      # Performance benchmarks
-│   ├── slice_benchmark.rs        # Criterion benchmarks for slicing operations
-│   └── geometry_benchmark.rs     # Benchmarks for geometric operations
-├── fuzz/                         # Fuzz testing targets
-│   ├── fuzz_targets/
-│   │   ├── stl_parser.rs         # Fuzz STL parser with malformed input
-│   │   ├── gcode_parser.rs       # Fuzz G-code parser
-│   │   └── config_parser.rs      # Fuzz config TOML parser
-├── designDocs/                   # Architecture and design documentation
-│   ├── 01-PRODUCT_REQUIREMENTS.md
-│   ├── 02-ARCHITECTURE.md
-│   ├── 03-API-DESIGN.md
-│   ├── 04-IMPLEMENTATION-GUIDE.md
-│   ├── 05-CPP-ANALYSIS-GUIDE.md
-│   ├── 06-NOVEL-IDEAS.md
-│   ├── 07-MISSING-CONSIDERATIONS.md
-│   └── 08-GLOSSARY.md
-├── .github/workflows/            # CI/CD pipelines
-│   └── ci.yml                    # Lint, test, benchmark, fuzz, WASM build
-├── .planning/                    # GSD planning artifacts
-│   └── codebase/                 # Architecture, structure, conventions, testing docs
-├── target/                       # Compiled artifacts (gitignored)
-│   ├── debug/
-│   ├── release/
-│   └── wasm32-unknown-unknown/
-└── README.md                     # Project overview
-
+├── crates/                         # All library crates (workspace members)
+│   ├── slicecore-math/             # Foundation math types (no internal deps)
+│   ├── slicecore-geo/              # 2D polygon operations
+│   ├── slicecore-mesh/             # 3D triangle mesh + BVH + CSG
+│   ├── slicecore-slicer/           # Mesh-to-contour slicing
+│   ├── slicecore-fileio/           # STL, 3MF, OBJ parsers/exporters
+│   ├── slicecore-gcode-io/         # G-code types, writer, validator
+│   ├── slicecore-config-schema/    # Setting schema types and registry
+│   ├── slicecore-config-derive/    # #[derive(ConfigSchema)] proc-macro
+│   ├── slicecore-engine/           # Pipeline orchestrator (main library)
+│   ├── slicecore-plugin-api/       # FFI-safe plugin interface types
+│   ├── slicecore-plugin/           # Plugin registry, loaders, discovery
+│   ├── slicecore-ai/               # LLM integration for profile suggestions
+│   ├── slicecore-arrange/          # Build plate auto-arrangement
+│   ├── slicecore-render/           # CPU software rasterizer for thumbnails
+│   └── slicecore-cli/              # CLI binary (slicecore)
+├── plugins/                        # Plugin examples and implementations
+│   └── examples/
+│       ├── native-zigzag-infill/   # Example native (cdylib) infill plugin
+│       └── wasm-spiral-infill/     # Example WASM infill plugin
+├── profiles/                       # Converted slicer profile library
+│   ├── bambustudio/                # BambuStudio profiles (TOML)
+│   ├── crealityprint/              # CrealityPrint profiles (TOML)
+│   ├── orcaslicer/                 # OrcaSlicer profiles (TOML)
+│   ├── prusaslicer/                # PrusaSlicer profiles (TOML)
+│   └── index.json                  # Searchable profile index
+├── fuzz/                           # cargo-fuzz harnesses
+│   └── fuzz_targets/               # fuzz_stl_binary.rs, fuzz_stl_ascii.rs, fuzz_obj.rs, fuzz_csg.rs
+├── designDocs/                     # Design reference documents (not code)
+├── scripts/                        # Utility scripts
+├── .planning/                      # GSD workflow state
+│   ├── codebase/                   # Codebase analysis documents (this dir)
+│   ├── phases/                     # Phase plans
+│   └── config.json                 # GSD config
+├── Cargo.toml                      # Workspace manifest
+├── Cargo.lock                      # Lockfile
+├── clippy.toml                     # Workspace clippy config
+├── .rustfmt.toml                   # Rustfmt config
+└── CLAUDE.md                       # AI assistant instructions
 ```
 
 ## Directory Purposes
 
-**`crates/`:**
-- Purpose: Self-contained, reusable library crates organized by layer
-- Contains: Source code, tests, and examples for each abstraction
-- Key files: `Cargo.toml` (per-crate), `src/lib.rs` (public API), `tests/` (integration tests per crate)
+**`crates/slicecore-math/src/`:**
+- Purpose: Zero-dependency math primitives shared by all crates
+- Contains: `point.rs`, `vec.rs`, `bbox.rs`, `matrix.rs`, `coord.rs`, `convert.rs`, `epsilon.rs`
+- Key files: `crates/slicecore-math/src/lib.rs` (re-exports all types at crate root)
 
-**`bins/`:**
-- Purpose: Executable binaries using crate libraries
-- Contains: CLI tool and REST API server entry points
-- Key files: `main.rs` (entry point), `handlers/` (request handling), `commands/` (CLI subcommands)
+**`crates/slicecore-geo/src/`:**
+- Purpose: 2D polygon types and boolean/offset/simplify operations
+- Contains: `polygon.rs`, `boolean.rs`, `offset.rs`, `area.rs`, `polyline.rs`, `simplify.rs`, `convex_hull.rs`, `point_in_poly.rs`
+- Key files: `crates/slicecore-geo/src/polygon.rs` (two-tier `Polygon`/`ValidPolygon`)
 
-**`plugins/`:**
-- Purpose: Example and reference implementations of plugin extension points
-- Contains: Standalone crates demonstrating plugin loading and API
-- Key files: `plugin.toml` (plugin metadata), `src/lib.rs` (plugin implementation)
+**`crates/slicecore-mesh/src/`:**
+- Purpose: 3D mesh data structure with spatial queries
+- Contains: `triangle_mesh.rs`, `bvh.rs`, `spatial.rs`, `transform.rs`, `stats.rs`, `repair.rs`, `repair/` dir, `csg/` dir
+- Key files: `crates/slicecore-mesh/src/triangle_mesh.rs`
 
-**`tests/`:**
-- Purpose: Integration tests and test fixtures
-- Contains: Test models, configurations, golden file hashes
-- Key files: `integration_tests.rs` (end-to-end tests), `models/*.stl` (test geometries), `golden/*.sha256` (deterministic expectations)
+**`crates/slicecore-slicer/src/`:**
+- Purpose: Mesh-to-layer slicing
+- Contains: `layer.rs` (main `slice_mesh`), `contour.rs` (triangle-plane intersection), `adaptive.rs` (adaptive layer heights), `resolve.rs` (contour intersection resolution)
 
-**`benches/`:**
-- Purpose: Performance regression detection
-- Contains: Criterion benchmarks for hot paths
-- Key files: `slice_benchmark.rs` (full pipeline timing), `geometry_benchmark.rs` (per-operation profiling)
+**`crates/slicecore-engine/src/`:**
+- Purpose: Slicing pipeline orchestrator with all algorithms
+- Contains: pipeline modules, profile management, config, event system
+- Key files: `engine.rs` (Engine struct), `config.rs` (PrintConfig), `lib.rs` (re-exports + global registry)
+- Subdirectories: `infill/` (10 pattern submodules), `support/` (12 support modules), `gcode_analysis/`
 
-**`fuzz/`:**
-- Purpose: Robustness and security validation via fuzzing
-- Contains: Fuzz test targets for all parsers
-- Key files: `fuzz_targets/*.rs` (per-format fuzz harnesses)
+**`crates/slicecore-engine/src/infill/`:**
+- Contains: `mod.rs` (dispatch + InfillPattern enum), `rectilinear.rs`, `grid.rs`, `honeycomb.rs`, `gyroid.rs`, `cubic.rs`, `adaptive_cubic.rs`, `lightning.rs`, `monotonic.rs`, `tpms_d.rs`, `tpms_fk.rs`
 
-**`designDocs/`:**
-- Purpose: Human-readable design documents guiding implementation
-- Contains: Architecture decisions, API specs, implementation roadmap, analysis guides
-- Key files: `02-ARCHITECTURE.md` (system design), `04-IMPLEMENTATION-GUIDE.md` (phase-by-phase roadmap)
+**`crates/slicecore-engine/src/support/`:**
+- Contains: `mod.rs`, `config.rs`, `detect.rs`, `traditional.rs`, `tree.rs`, `tree_node.rs`, `interface.rs`, `bridge.rs`, `overhang_perimeter.rs`, `conflict.rs`, `override_system.rs`
+
+**`crates/slicecore-cli/src/`:**
+- Purpose: CLI binary with subcommand modules
+- Contains: `main.rs` (clap setup + routing), `slice_workflow.rs`, `csg_command.rs`, `csg_info.rs`, `plugins_command.rs`, `schema_command.rs`, `analysis_display.rs`, `stats_display.rs`, `progress.rs`, `calibrate/`
+
+**`crates/slicecore-plugin-api/src/`:**
+- Purpose: Shared contract between host and plugins
+- Contains: `types.rs` (InfillRequest, InfillResult, FfiInfillLine), `traits.rs` (InfillPatternPlugin), `metadata.rs` (PluginManifest), `postprocess_types.rs`, `postprocess_traits.rs`, `error.rs`
+
+**`crates/slicecore-plugin/src/`:**
+- Purpose: Plugin host infrastructure
+- Contains: `registry.rs` (PluginRegistry), `discovery.rs` (directory scanning), `native.rs` (ABI-stable loader), `wasm.rs` (wasmtime loader), `sandbox.rs` (resource limits), `postprocess.rs`, `convert.rs`, `status.rs`
+- Key files: `crates/slicecore-plugin/wit/slicecore-plugin.wit` (WIT interface definition)
+
+**`crates/slicecore-ai/src/`:**
+- Purpose: LLM provider integration
+- Contains: `provider.rs` (AiProvider trait), `providers/` (OpenAI, Anthropic, Ollama), `config.rs`, `geometry.rs`, `profile.rs`, `prompt.rs`, `suggest.rs`, `types.rs`
+
+**`crates/slicecore-arrange/src/`:**
+- Purpose: Build plate packing
+- Contains: `lib.rs` (arrange() entry point), `bed.rs`, `footprint.rs`, `placer.rs`, `grouper.rs`, `orient.rs`, `sequential.rs`, `config.rs`, `result.rs`
+
+**`crates/slicecore-render/src/`:**
+- Purpose: Software rasterizer for thumbnails
+- Contains: `pipeline.rs`, `rasterizer.rs`, `framebuffer.rs`, `camera.rs`, `shading.rs`, `png_encode.rs`, `gcode_embed.rs`
+
+**`plugins/examples/native-zigzag-infill/`:**
+- Purpose: Reference implementation for native cdylib plugins
+- Pattern: `crate-type = ["cdylib"]`, implements `InfillPatternPlugin`, exports `#[export_root_module]`
+
+**`plugins/examples/wasm-spiral-infill/`:**
+- Purpose: Reference implementation for WASM component plugins
+- Pattern: `crate-type = ["cdylib"]`, built with `--target wasm32-wasip2`, implements WIT `Guest` trait
+
+**`profiles/`:**
+- Purpose: Imported and converted slicer profiles from upstream slicers
+- Generated by: `slicecore import-profiles` CLI command
+- Not committed as source code — imported at setup time
+- Format: TOML files organized by `source/vendor/type/`
+
+**`fuzz/fuzz_targets/`:**
+- Purpose: Cargo-fuzz harnesses for parser fuzzing
+- Generated: No — manually maintained
+- Targets: `fuzz_stl_binary`, `fuzz_stl_ascii`, `fuzz_obj`, `fuzz_csg`
 
 ## Key File Locations
 
 **Entry Points:**
-- `bins/slicecore-cli/src/main.rs`: CLI application entry point
-- `bins/slicecore-server/src/main.rs`: REST API server entry point
-- `crates/slicecore-engine/src/lib.rs`: Library public interface (Engine struct)
-- `crates/slicecore-api/src/wasm.rs`: WASM interface (`WasmSlicer` struct)
+- `crates/slicecore-cli/src/main.rs`: CLI binary, all subcommand routing
+- `crates/slicecore-engine/src/engine.rs`: `Engine::slice()` — primary library entry point
+- `crates/slicecore-arrange/src/lib.rs`: `arrange()` — build plate arrangement entry
+- `crates/slicecore-fileio/src/lib.rs`: `load_mesh()` — unified mesh loading
 
 **Configuration:**
-- `Cargo.toml` (workspace root): Workspace metadata, dependencies, features, profiles
-- `.github/workflows/ci.yml`: Continuous integration pipeline (lint, test, bench, fuzz)
-- `designDocs/04-IMPLEMENTATION-GUIDE.md`: Detailed phase-by-phase roadmap with Gantt chart
+- `Cargo.toml`: Workspace manifest with shared dependency versions
+- `crates/slicecore-engine/src/config.rs`: `PrintConfig` — all slicing parameters
+- `clippy.toml`: Workspace-wide clippy settings
+- `.rustfmt.toml`: Formatting config
 
 **Core Logic:**
-- `crates/slicecore-slicer/src/lib.rs`: Mesh-to-layer conversion (most critical algorithm)
-- `crates/slicecore-perimeters/src/lib.rs`: Wall generation with seam placement strategies
-- `crates/slicecore-infill/src/lib.rs`: Infill pattern implementations
-- `crates/slicecore-planner/src/lib.rs`: Speed, acceleration, temperature planning
-- `crates/slicecore-engine/src/lib.rs`: Pipeline orchestrator coordinating all stages
+- `crates/slicecore-engine/src/engine.rs`: Full slicing pipeline
+- `crates/slicecore-engine/src/infill/mod.rs`: Infill dispatch + `InfillPattern` enum
+- `crates/slicecore-mesh/src/triangle_mesh.rs`: `TriangleMesh` data structure
+- `crates/slicecore-slicer/src/layer.rs`: `slice_mesh()` implementation
+- `crates/slicecore-geo/src/polygon.rs`: `Polygon` / `ValidPolygon` types
+- `crates/slicecore-plugin/src/registry.rs`: `PluginRegistry`
+- `crates/slicecore-plugin/wit/slicecore-plugin.wit`: WIT interface definition
 
 **Testing:**
-- `tests/integration_tests.rs`: End-to-end tests (slice test models, compare golden hashes)
-- `tests/models/`: Curated test geometries (calibration_cube_20mm.stl, benchy.stl, etc.)
-- `tests/golden/`: SHA256 hashes of expected deterministic outputs
-- `benches/slice_benchmark.rs`: Performance benchmarks with regression detection
+- Integration tests: `crates/*/tests/` directories
+- Benchmarks: `crates/slicecore-engine/benches/`, `crates/slicecore-mesh/benches/`
+- Unit tests: inline `#[cfg(test)] mod tests` in source files
+- Fuzz: `fuzz/fuzz_targets/*.rs`
 
 ## Naming Conventions
 
 **Files:**
-- Crate source: `src/lib.rs` (public API), `src/main.rs` (binary entry)
-- Tests: `src/lib.rs` contains `#[cfg(test)] mod tests {}` for unit tests; `tests/integration_tests.rs` for integration tests
-- Examples: `examples/basic_slice.rs` demonstrates crate usage
-- Pattern: Snake_case for filenames; one responsibility per file
+- Snake case: `triangle_mesh.rs`, `gcode_gen.rs`, `profile_import.rs`
+- Module names match file names: `pub mod triangle_mesh;` → `triangle_mesh.rs`
+- Test files named after the feature being tested: `fuzz_stl_binary.rs`
 
 **Directories:**
-- Crates: `slicecore-{layer}-{purpose}` or `slicecore-{domain}` (e.g., `slicecore-gcode-io`)
-- Modules within crates: `geometry.rs`, `parser.rs`, `optimize.rs` (one concept per file)
-- Tests: `tests/integration/`, `tests/golden/`, `tests/models/` by category
-- Pattern: Hyphenated crate names; snake_case module names
+- Kebab-case crate names: `slicecore-mesh`, `slicecore-plugin-api`
+- Snake-case module subdirectories: `infill/`, `support/`, `gcode_analysis/`, `providers/`
 
 **Types:**
-- Structs: PascalCase (`TriangleMesh`, `SliceLayer`, `ExtrusionSegment`)
-- Enums: PascalCase with variants PascalCase (`RegionType::Perimeter`)
-- Traits: PascalCase with suffix `Trait` if generic (`Plugin`, `AiProvider`, `InfillPattern`)
-- Errors: PascalCase with suffix `Error` (`MeshError`, `SlicingError`, `ConfigError`)
+- Structs and enums: PascalCase (`TriangleMesh`, `PrintConfig`, `InfillPattern`)
+- Error types: `{Domain}Error` pattern (`MeshError`, `GeoError`, `EngineError`)
+- Traits: PascalCase noun or adjective (`AiProvider`, `HasSettingSchema`, `InfillPatternPlugin`)
 
-**Functions/Methods:**
-- Snake_case for all functions and methods
-- Builders: `pub fn new() -> Self`, `with_capacity()`, `build()`
-- Getters: `pub fn mesh(&self) -> &TriangleMesh`
-- Setters: `pub fn set_layer_height(&mut self, h: f64)`
-- Validators: `pub fn validate() -> Result<()>`
+**Functions:**
+- Snake case: `slice_mesh`, `load_mesh`, `generate_infill`, `arrange`
+- Constructor-like functions: `new()`, `from_*()`, `parse()`
+- Entry-point functions at crate root preferred over deep module paths
 
 ## Where to Add New Code
 
-**New Slicing Feature (e.g., new infill pattern):**
-- Primary code: `crates/slicecore-infill/src/patterns.rs` (implement `InfillPattern` trait)
-- Tests: `crates/slicecore-infill/src/lib.rs` unit tests + `tests/integration_tests.rs` golden file test
-- Example: See `crates/slicecore-infill/src/patterns/rectilinear.rs` for reference implementation
-- Pattern: Add trait method to `InfillPattern`, implement for new `struct`, register in plugin registry
+**New Infill Pattern:**
+- Implementation: `crates/slicecore-engine/src/infill/{pattern_name}.rs`
+- Register: Add variant to `InfillPattern` enum in `crates/slicecore-engine/src/infill/mod.rs`
+- Dispatch: Add match arm in `generate_infill()`
+- Tests: Add `#[cfg(test)]` module in the pattern file
 
-**New File Format Support:**
-- Primary code: `crates/slicecore-fileio/src/parsers/{format}.rs` (implement `FileParser` trait)
-- Tests: `tests/models/` add test file, `crates/slicecore-fileio/src/lib.rs` add unit test
-- Fuzzing: `fuzz/fuzz_targets/{format}_parser.rs` (add fuzz harness)
-- Pattern: Implement `pub trait FileParser`, add to format detection in `detect_format()`
+**New CLI Subcommand:**
+- Implementation: `crates/slicecore-cli/src/{command_name}.rs`
+- Register: Add `mod {command_name};` and enum variant to `crates/slicecore-cli/src/main.rs`
 
-**New Optimization Strategy:**
-- Primary code: `crates/slicecore-optimizer/src/strategies/{strategy}.rs`
-- Tests: Unit tests in `src/lib.rs`, integration test in `tests/integration_tests.rs`
-- AI Integration: If using LLM, add to `crates/slicecore-ai/src/providers.rs`
-- Pattern: Implement `pub trait OptimizationStrategy`, register in `Optimizer`
+**New File Format:**
+- Parser: `crates/slicecore-fileio/src/{format}.rs`
+- Register: Add to `detect_format()` in `crates/slicecore-fileio/src/detect.rs`
+- Dispatch: Add match arm in `load_mesh()` in `crates/slicecore-fileio/src/lib.rs`
+- Tests: `crates/slicecore-fileio/tests/`
 
-**Utilities / Helpers:**
-- Layer 0 (foundational): `crates/slicecore-math/src/utils.rs` or `crates/slicecore-geo/src/utils.rs`
-- Layer 2+ (algorithm-specific): Within respective crate's `src/lib.rs` or `src/utils.rs`
-- Avoid: Shared utilities directory — keep them close to usage site for cohesion
+**New Engine Pipeline Stage:**
+- Module: `crates/slicecore-engine/src/{stage_name}.rs`
+- Register: Add `pub mod {stage_name};` in `crates/slicecore-engine/src/lib.rs`
+- Re-export primary types in `lib.rs`
+- Integrate into `Engine::slice()` in `crates/slicecore-engine/src/engine.rs`
 
-**Plugin Development:**
-- Location: `plugins/{name}/` as a new crate
-- Structure: Standard crate layout with `plugin.toml` manifest
-- Example: `plugins/infill-gyroid/` shows plugin discovery, initialization, trait implementation
-- Pattern: Implement `Plugin` + extension trait (e.g., `InfillPattern`), export via `#[no_mangle]` for dynamic loading
+**New PrintConfig Field:**
+- Add field to appropriate struct in `crates/slicecore-engine/src/config.rs`
+- Annotate with `#[setting(...)]` for schema metadata
+- Derive `ConfigSchema` is already on `PrintConfig` — field is auto-registered
+
+**New AI Provider:**
+- Implementation: `crates/slicecore-ai/src/providers/{provider_name}.rs`
+- Register: Add variant to `ProviderType` enum in `crates/slicecore-ai/src/config.rs`
+- Dispatch: Add match arm in `create_provider()` in `crates/slicecore-ai/src/providers/mod.rs`
+
+**New Native Plugin:**
+- Create new crate with `crate-type = ["cdylib"]`
+- Depend only on `slicecore-plugin-api`
+- Implement `InfillPatternPlugin` or `GcodePostProcessorPlugin`
+- Export via `#[export_root_module]`
+- Place in `plugins/` or external directory
+- Reference example: `plugins/examples/native-zigzag-infill/`
+
+**New WASM Plugin:**
+- Create new crate with `crate-type = ["cdylib"]`
+- Copy WIT from `crates/slicecore-plugin/wit/slicecore-plugin.wit`
+- Use `wit_bindgen::generate!` and implement `Guest` trait
+- Build with `cargo build --target wasm32-wasip2`
+- Reference example: `plugins/examples/wasm-spiral-infill/`
+
+**New Utility/Math Type:**
+- If geometry-related: `crates/slicecore-math/src/` or `crates/slicecore-geo/src/`
+- If mesh-related: `crates/slicecore-mesh/src/`
+- Expose at crate root via `lib.rs` pub use
 
 ## Special Directories
 
-**`target/`:**
-- Purpose: Compiled artifacts and intermediate build products
-- Generated: Yes (by cargo)
-- Committed: No (in `.gitignore`)
-- Note: Separate subdirectories for `debug/`, `release/`, `wasm32-unknown-unknown/` per target
+**`.planning/`:**
+- Purpose: GSD workflow state (phase plans, codebase docs, project context)
+- Generated: Partially (phases generated by GSD commands)
+- Committed: Yes
 
-**`.planning/codebase/`:**
-- Purpose: Architecture and structure documentation consumed by GSD planning system
-- Generated: Yes (by mapper agent)
-- Committed: Yes (part of repo)
-- Note: Contains ARCHITECTURE.md, STRUCTURE.md, CONVENTIONS.md, TESTING.md, CONCERNS.md, STACK.md, INTEGRATIONS.md
+**`target/`:**
+- Purpose: Cargo build artifacts
+- Generated: Yes
+- Committed: No (in `.gitignore`)
+
+**`fuzz/target/`:**
+- Purpose: Fuzz build artifacts
+- Generated: Yes
+- Committed: No
 
 **`designDocs/`:**
-- Purpose: Human-readable design specs and implementation guides
-- Generated: No (hand-written design documents)
-- Committed: Yes
-- Note: Serves as reference; `.planning/` documents are auto-generated analyses of actual code
-
-## Dependency Structure
-
-**No circular dependencies — enforced by `cargo deny`.**
-
-Dependency direction (Layers can only depend on lower layers):
-
-```
-Layer 5 (Integration)   → depends on → Layers 0-4
-Layer 4 (Intelligence)  → depends on → Layers 0-3
-Layer 3 (Planning)      → depends on → Layers 0-2
-Layer 2 (Algorithms)    → depends on → Layers 0-1
-Layer 1 (I/O & Data)    → depends on → Layer 0
-Layer 0 (Foundation)    → no internal deps (only external crates)
-```
-
-Examples:
-- `slicecore-engine` (Layer 5) can use `slicecore-slicer` (Layer 2) ✓
-- `slicecore-slicer` (Layer 2) can use `slicecore-geo` (Layer 0) ✓
-- `slicecore-perimeters` (Layer 2) cannot use `slicecore-planner` (Layer 3) ✗
-- `slicecore-math` (Layer 0) cannot import from any slicecore crate ✗
+- Purpose: Architecture reference documents, API design, implementation guides, glossary
+- Committed: Yes — these are human-written design references
+- Key files: `01-PRODUCT_REQUIREMENTS.md`, `02-ARCHITECTURE.md`, `04-IMPLEMENTATION-GUIDE.md`
 
 ---
 
-*Structure analysis: 2026-02-13*
+*Structure analysis: 2026-03-18*

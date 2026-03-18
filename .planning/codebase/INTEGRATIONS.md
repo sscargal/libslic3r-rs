@@ -1,201 +1,119 @@
 # External Integrations
 
-**Analysis Date:** 2026-02-13
+**Analysis Date:** 2026-03-18
 
 ## APIs & External Services
 
-**AI/LLM Providers:**
-- OpenAI (GPT-4, GPT-3.5-turbo) - Settings recommendation, troubleshooting, seam optimization
-  - SDK/Client: `reqwest` HTTP client with custom wrapper
-  - Auth: `SLICECORE_AI_KEY` environment variable (API key)
-  - Use: Profile suggestion, print failure prediction, G-code explanation
+**LLM Providers (all optional, via `slicecore-ai`):**
 
-- Anthropic (Claude models) - Settings recommendation, analysis explanation
-  - SDK/Client: `reqwest` HTTP client via custom trait
-  - Auth: `SLICECORE_AI_KEY` environment variable
-  - Use: Structured analysis output, natural language optimization reasoning
+- **Anthropic Claude** — print profile suggestions, geometry analysis
+  - SDK/Client: `reqwest` 0.12 (direct HTTP, no Anthropic SDK)
+  - Endpoint: `https://api.anthropic.com/v1/messages`
+  - Auth: `x-api-key` header; key stored in `AiConfig.api_key` as `secrecy::SecretString`
+  - Version header: `anthropic-version: 2023-06-01`
+  - Implementation: `crates/slicecore-ai/src/providers/anthropic.rs`
 
-- Google Vertex AI - Vision-based support placement, model orientation
-  - SDK/Client: `reqwest` with custom authentication
-  - Auth: GCP service account credentials (JSON file)
-  - Use: Multi-modal analysis if image-based features are provided
+- **OpenAI** — print profile suggestions, geometry analysis
+  - SDK/Client: `reqwest` 0.12 (direct HTTP, no OpenAI SDK)
+  - Endpoint: `https://api.openai.com` (configurable via `AiConfig.base_url`)
+  - Auth: Bearer token in Authorization header
+  - Implementation: `crates/slicecore-ai/src/providers/openai.rs`
 
-- OpenRouter API - Unified interface to multiple LLM providers
-  - SDK/Client: `reqwest` HTTP client
-  - Auth: `SLICECORE_AI_KEY` environment variable
-  - Use: Provider-agnostic LLM access with fallback support
+- **Ollama** — local LLM inference (default provider)
+  - SDK/Client: `reqwest` 0.12 (direct HTTP)
+  - Endpoint: `http://localhost:11434` (default; configurable via `AiConfig.base_url`)
+  - Auth: None required
+  - Implementation: `crates/slicecore-ai/src/providers/ollama.rs`
 
-**Local AI Providers:**
-- Ollama (local LLM runtime) - Self-hosted model inference
-  - Connection: HTTP via `base_url` parameter (default: `http://localhost:11434`)
-  - Use: Private, offline-capable settings recommendation
-  - Model: Configurable via `SLICECORE_AI_MODEL` (e.g., `mistral`, `llama2`)
-
-- vLLM (high-throughput LLM serving) - Local inference server
-  - Connection: HTTP via `base_url` parameter
-  - Use: Fast batch inference for model analysis and optimization
-  - Model: Configurable model name
-
-**Custom/Local ML:**
-- ONNX Runtime - Local ML models for orientation optimization, failure prediction
-  - Model format: ONNX `.onnx` files
-  - Use: Deterministic, offline machine learning
-  - Location: Models loaded from `SLICECORE_CACHE_DIR` or user-specified paths
+**Provider abstraction:**
+- `AiProvider` trait in `crates/slicecore-ai/src/provider.rs` — async `complete()` + `capabilities()` + `name()`
+- Provider selected at runtime via `AiConfig.provider` (`ProviderType` enum: `OpenAi`, `Anthropic`, `Ollama`)
+- Config loaded from TOML via `AiConfig::from_toml()` — `crates/slicecore-ai/src/config.rs`
 
 ## Data Storage
 
 **Databases:**
-- Not used in core library - Stateless design
-- Optional for `slicecore-server`:
-  - Job database: Any SQL database (PostgreSQL, SQLite) for job persistence
-  - Configuration: Local filesystem only (TOML/JSON profiles)
+- None — no embedded or external database
 
 **File Storage:**
-- Local filesystem only - No cloud storage integration
-- Input: STL, 3MF, OBJ, STEP files from local disk
-- Output: G-code files, JSON metadata, WASM binaries written locally
-- Cache: Configuration profiles, analysis results cached to `$SLICECORE_CACHE_DIR` (default: `~/.cache/slicecore/`)
+- Local filesystem only
+- Print profiles stored as TOML/JSON files in `profiles/` directory (subdirs: `prusaslicer/`, `orcaslicer/`, `bambustudio/`, `crealityprint/`)
+- Profile search path: adjacent to binary → `SLICECORE_PROFILES_DIR` env var override → platform user data dir
+- Discovery implementation: `crates/slicecore-engine/src/profile_resolve.rs`
 
 **Caching:**
-- In-memory caching:
-  - Settings schema (loaded once, cached per process)
-  - Mesh repair results (cached within a slicing session)
-  - AI response cache via Reqwest client (configurable TTL)
-- Persistent cache:
-  - Profile analysis results (opt-in)
-  - Model feature extraction (for repeated analysis)
-  - Location: `~/.cache/slicecore/` or `SLICECORE_CACHE_DIR`
+- None (no runtime cache layer; CI uses `Swatinem/rust-cache@v2` for build artifacts)
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- Custom (API key-based) - No centralized identity provider
-- Implementation:
-  - OpenAI: Bearer token in Authorization header
-  - Anthropic: x-api-key header
-  - Google Vertex: OAuth 2.0 service account flow
-  - OpenRouter: Bearer token
-  - Local providers (Ollama, vLLM): No authentication
-
-**Secrets Management:**
-- Stored in: Environment variables only (never committed to git)
-- Protection: `secrecy` crate ensures keys never logged, displayed, or serialized
-- Key types:
-  - `SLICECORE_AI_KEY` - OpenAI/Anthropic/OpenRouter API key
-  - `GOOGLE_APPLICATION_CREDENTIALS` - Path to GCP service account JSON
+- None — no user authentication system
+- AI API keys managed via `AiConfig` struct with `secrecy::SecretString` (prevents `Debug` leakage)
+- Keys sourced from TOML config files provided by the caller — no hardcoded keys, no env var convention enforced in code
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- Not integrated - Errors reported via Result types and structured logging
-- Optional: Application can integrate with Sentry/similar via `tracing` subscriber
+- None — no Sentry, Datadog, or similar integration
 
 **Logs:**
-- Approach: Structured logging via `tracing` crate
-- Levels: error, warn, info, debug, trace
-- Configuration: `SLICECORE_LOG_LEVEL` environment variable
-- Output: Stdout/stderr (application controls via `tracing-subscriber`)
-- Content:
-  - Slicing progress and stage transitions
-  - Algorithm decisions (layer count, infill pattern selected, etc.)
-  - AI provider calls (model name, latency, confidence scores)
-  - Plugin lifecycle events (loaded, initialized, errors)
-  - Mesh repair operations and warnings
-
-**Metrics:**
-- Prometheus-compatible metrics via `slicecore-server`:
-  - Endpoint: `GET /api/v1/metrics`
-  - Metrics: Slice time, layers processed, memory used, AI provider latency
-  - Format: OpenMetrics text format
+- No logging framework (no `tracing`, `log`, or `env_logger` dependency detected)
+- CLI uses `indicatif` 0.17 for progress display and `comfy-table` 7 for tabular output
+- Errors surfaced via `anyhow` chains in the CLI binary (`crates/slicecore-cli`)
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Not a hosted service - Distributed as library and CLI
-- Optional server hosting:
-  - Docker container: `slicecore-server` binary in Docker image
-  - Deployment: Kubernetes, Docker Compose, or standalone binary
-  - Dependencies: None (stateless, single binary)
+- Library crates — no deployment target (distributed as source / Cargo dependency)
+- CLI binary — cross-platform, self-contained native binary
 
 **CI Pipeline:**
-- GitHub Actions (conceptual, not yet implemented):
-  - Test matrix: Linux (glibc), macOS (x86_64 + ARM64), Windows (x86_64)
-  - Stages:
-    - `cargo fmt --check` - Code formatting validation
-    - `cargo clippy` - Linting
-    - `cargo deny check` - License + security audit
-    - `cargo test` - Unit tests (parallel via nextest)
-    - `cargo bench` - Benchmark regression detection (vs. main branch)
-    - `cargo build --target wasm32-unknown-unknown` - WASM compilation
-    - `cargo fuzz` - Fuzzing (weekly)
+- GitHub Actions: `.github/workflows/ci.yml`
+- Jobs:
+  - `fmt` — `cargo fmt --all -- --check`
+  - `clippy` — `cargo clippy --workspace -- -D warnings`
+  - `test` — matrix across Ubuntu, macOS (aarch64 + x86_64), Windows
+  - `test-linux-arm` — `aarch64-unknown-linux-gnu` via `houseabsolute/actions-rust-cross@v0`
+  - `wasm` — build check for `wasm32-unknown-unknown` and `wasm32-wasip2`
+  - `doc` — `cargo doc --no-deps --workspace` with `-D warnings`
+- Triggers: push to `main`, `master`, `phase-*` branches; pull requests to `main`/`master`
+- Actions used: `actions/checkout@v4`, `dtolnay/rust-toolchain@stable`, `Swatinem/rust-cache@v2`, `houseabsolute/actions-rust-cross@v0`
 
-**Build Artifacts:**
-- Native binaries: `slicecore-cli`, `slicecore-server`
-- Libraries: Rust library crate (for embedding)
-- Python wheel: PyO3 bindings
-- WASM: `slicecore.wasm` + JavaScript bindings
-- Docker image: `libslic3r-rs:latest`
+## Plugin System (External Code Loading)
+
+**Native Plugins (.so / .dll / .dylib):**
+- Loaded via `abi_stable` 0.11 FFI-safe shared library interface
+- Plugin manifest: `plugin.toml` alongside the shared library
+- Discovery: `crates/slicecore-plugin/src/discovery.rs`
+- Registry: `crates/slicecore-plugin/src/registry.rs`
+- Example: `plugins/examples/native-zigzag-infill/`
+
+**WASM Plugins (.wasm component):**
+- Loaded via `wasmtime` 41 with Component Model + Cranelift JIT
+- WASI support via `wasmtime-wasi` 41 (WASI P2)
+- Contract defined in WIT: `crates/slicecore-plugin/wit/slicecore-plugin.wit`
+- Plugin authors use `wit-bindgen` 0.53 to generate bindings
+- Sandboxed execution — fuel exhaustion tested in `crates/slicecore-plugin/tests/integration_tests.rs`
+- Example: `plugins/examples/wasm-spiral-infill/` (targets `wasm32-wasip2`)
 
 ## Environment Configuration
 
 **Required env vars:**
-- None (all have defaults or are optional)
-
-**Optional env vars:**
-- `SLICECORE_THREAD_COUNT` - Thread pool size (default: CPU count)
-- `SLICECORE_LOG_LEVEL` - Logging level (default: info)
-- `SLICECORE_AI_PROVIDER` - Provider: ollama, openai, anthropic, google, openrouter, onnx (default: none)
-- `SLICECORE_AI_MODEL` - Model name (default: depends on provider)
-- `SLICECORE_AI_KEY` - API key for cloud providers
-- `SLICECORE_AI_BASE_URL` - Base URL for local providers (Ollama, vLLM)
-- `SLICECORE_CACHE_DIR` - Cache directory path
-- `SLICECORE_MAX_THREADS` - Hard limit on thread pool size
-- `GOOGLE_APPLICATION_CREDENTIALS` - Path to GCP service account JSON (for Google Vertex)
-- `RUST_LOG` - Tracing filter (advanced, overrides `SLICECORE_LOG_LEVEL`)
+- None strictly required — all defaults are sensible
+- `SLICECORE_PROFILES_DIR` — optional override for print profile search directory
 
 **Secrets location:**
-- Environment variables only - Recommended approach via `.env` file (git-ignored)
-- Files: Not stored; loaded at runtime from environment
-- Never hardcoded in codebase
+- AI API keys passed in-process via `AiConfig` (loaded from caller-supplied TOML)
+- No `.env` files, secrets directories, or credential files detected in the repository
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- None - Library design, no webhook listeners
+- None
 
-**Outgoing (Server only):**
-- Optional progress callbacks via trait:
-  - `ProgressReporter` trait for slicing progress (stage, percent complete, estimated time remaining)
-  - Implemented by application (CLI, server, embedding) to report to UI or external systems
-  - No HTTP callbacks; all synchronous
-
-**Plugin Communication:**
-- Extension points (traits) that plugins implement:
-  - `InfillPattern::generate()` - Infill generation
-  - `GcodeDialect::format_move()` - G-code formatting
-  - `SupportStrategy::generate_supports()` - Support generation
-  - `Analyzer::analyze()` - Custom model analysis
-  - `Optimizer::optimize()` - Custom parameter optimization
-  - `SeamStrategy::place_seams()` - Seam placement
-  - `PostProcessor::process()` - Post-slicing G-code modification
-
-## Multi-Material & Printer Support
-
-**Printer Integration:**
-- Not hardware-integrated - Output is G-code for any compatible printer
-- Firmware dialects supported (via `slicecore-gcode-gen`):
-  - Marlin (standard RepRap)
-  - Klipper (Klipper firmware)
-  - RepRapFirmware (Duet controllers)
-  - Bambu (BambuLab proprietary)
-  - Custom (user-provided dialect plugins)
-
-**Tool System:**
-- Multi-material support in `slicecore-engine`:
-  - Tool changes via T-code
-  - Purge tower generation for nozzle cleaning
-  - Wipe sequences customizable per tool
+**Outgoing:**
+- None — all external HTTP calls are outbound LLM API requests initiated synchronously per-request
 
 ---
 
-*Integration audit: 2026-02-13*
+*Integration audit: 2026-03-18*
