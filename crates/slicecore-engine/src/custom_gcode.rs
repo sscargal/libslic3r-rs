@@ -23,6 +23,7 @@
 //! ```
 
 use serde::{Deserialize, Serialize};
+use slicecore_config_derive::SettingSchema;
 
 /// Custom G-code injection hooks configuration.
 ///
@@ -32,47 +33,62 @@ use serde::{Deserialize, Serialize};
 ///
 /// Serialized as a TOML section `[custom_gcode]` within
 /// [`PrintConfig`](crate::config::PrintConfig).
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, SettingSchema)]
 #[serde(default)]
+#[setting(category = "Advanced")]
 pub struct CustomGcodeHooks {
     /// G-code injected before each layer's Z move.
+    #[setting(tier = 3, description = "G-code injected before each layer change")]
     pub before_layer_change: String,
     /// Verbatim G-code from upstream profile before variable translation.
     #[serde(default)]
+    #[setting(skip)]
     pub before_layer_change_original: String,
     /// G-code injected after each layer's Z move.
+    #[setting(tier = 3, description = "G-code injected after each layer change")]
     pub after_layer_change: String,
     /// Verbatim G-code from upstream profile before variable translation.
     #[serde(default)]
+    #[setting(skip)]
     pub after_layer_change_original: String,
     /// G-code injected during tool changes (multi-material, future use).
+    #[setting(tier = 3, description = "G-code injected during tool changes")]
     pub tool_change_gcode: String,
     /// Verbatim G-code from upstream profile before variable translation.
     #[serde(default)]
+    #[setting(skip)]
     pub tool_change_gcode_original: String,
     /// Alias for `before_layer_change` (synonym used by some slicer UIs).
     /// If both are non-empty, `before_layer_change` takes precedence.
+    #[setting(tier = 3, description = "G-code injected before every layer (alias)")]
     pub before_every_layer: String,
     /// G-code injected at specific Z heights.
     /// Each entry is a `(z_height, gcode_string)` pair.
+    #[setting(skip)]
     pub custom_gcode_per_z: Vec<(f64, String)>,
     /// G-code injected on color change (M600 or equivalent).
     /// OrcaSlicer: `color_change_gcode`. PrusaSlicer: `color_change_gcode`.
+    #[setting(tier = 3, description = "G-code injected on color change")]
     pub color_change: String,
     /// Verbatim G-code from upstream profile before variable translation.
     #[serde(default)]
+    #[setting(skip)]
     pub color_change_original: String,
     /// G-code injected when print is paused.
     /// OrcaSlicer: `machine_pause_gcode` / `pause_print_gcode`.
+    #[setting(tier = 3, description = "G-code injected when print is paused")]
     pub pause_print: String,
     /// Verbatim G-code from upstream profile before variable translation.
     #[serde(default)]
+    #[setting(skip)]
     pub pause_print_original: String,
     /// G-code injected between objects in sequential printing mode.
     /// PrusaSlicer: `between_objects_gcode`.
+    #[setting(tier = 3, description = "G-code injected between objects in sequential mode")]
     pub between_objects: String,
     /// Verbatim G-code from upstream profile before variable translation.
     #[serde(default)]
+    #[setting(skip)]
     pub between_objects_original: String,
 }
 

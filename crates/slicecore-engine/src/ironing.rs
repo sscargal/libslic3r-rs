@@ -24,6 +24,7 @@
 //! ```
 
 use serde::{Deserialize, Serialize};
+use slicecore_config_derive::SettingSchema;
 use slicecore_geo::polygon::ValidPolygon;
 use slicecore_math::Point2;
 
@@ -39,18 +40,24 @@ use crate::toolpath::{FeatureType, ToolpathSegment};
 ///
 /// Serialized as a TOML section `[ironing]` within
 /// [`PrintConfig`](crate::config::PrintConfig).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SettingSchema)]
 #[serde(default)]
+#[setting(category = "Quality")]
 pub struct IroningConfig {
     /// Enable ironing passes on top surfaces.
+    #[setting(tier = 2, description = "Enable ironing passes on top surfaces")]
     pub enabled: bool,
     /// Flow rate multiplier for ironing (0.0-1.0). Default 0.1 (10%).
+    #[setting(tier = 3, description = "Flow rate multiplier for ironing", min = 0.0, max = 1.0, depends_on = "ironing.enabled")]
     pub flow_rate: f64,
     /// Ironing speed in mm/s. Default 15.0.
+    #[setting(tier = 3, description = "Ironing pass speed", units = "mm/s", min = 1.0, max = 300.0, depends_on = "ironing.enabled")]
     pub speed: f64,
     /// Line spacing for ironing in mm. Default 0.1 (very tight).
+    #[setting(tier = 3, description = "Line spacing for ironing passes", units = "mm", min = 0.01, max = 2.0, depends_on = "ironing.enabled")]
     pub spacing: f64,
     /// Ironing angle in degrees. Default 45.0 (offset from primary infill).
+    #[setting(tier = 3, description = "Ironing angle offset from primary infill", units = "deg", min = 0.0, max = 360.0, depends_on = "ironing.enabled")]
     pub angle: f64,
 }
 

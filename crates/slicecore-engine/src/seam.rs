@@ -12,6 +12,7 @@
 //! the vertex where printing should start for a given polygon.
 
 use serde::{Deserialize, Serialize};
+use slicecore_config_derive::SettingSchema;
 use slicecore_geo::polygon::ValidPolygon;
 use slicecore_math::IPoint2;
 
@@ -19,7 +20,7 @@ use slicecore_math::IPoint2;
 ///
 /// Controls where each perimeter loop starts and ends, affecting the
 /// visual appearance of the printed object's seam line.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, SettingSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum SeamPosition {
     /// Align seam points vertically across layers.
@@ -28,17 +29,20 @@ pub enum SeamPosition {
     /// Otherwise, starts at the rear (maximum Y). This creates a consistent
     /// vertical seam line across all layers.
     #[default]
+    #[setting(display = "Aligned", description = "Align seam points vertically across layers")]
     Aligned,
     /// Deterministic pseudo-random placement.
     ///
     /// Uses the layer index as a seed for deterministic vertex selection.
     /// Same layer index always produces the same seam index.
+    #[setting(display = "Random", description = "Scatter seam points pseudo-randomly for less visible seam")]
     Random,
     /// Place seam at the rear (maximum Y) of the model.
     ///
     /// Finds the vertex with maximum Y coordinate. Breaks ties by choosing
     /// the vertex closest to the previous seam (if available), or the one
     /// with the smallest X coordinate.
+    #[setting(display = "Rear", description = "Place seam at the rear of the model")]
     Rear,
     /// Smart hiding: prefer concave corners, then convex, with alignment bias.
     ///
@@ -46,6 +50,7 @@ pub enum SeamPosition {
     /// (which hide the seam better). Adds an alignment bonus if a previous
     /// seam point is available. Falls back to Aligned strategy on smooth
     /// curves with no sharp corners.
+    #[setting(display = "Nearest Corner", description = "Hide seam in concave corners for best appearance")]
     NearestCorner,
 }
 

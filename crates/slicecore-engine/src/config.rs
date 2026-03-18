@@ -1308,17 +1308,17 @@ pub struct PrintConfig {
 
     // --- Ironing ---
     /// Ironing pass configuration for smooth top surfaces.
-    #[setting(skip)]
+    #[setting(flatten)]
     pub ironing: IroningConfig,
 
     // --- Per-Feature Flow ---
     /// Per-feature flow multipliers for fine-tuning extrusion per feature type.
-    #[setting(skip)]
+    #[setting(flatten)]
     pub per_feature_flow: PerFeatureFlow,
 
     // --- Custom G-code Injection ---
     /// Custom G-code hooks for injection at layer transitions and specific Z heights.
-    #[setting(skip)]
+    #[setting(flatten)]
     pub custom_gcode: CustomGcodeHooks,
 
     // --- G-code Dialect ---
