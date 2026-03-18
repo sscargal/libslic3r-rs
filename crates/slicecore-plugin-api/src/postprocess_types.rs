@@ -9,7 +9,7 @@ use abi_stable::StableAbi;
 
 /// FFI-safe representation of a G-code command.
 ///
-/// Mirrors [`slicecore_gcode_io::GcodeCommand`] but uses FFI-safe types
+/// Mirrors `slicecore_gcode_io::GcodeCommand` but uses FFI-safe types
 /// (`ROption`, `RString`) for safe transport across the plugin boundary.
 ///
 /// # Variants

@@ -632,7 +632,7 @@ impl Engine {
     /// When the `plugins` feature is enabled and `config.plugin_dir` is set,
     /// automatically discovers and loads plugins from the configured directory.
     /// Any loading errors or empty directories produce warnings accessible via
-    /// [`Engine::startup_warnings`], which are emitted as [`SliceEvent::Warning`]s
+    /// [`Engine::startup_warnings`], which are emitted as `SliceEvent::Warning`s
     /// at the start of [`Engine::slice_with_events`].
     #[allow(unused_mut)] // mut needed when `plugins` feature calls auto_load_plugins
     pub fn new(config: PrintConfig) -> Self {
@@ -687,7 +687,7 @@ impl Engine {
     /// Returns startup warnings accumulated during engine construction.
     ///
     /// These typically relate to plugin auto-loading issues (empty directories,
-    /// loading failures). They are emitted as [`SliceEvent::Warning`]s at the
+    /// loading failures). They are emitted as `SliceEvent::Warning`s at the
     /// start of [`Engine::slice_with_events`].
     pub fn startup_warnings(&self) -> &[String] {
         &self.startup_warnings
@@ -695,7 +695,7 @@ impl Engine {
 
     /// Attaches a plugin registry to the engine for plugin-based infill patterns.
     ///
-    /// When a layer's infill pattern is [`InfillPattern::Plugin(name)`], the
+    /// When a layer's infill pattern is `InfillPattern::Plugin(name)`, the
     /// engine will look up the named plugin in the registry and delegate infill
     /// generation to it.
     ///
@@ -717,7 +717,7 @@ impl Engine {
     ///
     /// # Plugin dispatch
     ///
-    /// When the pattern is [`InfillPattern::Plugin(name)`]:
+    /// When the pattern is `InfillPattern::Plugin(name)`:
     /// - If the `plugins` feature is enabled AND a registry is attached:
     ///   converts regions to an FFI request, calls the plugin, converts back.
     /// - Otherwise returns [`EngineError::Plugin`] with a clear message.

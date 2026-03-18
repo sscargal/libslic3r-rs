@@ -613,7 +613,7 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
 
-        /// Path to TOML config file with [post_process] section
+        /// Path to TOML config file with `[post_process]` section
         #[arg(short, long)]
         config: Option<PathBuf>,
 

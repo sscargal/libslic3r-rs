@@ -120,7 +120,7 @@ pub fn slice_mesh_adaptive(mesh: &TriangleMesh, heights: &[(f64, f64)]) -> Vec<S
 
 /// Slices a triangle mesh into horizontal layers with contour resolution.
 ///
-/// Identical to [`slice_mesh`] but uses [`slice_at_height_resolved`](crate::contour::slice_at_height_resolved)
+/// Identical to [`slice_mesh`] but uses [`slice_at_height_resolved`]
 /// to apply polygon self-union on each layer's contours, merging overlapping
 /// regions caused by self-intersecting mesh geometry.
 ///
@@ -151,7 +151,7 @@ pub fn slice_mesh_resolved(
 /// layer heights with contour resolution.
 ///
 /// Identical to [`slice_mesh_adaptive`] but uses
-/// [`slice_at_height_resolved`](crate::contour::slice_at_height_resolved)
+/// [`slice_at_height_resolved`]
 /// to apply polygon self-union on each layer's contours.
 ///
 /// Use this variant when the mesh is known to have self-intersecting
