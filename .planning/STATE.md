@@ -673,7 +673,7 @@ Recent decisions affecting current work:
 | 2 | Test CLI with 3MF and G-code files | 2026-02-26 | df205fa | [2-test-cli-with-3mf-and-g-code-files](./quick/2-test-cli-with-3mf-and-g-code-files/) |
 | 3 | End-to-end CLI QA test script | 2026-03-13 | 8f22674 | [3-create-end-to-end-cli-qa-test-script-wit](./quick/3-create-end-to-end-cli-qa-test-script-wit/) |
 | 260318-mtf | Review qa_tests and add coverage for recent phases 25+ | 2026-03-18 | fc832c9 | [260318-mtf-review-qa-tests-and-add-coverage-for-rec](./quick/260318-mtf-review-qa-tests-and-add-coverage-for-rec/) |
-| 260318-oau | Improve QA temp directory cleanup - keep on failure, report stale dirs | 2026-03-18 | pending | [260318-oau-improve-qa-temp-directory-cleanup-keep-o](./quick/260318-oau-improve-qa-temp-directory-cleanup-keep-o/) |
+| 260318-oau | Improve QA temp directory cleanup - keep on failure, report stale dirs | 2026-03-18 | 499da8d | [260318-oau-improve-qa-temp-directory-cleanup-keep-o](./quick/260318-oau-improve-qa-temp-directory-cleanup-keep-o/) |
 
 ## Session Continuity
 
