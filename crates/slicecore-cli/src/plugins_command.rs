@@ -104,7 +104,7 @@ fn cmd_list(
 
     let entries: Vec<PluginListEntry> = plugins
         .iter()
-        .map(|p| to_list_entry(p))
+        .map(to_list_entry)
         .filter(|e| match category {
             Some("infill") => e.category == "infill_pattern",
             Some("postprocessor") => e.category == "gcode_post_processor",

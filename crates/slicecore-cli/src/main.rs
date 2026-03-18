@@ -22,6 +22,7 @@ mod calibrate;
 mod csg_command;
 mod csg_info;
 pub mod progress;
+mod plugins_command;
 mod schema_command;
 mod slice_workflow;
 mod stats_display;
@@ -119,11 +120,26 @@ G-CODE ANALYSIS:
 
   Compare G-code files from different slicers:
     slicecore compare-gcode bambu.gcode orca.gcode prusa.gcode
-    slicecore compare-gcode baseline.gcode variant.gcode --json"
+    slicecore compare-gcode baseline.gcode variant.gcode --json
+
+PLUGIN MANAGEMENT:
+  List installed plugins:
+    slicecore plugins list
+    slicecore plugins list --json
+    slicecore plugins list --category infill --status enabled
+  Manage plugins:
+    slicecore plugins enable <name>
+    slicecore plugins disable <name>
+    slicecore plugins info <name>
+    slicecore plugins validate <name>"
 )]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
+
+    /// Plugin directory (overrides config plugin_dir)
+    #[arg(long, global = true)]
+    plugin_dir: Option<PathBuf>,
 }
 
 #[derive(Subcommand)]
@@ -200,11 +216,6 @@ enum Commands {
         /// Output slicing metadata as MessagePack to stdout
         #[arg(long)]
         msgpack: bool,
-
-        /// Directory to load plugins from (overrides config plugin_dir).
-        /// Each subdirectory should contain a plugin.toml manifest.
-        #[arg(long)]
-        plugin_dir: Option<PathBuf>,
 
         /// Statistics output format (table, csv, json). Default: table.
         #[arg(long, default_value = "table", value_parser = ["table", "csv", "json"])]
@@ -582,6 +593,13 @@ enum Commands {
     /// Supports filtering by tier, category, and full-text search.
     Schema(schema_command::SchemaArgs),
 
+    /// Manage installed plugins.
+    ///
+    /// List, enable, disable, inspect, and validate plugins from the
+    /// configured plugin directory.
+    #[command(subcommand)]
+    Plugins(plugins_command::PluginsCommand),
+
     /// Post-process an existing G-code file.
     ///
     /// Reads a G-code file, applies configured post-processors (pause-at-layer,
@@ -633,6 +651,7 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
+    let global_plugin_dir = cli.plugin_dir;
 
     match cli.command {
         Commands::Slice {
@@ -654,7 +673,6 @@ fn main() {
             output,
             json,
             msgpack,
-            plugin_dir,
             stats_format,
             quiet,
             stats_file,
@@ -682,7 +700,7 @@ fn main() {
             output.as_deref(),
             json,
             msgpack,
-            plugin_dir.as_deref(),
+            global_plugin_dir.as_deref(),
             &stats_format,
             quiet,
             stats_file.as_deref(),
@@ -837,6 +855,22 @@ fn main() {
         }
         Commands::Schema(args) => {
             if let Err(e) = schema_command::run_schema_command(&args) {
+                eprintln!("Error: {e}");
+                process::exit(1);
+            }
+        }
+        Commands::Plugins(plugins_cmd) => {
+            let dir = match global_plugin_dir.as_deref() {
+                Some(d) => d.to_path_buf(),
+                None => {
+                    eprintln!("Error: No plugin directory configured.");
+                    eprintln!(
+                        "Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line."
+                    );
+                    process::exit(1);
+                }
+            };
+            if let Err(e) = plugins_command::run_plugins(plugins_cmd, &dir) {
                 eprintln!("Error: {e}");
                 process::exit(1);
             }
