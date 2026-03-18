@@ -1,6 +1,7 @@
 use slicecore_config_schema::{Constraint, HasSettingSchema, SettingCategory, Tier, ValueType};
 
 // Test enum
+#[allow(dead_code)]
 #[derive(slicecore_config_derive::SettingSchema)]
 enum TestWallOrder {
     #[setting(display = "Inner First", description = "Print inner walls first")]
@@ -10,6 +11,7 @@ enum TestWallOrder {
 }
 
 // Test struct with various attributes
+#[allow(dead_code)]
 #[derive(slicecore_config_derive::SettingSchema)]
 #[setting(category = "Speed")]
 struct TestSpeedConfig {
@@ -34,6 +36,7 @@ struct TestSpeedConfig {
 }
 
 // Test struct with flatten
+#[allow(dead_code)]
 #[derive(slicecore_config_derive::SettingSchema)]
 struct TestParentConfig {
     #[setting(flatten)]
