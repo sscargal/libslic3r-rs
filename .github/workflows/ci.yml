@@ -16,7 +16,7 @@ jobs:
     name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -26,11 +26,11 @@ jobs:
     name: Clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - uses: Swatinem/rust-cache@v3
+      - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --workspace -- -D warnings
 
   test:
@@ -50,17 +50,17 @@ jobs:
       - name: Enable long paths (Windows)
         if: runner.os == 'Windows'
         run: git config --system core.longpaths true
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v3
+      - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
 
   test-linux-arm:
     name: Test (Linux ARM64)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      - uses: houseabsolute/actions-rust-cross@v0
+      - uses: actions/checkout@v6
+      - uses: houseabsolute/actions-rust-cross@v1
         with:
           command: test
           target: aarch64-unknown-linux-gnu
@@ -75,20 +75,20 @@ jobs:
           - wasm32-unknown-unknown
           - wasm32-wasip2
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v3
+      - uses: Swatinem/rust-cache@v2
       - run: cargo build --target ${{ matrix.target }} --workspace --no-default-features --exclude slicecore-plugin --exclude slicecore-plugin-api --exclude slicecore-engine --exclude slicecore-ai --exclude slicecore-cli
 
   doc:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v3
+      - uses: Swatinem/rust-cache@v2
       - run: cargo doc --no-deps --workspace
         env:
           RUSTDOCFLAGS: "-D warnings"
