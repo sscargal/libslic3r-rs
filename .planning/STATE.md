@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 35-02-PLAN.md
-last_updated: "2026-03-18T00:19:03.168Z"
-last_activity: "2026-03-18 - Completed plan 35-02: Derive Macro for SettingSchema"
+stopped_at: Completed 35-03-PLAN.md
+last_updated: "2026-03-18T00:26:44.798Z"
+last_activity: "2026-03-18 - Completed plan 35-03: Tier Map Design Document"
 progress:
   total_phases: 35
   completed_phases: 34
   total_plans: 154
-  completed_plans: 149
+  completed_plans: 150
   percent: 97
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 35 of 35 (ConfigSchema System with Setting Metadata and JSON Schema Generation)
-Plan: 2 of 7 in current phase (2 complete)
+Plan: 3 of 7 in current phase (3 complete)
 Status: In Progress
-Last activity: 2026-03-18 - Completed plan 35-02: Derive Macro for SettingSchema
+Last activity: 2026-03-18 - Completed plan 35-03: Tier Map Design Document
 
-Progress: [██████████] 97% (149/154 overall)
+Progress: [██████████] 97% (150/154 overall)
 
 ## Performance Metrics
 
@@ -128,6 +128,7 @@ Progress: [██████████] 97% (149/154 overall)
 | Phase 34 P06 | 6min | 2 tasks | 3 files |
 | Phase 35 P01 | 3min | 2 tasks | 4 files |
 | Phase 35 P02 | 3 | 3 tasks | 5 files |
+| Phase 35 P03 | 5min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -618,6 +619,7 @@ Recent decisions affecting current work:
 - [Phase 34]: Passthrough ratio <5% quality bar validated via inline JSON construction (profiles are TOML)
 - [Phase 35]: Used BTreeMap for SettingRegistry for deterministic sorted iteration
 - [Phase 35]: Used clippy::all instead of clippy::pedantic for proc-macro crate
+- [Phase 35]: Used OrcaSlicer tab placement as baseline for progressive disclosure tier assignments
 
 ### Roadmap Evolution
 
@@ -663,6 +665,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-18T00:19:03.164Z
-Stopped at: Completed 35-02-PLAN.md
+Last session: 2026-03-18T00:26:44.795Z
+Stopped at: Completed 35-03-PLAN.md
 Resume file: None
