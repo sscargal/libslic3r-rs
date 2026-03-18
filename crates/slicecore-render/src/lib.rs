@@ -1,7 +1,7 @@
 //! CPU software triangle rasterizer for thumbnail/preview image generation.
 //!
 //! This crate provides a complete software rendering pipeline that converts
-//! a [`TriangleMesh`](slicecore_mesh::TriangleMesh) into RGBA pixel buffers
+//! a [`TriangleMesh`] into RGBA pixel buffers
 //! and PNG-encoded images from multiple camera angles. It is used for:
 //!
 //! - 3MF thumbnail embedding
