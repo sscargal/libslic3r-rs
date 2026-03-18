@@ -5,7 +5,7 @@
 //! (native via `abi_stable`, WASM via `wasmtime`), and lookup (by name).
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use slicecore_plugin_api::{InfillRequest, InfillResult, PluginManifest};
 
@@ -39,6 +39,9 @@ pub struct PluginInfo {
     pub plugin_kind: PluginKind,
     /// Plugin version (from manifest).
     pub version: String,
+    /// Whether the plugin is enabled. All loaded plugins are enabled;
+    /// disabled plugins are skipped during `discover_and_load`.
+    pub enabled: bool,
 }
 
 /// Internal trait for infill plugin adapters.
@@ -89,6 +92,9 @@ pub struct PluginRegistry {
     /// Default sandbox configuration for WASM plugins.
     /// Used when a plugin manifest does not specify resource_limits.
     sandbox_config: SandboxConfig,
+    /// Plugin discovery directory, stored for `require_infill_plugin` to
+    /// check for disabled plugins on disk.
+    plugin_dir: Option<PathBuf>,
 }
 
 impl PluginRegistry {
@@ -103,6 +109,7 @@ impl PluginRegistry {
             postprocessor_plugins: HashMap::new(),
             manifests: Vec::new(),
             sandbox_config: SandboxConfig::default(),
+            plugin_dir: None,
         }
     }
 
@@ -148,10 +155,21 @@ impl PluginRegistry {
     /// failures (I/O errors, invalid manifests, version incompatibility).
     #[cfg(not(target_family = "wasm"))]
     pub fn discover_and_load(&mut self, dir: &Path) -> Result<Vec<PluginInfo>, PluginSystemError> {
+        self.plugin_dir = Some(dir.to_path_buf());
         let discovered = discovery::discover_plugins(dir)?;
         let mut loaded = Vec::new();
 
         for (plugin_dir, manifest) in discovered {
+            // Read status (auto-creates if missing)
+            let status = crate::status::read_status(&plugin_dir)?;
+            if !status.enabled {
+                eprintln!(
+                    "Note: Plugin '{}' is disabled, skipping",
+                    manifest.metadata.name
+                );
+                continue;
+            }
+
             match self.load_single_plugin(&plugin_dir, manifest) {
                 Ok(info) => loaded.push(info),
                 Err(e) => {
@@ -196,6 +214,7 @@ impl PluginRegistry {
                     slicecore_plugin_api::PluginType::Wasm => PluginKind::Wasm,
                 },
                 version: manifest.metadata.version,
+                enabled: true,
             });
         }
 
@@ -207,6 +226,7 @@ impl PluginRegistry {
                     description: plugin.description(),
                     plugin_kind: PluginKind::Native,
                     version: manifest.metadata.version.clone(),
+                    enabled: true,
                 };
                 self.manifests.push(manifest);
                 self.infill_plugins
@@ -244,6 +264,7 @@ impl PluginRegistry {
                 description: plugin.description(),
                 plugin_kind: PluginKind::Wasm,
                 version: manifest.metadata.version.clone(),
+                enabled: true,
             };
             self.manifests.push(manifest);
             self.infill_plugins
@@ -280,6 +301,49 @@ impl PluginRegistry {
         self.infill_plugins.get(name).map(|p| p.as_ref())
     }
 
+    /// Looks up an infill plugin by name, returning an error with actionable
+    /// remediation if the plugin is disabled or not found.
+    ///
+    /// This is the preferred lookup method during slicing, where a missing or
+    /// disabled plugin should produce a hard error with guidance on how to fix
+    /// it (e.g., "enable with `slicecore plugins enable <name>`").
+    ///
+    /// Use [`get_infill_plugin`](Self::get_infill_plugin) when you only need
+    /// an `Option` without the disabled-plugin error path.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PluginSystemError::PluginDisabled`] if the plugin exists on
+    /// disk but is disabled, or [`PluginSystemError::NotFound`] if the plugin
+    /// does not exist at all.
+    pub fn require_infill_plugin(
+        &self,
+        name: &str,
+    ) -> Result<&dyn InfillPluginAdapter, PluginSystemError> {
+        // Check if plugin is loaded (enabled and present in registry)
+        if let Some(plugin) = self.infill_plugins.get(name) {
+            return Ok(plugin.as_ref());
+        }
+
+        // Check if plugin exists on disk but is disabled
+        if let Some(dir) = &self.plugin_dir {
+            let discovered = discovery::discover_all_with_status(dir)?;
+            for dp in &discovered {
+                if let Some(ref manifest) = dp.manifest {
+                    if manifest.metadata.name == name && !dp.status.enabled {
+                        return Err(PluginSystemError::PluginDisabled {
+                            name: name.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+
+        Err(PluginSystemError::NotFound {
+            name: name.to_string(),
+        })
+    }
+
     /// Returns information about all registered infill plugins.
     ///
     /// The returned list includes the plugin name, description, and loading
@@ -293,6 +357,7 @@ impl PluginRegistry {
                 description: plugin.description(),
                 plugin_kind: plugin.plugin_type(),
                 version: String::new(), // Version not tracked on adapter
+                enabled: true,          // All loaded plugins are enabled by definition
             })
             .collect()
     }
@@ -340,6 +405,7 @@ impl PluginRegistry {
                 description: plugin.description(),
                 plugin_kind: plugin.plugin_type(),
                 version: String::new(),
+                enabled: true, // All loaded plugins are enabled by definition
             })
             .collect()
     }
@@ -566,5 +632,93 @@ mod tests {
                 _ => panic!("Unexpected plugin: {}", info.name),
             }
         }
+    }
+
+    #[test]
+    fn plugin_info_has_enabled_field() {
+        let info = PluginInfo {
+            name: "test".to_string(),
+            description: "Test".to_string(),
+            plugin_kind: PluginKind::Builtin,
+            version: "1.0.0".to_string(),
+            enabled: true,
+        };
+        assert!(info.enabled);
+    }
+
+    #[test]
+    fn list_infill_plugins_sets_enabled_true() {
+        let mut registry = PluginRegistry::new();
+        registry.register_infill_plugin(Box::new(MockInfillPlugin::new("test", "Test")));
+
+        let list = registry.list_infill_plugins();
+        assert_eq!(list.len(), 1);
+        assert!(list[0].enabled);
+    }
+
+    #[test]
+    fn require_infill_plugin_returns_loaded_plugin() {
+        let mut registry = PluginRegistry::new();
+        registry.register_infill_plugin(Box::new(MockInfillPlugin::new("test", "Test")));
+
+        let result = registry.require_infill_plugin("test");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().name(), "test");
+    }
+
+    #[test]
+    fn require_infill_plugin_returns_not_found_for_missing() {
+        let registry = PluginRegistry::new();
+        let result = registry.require_infill_plugin("nonexistent");
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(matches!(err, PluginSystemError::NotFound { .. }));
+    }
+
+    #[test]
+    fn require_infill_plugin_returns_disabled_error() {
+        use std::fs;
+        use tempfile::TempDir;
+
+        // Create a plugin directory with a disabled plugin
+        let dir = TempDir::new().unwrap();
+        let plugin_dir = dir.path().join("test-infill");
+        fs::create_dir(&plugin_dir).unwrap();
+        fs::write(
+            plugin_dir.join("plugin.toml"),
+            format!(
+                r#"
+library_filename = "libtest_infill.so"
+plugin_type = "native"
+capabilities = ["infill_pattern"]
+
+[metadata]
+name = "test-infill"
+version = "1.0.0"
+description = "A test infill plugin"
+author = "Test Author"
+license = "MIT"
+min_api_version = "0.0.0"
+max_api_version = "99.99.99"
+"#
+            ),
+        )
+        .unwrap();
+        // Create .status file with enabled=false
+        fs::write(plugin_dir.join(".status"), r#"{"enabled": false}"#).unwrap();
+
+        // Registry with plugin_dir set but no loaded plugins
+        let mut registry = PluginRegistry::new();
+        registry.plugin_dir = Some(dir.path().to_path_buf());
+
+        let result = registry.require_infill_plugin("test-infill");
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(matches!(err, PluginSystemError::PluginDisabled { .. }));
+        assert!(
+            err.to_string().contains("is disabled"),
+            "Error message should mention disabled: {}",
+            err
+        );
     }
 }
