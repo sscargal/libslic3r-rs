@@ -9,7 +9,7 @@ description = "CPU software triangle rasterizer for thumbnail/preview image gene
 [dependencies]
 slicecore-mesh = { path = "../slicecore-mesh" }
 slicecore-math = { path = "../slicecore-math" }
-png = "0.17"
+png = "0.18"
 base64 = "0.22"
 
 [dev-dependencies]
