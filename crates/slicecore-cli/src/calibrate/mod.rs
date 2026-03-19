@@ -182,7 +182,7 @@ pub enum CalibrateCommand {
 ///
 /// Returns an error if the subcommand fails.
 #[allow(clippy::too_many_lines)]
-pub fn run_calibrate(cmd: CalibrateCommand, _output: &crate::cli_output::CliOutput) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_calibrate(cmd: CalibrateCommand, cli_out: &crate::cli_output::CliOutput) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
         CalibrateCommand::TempTower {
             machine,
@@ -208,7 +208,7 @@ pub fn run_calibrate(cmd: CalibrateCommand, _output: &crate::cli_output::CliOutp
             start_temp,
             end_temp,
             step,
-        }),
+        }, cli_out),
         CalibrateCommand::Retraction {
             machine,
             filament,
@@ -233,7 +233,7 @@ pub fn run_calibrate(cmd: CalibrateCommand, _output: &crate::cli_output::CliOutp
             start_distance,
             end_distance,
             step,
-        }),
+        }, cli_out),
         CalibrateCommand::Flow {
             machine,
             filament,
@@ -258,7 +258,7 @@ pub fn run_calibrate(cmd: CalibrateCommand, _output: &crate::cli_output::CliOutp
             baseline,
             step,
             steps,
-        }),
+        }, cli_out),
         CalibrateCommand::FirstLayer {
             machine,
             filament,
@@ -279,7 +279,7 @@ pub fn run_calibrate(cmd: CalibrateCommand, _output: &crate::cli_output::CliOutp
             dry_run,
             save_model,
             pattern,
-        }),
+        }, cli_out),
         CalibrateCommand::List => {
             let mut table = Table::new();
             table.load_preset(UTF8_FULL);

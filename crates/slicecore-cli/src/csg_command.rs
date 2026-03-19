@@ -187,7 +187,7 @@ pub enum PrimitiveShape {
 ///
 /// Returns an error if file I/O, mesh loading, or CSG operations fail.
 #[allow(clippy::too_many_lines)]
-pub fn run_csg(cmd: CsgCommand, _output: &crate::cli_output::CliOutput) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_csg(cmd: CsgCommand, cli_out: &crate::cli_output::CliOutput) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
         CsgCommand::Union {
             a,
@@ -195,7 +195,7 @@ pub fn run_csg(cmd: CsgCommand, _output: &crate::cli_output::CliOutput) -> Resul
             output,
             json,
             verbose,
-        } => run_boolean("union", &a, &b, &output, json, verbose, mesh_union),
+        } => run_boolean("union", &a, &b, &output, json, verbose, mesh_union, cli_out),
         CsgCommand::Difference {
             a,
             b,
@@ -210,6 +210,7 @@ pub fn run_csg(cmd: CsgCommand, _output: &crate::cli_output::CliOutput) -> Resul
             json,
             verbose,
             mesh_difference,
+            cli_out,
         ),
         CsgCommand::Intersection {
             a,
@@ -225,6 +226,7 @@ pub fn run_csg(cmd: CsgCommand, _output: &crate::cli_output::CliOutput) -> Resul
             json,
             verbose,
             mesh_intersection,
+            cli_out,
         ),
         CsgCommand::Xor {
             a,
@@ -232,7 +234,7 @@ pub fn run_csg(cmd: CsgCommand, _output: &crate::cli_output::CliOutput) -> Resul
             output,
             json,
             verbose,
-        } => run_boolean("xor", &a, &b, &output, json, verbose, mesh_xor),
+        } => run_boolean("xor", &a, &b, &output, json, verbose, mesh_xor, cli_out),
         CsgCommand::Split {
             input,
             plane,
@@ -240,7 +242,7 @@ pub fn run_csg(cmd: CsgCommand, _output: &crate::cli_output::CliOutput) -> Resul
             json,
             verbose,
             no_cap,
-        } => run_split(&input, &plane, &output, json, verbose, no_cap),
+        } => run_split(&input, &plane, &output, json, verbose, no_cap, cli_out),
         CsgCommand::Hollow {
             input,
             wall,
@@ -257,6 +259,7 @@ pub fn run_csg(cmd: CsgCommand, _output: &crate::cli_output::CliOutput) -> Resul
             drain_tapered,
             json,
             verbose,
+            cli_out,
         ),
         CsgCommand::Primitive {
             shape,
@@ -264,7 +267,7 @@ pub fn run_csg(cmd: CsgCommand, _output: &crate::cli_output::CliOutput) -> Resul
             segments,
             output,
             verbose,
-        } => run_primitive(shape, &dims, segments, &output, verbose),
+        } => run_primitive(shape, &dims, segments, &output, verbose, cli_out),
         CsgCommand::Info { input, json } => crate::csg_info::run_info(&input, json),
     }
 }
@@ -296,25 +299,26 @@ fn run_boolean(
     json: bool,
     verbose: bool,
     op_fn: BooleanOpFn,
+    cli_out: &crate::cli_output::CliOutput,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
 
     if verbose {
-        eprintln!("Loading mesh A: {}", a_path.display());
+        cli_out.info(&format!("Loading mesh A: {}", a_path.display()));
     }
     let mesh_a = load_mesh_file(a_path)?;
 
     if verbose {
-        eprintln!("Loading mesh B: {}", b_path.display());
+        cli_out.info(&format!("Loading mesh B: {}", b_path.display()));
     }
     let mesh_b = load_mesh_file(b_path)?;
 
     if verbose {
-        eprintln!(
+        cli_out.info(&format!(
             "Running {op_name}: A ({} triangles) + B ({} triangles)",
             mesh_a.triangle_count(),
             mesh_b.triangle_count(),
-        );
+        ));
     }
 
     let (result, report) = op_fn(&mesh_a, &mesh_b)?;
@@ -323,12 +327,12 @@ fn run_boolean(
 
     if verbose {
         let elapsed = start.elapsed();
-        eprintln!(
+        cli_out.info(&format!(
             "Done in {:.1}ms: {} output triangles -> {}",
             elapsed.as_secs_f64() * 1000.0,
             report.output_triangles,
             output_path.display(),
-        );
+        ));
     }
 
     if json {
@@ -365,6 +369,7 @@ fn run_split(
     json: bool,
     verbose: bool,
     no_cap: bool,
+    cli_out: &crate::cli_output::CliOutput,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if outputs.len() != 2 {
         return Err("split requires exactly 2 output paths (above, below)".into());
@@ -372,7 +377,7 @@ fn run_split(
     let start = Instant::now();
 
     if verbose {
-        eprintln!("Loading mesh: {}", input_path.display());
+        cli_out.info(&format!("Loading mesh: {}", input_path.display()));
     }
     let mesh = load_mesh_file(input_path)?;
 
@@ -380,14 +385,14 @@ fn run_split(
     let options = SplitOptions { cap: !no_cap };
 
     if verbose {
-        eprintln!(
+        cli_out.info(&format!(
             "Splitting {} triangles at plane ({},{},{}) offset={}",
             mesh.triangle_count(),
             plane_str.split(',').next().unwrap_or("?"),
             plane_str.split(',').nth(1).unwrap_or("?"),
             plane_str.split(',').nth(2).unwrap_or("?"),
             plane_str.split(',').nth(3).unwrap_or("?"),
-        );
+        ));
     }
 
     let result = mesh_split_at_plane(&mesh, &plane, &options)?;
@@ -397,12 +402,12 @@ fn run_split(
 
     if verbose {
         let elapsed = start.elapsed();
-        eprintln!(
+        cli_out.info(&format!(
             "Done in {:.1}ms: above={} triangles, below={} triangles",
             elapsed.as_secs_f64() * 1000.0,
             result.above.triangle_count(),
             result.below.triangle_count(),
-        );
+        ));
     }
 
     if json {
@@ -423,11 +428,12 @@ fn run_hollow(
     drain_tapered: bool,
     json: bool,
     verbose: bool,
+    cli_out: &crate::cli_output::CliOutput,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
 
     if verbose {
-        eprintln!("Loading mesh: {}", input_path.display());
+        cli_out.info(&format!("Loading mesh: {}", input_path.display()));
     }
     let mesh = load_mesh_file(input_path)?;
 
@@ -450,10 +456,10 @@ fn run_hollow(
     };
 
     if verbose {
-        eprintln!(
+        cli_out.info(&format!(
             "Hollowing {} triangles, wall={wall}mm",
             mesh.triangle_count(),
-        );
+        ));
     }
 
     let (result, report) = hollow_mesh(&mesh, &options)?;
@@ -462,12 +468,12 @@ fn run_hollow(
 
     if verbose {
         let elapsed = start.elapsed();
-        eprintln!(
+        cli_out.info(&format!(
             "Done in {:.1}ms: {} output triangles -> {}",
             elapsed.as_secs_f64() * 1000.0,
             report.output_triangles,
             output_path.display(),
-        );
+        ));
     }
 
     if json {
@@ -485,6 +491,7 @@ fn run_primitive(
     segments: u32,
     output_path: &std::path::Path,
     verbose: bool,
+    cli_out: &crate::cli_output::CliOutput,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let start = Instant::now();
 
@@ -533,12 +540,12 @@ fn run_primitive(
 
     if verbose {
         let elapsed = start.elapsed();
-        eprintln!(
+        cli_out.info(&format!(
             "Generated {shape:?} with {} triangles in {:.1}ms -> {}",
             mesh.triangle_count(),
             elapsed.as_secs_f64() * 1000.0,
             output_path.display(),
-        );
+        ));
     }
 
     Ok(())
