@@ -133,3 +133,212 @@ fn render_08_cli_thumbnail_help() {
         "Help output should mention 'thumbnail'"
     );
 }
+
+#[test]
+fn cli_thumbnail_jpeg_format_flag() {
+    let dir = tempfile::tempdir().unwrap();
+    let stl_path = dir.path().join("input.stl");
+    let out_path = dir.path().join("output.jpg");
+    write_minimal_stl(&stl_path);
+
+    let output = Command::new(cli_bin())
+        .args([
+            "thumbnail",
+            stl_path.to_str().unwrap(),
+            "--format",
+            "jpeg",
+            "--output",
+            out_path.to_str().unwrap(),
+            "--resolution",
+            "64x64",
+        ])
+        .output()
+        .expect("Failed to run slicecore thumbnail");
+
+    assert!(
+        output.status.success(),
+        "CLI thumbnail --format jpeg should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(out_path.exists(), "Output JPEG file should exist");
+
+    let data = std::fs::read(&out_path).unwrap();
+    assert!(data.len() > 2, "JPEG should be non-trivial");
+    assert_eq!(&data[0..3], &[0xFF, 0xD8, 0xFF], "JPEG magic bytes");
+}
+
+#[test]
+fn cli_thumbnail_auto_detect_jpeg_from_extension() {
+    let dir = tempfile::tempdir().unwrap();
+    let stl_path = dir.path().join("input.stl");
+    let out_path = dir.path().join("output.jpg");
+    write_minimal_stl(&stl_path);
+
+    let output = Command::new(cli_bin())
+        .args([
+            "thumbnail",
+            stl_path.to_str().unwrap(),
+            "--output",
+            out_path.to_str().unwrap(),
+            "--resolution",
+            "64x64",
+        ])
+        .output()
+        .expect("Failed to run slicecore thumbnail");
+
+    assert!(
+        output.status.success(),
+        "Auto-detect JPEG from .jpg extension: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let data = std::fs::read(&out_path).unwrap();
+    assert_eq!(
+        &data[0..3],
+        &[0xFF, 0xD8, 0xFF],
+        "Should be JPEG from extension auto-detect"
+    );
+}
+
+#[test]
+fn cli_thumbnail_jpeg_with_quality() {
+    let dir = tempfile::tempdir().unwrap();
+    let stl_path = dir.path().join("input.stl");
+    let out_path = dir.path().join("output.jpg");
+    write_minimal_stl(&stl_path);
+
+    let output = Command::new(cli_bin())
+        .args([
+            "thumbnail",
+            stl_path.to_str().unwrap(),
+            "--format",
+            "jpeg",
+            "--quality",
+            "50",
+            "--output",
+            out_path.to_str().unwrap(),
+            "--resolution",
+            "64x64",
+        ])
+        .output()
+        .expect("Failed to run slicecore thumbnail");
+
+    assert!(
+        output.status.success(),
+        "JPEG with --quality 50 should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(out_path.exists());
+    let data = std::fs::read(&out_path).unwrap();
+    assert_eq!(&data[0..3], &[0xFF, 0xD8, 0xFF]);
+}
+
+#[test]
+fn cli_thumbnail_jpeg_multi_angle_jpg_extension() {
+    let dir = tempfile::tempdir().unwrap();
+    let stl_path = dir.path().join("input.stl");
+    write_minimal_stl(&stl_path);
+
+    let output = Command::new(cli_bin())
+        .args([
+            "thumbnail",
+            stl_path.to_str().unwrap(),
+            "--format",
+            "jpeg",
+            "--angles",
+            "front,back",
+            "--resolution",
+            "64x64",
+            "--output",
+            dir.path().to_str().unwrap(),
+        ])
+        .output()
+        .expect("Failed to run slicecore thumbnail");
+
+    assert!(
+        output.status.success(),
+        "JPEG multi-angle should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let front_path = dir.path().join("input_front.jpg");
+    let back_path = dir.path().join("input_back.jpg");
+    assert!(front_path.exists(), "input_front.jpg should exist");
+    assert!(back_path.exists(), "input_back.jpg should exist");
+
+    // Verify JPEG magic on at least one
+    let data = std::fs::read(&front_path).unwrap();
+    assert_eq!(&data[0..3], &[0xFF, 0xD8, 0xFF]);
+}
+
+#[test]
+fn cli_thumbnail_png_quality_warns() {
+    let dir = tempfile::tempdir().unwrap();
+    let stl_path = dir.path().join("input.stl");
+    let out_path = dir.path().join("output.png");
+    write_minimal_stl(&stl_path);
+
+    let output = Command::new(cli_bin())
+        .args([
+            "thumbnail",
+            stl_path.to_str().unwrap(),
+            "--format",
+            "png",
+            "--quality",
+            "50",
+            "--output",
+            out_path.to_str().unwrap(),
+            "--resolution",
+            "64x64",
+        ])
+        .output()
+        .expect("Failed to run slicecore thumbnail");
+
+    assert!(
+        output.status.success(),
+        "PNG with --quality should still succeed"
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("ignored") || stderr.contains("Warning"),
+        "Should warn about quality being ignored for PNG, got stderr: {}",
+        stderr
+    );
+
+    // Output should still be PNG
+    let data = std::fs::read(&out_path).unwrap();
+    assert_eq!(&data[0..4], &[0x89, 0x50, 0x4E, 0x47], "Should still be PNG");
+}
+
+#[test]
+fn cli_thumbnail_jpeg_default_output_extension() {
+    let dir = tempfile::tempdir().unwrap();
+    let stl_path = dir.path().join("model.stl");
+    write_minimal_stl(&stl_path);
+
+    let output = Command::new(cli_bin())
+        .current_dir(dir.path())
+        .args([
+            "thumbnail",
+            stl_path.to_str().unwrap(),
+            "--format",
+            "jpeg",
+            "--resolution",
+            "64x64",
+        ])
+        .output()
+        .expect("Failed to run slicecore thumbnail");
+
+    assert!(
+        output.status.success(),
+        "JPEG default output should succeed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    // Default output should be model.jpg (not model.png)
+    let jpg_path = dir.path().join("model.jpg");
+    assert!(
+        jpg_path.exists(),
+        "Default output should be model.jpg, not model.png"
+    );
+}
