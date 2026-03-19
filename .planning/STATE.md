@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 40 context gathered
-last_updated: "2026-03-19T21:30:48.163Z"
-last_activity: "2026-03-19 - Completed quick task 260319-qcn: Run cargo fmt --all -- --check and fix all errors"
+stopped_at: Completed 40-01-PLAN.md
+last_updated: "2026-03-19T22:05:13.501Z"
+last_activity: "2026-03-19 - Completed 40-01: CliOutput abstraction and global CLI flags"
 progress:
   total_phases: 41
   completed_phases: 39
-  total_plans: 163
-  completed_plans: 163
-  percent: 100
+  total_plans: 166
+  completed_plans: 164
+  percent: 99
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 39 -- JPEG thumbnail export
+**Current focus:** Phase 40 -- Adopt indicatif for consistent CLI progress display
 
 ## Current Position
 
-Phase: 39 of 41 (JPEG thumbnail export)
-Plan: 2 of 2 in current phase (2 complete)
+Phase: 40 of 41 (Adopt indicatif for CLI progress)
+Plan: 1 of 3 in current phase (1 complete)
 Status: In Progress
-Last activity: 2026-03-19 - Completed quick task 260319-qcn: Run cargo fmt --all -- --check and fix all errors
+Last activity: 2026-03-19 - Completed 40-01: CliOutput abstraction and global CLI flags
 
-Progress: [██████████] 100% (163/163 overall)
+Progress: [██████████] 99% (164/166 overall)
 
 ## Performance Metrics
 
@@ -142,6 +142,7 @@ Progress: [██████████] 100% (163/163 overall)
 | Phase 38 P02 | 4min | 2 tasks | 2 files |
 | Phase 39 P01 | 7min | 2 tasks | 9 files |
 | Phase 39 P02 | 5min | 2 tasks | 2 files |
+| Phase 40 P01 | 5 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -652,6 +653,7 @@ Recent decisions affecting current work:
 - [Phase 39]: Alpha compositing onto white background for JPEG transparency
 - [Phase 39]: Auto-detect JPEG from .jpg/.jpeg output extension when --format not explicitly set
 - [Phase 39]: 3MF output silently overrides JPEG to PNG per 3MF spec requirement
+- [Phase 40]: CliOutput abstracts all CLI output with spinner/progress-bar/step-indicator modes, quiet/json/color awareness
 
 ### Roadmap Evolution
 
@@ -703,6 +705,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T21:30:48.158Z
-Stopped at: Phase 40 context gathered
-Resume file: .planning/phases/40-adopt-indicatif-for-consistent-cli-progress-display-replace-ad-hoc-println-with-progress-bars-spinners-and-step-indicators-across-all-cli-commands-with-quiet-json-flag-support/40-CONTEXT.md
+Last session: 2026-03-19T22:05:13.496Z
+Stopped at: Completed 40-01-PLAN.md
+Resume file: None
