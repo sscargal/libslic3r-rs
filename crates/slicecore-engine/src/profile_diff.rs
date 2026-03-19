@@ -2,7 +2,7 @@
 //!
 //! Serializes configs to JSON, flattens nested objects to dotted keys,
 //! compares every field, and enriches each difference with metadata from
-//! the global [`SettingRegistry`].
+//! the global [`setting_registry`].
 
 use std::collections::BTreeMap;
 
