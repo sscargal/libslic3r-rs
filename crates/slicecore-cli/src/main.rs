@@ -247,6 +247,14 @@ enum Commands {
         #[arg(long)]
         thumbnails: bool,
 
+        /// Thumbnail image format (png or jpeg)
+        #[arg(long, default_value = "png")]
+        thumbnail_format: String,
+
+        /// Thumbnail JPEG quality (1-100, default: 85). Ignored for PNG
+        #[arg(long)]
+        thumbnail_quality: Option<u8>,
+
         /// Auto-arrange input mesh(es) on bed before slicing.
         #[arg(long)]
         auto_arrange: bool,
@@ -504,6 +512,14 @@ enum Commands {
         /// Default: C8C8C8 (light gray)
         #[arg(long, default_value = "C8C8C8")]
         color: String,
+
+        /// Image format for output (png or jpeg)
+        #[arg(long, default_value = "png")]
+        format: String,
+
+        /// JPEG quality (1-100, default: 85). Ignored for PNG
+        #[arg(long)]
+        quality: Option<u8>,
     },
 
     /// Compare multiple G-code files (first file is baseline)
@@ -685,6 +701,8 @@ fn main() {
             time_precision,
             sort_stats,
             thumbnails,
+            thumbnail_format,
+            thumbnail_quality,
             auto_arrange,
         } => cmd_slice(
             &input,
@@ -713,6 +731,8 @@ fn main() {
             &time_precision,
             &sort_stats,
             thumbnails,
+            &thumbnail_format,
+            thumbnail_quality,
             auto_arrange,
         ),
         Commands::Validate { input } => cmd_validate(&input),
@@ -820,6 +840,8 @@ fn main() {
             resolution,
             background,
             color,
+            format,
+            quality,
         } => cmd_thumbnail(
             &input,
             output.as_deref(),
@@ -827,6 +849,8 @@ fn main() {
             &resolution,
             &background,
             &color,
+            &format,
+            quality,
         ),
         Commands::CompareGcode {
             files,
@@ -948,6 +972,8 @@ fn cmd_slice(
     time_precision: &str,
     sort_stats: &str,
     thumbnails: bool,
+    thumbnail_format: &str,
+    thumbnail_quality: Option<u8>,
     auto_arrange: bool,
 ) {
     // Determine if we're using the new profile-based workflow or legacy --config path.
@@ -1187,10 +1213,32 @@ fn cmd_slice(
     // 7. Generate and embed thumbnails if requested.
     let mut gcode_output = result.gcode.clone();
     if thumbnails {
+        let image_format = match thumbnail_format {
+            "jpeg" | "jpg" => slicecore_render::ImageFormat::Jpeg,
+            _ => slicecore_render::ImageFormat::Png,
+        };
+        let quality = validate_quality(thumbnail_quality, image_format);
+
+        // 3MF always requires PNG thumbnails per spec
+        let is_3mf = output_path.map_or(false, |p| {
+            p.extension()
+                .and_then(|e| e.to_str())
+                .map_or(false, |e| e.eq_ignore_ascii_case("3mf"))
+        });
+        let (thumb_format, thumb_q) =
+            if is_3mf && image_format == slicecore_render::ImageFormat::Jpeg {
+                eprintln!("Warning: JPEG not supported for 3MF thumbnails, using PNG");
+                (slicecore_render::ImageFormat::Png, None)
+            } else {
+                (image_format, quality)
+            };
+
         let thumb_config = slicecore_render::ThumbnailConfig {
             width: print_config.thumbnail_resolution[0],
             height: print_config.thumbnail_resolution[1],
             angles: vec![slicecore_render::CameraAngle::Isometric],
+            output_format: thumb_format,
+            quality: thumb_q,
             ..slicecore_render::ThumbnailConfig::default()
         };
         let thumbs = slicecore_render::render_mesh(&repaired_mesh, &thumb_config);
@@ -2819,6 +2867,8 @@ fn cmd_thumbnail(
     resolution_str: &str,
     background_str: &str,
     color_str: &str,
+    format_str: &str,
+    quality: Option<u8>,
 ) {
     // Load mesh
     let data = match std::fs::read(input) {
@@ -2852,6 +2902,15 @@ fn cmd_thumbnail(
     // Parse model color
     let model_color = parse_hex_color(color_str);
 
+    // Determine image format and validate quality
+    let image_format = detect_image_format(output, format_str);
+    let quality = validate_quality(quality, image_format);
+
+    // Warn if JPEG with transparent background
+    if image_format == slicecore_render::ImageFormat::Jpeg && background == [0, 0, 0, 0] {
+        eprintln!("Warning: JPEG does not support transparency; using white background");
+    }
+
     // Build config and render
     let config = slicecore_render::ThumbnailConfig {
         width,
@@ -2859,7 +2918,8 @@ fn cmd_thumbnail(
         angles: angles.clone(),
         background,
         model_color,
-        ..slicecore_render::ThumbnailConfig::default()
+        output_format: image_format,
+        quality,
     };
     let thumbnails = slicecore_render::render_mesh(&mesh, &config);
 
@@ -2868,7 +2928,7 @@ fn cmd_thumbnail(
         let out_path = if let Some(out) = output {
             PathBuf::from(out)
         } else {
-            input.with_extension("png")
+            input.with_extension(image_format.extension())
         };
         if let Err(e) = std::fs::write(&out_path, &thumbnails[0].encoded_data) {
             eprintln!("Error: Failed to write '{}': {}", out_path.display(), e);
@@ -2894,7 +2954,7 @@ fn cmd_thumbnail(
         let stem = input.file_stem().unwrap_or_default().to_string_lossy();
         for thumb in &thumbnails {
             let angle_name = format!("{:?}", thumb.angle).to_lowercase();
-            let filename = format!("{}_{}.png", stem, angle_name);
+            let filename = format!("{}_{}.{}", stem, angle_name, image_format.extension());
             let path = out_dir.join(&filename);
             if let Err(e) = std::fs::write(&path, &thumb.encoded_data) {
                 eprintln!("Error: Failed to write '{}': {}", path.display(), e);
@@ -2903,6 +2963,52 @@ fn cmd_thumbnail(
             eprintln!("Thumbnail: {}", path.display());
         }
     }
+}
+
+fn detect_image_format(output: Option<&str>, explicit_format: &str) -> slicecore_render::ImageFormat {
+    // Explicit --format takes priority (unless it's the default "png")
+    if explicit_format != "png" {
+        return match explicit_format {
+            "jpeg" | "jpg" => slicecore_render::ImageFormat::Jpeg,
+            "png" => slicecore_render::ImageFormat::Png,
+            other => {
+                eprintln!(
+                    "Error: Unknown image format '{}'. Valid: png, jpeg",
+                    other
+                );
+                process::exit(1);
+            }
+        };
+    }
+    // Auto-detect from output extension
+    if let Some(out) = output {
+        let path = std::path::Path::new(out);
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            return match ext.to_ascii_lowercase().as_str() {
+                "jpg" | "jpeg" => slicecore_render::ImageFormat::Jpeg,
+                _ => slicecore_render::ImageFormat::Png,
+            };
+        }
+    }
+    slicecore_render::ImageFormat::Png
+}
+
+fn validate_quality(
+    quality: Option<u8>,
+    format: slicecore_render::ImageFormat,
+) -> Option<u8> {
+    if let Some(q) = quality {
+        if q < 1 || q > 100 {
+            eprintln!("Error: --quality must be between 1 and 100, got {}", q);
+            process::exit(1);
+        }
+        if format == slicecore_render::ImageFormat::Png {
+            eprintln!("Warning: --quality is ignored for PNG format");
+            return None;
+        }
+        return Some(q);
+    }
+    None
 }
 
 fn parse_resolution(s: &str) -> (u32, u32) {
