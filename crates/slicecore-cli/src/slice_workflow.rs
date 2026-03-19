@@ -15,6 +15,8 @@ use slicecore_engine::profile_compose::{
 };
 use slicecore_engine::profile_resolve::ProfileResolver;
 
+use crate::cli_output::CliOutput;
+
 /// All options from the CLI flags that control the slice workflow.
 #[allow(dead_code)]
 pub struct SliceWorkflowOptions {
@@ -69,7 +71,10 @@ pub struct WorkflowResult {
 /// - 2 = profile resolution or composition error
 /// - 4 = safety validation error (and `--force` not set)
 #[allow(clippy::too_many_lines)]
-pub fn run_slice_workflow(options: &SliceWorkflowOptions) -> Result<WorkflowResult, i32> {
+pub fn run_slice_workflow(
+    options: &SliceWorkflowOptions,
+    output: &CliOutput,
+) -> Result<WorkflowResult, i32> {
     let mut log_lines: Vec<String> = Vec::new();
 
     // 1. Create resolver
@@ -81,27 +86,25 @@ pub fn run_slice_workflow(options: &SliceWorkflowOptions) -> Result<WorkflowResu
         && options.filament.is_none()
         && options.process.is_none()
     {
-        eprintln!(
-            "Warning: --unsafe-defaults active, using PrintConfig::default() with no profiles"
-        );
+        output.warn("--unsafe-defaults active, using PrintConfig::default() with no profiles");
         log_lines.push("Using default config (--unsafe-defaults)".to_string());
 
         let mut composer = ProfileComposer::new();
-        apply_set_overrides(&mut composer, &options.set_overrides)?;
-        apply_overrides_file(&mut composer, &options.overrides_file)?;
+        apply_set_overrides(&mut composer, &options.set_overrides, output)?;
+        apply_overrides_file(&mut composer, &options.overrides_file, output)?;
 
         let composed = match composer.compose() {
             Ok(c) => c,
             Err(e) => {
-                eprintln!("Error: Failed to compose config: {e}");
+                output.error_msg(&format!("Failed to compose config: {e}"));
                 return Err(2);
             }
         };
 
         let composed = resolve_gcode_templates(composed);
-        let composed = run_validation(composed, options)?;
+        let composed = run_validation(composed, options, output)?;
 
-        return handle_workflow_outputs(options, composed, &log_lines);
+        return handle_workflow_outputs(options, composed, &log_lines, output);
     }
 
     let mut composer = ProfileComposer::new();
@@ -115,6 +118,7 @@ pub fn run_slice_workflow(options: &SliceWorkflowOptions) -> Result<WorkflowResu
             SourceType::Machine,
             &mut composer,
             &mut log_lines,
+            output,
         ) {
             Ok(()) => {}
             Err(code) => return Err(code),
@@ -130,6 +134,7 @@ pub fn run_slice_workflow(options: &SliceWorkflowOptions) -> Result<WorkflowResu
             SourceType::Filament,
             &mut composer,
             &mut log_lines,
+            output,
         ) {
             Ok(()) => {}
             Err(code) => return Err(code),
@@ -145,6 +150,7 @@ pub fn run_slice_workflow(options: &SliceWorkflowOptions) -> Result<WorkflowResu
             SourceType::Process,
             &mut composer,
             &mut log_lines,
+            output,
         ) {
             Ok(()) => {}
             Err(code) => return Err(code),
@@ -157,42 +163,44 @@ pub fn run_slice_workflow(options: &SliceWorkflowOptions) -> Result<WorkflowResu
                 "(built-in:standard)",
                 builtin.toml_content,
             ) {
-                eprintln!("Error: Failed to load built-in standard process profile: {e}");
+                output.error_msg(&format!(
+                    "Failed to load built-in standard process profile: {e}"
+                ));
                 return Err(2);
             }
             log_lines.push("Using built-in 'standard' process profile".to_string());
-            eprintln!("Note: Using built-in 'Standard Quality' process profile (no -p specified)");
+            output.info("Note: Using built-in 'Standard Quality' process profile (no -p specified)");
         }
     }
 
     // 6. Apply overrides file
-    apply_overrides_file(&mut composer, &options.overrides_file)?;
+    apply_overrides_file(&mut composer, &options.overrides_file, output)?;
 
     // 7. Apply --set overrides
-    apply_set_overrides(&mut composer, &options.set_overrides)?;
+    apply_set_overrides(&mut composer, &options.set_overrides, output)?;
 
     // 8. Compose
     let composed = match composer.compose() {
         Ok(c) => c,
         Err(e) => {
-            eprintln!("Error: Failed to compose config: {e}");
+            output.error_msg(&format!("Failed to compose config: {e}"));
             return Err(2);
         }
     };
 
     // Print composition warnings
     for warning in &composed.warnings {
-        eprintln!("Warning: {warning}");
+        output.warn(warning);
     }
 
     // 9. Resolve template variables in start/end gcode
     let composed = resolve_gcode_templates(composed);
 
     // 10. Validate
-    let composed = run_validation(composed, options)?;
+    let composed = run_validation(composed, options, output)?;
 
     // 11. Handle workflow outputs (dry-run, show-config, save-config)
-    handle_workflow_outputs(options, composed, &log_lines)
+    handle_workflow_outputs(options, composed, &log_lines, output)
 }
 
 /// Resolves a profile query and adds it (with inheritance) to the composer.
@@ -203,6 +211,7 @@ fn resolve_and_add_profile(
     source_type: SourceType,
     composer: &mut ProfileComposer,
     log_lines: &mut Vec<String>,
+    output: &CliOutput,
 ) -> Result<(), i32> {
     // Check built-in profiles first
     if let Some(builtin) = get_builtin_profile(query) {
@@ -212,17 +221,17 @@ fn resolve_and_add_profile(
                 &format!("(built-in:{query})"),
                 builtin.toml_content,
             ) {
-                eprintln!("Error: Failed to load built-in profile '{query}': {e}");
+                output.error_msg(&format!("Failed to load built-in profile '{query}': {e}"));
                 return Err(2);
             }
             log_lines.push(format!(
                 "Resolved {expected_type} '{query}' -> built-in '{}'",
                 builtin.display_name
             ));
-            eprintln!(
+            output.info(&format!(
                 "Profile: {expected_type} = {} (built-in)",
                 builtin.display_name
-            );
+            ));
             return Ok(());
         }
     }
@@ -231,7 +240,7 @@ fn resolve_and_add_profile(
     let resolved = match resolver.resolve(query, expected_type) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("Error: {e}");
+            output.error_msg(&format!("{e}"));
             return Err(2);
         }
     };
@@ -247,10 +256,10 @@ fn resolve_and_add_profile(
         let content = match std::fs::read_to_string(&profile.path) {
             Ok(c) => c,
             Err(e) => {
-                eprintln!(
-                    "Error: Failed to read profile '{}': {e}",
+                output.error_msg(&format!(
+                    "Failed to read profile '{}': {e}",
                     profile.path.display()
-                );
+                ));
                 return Err(2);
             }
         };
@@ -259,10 +268,10 @@ fn resolve_and_add_profile(
             &profile.path.to_string_lossy(),
             &content,
         ) {
-            eprintln!(
-                "Error: Failed to parse profile '{}': {e}",
+            output.error_msg(&format!(
+                "Failed to parse profile '{}': {e}",
                 profile.path.display()
-            );
+            ));
             return Err(2);
         }
     }
@@ -272,10 +281,10 @@ fn resolve_and_add_profile(
         resolved.path.display(),
         resolved.source
     ));
-    eprintln!(
+    output.info(&format!(
         "Profile: {expected_type} = {} ({})",
         resolved.name, resolved.source
-    );
+    ));
 
     Ok(())
 }
@@ -284,15 +293,16 @@ fn resolve_and_add_profile(
 fn apply_overrides_file(
     composer: &mut ProfileComposer,
     overrides_file: &Option<PathBuf>,
+    output: &CliOutput,
 ) -> Result<(), i32> {
     if let Some(ref path) = overrides_file {
         let content = match std::fs::read_to_string(path) {
             Ok(c) => c,
             Err(e) => {
-                eprintln!(
-                    "Error: Failed to read overrides file '{}': {e}",
+                output.error_msg(&format!(
+                    "Failed to read overrides file '{}': {e}",
                     path.display()
-                );
+                ));
                 return Err(2);
             }
         };
@@ -306,7 +316,7 @@ fn apply_overrides_file(
             match serde_json::from_str::<PrintConfig>(&content) {
                 Ok(config) => {
                     let toml_str = toml::to_string_pretty(&config).map_err(|e| {
-                        eprintln!("Error: Failed to convert JSON overrides to TOML: {e}");
+                        output.error_msg(&format!("Failed to convert JSON overrides to TOML: {e}"));
                         2
                     })?;
                     if let Err(e) = composer.add_toml_layer(
@@ -314,18 +324,18 @@ fn apply_overrides_file(
                         &path.to_string_lossy(),
                         &toml_str,
                     ) {
-                        eprintln!(
-                            "Error: Failed to parse overrides file '{}': {e}",
+                        output.error_msg(&format!(
+                            "Failed to parse overrides file '{}': {e}",
                             path.display()
-                        );
+                        ));
                         return Err(2);
                     }
                 }
                 Err(e) => {
-                    eprintln!(
-                        "Error: Overrides file '{}' is neither valid TOML nor JSON: {e}",
+                    output.error_msg(&format!(
+                        "Overrides file '{}' is neither valid TOML nor JSON: {e}",
                         path.display()
-                    );
+                    ));
                     return Err(2);
                 }
             }
@@ -338,23 +348,26 @@ fn apply_overrides_file(
 fn apply_set_overrides(
     composer: &mut ProfileComposer,
     set_overrides: &[String],
+    output: &CliOutput,
 ) -> Result<(), i32> {
     for entry in set_overrides {
         let (key, value) = match entry.split_once('=') {
             Some((k, v)) => (k.trim(), v.trim()),
             None => {
-                eprintln!("Error: Invalid --set format '{entry}', expected key=value");
+                output.error_msg(&format!(
+                    "Invalid --set format '{entry}', expected key=value"
+                ));
                 return Err(2);
             }
         };
 
         if let Err(e) = validate_set_key(key) {
-            eprintln!("Error: {e}");
+            output.error_msg(&format!("{e}"));
             return Err(2);
         }
 
         if let Err(e) = composer.add_set_override(key, value) {
-            eprintln!("Error: Failed to add override '{key}={value}': {e}");
+            output.error_msg(&format!("Failed to add override '{key}={value}': {e}"));
             return Err(2);
         }
     }
@@ -374,6 +387,7 @@ fn resolve_gcode_templates(mut composed: ComposedConfig) -> ComposedConfig {
 fn run_validation(
     composed: ComposedConfig,
     options: &SliceWorkflowOptions,
+    output: &CliOutput,
 ) -> Result<ComposedConfig, i32> {
     let issues = validate_config(&composed.config);
 
@@ -387,25 +401,25 @@ fn run_validation(
         .collect();
 
     for w in &warnings {
-        eprintln!("Validation warning: {} - {}", w.field, w.message);
+        output.warn(&format!("Validation: {} - {}", w.field, w.message));
     }
 
     if !errors.is_empty() {
         for e in &errors {
             if options.force {
-                eprintln!(
+                output.warn(&format!(
                     "Validation error (overridden by --force): {} - {}",
                     e.field, e.message
-                );
+                ));
             } else {
-                eprintln!("Validation error: {} - {}", e.field, e.message);
+                output.error_msg(&format!("Validation: {} - {}", e.field, e.message));
             }
         }
         if !options.force {
-            eprintln!(
-                "Error: {} validation error(s). Use --force to override.",
+            output.error_msg(&format!(
+                "{} validation error(s). Use --force to override.",
                 errors.len()
-            );
+            ));
             return Err(4);
         }
     }
@@ -418,35 +432,39 @@ fn handle_workflow_outputs(
     options: &SliceWorkflowOptions,
     composed: ComposedConfig,
     log_lines: &[String],
+    output: &CliOutput,
 ) -> Result<WorkflowResult, i32> {
     // --dry-run: print summary and exit
     if options.dry_run {
-        eprintln!("\n--- Dry Run Summary ---");
+        output.info("\n--- Dry Run Summary ---");
         for line in log_lines {
-            eprintln!("  {line}");
+            output.info(&format!("  {line}"));
         }
-        eprintln!("\nProfile checksums:");
+        output.info("\nProfile checksums:");
         for (path, checksum) in &composed.profile_checksums {
-            eprintln!("  {path}: {}", &checksum[..16.min(checksum.len())]);
+            output.info(&format!(
+                "  {path}: {}",
+                &checksum[..16.min(checksum.len())]
+            ));
         }
         if !composed.warnings.is_empty() {
-            eprintln!("\nWarnings:");
+            output.info("\nWarnings:");
             for w in &composed.warnings {
-                eprintln!("  {w}");
+                output.info(&format!("  {w}"));
             }
         }
-        eprintln!("\nConfig validated successfully. Slicing would proceed.");
+        output.info("\nConfig validated successfully. Slicing would proceed.");
         std::process::exit(0);
     }
 
     // --show-config: print annotated config
     if options.show_config {
-        print_annotated_config(&composed, options.json_output);
+        print_annotated_config(&composed, options.json_output, output);
     }
 
     // --save-config: write merged TOML
     if let Some(ref save_path) = options.save_config {
-        save_merged_config(&composed, save_path, options);
+        save_merged_config(&composed, save_path, options, output);
     }
 
     Ok(WorkflowResult {
@@ -456,11 +474,11 @@ fn handle_workflow_outputs(
 }
 
 /// Prints annotated config with provenance comments.
-fn print_annotated_config(composed: &ComposedConfig, json_output: bool) {
+fn print_annotated_config(composed: &ComposedConfig, json_output: bool, output: &CliOutput) {
     if json_output {
         match serde_json::to_string_pretty(&composed.config) {
             Ok(json) => println!("{json}"),
-            Err(e) => eprintln!("Error: Failed to serialize config as JSON: {e}"),
+            Err(e) => output.error_msg(&format!("Failed to serialize config as JSON: {e}")),
         }
     } else {
         match toml::to_string_pretty(&composed.config) {
@@ -484,57 +502,62 @@ fn print_annotated_config(composed: &ComposedConfig, json_output: bool) {
                     }
                 }
             }
-            Err(e) => eprintln!("Error: Failed to serialize config as TOML: {e}"),
+            Err(e) => output.error_msg(&format!("Failed to serialize config as TOML: {e}")),
         }
     }
 }
 
 /// Saves merged config as TOML with provenance header comments.
-fn save_merged_config(composed: &ComposedConfig, save_path: &Path, options: &SliceWorkflowOptions) {
+fn save_merged_config(
+    composed: &ComposedConfig,
+    save_path: &Path,
+    options: &SliceWorkflowOptions,
+    output: &CliOutput,
+) {
     match toml::to_string_pretty(&composed.config) {
         Ok(toml_str) => {
-            let mut output = String::new();
+            let mut file_output = String::new();
 
             // Reproduce command
-            output.push_str("# Generated by SliceCore\n");
-            output.push_str("# Reproduce: slicecore slice ");
-            output.push_str(&options.input_path.to_string_lossy());
+            file_output.push_str("# Generated by SliceCore\n");
+            file_output.push_str("# Reproduce: slicecore slice ");
+            file_output.push_str(&options.input_path.to_string_lossy());
             if let Some(ref m) = options.machine {
-                output.push_str(&format!(" -m {m}"));
+                file_output.push_str(&format!(" -m {m}"));
             }
             if let Some(ref f) = options.filament {
-                output.push_str(&format!(" -f {f}"));
+                file_output.push_str(&format!(" -f {f}"));
             }
             if let Some(ref p) = options.process {
-                output.push_str(&format!(" -p {p}"));
+                file_output.push_str(&format!(" -p {p}"));
             }
             for s in &options.set_overrides {
-                output.push_str(&format!(" --set {s}"));
+                file_output.push_str(&format!(" --set {s}"));
             }
-            output.push('\n');
+            file_output.push('\n');
 
             // Profile checksums
-            output.push_str("#\n");
+            file_output.push_str("#\n");
             for (path, checksum) in &composed.profile_checksums {
-                output.push_str(&format!(
+                file_output.push_str(&format!(
                     "# Profile: {path} (sha256:{})\n",
                     &checksum[..16.min(checksum.len())]
                 ));
             }
-            output.push_str("#\n\n");
+            file_output.push_str("#\n\n");
 
-            output.push_str(&toml_str);
+            file_output.push_str(&toml_str);
 
-            if let Err(e) = std::fs::write(save_path, &output) {
-                eprintln!(
-                    "Warning: Failed to save config to '{}': {e}",
+            if let Err(e) = std::fs::write(save_path, &file_output) {
+                output.warn(&format!(
+                    "Failed to save config to '{}': {e}",
                     save_path.display()
-                );
+                ));
             } else {
-                eprintln!("Saved merged config to '{}'", save_path.display());
+                output.info(&format!("Saved merged config to '{}'", save_path.display()));
             }
         }
-        Err(e) => eprintln!("Error: Failed to serialize config for saving: {e}"),
+        Err(e) => output.error_msg(&format!("Failed to serialize config for saving: {e}")),
     }
 }
 

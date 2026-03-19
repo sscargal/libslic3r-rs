@@ -1076,7 +1076,7 @@ fn cmd_slice(
             json_output,
         };
 
-        match slice_workflow::run_slice_workflow(&workflow_options) {
+        match slice_workflow::run_slice_workflow(&workflow_options, &output) {
             Ok(result) => {
                 output.finish_step(&step2, "Resolve profiles");
 
