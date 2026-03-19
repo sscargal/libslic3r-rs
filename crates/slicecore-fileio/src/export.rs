@@ -106,18 +106,20 @@ fn triangle_mesh_to_model(mesh: &TriangleMesh) -> Result<Model, FileIOError> {
 }
 
 /// Convert a [`TriangleMesh`] to a [`lib3mf_core::Model`] for export,
-/// optionally embedding a thumbnail PNG at `Metadata/thumbnail.png`.
+/// optionally embedding thumbnail image data at `Metadata/thumbnail.png`.
+///
+/// Note: the data must be PNG for 3MF compatibility.
 fn triangle_mesh_to_model_with_thumbnail(
     mesh: &TriangleMesh,
-    thumbnail_png: Option<&[u8]>,
+    thumbnail_data: Option<&[u8]>,
 ) -> Result<Model, FileIOError> {
     let mut model = triangle_mesh_to_model(mesh)?;
 
-    if let Some(png_data) = thumbnail_png {
+    if let Some(data) = thumbnail_data {
         let thumb_path = "Metadata/thumbnail.png".to_string();
         model
             .attachments
-            .insert(thumb_path.clone(), png_data.to_vec());
+            .insert(thumb_path.clone(), data.to_vec());
         // Set the thumbnail path on the first object
         if let Some(obj) = model.resources.iter_objects_mut().next() {
             obj.thumbnail = Some(thumb_path);
@@ -128,29 +130,29 @@ fn triangle_mesh_to_model_with_thumbnail(
 }
 
 /// Save a mesh to a file, auto-detecting the format from the file extension,
-/// optionally embedding a thumbnail PNG in 3MF output.
+/// optionally embedding thumbnail image data in 3MF output (must be PNG for 3MF).
 pub fn save_mesh_with_thumbnail(
     mesh: &TriangleMesh,
     path: &Path,
-    thumbnail_png: Option<&[u8]>,
+    thumbnail_data: Option<&[u8]>,
 ) -> Result<(), FileIOError> {
     let format = format_from_extension(path)?;
     let file = File::create(path)?;
     let writer = BufWriter::new(file);
-    save_mesh_to_writer_with_thumbnail(mesh, writer, format, thumbnail_png)
+    save_mesh_to_writer_with_thumbnail(mesh, writer, format, thumbnail_data)
 }
 
 /// Save a mesh to any writer that implements `Write + Seek`, optionally
-/// embedding a thumbnail PNG. For non-3MF formats, the thumbnail is ignored.
+/// embedding thumbnail image data. For non-3MF formats, the thumbnail is ignored.
 pub fn save_mesh_to_writer_with_thumbnail<W: Write + Seek>(
     mesh: &TriangleMesh,
     mut writer: W,
     format: ExportFormat,
-    thumbnail_png: Option<&[u8]>,
+    thumbnail_data: Option<&[u8]>,
 ) -> Result<(), FileIOError> {
     match format {
         ExportFormat::ThreeMf => {
-            let model = triangle_mesh_to_model_with_thumbnail(mesh, thumbnail_png)?;
+            let model = triangle_mesh_to_model_with_thumbnail(mesh, thumbnail_data)?;
             model
                 .write(&mut writer)
                 .map_err(|e| FileIOError::WriteError(e.to_string()))?;

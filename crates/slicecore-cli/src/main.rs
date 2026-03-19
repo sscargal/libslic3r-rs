@@ -2859,6 +2859,7 @@ fn cmd_thumbnail(
         angles: angles.clone(),
         background,
         model_color,
+        ..slicecore_render::ThumbnailConfig::default()
     };
     let thumbnails = slicecore_render::render_mesh(&mesh, &config);
 
@@ -2869,7 +2870,7 @@ fn cmd_thumbnail(
         } else {
             input.with_extension("png")
         };
-        if let Err(e) = std::fs::write(&out_path, &thumbnails[0].png_data) {
+        if let Err(e) = std::fs::write(&out_path, &thumbnails[0].encoded_data) {
             eprintln!("Error: Failed to write '{}': {}", out_path.display(), e);
             process::exit(1);
         }
@@ -2895,7 +2896,7 @@ fn cmd_thumbnail(
             let angle_name = format!("{:?}", thumb.angle).to_lowercase();
             let filename = format!("{}_{}.png", stem, angle_name);
             let path = out_dir.join(&filename);
-            if let Err(e) = std::fs::write(&path, &thumb.png_data) {
+            if let Err(e) = std::fs::write(&path, &thumb.encoded_data) {
                 eprintln!("Error: Failed to write '{}': {}", path.display(), e);
                 process::exit(1);
             }
