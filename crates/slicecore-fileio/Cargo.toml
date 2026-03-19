@@ -15,7 +15,7 @@ serde = { workspace = true }
 tobj = { version = "4", default-features = false }
 lib3mf-core = { version = "0.4", default-features = false }
 lib3mf-converters = { version = "0.4", default-features = false }
-glam = "0.31"
+glam = "0.32"
 
 [dev-dependencies]
 proptest = { workspace = true }
