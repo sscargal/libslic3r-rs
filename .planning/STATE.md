@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 40-02-PLAN.md
-last_updated: "2026-03-19T22:18:19.043Z"
-last_activity: "2026-03-19 - Completed 40-02: Slice command CliOutput migration"
+status: completed
+stopped_at: Completed 40-03-PLAN.md
+last_updated: "2026-03-19T22:27:49.471Z"
+last_activity: "2026-03-19 - Completed 40-03: Non-slice command progress migration"
 progress:
   total_phases: 41
-  completed_phases: 39
+  completed_phases: 40
   total_plans: 166
-  completed_plans: 165
-  percent: 99
+  completed_plans: 166
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 40 of 41 (Adopt indicatif for CLI progress)
-Plan: 2 of 3 in current phase (2 complete)
-Status: In Progress
-Last activity: 2026-03-19 - Completed 40-02: Slice command CliOutput migration
+Plan: 3 of 3 in current phase (3 complete)
+Status: Phase Complete
+Last activity: 2026-03-19 - Completed 40-03: Non-slice command progress migration
 
-Progress: [██████████] 99% (165/166 overall)
+Progress: [██████████] 100% (166/166 overall)
 
 ## Performance Metrics
 
@@ -144,6 +144,7 @@ Progress: [██████████] 99% (165/166 overall)
 | Phase 39 P02 | 5min | 2 tasks | 2 files |
 | Phase 40 P01 | 5 | 2 tasks | 4 files |
 | Phase 40 P02 | 10min | 2 tasks | 3 files |
+| Phase 40 P03 | 7min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -655,6 +656,7 @@ Recent decisions affecting current work:
 - [Phase 39]: Auto-detect JPEG from .jpg/.jpeg output extension when --format not explicitly set
 - [Phase 39]: 3MF output silently overrides JPEG to PNG per 3MF spec requirement
 - [Phase 40]: CliOutput abstracts all CLI output with spinner/progress-bar/step-indicator modes, quiet/json/color awareness
+- [Phase 40]: Spinner wrapping in main dispatch, CliOutput passed through to calibrate/CSG subcommands for internal routing
 
 ### Roadmap Evolution
 
@@ -706,6 +708,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T22:18:19.039Z
-Stopped at: Completed 40-02-PLAN.md
+Last session: 2026-03-19T22:27:41.461Z
+Stopped at: Completed 40-03-PLAN.md
 Resume file: None
