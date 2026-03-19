@@ -1308,6 +1308,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.32.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f70749695b063ecbf6b62949ccccde2e733ec3ecbbd71d467dca4e5c6c97cca0"
+
+[[package]]
 name = "half"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1833,7 +1839,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5a81422844cd640eb6d3e29246ca33d3b86be16728c7354dff0ceff065a4924"
 dependencies = [
  "byteorder",
- "glam",
+ "glam 0.31.1",
  "lib3mf-core",
  "thiserror 2.0.18",
 ]
@@ -1846,7 +1852,7 @@ checksum = "b661d1dc73fcc9acdf0634543f73bfd5ebf6c634227b8c249106dc5dbaa3ad04"
 dependencies = [
  "anyhow",
  "byteorder",
- "glam",
+ "glam 0.31.1",
  "lexical-core",
  "quick-xml",
  "rayon",
@@ -3013,7 +3019,7 @@ name = "slicecore-fileio"
 version = "0.1.0"
 dependencies = [
  "byteorder",
- "glam",
+ "glam 0.32.1",
  "lib3mf-converters",
  "lib3mf-core",
  "proptest",
