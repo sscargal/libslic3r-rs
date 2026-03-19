@@ -720,3 +720,43 @@ Plans:
 - [ ] 37-01-PLAN.md -- CI workflow (changes filter + bench job) and memory tracking script
 - [ ] 37-02-PLAN.md -- Benchmark documentation in CONTRIBUTING.md
 
+
+### Phase 38: Profile diff command to compare presets side by side — implement slicecore profile diff CLI subcommand with settings comparison, category grouping, impact hints, and multiple output formats
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 37
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 38 to break down)
+
+### Phase 39: JPEG thumbnail export — add JPEG encoding option to render crate alongside existing PNG, with CLI flag, quality control, and 3MF/G-code thumbnail embedding support
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 38
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 39 to break down)
+
+### Phase 40: Adopt indicatif for consistent CLI progress display — replace ad-hoc println with progress bars, spinners, and step indicators across all CLI commands with quiet/json flag support
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 39
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 40 to break down)
+
+### Phase 41: Travel move optimization with TSP algorithms — implement 2-opt and greedy edge insertion for toolpath ordering to reduce travel distance by 20-35% on multi-object plates with benchmark validation
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 40
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 41 to break down)
