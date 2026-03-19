@@ -2,7 +2,7 @@
 //!
 //! This crate provides a complete software rendering pipeline that converts
 //! a [`TriangleMesh`] into RGBA pixel buffers
-//! and PNG-encoded images from multiple camera angles. It is used for:
+//! and encoded images (PNG or JPEG) from multiple camera angles. It is used for:
 //!
 //! - 3MF thumbnail embedding
 //! - G-code preview images
@@ -24,17 +24,17 @@
 //! };
 //! let thumbnails = render_mesh(mesh, &config);
 //! for thumb in &thumbnails {
-//!     // thumb.png_data contains the PNG-encoded image
+//!     // thumb.encoded_data contains the encoded image (PNG or JPEG)
 //!     // thumb.rgba contains raw RGBA pixel data
 //! }
 //! # }
 //! ```
 
 mod camera;
+mod encode;
 mod framebuffer;
 pub mod gcode_embed;
 mod pipeline;
-mod png_encode;
 mod rasterizer;
 mod shading;
 #[allow(dead_code)]
@@ -46,6 +46,26 @@ pub use gcode_embed::{
 };
 
 use slicecore_mesh::TriangleMesh;
+
+/// Output image format for thumbnails.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageFormat {
+    /// PNG format (lossless, supports transparency).
+    Png,
+    /// JPEG format (lossy, no transparency -- alpha composited onto white).
+    Jpeg,
+}
+
+impl ImageFormat {
+    /// Returns the conventional file extension for this format.
+    #[must_use]
+    pub fn extension(&self) -> &'static str {
+        match self {
+            Self::Png => "png",
+            Self::Jpeg => "jpg",
+        }
+    }
+}
 
 /// Configuration for thumbnail rendering.
 pub struct ThumbnailConfig {
@@ -59,6 +79,10 @@ pub struct ThumbnailConfig {
     pub background: [u8; 4],
     /// Model surface color as RGB.
     pub model_color: [u8; 3],
+    /// Output image format (PNG or JPEG).
+    pub output_format: ImageFormat,
+    /// JPEG quality (1-100). Ignored for PNG. Defaults to 85 if `None`.
+    pub quality: Option<u8>,
 }
 
 impl Default for ThumbnailConfig {
@@ -69,6 +93,8 @@ impl Default for ThumbnailConfig {
             angles: vec![CameraAngle::Isometric],
             background: [0, 0, 0, 0],     // transparent
             model_color: [200, 200, 200], // #C8C8C8 light gray
+            output_format: ImageFormat::Png,
+            quality: None,
         }
     }
 }
@@ -83,28 +109,37 @@ pub struct Thumbnail {
     pub height: u32,
     /// Raw RGBA pixel data (row-major, top-to-bottom).
     pub rgba: Vec<[u8; 4]>,
-    /// PNG-encoded image data.
-    pub png_data: Vec<u8>,
+    /// Encoded image data (PNG or JPEG depending on format).
+    pub encoded_data: Vec<u8>,
+    /// The image format used for encoding.
+    pub format: ImageFormat,
 }
 
 /// Renders a mesh into thumbnails from the configured camera angles.
 ///
 /// For each angle in `config.angles`, produces a [`Thumbnail`] containing
-/// both raw RGBA pixel data and PNG-encoded image data.
+/// both raw RGBA pixel data and encoded image data.
 pub fn render_mesh(mesh: &TriangleMesh, config: &ThumbnailConfig) -> Vec<Thumbnail> {
     config
         .angles
         .iter()
         .map(|angle| {
             let fb = pipeline::render_to_framebuffer(mesh, angle, config);
-            let png_data = png_encode::encode_png(config.width, config.height, fb.pixels());
+            let encoded_data = encode::encode(
+                config.width,
+                config.height,
+                fb.pixels(),
+                config.output_format,
+                config.quality,
+            );
 
             Thumbnail {
                 angle: angle.clone(),
                 width: config.width,
                 height: config.height,
                 rgba: fb.pixels().to_vec(),
-                png_data,
+                encoded_data,
+                format: config.output_format,
             }
         })
         .collect()
@@ -158,7 +193,7 @@ mod tests {
         assert_eq!(thumbs.len(), 1);
         assert_eq!(thumbs[0].width, 300);
         assert_eq!(thumbs[0].height, 300);
-        assert!(!thumbs[0].png_data.is_empty());
+        assert!(!thumbs[0].encoded_data.is_empty());
         assert_eq!(thumbs[0].rgba.len(), 300 * 300);
     }
 
@@ -171,6 +206,8 @@ mod tests {
             angles: CameraAngle::all(),
             background: [0, 0, 0, 0],
             model_color: [200, 200, 200],
+            output_format: ImageFormat::Png,
+            quality: None,
         };
         let thumbs = render_mesh(&mesh, &config);
         assert_eq!(thumbs.len(), 6);
@@ -185,6 +222,8 @@ mod tests {
             angles: vec![CameraAngle::Isometric],
             background: [0, 0, 0, 0],
             model_color: [200, 200, 200],
+            output_format: ImageFormat::Png,
+            quality: None,
         };
         let thumbs = render_mesh(&mesh, &config);
         assert_eq!(thumbs.len(), 1);
@@ -209,6 +248,8 @@ mod tests {
             angles: CameraAngle::all(),
             background: [0, 0, 0, 0],
             model_color: [200, 200, 200],
+            output_format: ImageFormat::Png,
+            quality: None,
         };
         let thumbs = render_mesh(&mesh, &config);
 
@@ -232,13 +273,30 @@ mod tests {
         let mesh = make_cube();
         let config = ThumbnailConfig::default();
         let thumbs = render_mesh(&mesh, &config);
-        let png = &thumbs[0].png_data;
+        let png = &thumbs[0].encoded_data;
 
         assert!(png.len() > 8);
         assert_eq!(png[0], 0x89);
         assert_eq!(png[1], b'P');
         assert_eq!(png[2], b'N');
         assert_eq!(png[3], b'G');
+    }
+
+    #[test]
+    fn render_mesh_jpeg_valid_magic() {
+        let mesh = make_cube();
+        let config = ThumbnailConfig {
+            output_format: ImageFormat::Jpeg,
+            quality: Some(85),
+            ..ThumbnailConfig::default()
+        };
+        let thumbs = render_mesh(&mesh, &config);
+        let jpeg = &thumbs[0].encoded_data;
+
+        assert!(jpeg.len() > 3);
+        assert_eq!(jpeg[0], 0xFF);
+        assert_eq!(jpeg[1], 0xD8);
+        assert_eq!(jpeg[2], 0xFF);
     }
 
     #[test]
@@ -259,6 +317,8 @@ mod tests {
             angles: vec![CameraAngle::Isometric],
             background: [255, 255, 255, 255],
             model_color: [200, 200, 200],
+            output_format: ImageFormat::Png,
+            quality: None,
         };
         let thumbs = render_mesh(&mesh, &config);
         // Degenerate triangle should produce ~all background

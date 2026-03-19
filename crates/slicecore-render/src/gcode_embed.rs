@@ -1,6 +1,6 @@
 //! G-code thumbnail comment formatting.
 //!
-//! Formats thumbnail PNG data as G-code comment blocks compatible with
+//! Formats thumbnail image data as G-code comment blocks compatible with
 //! PrusaSlicer and Creality firmware thumbnail conventions.
 
 use base64::Engine as _;
@@ -37,12 +37,12 @@ pub fn format_gcode_thumbnail_block(thumbnail: &Thumbnail, format: ThumbnailForm
         ThumbnailFormat::Creality => ("png", "png"),
     };
 
-    let png_size = thumbnail.png_data.len();
-    let b64 = base64::engine::general_purpose::STANDARD.encode(&thumbnail.png_data);
+    let data_size = thumbnail.encoded_data.len();
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&thumbnail.encoded_data);
 
     let mut result = format!(
         "; {} begin {}x{} {}\n",
-        begin_tag, thumbnail.width, thumbnail.height, png_size
+        begin_tag, thumbnail.width, thumbnail.height, data_size
     );
 
     // Split base64 into 78-char chunks
@@ -80,9 +80,10 @@ mod tests {
             width: 32,
             height: 32,
             rgba: vec![[128, 128, 128, 255]; 32 * 32],
-            png_data: vec![
+            encoded_data: vec![
                 0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4, 5,
             ],
+            format: crate::ImageFormat::Png,
         }
     }
 
@@ -110,7 +111,8 @@ mod tests {
             width: 100,
             height: 100,
             rgba: vec![[0; 4]; 100],
-            png_data: vec![42u8; 500], // 500 bytes -> ~668 base64 chars -> multiple lines
+            encoded_data: vec![42u8; 500], // 500 bytes -> ~668 base64 chars -> multiple lines
+            format: crate::ImageFormat::Png,
         };
         let block = format_gcode_thumbnail_block(&thumb, ThumbnailFormat::PrusaSlicer);
         for line in block.lines() {

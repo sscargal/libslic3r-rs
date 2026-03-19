@@ -1,12 +1,12 @@
 //! G-code thumbnail comment writing.
 //!
-//! Writes thumbnail PNG data as G-code comment blocks directly to a writer.
-//! This module has no dependency on slicecore-render -- it accepts raw PNG bytes.
+//! Writes thumbnail image data as G-code comment blocks directly to a writer.
+//! This module has no dependency on slicecore-render -- it accepts encoded image bytes.
 
 use base64::Engine as _;
 use std::io::Write;
 
-/// Write thumbnail PNG data as G-code comment lines to a writer.
+/// Write thumbnail image data as G-code comment lines to a writer.
 ///
 /// The format parameter selects the comment style:
 /// - `"prusaslicer"` -> `; thumbnail begin WxH SIZE` / `; thumbnail end`
@@ -15,7 +15,7 @@ use std::io::Write;
 /// Base64 lines are at most 78 characters each, prefixed with `"; "`.
 pub fn write_thumbnail_comments<W: Write>(
     writer: &mut W,
-    png_data: &[u8],
+    encoded_data: &[u8],
     width: u32,
     height: u32,
     format: &str,
@@ -25,13 +25,13 @@ pub fn write_thumbnail_comments<W: Write>(
         _ => ("thumbnail", "thumbnail"), // prusaslicer is the default
     };
 
-    let png_size = png_data.len();
-    let b64 = base64::engine::general_purpose::STANDARD.encode(png_data);
+    let data_size = encoded_data.len();
+    let b64 = base64::engine::general_purpose::STANDARD.encode(encoded_data);
 
     writeln!(
         writer,
         "; {} begin {}x{} {}",
-        begin_tag, width, height, png_size
+        begin_tag, width, height, data_size
     )?;
 
     for chunk in b64.as_bytes().chunks(78) {

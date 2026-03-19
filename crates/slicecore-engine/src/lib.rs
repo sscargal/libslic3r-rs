@@ -52,6 +52,7 @@ pub mod postprocess_builtin;
 pub mod preview;
 pub mod profile_compose;
 pub mod profile_convert;
+pub mod profile_diff;
 pub mod profile_import;
 pub mod profile_import_ini;
 pub mod profile_library;

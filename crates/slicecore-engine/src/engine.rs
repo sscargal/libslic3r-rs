@@ -830,6 +830,7 @@ impl Engine {
         let builtins = create_builtin_postprocessors(&self.config.post_process);
 
         // Gather all post-processors (built-ins + registered plugins).
+        #[allow(unused_mut)]
         let mut all_plugins: Vec<&dyn PostProcessorPluginAdapter> =
             builtins.iter().map(|p| p.as_ref()).collect();
 

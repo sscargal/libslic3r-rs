@@ -714,9 +714,51 @@ Plans:
 **Goal:** Integrate existing criterion benchmarks into CI with two-tier regression detection (5% warn / 15% block), per-PR comparison comments via criterion-compare-action, historical tracking on gh-pages dashboard via github-action-benchmark, peak memory tracking via /usr/bin/time, bench-ok label override, and developer documentation
 **Requirements**: BENCH-CI, BENCH-COMPARE, BENCH-HISTORY, BENCH-MEMORY, BENCH-SKIP, BENCH-DOCS
 **Depends on:** Phase 36
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 37-01-PLAN.md -- CI workflow (changes filter + bench job) and memory tracking script
 - [ ] 37-02-PLAN.md -- Benchmark documentation in CONTRIBUTING.md
 
+
+### Phase 38: Profile diff command to compare presets side by side — implement slicecore profile diff CLI subcommand with settings comparison, category grouping, impact hints, and multiple output formats
+
+**Goal:** Implement diff-profiles CLI subcommand comparing two PrintConfig instances with category-grouped table/JSON output, SettingRegistry metadata enrichment, and filtering by category/tier
+**Requirements**: TBD
+**Depends on:** Phase 37
+**Plans:** 2/2 plans complete
+
+Plans:
+- [ ] 38-01-PLAN.md -- Core diff engine module (profile_diff.rs) with types, flatten, comparison, and registry enrichment
+- [ ] 38-02-PLAN.md -- CLI diff-profiles subcommand with table/JSON display, all flags, and Commands wiring
+
+### Phase 39: JPEG thumbnail export — add JPEG encoding option to render crate alongside existing PNG, with CLI flag, quality control, and 3MF/G-code thumbnail embedding support
+
+**Goal:** Add JPEG encoding alongside PNG in the render crate, with CLI --format/--quality flags, auto-detection from file extension, and proper 3MF/G-code embedding behavior
+**Requirements**: JPEG-01, JPEG-02, JPEG-03, JPEG-04, JPEG-05, JPEG-06
+**Depends on:** Phase 38
+**Plans:** 2/2 plans complete
+
+Plans:
+- [ ] 39-01-PLAN.md -- Render crate image crate migration, ImageFormat enum, JPEG encoding, field renames across workspace
+- [ ] 39-02-PLAN.md -- CLI --format/--quality flags on thumbnail and slice commands with integration tests
+
+### Phase 40: Adopt indicatif for consistent CLI progress display — replace ad-hoc println with progress bars, spinners, and step indicators across all CLI commands with quiet/json flag support
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 39
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 40 to break down)
+
+### Phase 41: Travel move optimization with TSP algorithms — implement 2-opt and greedy edge insertion for toolpath ordering to reduce travel distance by 20-35% on multi-object plates with benchmark validation
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 40
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 41 to break down)
