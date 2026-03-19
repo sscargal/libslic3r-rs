@@ -723,13 +723,14 @@ Plans:
 
 ### Phase 38: Profile diff command to compare presets side by side — implement slicecore profile diff CLI subcommand with settings comparison, category grouping, impact hints, and multiple output formats
 
-**Goal:** [To be planned]
+**Goal:** Implement diff-profiles CLI subcommand comparing two PrintConfig instances with category-grouped table/JSON output, SettingRegistry metadata enrichment, and filtering by category/tier
 **Requirements**: TBD
 **Depends on:** Phase 37
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 38 to break down)
+- [ ] 38-01-PLAN.md -- Core diff engine module (profile_diff.rs) with types, flatten, comparison, and registry enrichment
+- [ ] 38-02-PLAN.md -- CLI diff-profiles subcommand with table/JSON display, all flags, and Commands wiring
 
 ### Phase 39: JPEG thumbnail export — add JPEG encoding option to render crate alongside existing PNG, with CLI flag, quality control, and 3MF/G-code thumbnail embedding support
 
