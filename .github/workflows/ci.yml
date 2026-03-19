@@ -92,3 +92,114 @@ jobs:
       - run: cargo doc --no-deps --workspace
         env:
           RUSTDOCFLAGS: "-D warnings"
+
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'crates/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+              - 'scripts/**'
+
+  bench:
+    name: Benchmarks
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: bench
+
+      # On PRs: run base branch benchmarks first for comparison baseline
+      - name: Run base branch benchmarks (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          # Checkout base branch
+          git checkout ${{ github.event.pull_request.base.sha }}
+          chmod +x scripts/bench-with-memory.sh
+          ./scripts/bench-with-memory.sh slicecore-engine slice_benchmark
+          ./scripts/bench-with-memory.sh slicecore-engine geometry_benchmark
+          ./scripts/bench-with-memory.sh slicecore-engine parallel_benchmark --features parallel
+          ./scripts/bench-with-memory.sh slicecore-mesh csg_bench
+          # Save base results
+          cp bench-results/output.txt bench-results/base-output.txt
+          cp bench-results/memory.txt bench-results/base-memory.txt
+          # Clean for head run
+          rm bench-results/output.txt bench-results/memory.txt
+          # Return to head
+          git checkout ${{ github.event.pull_request.head.sha }}
+
+      # Run all 4 benchmark suites with memory tracking (HEAD)
+      - name: Run benchmarks
+        run: |
+          chmod +x scripts/bench-with-memory.sh
+          ./scripts/bench-with-memory.sh slicecore-engine slice_benchmark
+          ./scripts/bench-with-memory.sh slicecore-engine geometry_benchmark
+          ./scripts/bench-with-memory.sh slicecore-engine parallel_benchmark --features parallel
+          ./scripts/bench-with-memory.sh slicecore-mesh csg_bench
+
+      - name: Display memory results
+        run: cat bench-results/memory.txt
+
+      # PR comparison comment via criterion-compare-action (pull_request only)
+      # NOTE: This action posts a formatted PR comment with regression/improvement table.
+      # It does NOT exit non-zero on regressions -- it is purely informational.
+      # Actual enforcement happens in the "Check regression thresholds" step below.
+      - name: Compare benchmarks (PR)
+        if: github.event_name == 'pull_request'
+        uses: boa-dev/criterion-compare-action@v3
+        with:
+          branchName: ${{ github.base_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Enforce BOTH timing AND memory regression thresholds on PR.
+      # This is the actual enforcement gate. criterion-compare-action above only
+      # posts comments -- it never blocks. This script compares our own base vs
+      # head benchmark runs and exits non-zero when any benchmark (timing OR
+      # memory) regresses more than 15%.
+      - name: Check regression thresholds
+        if: >-
+          github.event_name == 'pull_request' &&
+          !contains(github.event.pull_request.labels.*.name, 'bench-ok')
+        run: |
+          chmod +x scripts/check-bench-regressions.sh
+          ./scripts/check-bench-regressions.sh bench-results/base-output.txt bench-results/base-memory.txt
+
+      # Historical tracking (push to main only)
+      # alert-threshold '105%' means warn when result is >=105% of baseline (i.e., >=5% slower).
+      # This is the WARN tier only. The 15% BLOCK tier is enforced by check-bench-regressions.sh
+      # on PRs (not on main pushes, where code is already merged).
+      - name: Store benchmark result
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: libslic3r-rs Benchmarks
+          tool: 'cargo'
+          output-file-path: bench-results/output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+          auto-push: true
+          alert-threshold: '105%'
+          comment-on-alert: true
+          fail-on-alert: false
+          max-items-in-chart: 100
