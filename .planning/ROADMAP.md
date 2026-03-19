@@ -745,13 +745,15 @@ Plans:
 
 ### Phase 40: Adopt indicatif for consistent CLI progress display — replace ad-hoc println with progress bars, spinners, and step indicators across all CLI commands with quiet/json flag support
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Replace ad-hoc println/eprintln progress output across all CLI commands with a unified CliOutput abstraction built on indicatif, add global --quiet and --color flags, step indicators for slice workflow
+**Requirements**: CLI-PROGRESS-01, CLI-PROGRESS-02, CLI-PROGRESS-03
 **Depends on:** Phase 39
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 40 to break down)
+- [ ] 40-01-PLAN.md — CliOutput abstraction and global CLI flags
+- [ ] 40-02-PLAN.md — Slice command migration to step-based workflow
+- [ ] 40-03-PLAN.md — Spinners and --json for all other commands
 
 ### Phase 41: Travel move optimization with TSP algorithms — implement 2-opt and greedy edge insertion for toolpath ordering to reduce travel distance by 20-35% on multi-object plates with benchmark validation
 
