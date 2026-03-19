@@ -182,7 +182,10 @@ pub enum CalibrateCommand {
 ///
 /// Returns an error if the subcommand fails.
 #[allow(clippy::too_many_lines)]
-pub fn run_calibrate(cmd: CalibrateCommand, cli_out: &crate::cli_output::CliOutput) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_calibrate(
+    cmd: CalibrateCommand,
+    cli_out: &crate::cli_output::CliOutput,
+) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
         CalibrateCommand::TempTower {
             machine,
@@ -196,19 +199,22 @@ pub fn run_calibrate(cmd: CalibrateCommand, cli_out: &crate::cli_output::CliOutp
             start_temp,
             end_temp,
             step,
-        } => temp_tower::cmd_temp_tower(temp_tower::TempTowerArgs {
-            machine,
-            filament,
-            process,
-            profiles_dir,
-            output,
-            json,
-            dry_run,
-            save_model,
-            start_temp,
-            end_temp,
-            step,
-        }, cli_out),
+        } => temp_tower::cmd_temp_tower(
+            temp_tower::TempTowerArgs {
+                machine,
+                filament,
+                process,
+                profiles_dir,
+                output,
+                json,
+                dry_run,
+                save_model,
+                start_temp,
+                end_temp,
+                step,
+            },
+            cli_out,
+        ),
         CalibrateCommand::Retraction {
             machine,
             filament,
@@ -221,19 +227,22 @@ pub fn run_calibrate(cmd: CalibrateCommand, cli_out: &crate::cli_output::CliOutp
             start_distance,
             end_distance,
             step,
-        } => retraction::cmd_retraction(retraction::RetractionArgs {
-            machine,
-            filament,
-            process,
-            profiles_dir,
-            output,
-            json,
-            dry_run,
-            save_model,
-            start_distance,
-            end_distance,
-            step,
-        }, cli_out),
+        } => retraction::cmd_retraction(
+            retraction::RetractionArgs {
+                machine,
+                filament,
+                process,
+                profiles_dir,
+                output,
+                json,
+                dry_run,
+                save_model,
+                start_distance,
+                end_distance,
+                step,
+            },
+            cli_out,
+        ),
         CalibrateCommand::Flow {
             machine,
             filament,
@@ -246,19 +255,22 @@ pub fn run_calibrate(cmd: CalibrateCommand, cli_out: &crate::cli_output::CliOutp
             baseline,
             step,
             steps,
-        } => flow::cmd_flow(flow::FlowArgs {
-            machine,
-            filament,
-            process,
-            profiles_dir,
-            output,
-            json,
-            dry_run,
-            save_model,
-            baseline,
-            step,
-            steps,
-        }, cli_out),
+        } => flow::cmd_flow(
+            flow::FlowArgs {
+                machine,
+                filament,
+                process,
+                profiles_dir,
+                output,
+                json,
+                dry_run,
+                save_model,
+                baseline,
+                step,
+                steps,
+            },
+            cli_out,
+        ),
         CalibrateCommand::FirstLayer {
             machine,
             filament,
@@ -269,17 +281,20 @@ pub fn run_calibrate(cmd: CalibrateCommand, cli_out: &crate::cli_output::CliOutp
             dry_run,
             save_model,
             pattern,
-        } => first_layer::cmd_first_layer(first_layer::FirstLayerArgs {
-            machine,
-            filament,
-            process,
-            profiles_dir,
-            output,
-            json,
-            dry_run,
-            save_model,
-            pattern,
-        }, cli_out),
+        } => first_layer::cmd_first_layer(
+            first_layer::FirstLayerArgs {
+                machine,
+                filament,
+                process,
+                profiles_dir,
+                output,
+                json,
+                dry_run,
+                save_model,
+                pattern,
+            },
+            cli_out,
+        ),
         CalibrateCommand::List => {
             let mut table = Table::new();
             table.load_preset(UTF8_FULL);

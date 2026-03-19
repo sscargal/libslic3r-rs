@@ -54,7 +54,10 @@ pub struct FlowArgs {
 ///
 /// Returns an error if profile resolution, mesh generation, slicing, or
 /// file writing fails.
-pub fn cmd_flow(args: FlowArgs, output: &crate::cli_output::CliOutput) -> Result<(), Box<dyn std::error::Error>> {
+pub fn cmd_flow(
+    args: FlowArgs,
+    output: &crate::cli_output::CliOutput,
+) -> Result<(), Box<dyn std::error::Error>> {
     // 1. Resolve config from profiles
     let config = resolve_calibration_config(
         &args.machine,

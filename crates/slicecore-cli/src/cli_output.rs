@@ -112,12 +112,13 @@ impl CliOutput {
         }
 
         let spinner = self.multi.add(ProgressBar::new_spinner());
-        let style = ProgressStyle::with_template("{spinner:.green} [{prefix}] {msg} {elapsed:.dim}")
-            .expect("valid spinner template")
-            .tick_strings(&[
-                "\u{280b}", "\u{2819}", "\u{2839}", "\u{2838}", "\u{283c}", "\u{2834}",
-                "\u{2826}", "\u{2827}", "\u{2807}", "\u{280f}", "\u{2713}",
-            ]);
+        let style =
+            ProgressStyle::with_template("{spinner:.green} [{prefix}] {msg} {elapsed:.dim}")
+                .expect("valid spinner template")
+                .tick_strings(&[
+                    "\u{280b}", "\u{2819}", "\u{2839}", "\u{2838}", "\u{283c}", "\u{2834}",
+                    "\u{2826}", "\u{2827}", "\u{2807}", "\u{280f}", "\u{2713}",
+                ]);
         spinner.set_style(style);
         spinner.set_prefix(format!("{step}/{total}"));
         spinner.set_message(message.to_string());
@@ -171,8 +172,8 @@ impl CliOutput {
         let style = ProgressStyle::with_template("{spinner:.green} {msg}")
             .expect("valid spinner template")
             .tick_strings(&[
-                "\u{280b}", "\u{2819}", "\u{2839}", "\u{2838}", "\u{283c}", "\u{2834}",
-                "\u{2826}", "\u{2827}", "\u{2807}", "\u{280f}", "\u{2713}",
+                "\u{280b}", "\u{2819}", "\u{2839}", "\u{2838}", "\u{283c}", "\u{2834}", "\u{2826}",
+                "\u{2827}", "\u{2807}", "\u{280f}", "\u{2713}",
             ]);
         spinner.set_style(style);
         spinner.set_message(message.to_string());
@@ -211,10 +212,7 @@ impl CliOutput {
     /// silently discard the output).
     pub fn error_msg(&self, msg: &str) {
         let text = if self.color_enabled {
-            format!(
-                "{}",
-                console::style(format!("Error: {msg}")).red().bold()
-            )
+            format!("{}", console::style(format!("Error: {msg}")).red().bold())
         } else {
             format!("Error: {msg}")
         };

@@ -48,7 +48,10 @@ pub struct FirstLayerArgs {
 ///
 /// Returns an error if profile resolution, mesh generation, slicing, or
 /// file writing fails.
-pub fn cmd_first_layer(args: FirstLayerArgs, output: &crate::cli_output::CliOutput) -> Result<(), Box<dyn std::error::Error>> {
+pub fn cmd_first_layer(
+    args: FirstLayerArgs,
+    output: &crate::cli_output::CliOutput,
+) -> Result<(), Box<dyn std::error::Error>> {
     // 1. Resolve config from profiles
     let mut config = resolve_calibration_config(
         &args.machine,

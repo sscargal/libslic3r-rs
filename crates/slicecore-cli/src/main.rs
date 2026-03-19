@@ -20,11 +20,11 @@
 
 mod analysis_display;
 mod calibrate;
+pub mod cli_output;
 mod csg_command;
 mod csg_info;
 mod diff_profiles_command;
 mod plugins_command;
-pub mod cli_output;
 mod schema_command;
 mod slice_workflow;
 mod stats_display;
@@ -809,7 +809,11 @@ fn main() {
         } => cmd_show_profile(&id, raw, profiles_dir.as_deref()),
         Commands::DiffProfiles(args) => {
             let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
-            match diff_profiles_command::run_diff_profiles_command(&args, &global_color, global_quiet) {
+            match diff_profiles_command::run_diff_profiles_command(
+                &args,
+                &global_color,
+                global_quiet,
+            ) {
                 Ok(has_differences) => {
                     if has_differences {
                         process::exit(1);
@@ -1174,7 +1178,8 @@ fn cmd_slice(
         output.error_msg(
             "infill_pattern is set to a plugin pattern, but no plugin directory is configured.",
         );
-        output.info("Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line.");
+        output
+            .info("Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line.");
         process::exit(1);
     }
 

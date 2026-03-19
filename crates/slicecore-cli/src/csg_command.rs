@@ -187,7 +187,10 @@ pub enum PrimitiveShape {
 ///
 /// Returns an error if file I/O, mesh loading, or CSG operations fail.
 #[allow(clippy::too_many_lines)]
-pub fn run_csg(cmd: CsgCommand, cli_out: &crate::cli_output::CliOutput) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_csg(
+    cmd: CsgCommand,
+    cli_out: &crate::cli_output::CliOutput,
+) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
         CsgCommand::Union {
             a,

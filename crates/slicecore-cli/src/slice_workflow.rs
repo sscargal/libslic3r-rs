@@ -169,7 +169,8 @@ pub fn run_slice_workflow(
                 return Err(2);
             }
             log_lines.push("Using built-in 'standard' process profile".to_string());
-            output.info("Note: Using built-in 'Standard Quality' process profile (no -p specified)");
+            output
+                .info("Note: Using built-in 'Standard Quality' process profile (no -p specified)");
         }
     }
 
