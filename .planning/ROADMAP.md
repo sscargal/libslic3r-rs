@@ -714,7 +714,7 @@ Plans:
 **Goal:** Integrate existing criterion benchmarks into CI with two-tier regression detection (5% warn / 15% block), per-PR comparison comments via criterion-compare-action, historical tracking on gh-pages dashboard via github-action-benchmark, peak memory tracking via /usr/bin/time, bench-ok label override, and developer documentation
 **Requirements**: BENCH-CI, BENCH-COMPARE, BENCH-HISTORY, BENCH-MEMORY, BENCH-SKIP, BENCH-DOCS
 **Depends on:** Phase 36
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 37-01-PLAN.md -- CI workflow (changes filter + bench job) and memory tracking script
