@@ -25,7 +25,6 @@ mod csg_info;
 mod diff_profiles_command;
 mod plugins_command;
 pub mod cli_output;
-pub mod progress;
 mod schema_command;
 mod slice_workflow;
 mod stats_display;
@@ -143,6 +142,14 @@ struct Cli {
     /// Plugin directory (overrides config plugin_dir)
     #[arg(long, global = true)]
     plugin_dir: Option<PathBuf>,
+
+    /// Suppress progress output, warnings, and informational messages
+    #[arg(short, long, global = true)]
+    quiet: bool,
+
+    /// Color output mode
+    #[arg(long, global = true, default_value = "auto", value_parser = ["always", "never", "auto"])]
+    color: String,
 }
 
 #[derive(Subcommand)]
@@ -223,10 +230,6 @@ enum Commands {
         /// Statistics output format (table, csv, json). Default: table.
         #[arg(long, default_value = "table", value_parser = ["table", "csv", "json"])]
         stats_format: String,
-
-        /// Suppress statistics display after slicing.
-        #[arg(long)]
-        quiet: bool,
 
         /// Save statistics to a file (in addition to stdout display).
         #[arg(long, value_name = "FILE")]
@@ -415,6 +418,7 @@ enum Commands {
         csv: bool,
 
         /// Disable ANSI color output
+        // TODO(phase-40): consider migrating to global --color flag
         #[arg(long)]
         no_color: bool,
 
@@ -537,6 +541,7 @@ enum Commands {
         csv: bool,
 
         /// Disable ANSI color output
+        // TODO(phase-40): consider migrating to global --color flag
         #[arg(long)]
         no_color: bool,
 
@@ -674,6 +679,14 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
     let global_plugin_dir = cli.plugin_dir;
+    let global_quiet = cli.quiet;
+    let global_color = cli.color;
+
+    let _color_mode = match global_color.as_str() {
+        "always" => cli_output::ColorMode::Always,
+        "never" => cli_output::ColorMode::Never,
+        _ => cli_output::ColorMode::Auto,
+    };
 
     match cli.command {
         Commands::Slice {
@@ -696,7 +709,6 @@ fn main() {
             json,
             msgpack,
             stats_format,
-            quiet,
             stats_file,
             json_no_stats,
             time_precision,
@@ -726,7 +738,7 @@ fn main() {
             msgpack,
             global_plugin_dir.as_deref(),
             &stats_format,
-            quiet,
+            global_quiet,
             stats_file.as_deref(),
             json_no_stats,
             &time_precision,
@@ -775,7 +787,7 @@ fn main() {
             profiles_dir,
         } => cmd_show_profile(&id, raw, profiles_dir.as_deref()),
         Commands::DiffProfiles(args) => {
-            match diff_profiles_command::run_diff_profiles_command(&args) {
+            match diff_profiles_command::run_diff_profiles_command(&args, &global_color, global_quiet) {
                 Ok(has_differences) => {
                     if has_differences {
                         process::exit(1);
@@ -1182,7 +1194,7 @@ fn cmd_slice(
 
     // 5c. Create progress bar (unless --quiet).
     let progress = if !quiet {
-        let pb = progress::create_progress(7);
+        let pb = cli_output::create_progress(7);
         pb.set_phase("Loading mesh");
         pb.inc(1); // mesh already loaded
         pb.set_phase("Repairing mesh");
