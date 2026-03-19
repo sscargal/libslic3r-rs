@@ -307,7 +307,11 @@ fn cli_thumbnail_png_quality_warns() {
 
     // Output should still be PNG
     let data = std::fs::read(&out_path).unwrap();
-    assert_eq!(&data[0..4], &[0x89, 0x50, 0x4E, 0x47], "Should still be PNG");
+    assert_eq!(
+        &data[0..4],
+        &[0x89, 0x50, 0x4E, 0x47],
+        "Should still be PNG"
+    );
 }
 
 #[test]

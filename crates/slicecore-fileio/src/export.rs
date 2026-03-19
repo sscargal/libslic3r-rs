@@ -117,9 +117,7 @@ fn triangle_mesh_to_model_with_thumbnail(
 
     if let Some(data) = thumbnail_data {
         let thumb_path = "Metadata/thumbnail.png".to_string();
-        model
-            .attachments
-            .insert(thumb_path.clone(), data.to_vec());
+        model.attachments.insert(thumb_path.clone(), data.to_vec());
         // Set the thumbnail path on the first object
         if let Some(obj) = model.resources.iter_objects_mut().next() {
             obj.thumbnail = Some(thumb_path);

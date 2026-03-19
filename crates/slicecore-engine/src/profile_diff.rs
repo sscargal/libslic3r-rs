@@ -64,7 +64,11 @@ pub struct DiffResult {
 ///
 /// Non-object values are inserted at the current prefix. Objects recurse
 /// with `prefix.key` (or just `key` when prefix is empty).
-fn flatten_value(prefix: &str, value: &serde_json::Value, out: &mut BTreeMap<String, serde_json::Value>) {
+fn flatten_value(
+    prefix: &str,
+    value: &serde_json::Value,
+    out: &mut BTreeMap<String, serde_json::Value>,
+) {
     match value {
         serde_json::Value::Object(map) => {
             for (k, v) in map {

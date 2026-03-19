@@ -2965,17 +2965,17 @@ fn cmd_thumbnail(
     }
 }
 
-fn detect_image_format(output: Option<&str>, explicit_format: &str) -> slicecore_render::ImageFormat {
+fn detect_image_format(
+    output: Option<&str>,
+    explicit_format: &str,
+) -> slicecore_render::ImageFormat {
     // Explicit --format takes priority (unless it's the default "png")
     if explicit_format != "png" {
         return match explicit_format {
             "jpeg" | "jpg" => slicecore_render::ImageFormat::Jpeg,
             "png" => slicecore_render::ImageFormat::Png,
             other => {
-                eprintln!(
-                    "Error: Unknown image format '{}'. Valid: png, jpeg",
-                    other
-                );
+                eprintln!("Error: Unknown image format '{}'. Valid: png, jpeg", other);
                 process::exit(1);
             }
         };
@@ -2993,10 +2993,7 @@ fn detect_image_format(output: Option<&str>, explicit_format: &str) -> slicecore
     slicecore_render::ImageFormat::Png
 }
 
-fn validate_quality(
-    quality: Option<u8>,
-    format: slicecore_render::ImageFormat,
-) -> Option<u8> {
+fn validate_quality(quality: Option<u8>, format: slicecore_render::ImageFormat) -> Option<u8> {
     if let Some(q) = quality {
         if q < 1 || q > 100 {
             eprintln!("Error: --quality must be between 1 and 100, got {}", q);
