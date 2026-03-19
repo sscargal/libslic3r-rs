@@ -1220,10 +1220,10 @@ fn cmd_slice(
         let quality = validate_quality(thumbnail_quality, image_format);
 
         // 3MF always requires PNG thumbnails per spec
-        let is_3mf = output_path.map_or(false, |p| {
+        let is_3mf = output_path.is_some_and(|p| {
             p.extension()
                 .and_then(|e| e.to_str())
-                .map_or(false, |e| e.eq_ignore_ascii_case("3mf"))
+                .is_some_and(|e| e.eq_ignore_ascii_case("3mf"))
         });
         let (thumb_format, thumb_q) =
             if is_3mf && image_format == slicecore_render::ImageFormat::Jpeg {
@@ -2995,7 +2995,7 @@ fn detect_image_format(
 
 fn validate_quality(quality: Option<u8>, format: slicecore_render::ImageFormat) -> Option<u8> {
     if let Some(q) = quality {
-        if q < 1 || q > 100 {
+        if !(1..=100).contains(&q) {
             eprintln!("Error: --quality must be between 1 and 100, got {}", q);
             process::exit(1);
         }
