@@ -253,13 +253,13 @@ pub fn run_diff_profiles_command(
         filtered.retain(|e| {
             e.category
                 .as_ref()
-                .map_or(false, |cat| category_filters.contains(cat))
+                .is_some_and(|cat| category_filters.contains(cat))
         });
     }
 
     // Apply tier filter
     if let Some(ref tier_filter) = args.tier {
-        filtered.retain(|e| e.tier.as_ref().map_or(false, |t| tier_filter.includes(t)));
+        filtered.retain(|e| e.tier.as_ref().is_some_and(|t| tier_filter.includes(t)));
     }
 
     // --- Quiet mode: exit code only ---
@@ -373,14 +373,14 @@ fn display_table(result: &DiffResult, entries: &[&DiffEntry], verbose: bool, use
     println!();
 
     // --- Group entries by category ---
-    let mut groups: BTreeMap<Option<SettingCategory>, Vec<&DiffEntry>> = BTreeMap::new();
+    let mut groups: BTreeMap<String, Vec<&DiffEntry>> = BTreeMap::new();
     for entry in entries {
-        groups.entry(entry.category).or_default().push(entry);
+        let cat_name = display_category(entry.category.as_ref());
+        groups.entry(cat_name).or_default().push(entry);
     }
 
-    for (category, group_entries) in &groups {
-        let cat_name = display_category(category.as_ref());
-        let header = format!("  {cat_name}");
+    for (cat_name, group_entries) in &groups {
+        let header = format!("  {}", cat_name);
         let dashes = "-".repeat(header.len());
         println!("{}", bold(&header, use_color));
         println!("  {dashes}");

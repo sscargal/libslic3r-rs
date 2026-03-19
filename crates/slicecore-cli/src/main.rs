@@ -16,11 +16,13 @@
 //! - `post-process`: Post-process an existing G-code file
 //! - `csg`: CSG boolean operations, splitting, hollowing, primitives, and mesh info
 //! - `schema`: Query the setting schema registry (JSON Schema, metadata, search)
+//! - `diff-profiles`: Compare two print profiles side by side
 
 mod analysis_display;
 mod calibrate;
 mod csg_command;
 mod csg_info;
+mod diff_profiles_command;
 mod plugins_command;
 pub mod progress;
 mod schema_command;
@@ -368,6 +370,9 @@ enum Commands {
         #[arg(long)]
         profiles_dir: Option<PathBuf>,
     },
+
+    /// Compare two print profiles side by side
+    DiffProfiles(diff_profiles_command::DiffProfilesArgs),
 
     /// Suggest optimal print settings using AI analysis of mesh geometry.
     ///
@@ -748,6 +753,19 @@ fn main() {
             raw,
             profiles_dir,
         } => cmd_show_profile(&id, raw, profiles_dir.as_deref()),
+        Commands::DiffProfiles(args) => {
+            match diff_profiles_command::run_diff_profiles_command(&args) {
+                Ok(has_differences) => {
+                    if has_differences {
+                        process::exit(1);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error: {e}");
+                    process::exit(2);
+                }
+            }
+        }
         Commands::AiSuggest {
             input,
             ai_config,
