@@ -726,7 +726,7 @@ Plans:
 **Goal:** Implement diff-profiles CLI subcommand comparing two PrintConfig instances with category-grouped table/JSON output, SettingRegistry metadata enrichment, and filtering by category/tier
 **Requirements**: TBD
 **Depends on:** Phase 37
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 38-01-PLAN.md -- Core diff engine module (profile_diff.rs) with types, flatten, comparison, and registry enrichment
