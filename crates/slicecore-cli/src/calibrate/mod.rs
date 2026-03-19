@@ -182,7 +182,7 @@ pub enum CalibrateCommand {
 ///
 /// Returns an error if the subcommand fails.
 #[allow(clippy::too_many_lines)]
-pub fn run_calibrate(cmd: CalibrateCommand) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run_calibrate(cmd: CalibrateCommand, _output: &crate::cli_output::CliOutput) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
         CalibrateCommand::TempTower {
             machine,

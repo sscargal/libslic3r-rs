@@ -293,6 +293,10 @@ enum Commands {
         /// Show detailed conversion report on stderr.
         #[arg(short, long)]
         verbose: bool,
+
+        /// Output as JSON instead of TOML.
+        #[arg(long)]
+        json: bool,
     },
 
     /// Import upstream slicer profiles and convert to native TOML format.
@@ -313,6 +317,10 @@ enum Commands {
         /// Source slicer name (orcaslicer or bambustudio)
         #[arg(long, default_value = "orcaslicer")]
         source_name: String,
+
+        /// Output as JSON instead of human-readable progress.
+        #[arg(long)]
+        json: bool,
     },
 
     /// List profiles from the profile library.
@@ -755,12 +763,24 @@ fn main() {
             input,
             output,
             verbose,
-        } => cmd_convert_profile(&input, output.as_deref(), verbose),
+            json,
+        } => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, json, color_mode);
+            let spinner = output_ctx.spinner("Converting profile");
+            cmd_convert_profile(&input, output.as_deref(), verbose);
+            output_ctx.finish_spinner(&spinner, "Profile converted");
+        }
         Commands::ImportProfiles {
             source_dir,
             output_dir,
             source_name,
-        } => cmd_import_profiles(&source_dir, &output_dir, &source_name),
+            json,
+        } => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, json, color_mode);
+            let spinner = output_ctx.spinner("Importing profiles");
+            cmd_import_profiles(&source_dir, &output_dir, &source_name);
+            output_ctx.finish_spinner(&spinner, "Profiles imported");
+        }
         Commands::ListProfiles {
             vendor,
             profile_type,
@@ -788,6 +808,7 @@ fn main() {
             profiles_dir,
         } => cmd_show_profile(&id, raw, profiles_dir.as_deref()),
         Commands::DiffProfiles(args) => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
             match diff_profiles_command::run_diff_profiles_command(&args, &global_color, global_quiet) {
                 Ok(has_differences) => {
                     if has_differences {
@@ -795,7 +816,7 @@ fn main() {
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error: {e}");
+                    output_ctx.error_msg(&format!("{e}"));
                     process::exit(2);
                 }
             }
@@ -804,7 +825,12 @@ fn main() {
             input,
             ai_config,
             format,
-        } => cmd_ai_suggest(&input, ai_config.as_deref(), &format),
+        } => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, format == "json", color_mode);
+            let spinner = output_ctx.spinner("Analyzing mesh and querying AI");
+            cmd_ai_suggest(&input, ai_config.as_deref(), &format);
+            output_ctx.finish_spinner(&spinner, "AI suggestion complete");
+        }
         Commands::AnalyzeGcode {
             input,
             json,
@@ -825,27 +851,32 @@ fn main() {
             model,
             compare_filament,
             profiles_dir,
-        } => cmd_analyze_gcode(
-            &input,
-            json,
-            csv,
-            no_color,
-            density,
-            diameter,
-            filter,
-            summary,
-            filament_price,
-            printer_watts,
-            electricity_rate,
-            printer_cost,
-            expected_hours,
-            labor_rate,
-            setup_time,
-            markdown,
-            model,
-            &compare_filament,
-            profiles_dir.as_deref(),
-        ),
+        } => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, json, color_mode);
+            let spinner = output_ctx.spinner("Analyzing G-code");
+            cmd_analyze_gcode(
+                &input,
+                json,
+                csv,
+                no_color,
+                density,
+                diameter,
+                filter,
+                summary,
+                filament_price,
+                printer_watts,
+                electricity_rate,
+                printer_cost,
+                expected_hours,
+                labor_rate,
+                setup_time,
+                markdown,
+                model,
+                &compare_filament,
+                profiles_dir.as_deref(),
+            );
+            output_ctx.finish_spinner(&spinner, "Analysis complete");
+        }
         Commands::Convert { input, output } => cmd_convert(&input, &output),
         Commands::Thumbnail {
             input,
@@ -873,7 +904,12 @@ fn main() {
             no_color,
             density,
             diameter,
-        } => cmd_compare_gcode(&files, json, csv, no_color, density, diameter),
+        } => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, json, color_mode);
+            let spinner = output_ctx.spinner("Comparing G-code files");
+            cmd_compare_gcode(&files, json, csv, no_color, density, diameter);
+            output_ctx.finish_spinner(&spinner, "Comparison complete");
+        }
         Commands::Arrange {
             input,
             config,
@@ -898,36 +934,46 @@ fn main() {
             &format,
         ),
         Commands::Calibrate(cal_cmd) => {
-            if let Err(e) = calibrate::run_calibrate(cal_cmd) {
-                eprintln!("Error: {e}");
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
+            let spinner = output_ctx.spinner("Generating calibration G-code");
+            if let Err(e) = calibrate::run_calibrate(cal_cmd, &output_ctx) {
+                output_ctx.finish_spinner(&spinner, "");
+                output_ctx.error_msg(&format!("{e}"));
                 process::exit(1);
             }
+            output_ctx.finish_spinner(&spinner, "Calibration G-code generated");
         }
         Commands::Csg(csg_cmd) => {
-            if let Err(e) = csg_command::run_csg(csg_cmd) {
-                eprintln!("Error: {e}");
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
+            let spinner = output_ctx.spinner("Running CSG operation");
+            if let Err(e) = csg_command::run_csg(csg_cmd, &output_ctx) {
+                output_ctx.finish_spinner(&spinner, "");
+                output_ctx.error_msg(&format!("{e}"));
                 process::exit(1);
             }
+            output_ctx.finish_spinner(&spinner, "CSG operation complete");
         }
         Commands::Schema(args) => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
             if let Err(e) = schema_command::run_schema_command(&args) {
-                eprintln!("Error: {e}");
+                output_ctx.error_msg(&format!("{e}"));
                 process::exit(1);
             }
         }
         Commands::Plugins(plugins_cmd) => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
             let dir = match global_plugin_dir.as_deref() {
                 Some(d) => d.to_path_buf(),
                 None => {
-                    eprintln!("Error: No plugin directory configured.");
-                    eprintln!(
-                        "Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line."
+                    output_ctx.error_msg("No plugin directory configured.");
+                    output_ctx.error_msg(
+                        "Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line.",
                     );
                     process::exit(1);
                 }
             };
             if let Err(e) = plugins_command::run_plugins(plugins_cmd, &dir) {
-                eprintln!("Error: {e}");
+                output_ctx.error_msg(&format!("{e}"));
                 process::exit(1);
             }
         }
