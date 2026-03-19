@@ -1442,7 +1442,7 @@ fn cmd_slice(
         // Fallback: basic summary when statistics is None.
         let time_minutes = result.estimated_time_seconds / 60.0;
         if json_output || msgpack_output {
-            output.info(&format!("Slicing complete:"));
+            output.info("Slicing complete:");
             output.info(&format!("  Layers: {}", result.layer_count));
             output.info(&format!("  Estimated time: {:.1} min", time_minutes));
         } else {
