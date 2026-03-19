@@ -54,7 +54,10 @@ pub struct FlowArgs {
 ///
 /// Returns an error if profile resolution, mesh generation, slicing, or
 /// file writing fails.
-pub fn cmd_flow(args: FlowArgs) -> Result<(), Box<dyn std::error::Error>> {
+pub fn cmd_flow(
+    args: FlowArgs,
+    output: &crate::cli_output::CliOutput,
+) -> Result<(), Box<dyn std::error::Error>> {
     // 1. Resolve config from profiles
     let config = resolve_calibration_config(
         &args.machine,
@@ -157,12 +160,12 @@ pub fn cmd_flow(args: FlowArgs) -> Result<(), Box<dyn std::error::Error>> {
     write_instructions(&instructions_path, "Flow Rate Calibration Test", &sections)?;
 
     // 10. Print summary
-    eprintln!(
+    output.info(&format!(
         "Generated flow calibration: {start_pct:.0}% to {end_pct:.0}% in {:.0}% steps ({num_sections} sections)",
         params.step * 100.0,
-    );
-    eprintln!("G-code: {}", output_path.display());
-    eprintln!("Instructions: {}", instructions_path.display());
+    ));
+    output.info(&format!("G-code: {}", output_path.display()));
+    output.info(&format!("Instructions: {}", instructions_path.display()));
 
     Ok(())
 }

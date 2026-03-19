@@ -20,11 +20,11 @@
 
 mod analysis_display;
 mod calibrate;
+pub mod cli_output;
 mod csg_command;
 mod csg_info;
 mod diff_profiles_command;
 mod plugins_command;
-pub mod progress;
 mod schema_command;
 mod slice_workflow;
 mod stats_display;
@@ -142,6 +142,14 @@ struct Cli {
     /// Plugin directory (overrides config plugin_dir)
     #[arg(long, global = true)]
     plugin_dir: Option<PathBuf>,
+
+    /// Suppress progress output, warnings, and informational messages
+    #[arg(short, long, global = true)]
+    quiet: bool,
+
+    /// Color output mode
+    #[arg(long, global = true, default_value = "auto", value_parser = ["always", "never", "auto"])]
+    color: String,
 }
 
 #[derive(Subcommand)]
@@ -223,10 +231,6 @@ enum Commands {
         #[arg(long, default_value = "table", value_parser = ["table", "csv", "json"])]
         stats_format: String,
 
-        /// Suppress statistics display after slicing.
-        #[arg(long)]
-        quiet: bool,
-
         /// Save statistics to a file (in addition to stdout display).
         #[arg(long, value_name = "FILE")]
         stats_file: Option<PathBuf>,
@@ -289,6 +293,10 @@ enum Commands {
         /// Show detailed conversion report on stderr.
         #[arg(short, long)]
         verbose: bool,
+
+        /// Output as JSON instead of TOML.
+        #[arg(long)]
+        json: bool,
     },
 
     /// Import upstream slicer profiles and convert to native TOML format.
@@ -309,6 +317,10 @@ enum Commands {
         /// Source slicer name (orcaslicer or bambustudio)
         #[arg(long, default_value = "orcaslicer")]
         source_name: String,
+
+        /// Output as JSON instead of human-readable progress.
+        #[arg(long)]
+        json: bool,
     },
 
     /// List profiles from the profile library.
@@ -414,6 +426,7 @@ enum Commands {
         csv: bool,
 
         /// Disable ANSI color output
+        // TODO(phase-40): consider migrating to global --color flag
         #[arg(long)]
         no_color: bool,
 
@@ -536,6 +549,7 @@ enum Commands {
         csv: bool,
 
         /// Disable ANSI color output
+        // TODO(phase-40): consider migrating to global --color flag
         #[arg(long)]
         no_color: bool,
 
@@ -673,6 +687,14 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
     let global_plugin_dir = cli.plugin_dir;
+    let global_quiet = cli.quiet;
+    let global_color = cli.color;
+
+    let color_mode = match global_color.as_str() {
+        "always" => cli_output::ColorMode::Always,
+        "never" => cli_output::ColorMode::Never,
+        _ => cli_output::ColorMode::Auto,
+    };
 
     match cli.command {
         Commands::Slice {
@@ -695,7 +717,6 @@ fn main() {
             json,
             msgpack,
             stats_format,
-            quiet,
             stats_file,
             json_no_stats,
             time_precision,
@@ -725,7 +746,7 @@ fn main() {
             msgpack,
             global_plugin_dir.as_deref(),
             &stats_format,
-            quiet,
+            global_quiet,
             stats_file.as_deref(),
             json_no_stats,
             &time_precision,
@@ -734,6 +755,7 @@ fn main() {
             &thumbnail_format,
             thumbnail_quality,
             auto_arrange,
+            color_mode,
         ),
         Commands::Validate { input } => cmd_validate(&input),
         Commands::Analyze { input } => cmd_analyze(&input),
@@ -741,12 +763,24 @@ fn main() {
             input,
             output,
             verbose,
-        } => cmd_convert_profile(&input, output.as_deref(), verbose),
+            json,
+        } => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, json, color_mode);
+            let spinner = output_ctx.spinner("Converting profile");
+            cmd_convert_profile(&input, output.as_deref(), verbose);
+            output_ctx.finish_spinner(&spinner, "Profile converted");
+        }
         Commands::ImportProfiles {
             source_dir,
             output_dir,
             source_name,
-        } => cmd_import_profiles(&source_dir, &output_dir, &source_name),
+            json,
+        } => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, json, color_mode);
+            let spinner = output_ctx.spinner("Importing profiles");
+            cmd_import_profiles(&source_dir, &output_dir, &source_name);
+            output_ctx.finish_spinner(&spinner, "Profiles imported");
+        }
         Commands::ListProfiles {
             vendor,
             profile_type,
@@ -774,14 +808,19 @@ fn main() {
             profiles_dir,
         } => cmd_show_profile(&id, raw, profiles_dir.as_deref()),
         Commands::DiffProfiles(args) => {
-            match diff_profiles_command::run_diff_profiles_command(&args) {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
+            match diff_profiles_command::run_diff_profiles_command(
+                &args,
+                &global_color,
+                global_quiet,
+            ) {
                 Ok(has_differences) => {
                     if has_differences {
                         process::exit(1);
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error: {e}");
+                    output_ctx.error_msg(&format!("{e}"));
                     process::exit(2);
                 }
             }
@@ -790,7 +829,12 @@ fn main() {
             input,
             ai_config,
             format,
-        } => cmd_ai_suggest(&input, ai_config.as_deref(), &format),
+        } => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, format == "json", color_mode);
+            let spinner = output_ctx.spinner("Analyzing mesh and querying AI");
+            cmd_ai_suggest(&input, ai_config.as_deref(), &format);
+            output_ctx.finish_spinner(&spinner, "AI suggestion complete");
+        }
         Commands::AnalyzeGcode {
             input,
             json,
@@ -811,27 +855,32 @@ fn main() {
             model,
             compare_filament,
             profiles_dir,
-        } => cmd_analyze_gcode(
-            &input,
-            json,
-            csv,
-            no_color,
-            density,
-            diameter,
-            filter,
-            summary,
-            filament_price,
-            printer_watts,
-            electricity_rate,
-            printer_cost,
-            expected_hours,
-            labor_rate,
-            setup_time,
-            markdown,
-            model,
-            &compare_filament,
-            profiles_dir.as_deref(),
-        ),
+        } => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, json, color_mode);
+            let spinner = output_ctx.spinner("Analyzing G-code");
+            cmd_analyze_gcode(
+                &input,
+                json,
+                csv,
+                no_color,
+                density,
+                diameter,
+                filter,
+                summary,
+                filament_price,
+                printer_watts,
+                electricity_rate,
+                printer_cost,
+                expected_hours,
+                labor_rate,
+                setup_time,
+                markdown,
+                model,
+                &compare_filament,
+                profiles_dir.as_deref(),
+            );
+            output_ctx.finish_spinner(&spinner, "Analysis complete");
+        }
         Commands::Convert { input, output } => cmd_convert(&input, &output),
         Commands::Thumbnail {
             input,
@@ -859,7 +908,12 @@ fn main() {
             no_color,
             density,
             diameter,
-        } => cmd_compare_gcode(&files, json, csv, no_color, density, diameter),
+        } => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, json, color_mode);
+            let spinner = output_ctx.spinner("Comparing G-code files");
+            cmd_compare_gcode(&files, json, csv, no_color, density, diameter);
+            output_ctx.finish_spinner(&spinner, "Comparison complete");
+        }
         Commands::Arrange {
             input,
             config,
@@ -884,36 +938,46 @@ fn main() {
             &format,
         ),
         Commands::Calibrate(cal_cmd) => {
-            if let Err(e) = calibrate::run_calibrate(cal_cmd) {
-                eprintln!("Error: {e}");
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
+            let spinner = output_ctx.spinner("Generating calibration G-code");
+            if let Err(e) = calibrate::run_calibrate(cal_cmd, &output_ctx) {
+                output_ctx.finish_spinner(&spinner, "");
+                output_ctx.error_msg(&format!("{e}"));
                 process::exit(1);
             }
+            output_ctx.finish_spinner(&spinner, "Calibration G-code generated");
         }
         Commands::Csg(csg_cmd) => {
-            if let Err(e) = csg_command::run_csg(csg_cmd) {
-                eprintln!("Error: {e}");
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
+            let spinner = output_ctx.spinner("Running CSG operation");
+            if let Err(e) = csg_command::run_csg(csg_cmd, &output_ctx) {
+                output_ctx.finish_spinner(&spinner, "");
+                output_ctx.error_msg(&format!("{e}"));
                 process::exit(1);
             }
+            output_ctx.finish_spinner(&spinner, "CSG operation complete");
         }
         Commands::Schema(args) => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
             if let Err(e) = schema_command::run_schema_command(&args) {
-                eprintln!("Error: {e}");
+                output_ctx.error_msg(&format!("{e}"));
                 process::exit(1);
             }
         }
         Commands::Plugins(plugins_cmd) => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
             let dir = match global_plugin_dir.as_deref() {
                 Some(d) => d.to_path_buf(),
                 None => {
-                    eprintln!("Error: No plugin directory configured.");
-                    eprintln!(
-                        "Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line."
+                    output_ctx.error_msg("No plugin directory configured.");
+                    output_ctx.error_msg(
+                        "Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line.",
                     );
                     process::exit(1);
                 }
             };
             if let Err(e) = plugins_command::run_plugins(plugins_cmd, &dir) {
-                eprintln!("Error: {e}");
+                output_ctx.error_msg(&format!("{e}"));
                 process::exit(1);
             }
         }
@@ -975,6 +1039,7 @@ fn cmd_slice(
     thumbnail_format: &str,
     thumbnail_quality: Option<u8>,
     auto_arrange: bool,
+    color_mode: cli_output::ColorMode,
 ) {
     // Determine if we're using the new profile-based workflow or legacy --config path.
     let use_profile_workflow = machine.is_some()
@@ -987,55 +1052,62 @@ fn cmd_slice(
         || show_config
         || unsafe_defaults;
 
-    // 1. Read input file.
+    let total_steps = if use_profile_workflow { 5 } else { 4 };
+    let output = cli_output::CliOutput::new(quiet, json_output, color_mode);
+
+    // Step 1: Load mesh (read + parse + repair).
+    let step1 = output.start_step(1, total_steps, "Load mesh");
+
     let data = match std::fs::read(input) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!(
-                "Error: Failed to read input file '{}': {}",
+            output.error_msg(&format!(
+                "Failed to read input file '{}': {}",
                 input.display(),
                 e
-            );
+            ));
             process::exit(1);
         }
     };
 
-    // 2. Load mesh.
     let mesh = match load_mesh(&data) {
         Ok(m) => m,
         Err(e) => {
-            eprintln!(
-                "Error: Failed to parse mesh from '{}': {}",
+            output.error_msg(&format!(
+                "Failed to parse mesh from '{}': {}",
                 input.display(),
                 e
-            );
+            ));
             process::exit(1);
         }
     };
 
-    // 3. Repair mesh.
     let vertices = mesh.vertices().to_vec();
     let indices = mesh.indices().to_vec();
     let (repaired_mesh, report) = match repair(vertices, indices) {
         Ok((m, r)) => (m, r),
         Err(e) => {
-            eprintln!("Error: Failed to repair mesh: {}", e);
+            output.error_msg(&format!("Failed to repair mesh: {}", e));
             process::exit(1);
         }
     };
 
     if !report.was_already_clean {
-        eprintln!(
-            "Note: Mesh repaired ({} degenerates removed, {} edges stitched, {} holes filled, {} normals fixed)",
+        output.info(&format!(
+            "Mesh repaired ({} degenerates removed, {} edges stitched, {} holes filled, {} normals fixed)",
             report.degenerate_removed,
             report.edges_stitched,
             report.holes_filled,
             report.normals_fixed,
-        );
+        ));
     }
 
-    // 4. Load config -- route through profile workflow or legacy path.
+    output.finish_step(&step1, "Load mesh");
+
+    // Step 2 (& 3 for profile workflow): Load config / Resolve profiles / Validate.
     let (print_config, gcode_header_opt) = if use_profile_workflow {
+        let step2 = output.start_step(2, total_steps, "Resolve profiles");
+
         let workflow_options = slice_workflow::SliceWorkflowOptions {
             machine: machine.map(String::from),
             filament: filament.map(String::from),
@@ -1054,31 +1126,44 @@ fn cmd_slice(
             json_output,
         };
 
-        match slice_workflow::run_slice_workflow(&workflow_options) {
+        match slice_workflow::run_slice_workflow(&workflow_options, &output) {
             Ok(result) => {
+                output.finish_step(&step2, "Resolve profiles");
+
+                let step3 = output.start_step(3, total_steps, "Validate config");
+                // Validation already ran inside run_slice_workflow; step is informational.
+                output.finish_step(&step3, "Validate config");
+
                 let header =
                     slice_workflow::generate_gcode_header(&result.composed, &workflow_options);
                 (result.composed.config, Some(header))
             }
             Err(code) => process::exit(code),
         }
-    } else if let Some(cfg_path) = config_path {
-        match PrintConfig::from_file(cfg_path) {
-            Ok(c) => (c, None),
-            Err(e) => {
-                eprintln!(
-                    "Error: Failed to load config '{}': {}",
-                    cfg_path.display(),
-                    e
-                );
-                process::exit(1);
-            }
-        }
     } else {
-        (PrintConfig::default(), None)
+        let step2 = output.start_step(2, total_steps, "Load config");
+
+        let config = if let Some(cfg_path) = config_path {
+            match PrintConfig::from_file(cfg_path) {
+                Ok(c) => c,
+                Err(e) => {
+                    output.error_msg(&format!(
+                        "Failed to load config '{}': {}",
+                        cfg_path.display(),
+                        e
+                    ));
+                    process::exit(1);
+                }
+            }
+        } else {
+            PrintConfig::default()
+        };
+
+        output.finish_step(&step2, "Load config");
+        (config, None)
     };
 
-    // 5. Load plugins (if applicable).
+    // Load plugins (if applicable).
     // Determine effective plugin directory (CLI flag overrides config).
     let effective_plugin_dir = plugin_dir
         .map(|p| p.to_string_lossy().to_string())
@@ -1090,10 +1175,11 @@ fn cmd_slice(
         slicecore_engine::InfillPattern::Plugin(_)
     ) && effective_plugin_dir.is_none()
     {
-        eprintln!(
-            "Error: infill_pattern is set to a plugin pattern, but no plugin directory is configured."
+        output.error_msg(
+            "infill_pattern is set to a plugin pattern, but no plugin directory is configured.",
         );
-        eprintln!("Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line.");
+        output
+            .info("Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line.");
         process::exit(1);
     }
 
@@ -1108,37 +1194,36 @@ fn cmd_slice(
             match registry.discover_and_load(std::path::Path::new(dir)) {
                 Ok(loaded) => {
                     if !loaded.is_empty() {
-                        eprintln!("Loaded {} plugin(s):", loaded.len());
+                        output.info(&format!("Loaded {} plugin(s):", loaded.len()));
                         for info in &loaded {
-                            eprintln!("  - {}: {}", info.name, info.description);
+                            output.info(&format!("  - {}: {}", info.name, info.description));
                         }
                     }
                     engine = engine.with_plugin_registry(registry);
                 }
                 Err(e) => {
-                    eprintln!("Warning: Failed to load plugins from '{}': {}", dir, e);
+                    output.warn(&format!("Failed to load plugins from '{}': {}", dir, e));
                 }
             }
         }
     } else if engine.has_plugin_registry() {
         // Engine auto-loaded from config.plugin_dir -- report status.
-        // Startup warnings will be emitted during slicing via EventBus.
-        eprintln!("Plugins auto-loaded from config plugin_dir");
+        output.info("Plugins auto-loaded from config plugin_dir");
     } else if let Some(ref dir) = effective_plugin_dir {
         // Fallback: config had plugin_dir but engine didn't load (shouldn't normally happen).
         let mut registry = PluginRegistry::new();
         match registry.discover_and_load(std::path::Path::new(dir)) {
             Ok(loaded) => {
                 if !loaded.is_empty() {
-                    eprintln!("Loaded {} plugin(s):", loaded.len());
+                    output.info(&format!("Loaded {} plugin(s):", loaded.len()));
                     for info in &loaded {
-                        eprintln!("  - {}: {}", info.name, info.description);
+                        output.info(&format!("  - {}: {}", info.name, info.description));
                     }
                 }
                 engine = engine.with_plugin_registry(registry);
             }
             Err(e) => {
-                eprintln!("Warning: Failed to load plugins from '{}': {}", dir, e);
+                output.warn(&format!("Failed to load plugins from '{}': {}", dir, e));
             }
         }
     }
@@ -1165,50 +1250,33 @@ fn cmd_slice(
         match slicecore_arrange::arrange(&[part], &arrange_config, bed_shape_str, bed_x, bed_y) {
             Ok(result) => {
                 let json = serde_json::to_string_pretty(&result).unwrap_or_default();
-                eprintln!("Auto-arrange plan:\n{json}");
+                output.info(&format!("Auto-arrange plan:\n{json}"));
                 if !result.unplaced_parts.is_empty() {
-                    eprintln!(
-                        "Warning: {} part(s) could not be placed on the bed",
+                    output.warn(&format!(
+                        "{} part(s) could not be placed on the bed",
                         result.unplaced_parts.len()
-                    );
+                    ));
                 }
             }
             Err(e) => {
-                eprintln!("Warning: Auto-arrange failed: {e}");
+                output.warn(&format!("Auto-arrange failed: {e}"));
             }
         }
     }
 
-    // 5c. Create progress bar (unless --quiet).
-    let progress = if !quiet {
-        let pb = progress::create_progress(7);
-        pb.set_phase("Loading mesh");
-        pb.inc(1); // mesh already loaded
-        pb.set_phase("Repairing mesh");
-        pb.inc(1); // mesh already repaired
-        pb.set_phase("Configuring engine");
-        pb.inc(1); // config loaded
-        Some(pb)
-    } else {
-        None
-    };
+    // Step N: Slice.
+    let slice_step_num = if use_profile_workflow { 4 } else { 3 };
+    let step_slice = output.start_step(slice_step_num, total_steps, "Slice");
 
-    // 6. Slice.
-    if let Some(ref pb) = progress {
-        pb.set_phase("Slicing layers");
-    }
     let result = match engine.slice(&repaired_mesh, None) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("Error: Slicing failed: {}", e);
+            output.error_msg(&format!("Slicing failed: {}", e));
             process::exit(1);
         }
     };
 
-    if let Some(ref pb) = progress {
-        pb.inc(1);
-        pb.set_phase("Generating G-code");
-    }
+    output.finish_step(&step_slice, "Slice");
 
     // 7. Generate and embed thumbnails if requested.
     let mut gcode_output = result.gcode.clone();
@@ -1227,7 +1295,7 @@ fn cmd_slice(
         });
         let (thumb_format, thumb_q) =
             if is_3mf && image_format == slicecore_render::ImageFormat::Jpeg {
-                eprintln!("Warning: JPEG not supported for 3MF thumbnails, using PNG");
+                output.warn("JPEG not supported for 3MF thumbnails, using PNG");
                 (slicecore_render::ImageFormat::Png, None)
             } else {
                 (image_format, quality)
@@ -1262,33 +1330,26 @@ fn cmd_slice(
         gcode_output = new_output;
     }
 
-    if let Some(ref pb) = progress {
-        pb.inc(1);
-        pb.set_phase("Writing output");
-    }
+    // Step N: Write G-code.
+    let write_step_num = if use_profile_workflow { 5 } else { 4 };
+    let step_write = output.start_step(write_step_num, total_steps, "Write G-code");
 
-    // 8. Determine output path.
     let out_path = if let Some(p) = output_path {
         p.to_path_buf()
     } else {
         input.with_extension("gcode")
     };
 
-    // 9. Write G-code output.
     if let Err(e) = std::fs::write(&out_path, &gcode_output) {
-        eprintln!(
-            "Error: Failed to write output '{}': {}",
+        output.error_msg(&format!(
+            "Failed to write output '{}': {}",
             out_path.display(),
             e
-        );
+        ));
         process::exit(1);
     }
 
-    if let Some(ref pb) = progress {
-        pb.inc(1);
-        pb.inc(1);
-        pb.finish();
-    }
+    output.finish_step(&step_write, "Write G-code");
 
     // 9. Structured output (JSON or MessagePack to stdout).
     if json_output {
@@ -1318,7 +1379,7 @@ fn cmd_slice(
                 }
             }
             Err(e) => {
-                eprintln!("Error: Failed to serialize JSON: {}", e);
+                output.error_msg(&format!("Failed to serialize JSON: {}", e));
                 process::exit(1);
             }
         }
@@ -1327,12 +1388,12 @@ fn cmd_slice(
             Ok(bytes) => {
                 use std::io::Write;
                 if let Err(e) = std::io::stdout().write_all(&bytes) {
-                    eprintln!("Error: Failed to write MessagePack: {}", e);
+                    output.error_msg(&format!("Failed to write MessagePack: {}", e));
                     process::exit(1);
                 }
             }
             Err(e) => {
-                eprintln!("Error: Failed to serialize MessagePack: {}", e);
+                output.error_msg(&format!("Failed to serialize MessagePack: {}", e));
                 process::exit(1);
             }
         }
@@ -1354,7 +1415,7 @@ fn cmd_slice(
 
             // When structured output (--json/--msgpack) is active, stats go to stderr.
             if json_output || msgpack_output {
-                eprintln!("{}", stats_output);
+                output.info(&stats_output);
             } else {
                 println!("{}", stats_output);
             }
@@ -1370,20 +1431,20 @@ fn cmd_slice(
                 }
             };
             if let Err(e) = std::fs::write(file_path, &stats_output) {
-                eprintln!(
-                    "Warning: Failed to write statistics to '{}': {}",
+                output.warn(&format!(
+                    "Failed to write statistics to '{}': {}",
                     file_path.display(),
                     e
-                );
+                ));
             }
         }
     } else if !quiet {
         // Fallback: basic summary when statistics is None.
         let time_minutes = result.estimated_time_seconds / 60.0;
         if json_output || msgpack_output {
-            eprintln!("Slicing complete:");
-            eprintln!("  Layers: {}", result.layer_count);
-            eprintln!("  Estimated time: {:.1} min", time_minutes);
+            output.info("Slicing complete:");
+            output.info(&format!("  Layers: {}", result.layer_count));
+            output.info(&format!("  Estimated time: {:.1} min", time_minutes));
         } else {
             println!("Slicing complete:");
             println!("  Layers: {}", result.layer_count);
@@ -1391,28 +1452,30 @@ fn cmd_slice(
         }
     }
 
-    // Always print output path (separate from statistics).
+    // Summary line with output path, layers, estimated time, filament usage.
+    let filament_m = result
+        .statistics
+        .as_ref()
+        .map_or(0.0, |s| s.summary.total_filament_m);
+    let time_min = result.estimated_time_seconds / 60.0;
+    // Summary line: goes to stderr via CliOutput for structured/profile workflows,
+    // and to stdout for the default human-readable output mode.
+    let summary_line = format!(
+        "Output: {} ({} layers, {:.1}m filament, est. {:.1}min)",
+        out_path.display(),
+        result.layer_count,
+        filament_m,
+        time_min,
+    );
     if json_output || msgpack_output {
-        eprintln!("Output: {}", out_path.display());
-    } else if !quiet {
-        println!("\nOutput: {}", out_path.display());
-    }
-
-    // Summary line for profile-based workflow.
-    if use_profile_workflow {
-        let filament_m = result
-            .statistics
-            .as_ref()
-            .map_or(0.0, |s| s.summary.total_filament_m);
-        let time_min = result.estimated_time_seconds / 60.0;
-        eprintln!(
-            "Sliced {} -> {} ({} layers, {:.1}m filament, est. {:.1}min)",
-            input.display(),
-            out_path.display(),
-            result.layer_count,
-            filament_m,
-            time_min,
-        );
+        output.info(&summary_line);
+    } else {
+        // Print to stdout for human-readable output and to stderr via CliOutput
+        // so profile workflow tests can verify it on stderr.
+        if !quiet {
+            println!("\n{summary_line}");
+        }
+        output.info(&summary_line);
     }
 
     // Log file creation (profile workflow only, unless --no-log).
@@ -1430,10 +1493,10 @@ fn cmd_slice(
             result.estimated_time_seconds,
         );
         if let Err(e) = std::fs::write(&log_path, &log_content) {
-            eprintln!(
-                "Warning: Failed to create log file '{}': {e}",
+            output.warn(&format!(
+                "Failed to create log file '{}': {e}",
                 log_path.display()
-            );
+            ));
         }
     }
 }

@@ -111,14 +111,6 @@ pub struct DiffProfilesArgs {
     #[arg(long)]
     pub json: bool,
 
-    /// Suppress output, exit code only (0=identical, 1=different).
-    #[arg(short, long)]
-    pub quiet: bool,
-
-    /// Color mode: always, never, auto.
-    #[arg(long, default_value = "auto")]
-    pub color: String,
-
     /// Profile library directory override.
     #[arg(long)]
     pub profiles_dir: Option<PathBuf>,
@@ -215,6 +207,8 @@ fn red(s: &str, use_color: bool) -> String {
 /// failures.
 pub fn run_diff_profiles_command(
     args: &DiffProfilesArgs,
+    color: &str,
+    quiet: bool,
 ) -> Result<bool, Box<dyn std::error::Error>> {
     // --- Argument validation ---
     if !args.defaults && args.right.is_none() {
@@ -263,12 +257,12 @@ pub fn run_diff_profiles_command(
     }
 
     // --- Quiet mode: exit code only ---
-    if args.quiet {
+    if quiet {
         return Ok(result.total_differences > 0);
     }
 
     // Determine color mode
-    let use_color = match args.color.as_str() {
+    let use_color = match color {
         "always" => true,
         "never" => false,
         _ => std::io::stdout().is_terminal(),

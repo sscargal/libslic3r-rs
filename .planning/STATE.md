@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: "Completed quick task 260319-qfm: Fix clippy warnings"
-last_updated: "2026-03-19T19:04:18.184Z"
-last_activity: "2026-03-19 - Completed quick task 260319-qfm: Run cargo clippy --workspace -- -D warnings and fix all errors"
+status: completed
+stopped_at: Completed 40-03-PLAN.md
+last_updated: "2026-03-19T22:32:36.995Z"
+last_activity: "2026-03-19 - Completed 40-03: Non-slice command progress migration"
 progress:
   total_phases: 41
-  completed_phases: 39
-  total_plans: 163
-  completed_plans: 163
+  completed_phases: 40
+  total_plans: 166
+  completed_plans: 166
   percent: 100
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-14)
 
 **Core value:** The plugin architecture and AI integration must work from day one -- modularity and intelligence are not bolt-ons.
-**Current focus:** Phase 39 -- JPEG thumbnail export
+**Current focus:** Phase 40 -- Adopt indicatif for consistent CLI progress display
 
 ## Current Position
 
-Phase: 39 of 41 (JPEG thumbnail export)
-Plan: 2 of 2 in current phase (2 complete)
-Status: In Progress
-Last activity: 2026-03-19 - Completed quick task 260319-qcn: Run cargo fmt --all -- --check and fix all errors
+Phase: 40 of 41 (Adopt indicatif for CLI progress)
+Plan: 3 of 3 in current phase (3 complete)
+Status: Phase Complete
+Last activity: 2026-03-19 - Completed quick task 260319-viy: Fix cargo fmt issues from phase 40
 
-Progress: [██████████] 100% (163/163 overall)
+Progress: [██████████] 100% (166/166 overall)
 
 ## Performance Metrics
 
@@ -142,6 +142,9 @@ Progress: [██████████] 100% (163/163 overall)
 | Phase 38 P02 | 4min | 2 tasks | 2 files |
 | Phase 39 P01 | 7min | 2 tasks | 9 files |
 | Phase 39 P02 | 5min | 2 tasks | 2 files |
+| Phase 40 P01 | 5 | 2 tasks | 4 files |
+| Phase 40 P02 | 10min | 2 tasks | 3 files |
+| Phase 40 P03 | 7min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -652,6 +655,8 @@ Recent decisions affecting current work:
 - [Phase 39]: Alpha compositing onto white background for JPEG transparency
 - [Phase 39]: Auto-detect JPEG from .jpg/.jpeg output extension when --format not explicitly set
 - [Phase 39]: 3MF output silently overrides JPEG to PNG per 3MF spec requirement
+- [Phase 40]: CliOutput abstracts all CLI output with spinner/progress-bar/step-indicator modes, quiet/json/color awareness
+- [Phase 40]: Spinner wrapping in main dispatch, CliOutput passed through to calibrate/CSG subcommands for internal routing
 
 ### Roadmap Evolution
 
@@ -700,9 +705,10 @@ Recent decisions affecting current work:
 | 260318-oau | Improve QA temp directory cleanup - keep on failure, report stale dirs | 2026-03-18 | 499da8d | [260318-oau-improve-qa-temp-directory-cleanup-keep-o](./quick/260318-oau-improve-qa-temp-directory-cleanup-keep-o/) |
 | 260319-qcn | Run cargo fmt --all -- --check and fix all errors | 2026-03-19 | 0de3406 | [260319-qcn-run-cargo-fmt-all-check-and-fix-all-erro](./quick/260319-qcn-run-cargo-fmt-all-check-and-fix-all-erro/) |
 | 260319-qfm | Run cargo clippy --workspace -- -D warnings and fix all errors | 2026-03-19 | 6fcd5e7 | [260319-qfm-run-cargo-clippy-workspace-d-warnings-an](./quick/260319-qfm-run-cargo-clippy-workspace-d-warnings-an/) |
+| 260319-viy | Fix cargo fmt issues from phase 40 | 2026-03-19 | 3f25cd2 | [260319-viy-fix-the-issues-reported-by-cargo-fmt-all](./quick/260319-viy-fix-the-issues-reported-by-cargo-fmt-all/) |
 
 ## Session Continuity
 
-Last session: 2026-03-19T19:04:18.180Z
-Stopped at: Completed quick task 260319-qfm: Fix clippy warnings
+Last session: 2026-03-19T22:27:41.461Z
+Stopped at: Completed 40-03-PLAN.md
 Resume file: None

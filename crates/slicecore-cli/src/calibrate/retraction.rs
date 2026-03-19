@@ -54,7 +54,10 @@ pub struct RetractionArgs {
 ///
 /// Returns an error if profile resolution, mesh generation, slicing, or
 /// file writing fails.
-pub fn cmd_retraction(args: RetractionArgs) -> Result<(), Box<dyn std::error::Error>> {
+pub fn cmd_retraction(
+    args: RetractionArgs,
+    output: &crate::cli_output::CliOutput,
+) -> Result<(), Box<dyn std::error::Error>> {
     // 1. Resolve config from profiles
     let config = resolve_calibration_config(
         &args.machine,
@@ -151,12 +154,12 @@ pub fn cmd_retraction(args: RetractionArgs) -> Result<(), Box<dyn std::error::Er
     write_instructions(&instructions_path, "Retraction Calibration Test", &sections)?;
 
     // 10. Print summary
-    eprintln!(
+    output.info(&format!(
         "Generated retraction test: {:.1}mm to {:.1}mm in {:.1}mm steps ({num_sections} sections, one reprint per section)",
         params.start_distance, params.end_distance, params.step,
-    );
-    eprintln!("G-code: {}", output_path.display());
-    eprintln!("Instructions: {}", instructions_path.display());
+    ));
+    output.info(&format!("G-code: {}", output_path.display()));
+    output.info(&format!("Instructions: {}", instructions_path.display()));
 
     Ok(())
 }

@@ -52,7 +52,10 @@ pub struct TempTowerArgs {
 ///
 /// Returns an error if profile resolution, mesh generation, slicing, or
 /// file writing fails.
-pub fn cmd_temp_tower(args: TempTowerArgs) -> Result<(), Box<dyn std::error::Error>> {
+pub fn cmd_temp_tower(
+    args: TempTowerArgs,
+    output: &crate::cli_output::CliOutput,
+) -> Result<(), Box<dyn std::error::Error>> {
     // 1. Resolve config from profiles
     let config = resolve_calibration_config(
         &args.machine,
@@ -153,12 +156,12 @@ pub fn cmd_temp_tower(args: TempTowerArgs) -> Result<(), Box<dyn std::error::Err
     )?;
 
     // 10. Print summary
-    eprintln!(
+    output.info(&format!(
         "Generated temperature tower: {:.0}C to {:.0}C in {:.0}C steps ({num_blocks} blocks)",
         params.start_temp, params.end_temp, params.step,
-    );
-    eprintln!("G-code: {}", output_path.display());
-    eprintln!("Instructions: {}", instructions_path.display());
+    ));
+    output.info(&format!("G-code: {}", output_path.display()));
+    output.info(&format!("Instructions: {}", instructions_path.display()));
 
     Ok(())
 }
