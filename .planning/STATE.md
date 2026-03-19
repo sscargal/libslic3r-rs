@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 40 of 41 (Adopt indicatif for CLI progress)
 Plan: 3 of 3 in current phase (3 complete)
 Status: Phase Complete
-Last activity: 2026-03-19 - Completed 40-03: Non-slice command progress migration
+Last activity: 2026-03-19 - Completed quick task 260319-viy: Fix cargo fmt issues from phase 40
 
 Progress: [██████████] 100% (166/166 overall)
 
@@ -705,6 +705,7 @@ Recent decisions affecting current work:
 | 260318-oau | Improve QA temp directory cleanup - keep on failure, report stale dirs | 2026-03-18 | 499da8d | [260318-oau-improve-qa-temp-directory-cleanup-keep-o](./quick/260318-oau-improve-qa-temp-directory-cleanup-keep-o/) |
 | 260319-qcn | Run cargo fmt --all -- --check and fix all errors | 2026-03-19 | 0de3406 | [260319-qcn-run-cargo-fmt-all-check-and-fix-all-erro](./quick/260319-qcn-run-cargo-fmt-all-check-and-fix-all-erro/) |
 | 260319-qfm | Run cargo clippy --workspace -- -D warnings and fix all errors | 2026-03-19 | 6fcd5e7 | [260319-qfm-run-cargo-clippy-workspace-d-warnings-an](./quick/260319-qfm-run-cargo-clippy-workspace-d-warnings-an/) |
+| 260319-viy | Fix cargo fmt issues from phase 40 | 2026-03-19 | 3f25cd2 | [260319-viy-fix-the-issues-reported-by-cargo-fmt-all](./quick/260319-viy-fix-the-issues-reported-by-cargo-fmt-all/) |
 
 ## Session Continuity
 
