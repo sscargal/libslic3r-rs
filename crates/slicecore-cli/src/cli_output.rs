@@ -10,82 +10,6 @@ use std::time::Duration;
 use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 
 // ---------------------------------------------------------------------------
-// Temporary backwards compatibility -- remove after Plan 02 migrates cmd_slice
-// ---------------------------------------------------------------------------
-
-/// Progress bar for slice operations with automatic TTY detection.
-///
-/// **Deprecated:** This struct exists only for backwards compatibility with
-/// `cmd_slice`. Prefer [`CliOutput`] for all new code.
-#[derive(Debug)]
-pub struct SliceProgress {
-    /// The underlying indicatif progress bar.
-    bar: ProgressBar,
-    /// Whether we are running in a TTY (interactive terminal).
-    is_tty: bool,
-}
-
-impl SliceProgress {
-    /// Creates a new progress bar with the given total step count.
-    #[must_use]
-    pub fn new(total_steps: u64) -> Self {
-        let is_tty = std::io::stderr().is_terminal();
-
-        let bar = if is_tty {
-            let pb = ProgressBar::new(total_steps);
-            let style = ProgressStyle::with_template(
-                "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}",
-            )
-            .expect("valid progress bar template")
-            .progress_chars("=>-");
-            pb.set_style(style);
-            pb
-        } else {
-            ProgressBar::hidden()
-        };
-
-        Self { bar, is_tty }
-    }
-
-    /// Updates the current phase message.
-    pub fn set_phase(&self, phase: &str) {
-        if self.is_tty {
-            self.bar.set_message(phase.to_string());
-        } else {
-            eprintln!("[progress] {phase}");
-        }
-    }
-
-    /// Increments the progress bar by `n` steps.
-    pub fn inc(&self, n: u64) {
-        self.bar.inc(n);
-    }
-
-    /// Finishes and clears the progress bar, printing a completion message.
-    pub fn finish(&self) {
-        if self.is_tty {
-            self.bar.finish_and_clear();
-        }
-        eprintln!("Slicing complete.");
-    }
-
-    /// Prints a message above the progress bar (TTY) or directly to stderr (non-TTY).
-    pub fn println(&self, msg: &str) {
-        if self.is_tty {
-            self.bar.println(msg);
-        } else {
-            eprintln!("{msg}");
-        }
-    }
-}
-
-/// Convenience function to create a new [`SliceProgress`].
-#[must_use]
-pub fn create_progress(total: u64) -> SliceProgress {
-    SliceProgress::new(total)
-}
-
-// ---------------------------------------------------------------------------
 // ColorMode
 // ---------------------------------------------------------------------------
 
@@ -273,11 +197,18 @@ impl CliOutput {
         } else {
             format!("Warning: {msg}")
         };
-        // Ignore println errors (broken pipe, etc.)
-        let _ = self.multi.println(&text);
+        if self.is_tty {
+            let _ = self.multi.println(&text);
+        } else {
+            eprintln!("{text}");
+        }
     }
 
     /// Prints an error message. **Never** suppressed, even in quiet mode.
+    ///
+    /// Uses `eprintln!` directly to guarantee the message reaches stderr
+    /// even when no progress bars are active (where `multi.println` may
+    /// silently discard the output).
     pub fn error_msg(&self, msg: &str) {
         let text = if self.color_enabled {
             format!(
@@ -287,7 +218,7 @@ impl CliOutput {
         } else {
             format!("Error: {msg}")
         };
-        let _ = self.multi.println(&text);
+        eprintln!("{text}");
     }
 
     /// Prints an informational message. Suppressed in quiet mode.
@@ -295,7 +226,11 @@ impl CliOutput {
         if self.effective_quiet() {
             return;
         }
-        let _ = self.multi.println(msg);
+        if self.is_tty {
+            let _ = self.multi.println(msg);
+        } else {
+            eprintln!("{msg}");
+        }
     }
 
     // -- Accessors ---------------------------------------------------------
