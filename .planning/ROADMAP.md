@@ -734,13 +734,14 @@ Plans:
 
 ### Phase 39: JPEG thumbnail export — add JPEG encoding option to render crate alongside existing PNG, with CLI flag, quality control, and 3MF/G-code thumbnail embedding support
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Add JPEG encoding alongside PNG in the render crate, with CLI --format/--quality flags, auto-detection from file extension, and proper 3MF/G-code embedding behavior
+**Requirements**: JPEG-01, JPEG-02, JPEG-03, JPEG-04, JPEG-05, JPEG-06
 **Depends on:** Phase 38
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 39 to break down)
+- [ ] 39-01-PLAN.md -- Render crate image crate migration, ImageFormat enum, JPEG encoding, field renames across workspace
+- [ ] 39-02-PLAN.md -- CLI --format/--quality flags on thumbnail and slice commands with integration tests
 
 ### Phase 40: Adopt indicatif for consistent CLI progress display — replace ad-hoc println with progress bars, spinners, and step indicators across all CLI commands with quiet/json flag support
 
