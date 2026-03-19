@@ -3,7 +3,8 @@
 use slicecore_math::Point3;
 use slicecore_mesh::TriangleMesh;
 use slicecore_render::{
-    format_gcode_thumbnail_block, render_mesh, CameraAngle, ThumbnailConfig, ThumbnailFormat,
+    format_gcode_thumbnail_block, render_mesh, CameraAngle, ImageFormat, ThumbnailConfig,
+    ThumbnailFormat,
 };
 
 // ---------------------------------------------------------------------------
@@ -85,6 +86,8 @@ fn render_01_framebuffer_z_test() {
         angles: vec![CameraAngle::Front],
         background: [0, 0, 0, 0],
         model_color: [200, 200, 200],
+        output_format: ImageFormat::Png,
+        quality: None,
     };
     let thumbs = render_mesh(&mesh, &config);
     assert_eq!(thumbs.len(), 1);
@@ -120,6 +123,8 @@ fn render_02_rasterization_non_empty() {
         angles: vec![CameraAngle::Front],
         background: [0, 0, 0, 0],
         model_color: [200, 200, 200],
+        output_format: ImageFormat::Png,
+        quality: None,
     };
     let thumbs = render_mesh(&mesh, &config);
     let non_bg = thumbs[0]
@@ -139,6 +144,8 @@ fn render_02_rasterization_deterministic() {
         angles: vec![CameraAngle::Isometric],
         background: [0, 0, 0, 0],
         model_color: [200, 200, 200],
+        output_format: ImageFormat::Png,
+        quality: None,
     };
     let a = render_mesh(&mesh, &config);
     let b = render_mesh(&mesh, &config);
@@ -161,6 +168,8 @@ fn render_03_all_angles_pairwise_distinct() {
         angles: CameraAngle::all(),
         background: [0, 0, 0, 0],
         model_color: [200, 200, 200],
+        output_format: ImageFormat::Png,
+        quality: None,
     };
     let thumbs = render_mesh(&mesh, &config);
     assert_eq!(thumbs.len(), 6);
@@ -201,6 +210,8 @@ fn render_04_shading_brightness_variation() {
         angles: vec![CameraAngle::Isometric],
         background: [0, 0, 0, 0],
         model_color: [200, 200, 200],
+        output_format: ImageFormat::Png,
+        quality: None,
     };
     let thumbs = render_mesh(&mesh, &config);
 
@@ -240,9 +251,11 @@ fn render_05_png_valid() {
         angles: vec![CameraAngle::Isometric],
         background: [0, 0, 0, 0],
         model_color: [200, 200, 200],
+        output_format: ImageFormat::Png,
+        quality: None,
     };
     let thumbs = render_mesh(&mesh, &config);
-    let png_data = &thumbs[0].png_data;
+    let png_data = &thumbs[0].encoded_data;
 
     // Check PNG magic bytes
     assert!(png_data.len() > 100, "PNG should be non-trivial size");
@@ -252,12 +265,11 @@ fn render_05_png_valid() {
         "PNG magic bytes"
     );
 
-    // Decode PNG back to verify it is valid
-    let decoder = png::Decoder::new(std::io::Cursor::new(png_data));
-    let reader = decoder.read_info().expect("Should decode PNG info");
-    let info = reader.info();
-    assert_eq!(info.width, 64);
-    assert_eq!(info.height, 64);
+    // Decode PNG back to verify it is valid using image crate
+    let img = image::load_from_memory_with_format(png_data, image::ImageFormat::Png)
+        .expect("Should decode PNG");
+    assert_eq!(img.width(), 64);
+    assert_eq!(img.height(), 64);
 }
 
 // ---------------------------------------------------------------------------
@@ -273,9 +285,11 @@ fn render_06_3mf_thumbnail_embedded() {
         angles: vec![CameraAngle::Isometric],
         background: [0, 0, 0, 0],
         model_color: [200, 200, 200],
+        output_format: ImageFormat::Png,
+        quality: None,
     };
     let thumbs = render_mesh(&mesh, &config);
-    let png_data = &thumbs[0].png_data;
+    let png_data = &thumbs[0].encoded_data;
 
     // Save as 3MF with thumbnail to an in-memory buffer
     let mut buf = std::io::Cursor::new(Vec::new());
@@ -327,6 +341,8 @@ fn render_07_gcode_thumbnail_prusaslicer_format() {
         angles: vec![CameraAngle::Isometric],
         background: [0, 0, 0, 0],
         model_color: [200, 200, 200],
+        output_format: ImageFormat::Png,
+        quality: None,
     };
     let thumbs = render_mesh(&mesh, &config);
     let block = format_gcode_thumbnail_block(&thumbs[0], ThumbnailFormat::PrusaSlicer);
@@ -367,7 +383,7 @@ fn render_07_gcode_thumbnail_prusaslicer_format() {
     let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &b64_content)
         .expect("Base64 decode should succeed");
     assert_eq!(
-        decoded, thumbs[0].png_data,
+        decoded, thumbs[0].encoded_data,
         "Decoded base64 should match original PNG"
     );
 }
@@ -381,6 +397,8 @@ fn render_07_gcode_thumbnail_creality_format() {
         angles: vec![CameraAngle::Isometric],
         background: [0, 0, 0, 0],
         model_color: [200, 200, 200],
+        output_format: ImageFormat::Png,
+        quality: None,
     };
     let thumbs = render_mesh(&mesh, &config);
     let block = format_gcode_thumbnail_block(&thumbs[0], ThumbnailFormat::Creality);
@@ -427,6 +445,8 @@ fn render_pyramid_produces_pixels() {
         angles: vec![CameraAngle::Isometric],
         background: [0, 0, 0, 0],
         model_color: [200, 200, 200],
+        output_format: ImageFormat::Png,
+        quality: None,
     };
     let thumbs = render_mesh(&mesh, &config);
     let non_bg = thumbs[0]
