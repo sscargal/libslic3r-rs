@@ -24,6 +24,7 @@ mod csg_command;
 mod csg_info;
 mod diff_profiles_command;
 mod plugins_command;
+pub mod cli_output;
 pub mod progress;
 mod schema_command;
 mod slice_workflow;

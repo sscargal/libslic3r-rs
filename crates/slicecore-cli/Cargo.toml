@@ -27,6 +27,7 @@ slicecore-plugin-api = { path = "../slicecore-plugin-api" }
 slicecore-render = { path = "../slicecore-render" }
 slicecore-arrange = { path = "../slicecore-arrange" }
 slicecore-math = { path = "../slicecore-math" }
+console = "0.15"
 indicatif = "0.17"
 anyhow = { workspace = true }
 
