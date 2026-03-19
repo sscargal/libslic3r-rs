@@ -737,7 +737,7 @@ Plans:
 **Goal:** Add JPEG encoding alongside PNG in the render crate, with CLI --format/--quality flags, auto-detection from file extension, and proper 3MF/G-code embedding behavior
 **Requirements**: JPEG-01, JPEG-02, JPEG-03, JPEG-04, JPEG-05, JPEG-06
 **Depends on:** Phase 38
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 39-01-PLAN.md -- Render crate image crate migration, ImageFormat enum, JPEG encoding, field renames across workspace
