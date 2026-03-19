@@ -620,16 +620,6 @@ Plans:
 - [ ] 30-04-PLAN.md -- CLI flags and slice workflow orchestrator (resolve->compose->validate->slice)
 - [ ] 30-05-PLAN.md -- Progress bar module and existing profile command migration to ProfileResolver
 - [ ] 30-06-PLAN.md -- E2E integration tests for profile composition slice workflow
-
-
-
-
-
-
-
-
-
-
 ### Phase 31: CLI utility commands calibrate and estimate
 
 **Goal:** CLI users can generate printer-specific calibration G-code (temperature tower, retraction test, flow rate, first layer) and get cost estimation breakdowns from G-code analysis, with multi-config comparison and volume-based rough estimation for model files
@@ -718,3 +708,15 @@ Plans:
 - [ ] 36-01-PLAN.md -- Plugin status module and status-aware discovery pipeline
 - [ ] 36-02-PLAN.md -- CLI plugins subcommand and global --plugin-dir promotion
 - [ ] 36-03-PLAN.md -- QA tests for plugins subcommand
+
+### Phase 37: CI benchmark tracking with regression detection — integrate criterion benchmarks into CI pipeline with historical tracking, threshold-based regression alerts, and dashboard reporting
+
+**Goal:** Integrate existing criterion benchmarks into CI with two-tier regression detection (5% warn / 15% block), per-PR comparison comments via criterion-compare-action, historical tracking on gh-pages dashboard via github-action-benchmark, peak memory tracking via /usr/bin/time, bench-ok label override, and developer documentation
+**Requirements**: BENCH-CI, BENCH-COMPARE, BENCH-HISTORY, BENCH-MEMORY, BENCH-SKIP, BENCH-DOCS
+**Depends on:** Phase 36
+**Plans:** 2 plans
+
+Plans:
+- [ ] 37-01-PLAN.md -- CI workflow (changes filter + bench job) and memory tracking script
+- [ ] 37-02-PLAN.md -- Benchmark documentation in CONTRIBUTING.md
+
