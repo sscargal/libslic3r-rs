@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 41 context gathered
-last_updated: "2026-03-20T01:12:31.337Z"
-last_activity: "2026-03-19 - Completed quick task 260319-viy: Fix cargo fmt issues from phase 40"
+status: executing
+stopped_at: Completed 41-01-PLAN.md
+last_updated: "2026-03-20T16:51:34.275Z"
+last_activity: "2026-03-20 - Completed 41-01: Core TSP algorithms (NN, greedy, 2-opt)"
 progress:
   total_phases: 41
   completed_phases: 40
-  total_plans: 166
-  completed_plans: 166
+  total_plans: 170
+  completed_plans: 167
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 40 of 41 (Adopt indicatif for CLI progress)
-Plan: 3 of 3 in current phase (3 complete)
-Status: Phase Complete
-Last activity: 2026-03-19 - Completed quick task 260319-viy: Fix cargo fmt issues from phase 40
+Phase: 41 of 41 (Travel move optimization with TSP algorithms)
+Plan: 1 of 4 in current phase (1 complete)
+Status: In Progress
+Last activity: 2026-03-20 - Completed 41-01: Core TSP algorithms (NN, greedy, 2-opt)
 
-Progress: [██████████] 100% (166/166 overall)
+Progress: [██████████] 100% (167/170 overall)
 
 ## Performance Metrics
 
@@ -145,6 +145,7 @@ Progress: [██████████] 100% (166/166 overall)
 | Phase 40 P01 | 5 | 2 tasks | 4 files |
 | Phase 40 P02 | 10min | 2 tasks | 3 files |
 | Phase 40 P03 | 7min | 2 tasks | 7 files |
+| Phase 41 P01 | 13 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -657,6 +658,7 @@ Recent decisions affecting current work:
 - [Phase 39]: 3MF output silently overrides JPEG to PNG per 3MF spec requirement
 - [Phase 40]: CliOutput abstracts all CLI output with spinner/progress-bar/step-indicator modes, quiet/json/color awareness
 - [Phase 40]: Spinner wrapping in main dispatch, CliOutput passed through to calibrate/CSG subcommands for internal routing
+- [Phase 41]: Stored Euclidean distances in matrix for correct 2-opt delta computation
 
 ### Roadmap Evolution
 
@@ -709,6 +711,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-20T01:12:31.322Z
-Stopped at: Phase 41 context gathered
-Resume file: .planning/phases/41-travel-move-optimization-with-tsp-algorithms-implement-2-opt-and-greedy-edge-insertion-for-toolpath-ordering-to-reduce-travel-distance-by-20-35-on-multi-object-plates-with-benchmark-validation/41-CONTEXT.md
+Last session: 2026-03-20T16:51:34.271Z
+Stopped at: Completed 41-01-PLAN.md
+Resume file: None
