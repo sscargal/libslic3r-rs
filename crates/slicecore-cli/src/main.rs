@@ -17,6 +17,7 @@
 //! - `csg`: CSG boolean operations, splitting, hollowing, primitives, and mesh info
 //! - `schema`: Query the setting schema registry (JSON Schema, metadata, search)
 //! - `diff-profiles`: Compare two print profiles side by side
+//! - `profile`: Manage profiles (clone, set, get, reset, edit, validate, delete, rename)
 
 mod analysis_display;
 mod calibrate;
@@ -124,6 +125,18 @@ G-CODE ANALYSIS:
   Compare G-code files from different slicers:
     slicecore compare-gcode bambu.gcode orca.gcode prusa.gcode
     slicecore compare-gcode baseline.gcode variant.gcode --json
+
+PROFILE MANAGEMENT:
+  Clone a profile for customization:
+    slicecore profile clone BBL/PLA_Basic my-pla
+  Edit a single setting:
+    slicecore profile set my-pla speed.perimeter 60
+  Open in editor:
+    slicecore profile edit my-pla
+  Validate against schema:
+    slicecore profile validate my-pla
+  Delete a custom profile:
+    slicecore profile delete my-pla --yes
 
 PLUGIN MANAGEMENT:
   List installed plugins:
@@ -640,6 +653,14 @@ enum Commands {
     #[command(subcommand)]
     Plugins(plugins_command::PluginsCommand),
 
+    /// Manage profiles: clone, edit, validate, delete, rename.
+    ///
+    /// Create custom profiles from library presets and modify them.
+    /// Use `profile clone` to start, then `profile set` or `profile edit`
+    /// to customize settings.
+    #[command(subcommand)]
+    Profile(profile_command::ProfileCommand),
+
     /// Post-process an existing G-code file.
     ///
     /// Reads a G-code file, applies configured post-processors (pause-at-layer,
@@ -984,6 +1005,13 @@ fn main() {
                 }
             };
             if let Err(e) = plugins_command::run_plugins(plugins_cmd, &dir) {
+                output_ctx.error_msg(&format!("{e}"));
+                process::exit(1);
+            }
+        }
+        Commands::Profile(profile_cmd) => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
+            if let Err(e) = profile_command::run_profile_command(profile_cmd) {
                 output_ctx.error_msg(&format!("{e}"));
                 process::exit(1);
             }
