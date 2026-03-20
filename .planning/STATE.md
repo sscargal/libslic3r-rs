@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 41-01-PLAN.md
-last_updated: "2026-03-20T16:51:34.275Z"
-last_activity: "2026-03-20 - Completed 41-01: Core TSP algorithms (NN, greedy, 2-opt)"
+stopped_at: Completed 41-02-PLAN.md
+last_updated: "2026-03-20T17:05:55.528Z"
+last_activity: "2026-03-20 - Completed 41-02: Pipeline integration with parallel-safe travel stats"
 progress:
   total_phases: 41
   completed_phases: 40
   total_plans: 170
-  completed_plans: 167
+  completed_plans: 168
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 41 of 41 (Travel move optimization with TSP algorithms)
-Plan: 1 of 4 in current phase (1 complete)
+Plan: 2 of 4 in current phase (2 complete)
 Status: In Progress
-Last activity: 2026-03-20 - Completed 41-01: Core TSP algorithms (NN, greedy, 2-opt)
+Last activity: 2026-03-20 - Completed 41-02: Pipeline integration with parallel-safe travel stats
 
-Progress: [██████████] 100% (167/170 overall)
+Progress: [██████████] 100% (168/170 overall)
 
 ## Performance Metrics
 
@@ -146,6 +146,7 @@ Progress: [██████████] 100% (167/170 overall)
 | Phase 40 P02 | 10min | 2 tasks | 3 files |
 | Phase 40 P03 | 7min | 2 tasks | 7 files |
 | Phase 41 P01 | 13 | 2 tasks | 3 files |
+| Phase 41 P02 | 11min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -659,6 +660,9 @@ Recent decisions affecting current work:
 - [Phase 40]: CliOutput abstracts all CLI output with spinner/progress-bar/step-indicator modes, quiet/json/color awareness
 - [Phase 40]: Spinner wrapping in main dispatch, CliOutput passed through to calibrate/CSG subcommands for internal routing
 - [Phase 41]: Stored Euclidean distances in matrix for correct 2-opt delta computation
+- [Phase 41]: Contour-level TSP reordering for perimeters preserving wall order within each contour
+- [Phase 41]: LayerResult type alias for expanded 4-tuple return from process_single_layer
+- [Phase 41]: Travel stats accumulated per-layer then summed after parallel collect for rayon safety
 
 ### Roadmap Evolution
 
@@ -711,6 +715,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-20T16:51:34.271Z
-Stopped at: Completed 41-01-PLAN.md
+Last session: 2026-03-20T17:05:55.523Z
+Stopped at: Completed 41-02-PLAN.md
 Resume file: None
