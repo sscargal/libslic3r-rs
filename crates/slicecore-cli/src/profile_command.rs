@@ -254,10 +254,7 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
             key,
             profiles_dir,
         } => cmd_reset(&name, &key, profiles_dir.as_deref()),
-        ProfileCommand::Edit {
-            name,
-            profiles_dir,
-        } => cmd_edit(&name, profiles_dir.as_deref()),
+        ProfileCommand::Edit { name, profiles_dir } => cmd_edit(&name, profiles_dir.as_deref()),
         ProfileCommand::Validate {
             name,
             profiles_dir,
@@ -370,8 +367,8 @@ fn try_resolve_any(
 
 /// Returns the base directory for user profiles (`~/.slicecore/profiles/`).
 fn user_profiles_base_dir() -> Result<PathBuf, anyhow::Error> {
-    let home = home::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
+    let home =
+        home::home_dir().ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
     Ok(home.join(".slicecore/profiles"))
 }
 
@@ -441,7 +438,11 @@ fn cmd_clone(
     std::fs::write(&dest, format!("{metadata}\n\n{toml_body}"))?;
 
     // Success output
-    println!("Created custom profile '{}' at {}", new_name, dest.display());
+    println!(
+        "Created custom profile '{}' at {}",
+        new_name,
+        dest.display()
+    );
     println!("\nNext steps:");
     println!("  slicecore profile show {new_name}");
     println!("  slicecore profile set {new_name} <key> <value>");
@@ -484,7 +485,10 @@ fn navigate_toml_path_mut<'a>(doc: &'a mut toml::Value, key: &str) -> &'a mut to
         }
         let table = current.as_table_mut().expect("just ensured table");
         if !table.contains_key(*part) {
-            table.insert((*part).to_string(), toml::Value::Table(toml::map::Map::new()));
+            table.insert(
+                (*part).to_string(),
+                toml::Value::Table(toml::map::Map::new()),
+            );
         }
         current = table.get_mut(*part).expect("just inserted");
     }
@@ -551,8 +555,15 @@ fn cmd_set(
         if suggestions.is_empty() {
             anyhow::bail!("Unknown setting key '{key}'");
         }
-        let top: Vec<&str> = suggestions.iter().take(3).map(|d| d.key.0.as_str()).collect();
-        anyhow::bail!("Unknown setting key '{key}'. Did you mean: {}?", top.join(", "));
+        let top: Vec<&str> = suggestions
+            .iter()
+            .take(3)
+            .map(|d| d.key.0.as_str())
+            .collect();
+        anyhow::bail!(
+            "Unknown setting key '{key}'. Did you mean: {}?",
+            top.join(", ")
+        );
     }
 
     // Parse and update TOML
@@ -577,11 +588,7 @@ fn cmd_set(
 // ---------------------------------------------------------------------------
 
 /// Implements the `profile get` command.
-fn cmd_get(
-    name: &str,
-    key: &str,
-    profiles_dir: Option<&Path>,
-) -> Result<(), anyhow::Error> {
+fn cmd_get(name: &str, key: &str, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
     let resolver = ProfileResolver::new(profiles_dir);
     let resolved = try_resolve_any(&resolver, name, None)?;
 
@@ -602,11 +609,7 @@ fn cmd_get(
 // ---------------------------------------------------------------------------
 
 /// Implements the `profile reset` command.
-fn cmd_reset(
-    name: &str,
-    key: &str,
-    profiles_dir: Option<&Path>,
-) -> Result<(), anyhow::Error> {
+fn cmd_reset(name: &str, key: &str, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
     let resolver = ProfileResolver::new(profiles_dir);
     let resolved = try_resolve_any(&resolver, name, None)?;
     require_user_profile(&resolved)?;
@@ -734,8 +737,7 @@ fn cmd_edit(name: &str, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error
             // Run schema validation and print any issues
             if let Ok(config) = PrintConfig::from_file(&resolved.path) {
                 if let Ok(config_json) = serde_json::to_value(&config) {
-                    let issues =
-                        slicecore_engine::setting_registry().validate_config(&config_json);
+                    let issues = slicecore_engine::setting_registry().validate_config(&config_json);
                     for issue in &issues {
                         let prefix = match issue.severity {
                             slicecore_config_schema::ValidationSeverity::Error => "ERROR",
@@ -748,9 +750,7 @@ fn cmd_edit(name: &str, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error
             }
         }
         Err(err) => {
-            eprintln!(
-                "Warning: TOML syntax error: {err}. File saved but may need fixing."
-            );
+            eprintln!("Warning: TOML syntax error: {err}. File saved but may need fixing.");
         }
     }
 
@@ -826,7 +826,10 @@ fn cmd_rename(
     let mut doc: toml::Value = toml::from_str(&contents)?;
 
     if let Some(meta) = doc.get_mut("metadata").and_then(toml::Value::as_table_mut) {
-        meta.insert("name".to_string(), toml::Value::String(new_name.to_string()));
+        meta.insert(
+            "name".to_string(),
+            toml::Value::String(new_name.to_string()),
+        );
     }
 
     std::fs::write(&new_path, toml::to_string_pretty(&doc)?)?;
