@@ -757,10 +757,13 @@ Plans:
 
 ### Phase 41: Travel move optimization with TSP algorithms — implement 2-opt and greedy edge insertion for toolpath ordering to reduce travel distance by 20-35% on multi-object plates with benchmark validation
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Optimize toolpath ordering within layers using TSP heuristics (NN, greedy edge insertion, 2-opt) to reduce non-extrusion travel distance by 20-35% on multi-object plates, with criterion benchmarks and CI-enforcing integration tests.
+**Requirements**: [GCODE-05]
 **Depends on:** Phase 40
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 41 to break down)
+- [ ] 41-01-PLAN.md — Core TSP algorithms and config types
+- [ ] 41-02-PLAN.md — Engine integration (toolpath optimizer wiring + travel stats)
+- [ ] 41-03-PLAN.md — CLI --no-travel-opt flag
+- [ ] 41-04-PLAN.md — Benchmarks and integration tests (>= 20% reduction assertions)
