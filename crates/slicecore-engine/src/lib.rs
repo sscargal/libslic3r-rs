@@ -64,14 +64,16 @@ pub mod statistics;
 pub mod support;
 pub mod surface;
 pub mod toolpath;
+pub mod travel_optimizer;
 
 // Re-export primary types at crate root.
 pub use arachne::{generate_arachne_perimeters, ArachnePerimeter, ArachneResult};
 pub use builtin_profiles::{get_builtin_profile, list_builtin_profiles, BuiltinProfile};
 pub use calibration::{generate_pa_calibration, generate_pa_calibration_gcode};
 pub use config::{
-    MultiMaterialConfig, PaCalibrationConfig, PrintConfig, ScarfJointConfig, ScarfJointType,
-    SequentialConfig, SettingOverrides, ToolConfig, WallOrder,
+    MultiMaterialConfig, PaCalibrationConfig, PrintConfig, PrintOrder, ScarfJointConfig,
+    ScarfJointType, SequentialConfig, SettingOverrides, ToolConfig, TravelOptAlgorithm,
+    TravelOptConfig, WallOrder,
 };
 pub use config_validate::{
     resolve_template_variables, validate_config, ValidationIssue, ValidationSeverity,
@@ -122,12 +124,13 @@ pub use seam::{select_seam_point, SeamPosition};
 pub use sequential::{detect_collision, order_objects, plan_sequential_print, ObjectBounds};
 pub use statistics::{
     compute_statistics, FeatureStatistics, GcodeMetrics, PrintStatistics, StatisticsSummary,
-    StatsSortOrder, TimePrecision,
+    StatsSortOrder, TimePrecision, TravelOptStats,
 };
 pub use support::config::SupportConfig;
 pub use support::{SupportRegion, SupportResult};
 pub use surface::{classify_surfaces, SurfaceClassification};
 pub use toolpath::{assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment};
+pub use travel_optimizer::{optimize_tour, Tour, TspNode};
 
 // Re-export plugin types when the plugins feature is enabled.
 #[cfg(feature = "plugins")]

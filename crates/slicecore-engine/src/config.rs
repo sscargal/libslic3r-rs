@@ -1675,6 +1675,111 @@ impl FilamentPropsConfig {
 
 /// Print configuration controlling the entire slicing pipeline.
 ///
+/// Print ordering strategy for multi-object plates.
+///
+/// Controls whether features are grouped by layer across all objects,
+/// or by object within each layer.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, SettingSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum PrintOrder {
+    /// Process all objects' features per feature group per layer (default).
+    #[default]
+    #[setting(
+        display = "By Layer",
+        description = "Process features by layer across all objects"
+    )]
+    ByLayer,
+    /// Complete each object's features per layer before moving to next object.
+    #[setting(
+        display = "By Object",
+        description = "Complete each object per layer before next"
+    )]
+    ByObject,
+}
+
+/// TSP algorithm selection for travel move optimization.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, SettingSchema)]
+#[non_exhaustive]
+#[serde(rename_all = "snake_case")]
+pub enum TravelOptAlgorithm {
+    /// Try both NN and greedy, pick shorter, apply 2-opt (recommended).
+    #[default]
+    #[setting(
+        display = "Auto",
+        description = "Try both algorithms, pick best result with 2-opt"
+    )]
+    Auto,
+    /// Nearest-neighbor construction with 2-opt refinement.
+    #[setting(
+        display = "Nearest Neighbor",
+        description = "NN construction + 2-opt improvement"
+    )]
+    NearestNeighbor,
+    /// Greedy edge insertion with 2-opt refinement.
+    #[setting(
+        display = "Greedy Edge Insertion",
+        description = "Greedy construction + 2-opt improvement"
+    )]
+    GreedyEdgeInsertion,
+    /// Nearest-neighbor only (no 2-opt).
+    #[setting(
+        display = "NN Only",
+        description = "Nearest-neighbor without 2-opt improvement"
+    )]
+    NearestNeighborOnly,
+    /// Greedy edge insertion only (no 2-opt).
+    #[setting(
+        display = "Greedy Only",
+        description = "Greedy edge insertion without 2-opt"
+    )]
+    GreedyOnly,
+}
+
+/// Travel move optimization configuration.
+///
+/// Controls TSP-based reordering of printable elements within each layer
+/// to minimize non-extrusion travel distance.
+#[derive(Debug, Clone, Serialize, Deserialize, SettingSchema)]
+#[serde(default)]
+#[setting(category = "Travel")]
+pub struct TravelOptConfig {
+    /// Enable travel move optimization.
+    #[setting(tier = 3, description = "Enable TSP-based travel move optimization")]
+    pub enabled: bool,
+    /// TSP algorithm selection.
+    #[setting(tier = 4, description = "TSP algorithm for travel optimization")]
+    pub algorithm: TravelOptAlgorithm,
+    /// Maximum 2-opt improvement iterations (0 = no limit until convergence).
+    #[setting(
+        tier = 4,
+        description = "Maximum 2-opt improvement passes",
+        min = 0.0,
+        max = 10000.0
+    )]
+    pub max_iterations: u32,
+    /// Optimize travel between objects on the same layer.
+    #[setting(
+        tier = 3,
+        description = "Optimize cross-object travel on multi-object plates"
+    )]
+    pub optimize_cross_object: bool,
+    /// Print ordering strategy for multi-object plates.
+    #[setting(tier = 2, description = "Print ordering strategy")]
+    pub print_order: PrintOrder,
+}
+
+impl Default for TravelOptConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            algorithm: TravelOptAlgorithm::Auto,
+            max_iterations: 100,
+            optimize_cross_object: true,
+            print_order: PrintOrder::ByLayer,
+        }
+    }
+}
+
 /// All fields have sensible FDM defaults. Use [`PrintConfig::from_toml`] to
 /// parse from a TOML string, [`PrintConfig::from_json`] to parse from a JSON
 /// string (native or OrcaSlicer/BambuStudio format), or [`PrintConfig::from_file`]
@@ -1881,6 +1986,11 @@ pub struct PrintConfig {
     /// Sequential (object-by-object) printing configuration.
     #[setting(flatten)]
     pub sequential: SequentialConfig,
+
+    // --- Travel Optimization ---
+    /// Travel move optimization configuration (TSP-based toolpath ordering).
+    #[setting(flatten)]
+    pub travel_opt: TravelOptConfig,
 
     // --- Plugins ---
     /// Directory to scan for plugins (optional).
@@ -2663,6 +2773,7 @@ impl Default for PrintConfig {
 
             multi_material: MultiMaterialConfig::default(),
             sequential: SequentialConfig::default(),
+            travel_opt: TravelOptConfig::default(),
             plugin_dir: None,
 
             line_widths: LineWidthConfig::default(),
@@ -3983,5 +4094,68 @@ first_layer_bed_temperatures = [65.0, 75.0]
         let serialized = toml::to_string(&config).unwrap();
         let restored: PrintConfig = toml::from_str(&serialized).unwrap();
         assert_eq!(restored.thumbnail_resolution, [220, 124]);
+    }
+
+    #[test]
+    fn travel_opt_config_defaults() {
+        let config = TravelOptConfig::default();
+        assert!(config.enabled);
+        assert_eq!(config.algorithm, TravelOptAlgorithm::Auto);
+        assert_eq!(config.max_iterations, 100);
+        assert!(config.optimize_cross_object);
+        assert_eq!(config.print_order, PrintOrder::ByLayer);
+    }
+
+    #[test]
+    fn travel_opt_algorithm_is_non_exhaustive() {
+        // Ensure all 5 variants exist and are distinct
+        let variants = [
+            TravelOptAlgorithm::Auto,
+            TravelOptAlgorithm::NearestNeighbor,
+            TravelOptAlgorithm::GreedyEdgeInsertion,
+            TravelOptAlgorithm::NearestNeighborOnly,
+            TravelOptAlgorithm::GreedyOnly,
+        ];
+        for (i, a) in variants.iter().enumerate() {
+            for (j, b) in variants.iter().enumerate() {
+                if i != j {
+                    assert_ne!(a, b);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn travel_opt_algorithm_serde_snake_case() {
+        let json = serde_json::to_string(&TravelOptAlgorithm::NearestNeighbor).unwrap();
+        assert_eq!(json, "\"nearest_neighbor\"");
+        let json = serde_json::to_string(&TravelOptAlgorithm::GreedyEdgeInsertion).unwrap();
+        assert_eq!(json, "\"greedy_edge_insertion\"");
+        let json = serde_json::to_string(&TravelOptAlgorithm::Auto).unwrap();
+        assert_eq!(json, "\"auto\"");
+    }
+
+    #[test]
+    fn travel_opt_config_toml_roundtrip() {
+        let config = TravelOptConfig::default();
+        let serialized = toml::to_string(&config).unwrap();
+        let restored: TravelOptConfig = toml::from_str(&serialized).unwrap();
+        assert!(restored.enabled);
+        assert_eq!(restored.algorithm, TravelOptAlgorithm::Auto);
+        assert_eq!(restored.max_iterations, 100);
+        assert!(restored.optimize_cross_object);
+        assert_eq!(restored.print_order, PrintOrder::ByLayer);
+    }
+
+    #[test]
+    fn print_config_has_travel_opt_field() {
+        let config = PrintConfig::default();
+        assert!(config.travel_opt.enabled);
+        assert_eq!(config.travel_opt.algorithm, TravelOptAlgorithm::Auto);
+    }
+
+    #[test]
+    fn print_order_default_is_by_layer() {
+        assert_eq!(PrintOrder::default(), PrintOrder::ByLayer);
     }
 }

@@ -32,6 +32,20 @@ use crate::estimation::PrintTimeEstimate;
 use crate::filament::FilamentUsage;
 use crate::toolpath::{FeatureType, LayerToolpath};
 
+/// Travel optimization statistics for the entire slice job.
+///
+/// Tracks baseline (original ordering) and optimized travel distances so the
+/// caller can see how much the TSP optimizer reduced travel moves.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TravelOptStats {
+    /// Total travel distance before optimization in mm.
+    pub baseline_travel_distance: f64,
+    /// Total travel distance after optimization in mm.
+    pub optimized_travel_distance: f64,
+    /// Percentage reduction: `(baseline - optimized) / baseline * 100`.
+    pub travel_reduction_percent: f64,
+}
+
 /// Configurable time display precision for statistics output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TimePrecision {

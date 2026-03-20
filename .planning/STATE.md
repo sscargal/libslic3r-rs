@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 40-03-PLAN.md
-last_updated: "2026-03-19T22:32:36.995Z"
-last_activity: "2026-03-19 - Completed 40-03: Non-slice command progress migration"
+stopped_at: Completed 41-04-PLAN.md
+last_updated: "2026-03-20T17:36:57.748Z"
+last_activity: "2026-03-20 - Completed 41-04: Benchmark validation and travel reduction tests"
 progress:
   total_phases: 41
-  completed_phases: 40
-  total_plans: 166
-  completed_plans: 166
+  completed_phases: 41
+  total_plans: 170
+  completed_plans: 170
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 40 of 41 (Adopt indicatif for CLI progress)
-Plan: 3 of 3 in current phase (3 complete)
-Status: Phase Complete
-Last activity: 2026-03-19 - Completed quick task 260319-viy: Fix cargo fmt issues from phase 40
+Phase: 41 of 41 (Travel move optimization with TSP algorithms)
+Plan: 4 of 4 in current phase (4 complete)
+Status: Complete
+Last activity: 2026-03-20 - Completed 41-04: Benchmark validation and travel reduction tests
 
-Progress: [██████████] 100% (166/166 overall)
+Progress: [██████████] 100% (170/170 overall)
 
 ## Performance Metrics
 
@@ -145,6 +145,10 @@ Progress: [██████████] 100% (166/166 overall)
 | Phase 40 P01 | 5 | 2 tasks | 4 files |
 | Phase 40 P02 | 10min | 2 tasks | 3 files |
 | Phase 40 P03 | 7min | 2 tasks | 7 files |
+| Phase 41 P01 | 13 | 2 tasks | 3 files |
+| Phase 41 P02 | 11min | 2 tasks | 5 files |
+| Phase 41 P03 | 2min | 1 tasks | 1 files |
+| Phase 41 P04 | 14min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -657,6 +661,12 @@ Recent decisions affecting current work:
 - [Phase 39]: 3MF output silently overrides JPEG to PNG per 3MF spec requirement
 - [Phase 40]: CliOutput abstracts all CLI output with spinner/progress-bar/step-indicator modes, quiet/json/color awareness
 - [Phase 40]: Spinner wrapping in main dispatch, CliOutput passed through to calibrate/CSG subcommands for internal routing
+- [Phase 41]: Stored Euclidean distances in matrix for correct 2-opt delta computation
+- [Phase 41]: Contour-level TSP reordering for perimeters preserving wall order within each contour
+- [Phase 41]: LayerResult type alias for expanded 4-tuple return from process_single_layer
+- [Phase 41]: Travel stats accumulated per-layer then summed after parallel collect for rayon safety
+- [Phase 41]: CLI flag override applied after config resolution but before Engine::new for deterministic precedence
+- [Phase 41]: Relaxed Auto-vs-individual algorithm comparison to account for start-position effects in Tour::total_distance
 
 ### Roadmap Evolution
 
@@ -709,6 +719,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-19T22:27:41.461Z
-Stopped at: Completed 40-03-PLAN.md
+Last session: 2026-03-20T17:28:26.880Z
+Stopped at: Completed 41-04-PLAN.md
 Resume file: None

@@ -79,7 +79,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 - [ ] **GCODE-02**: Klipper dialect G-code output
 - [ ] **GCODE-03**: RepRapFirmware dialect G-code output
 - [ ] **GCODE-04**: Bambu dialect G-code output
-- [ ] **GCODE-05**: Speed planning (per-feature speed control)
+- [x] **GCODE-05**: Speed planning (per-feature speed control)
 - [ ] **GCODE-06**: Acceleration and jerk control
 - [ ] **GCODE-07**: Retraction configuration (distance, speed, z-hop, wipe)
 - [ ] **GCODE-08**: Temperature planning (layer-based, first-layer overrides)
@@ -207,7 +207,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | INFILL-11 | Phase 3 | Pending |
 | INFILL-12 | Phase 3 | Pending |
 | GCODE-01 | Phase 3 | Pending |
-| GCODE-05 | Phase 3 | Pending |
+| GCODE-05 | Phase 3 | Complete |
 | GCODE-07 | Phase 3 | Pending |
 | GCODE-08 | Phase 3 | Pending |
 | GCODE-09 | Phase 3 | Pending |
