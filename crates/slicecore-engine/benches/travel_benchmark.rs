@@ -62,9 +62,13 @@ fn generate_scattered_plate(count: usize, bed_size: f64) -> Vec<TspNode> {
     let mut rng_state: u64 = 42;
 
     for _ in 0..count {
-        rng_state = rng_state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+        rng_state = rng_state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1);
         let x = (rng_state >> 33) as f64 / (u32::MAX as f64) * bed_size;
-        rng_state = rng_state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
+        rng_state = rng_state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1);
         let y = (rng_state >> 33) as f64 / (u32::MAX as f64) * bed_size;
 
         // 3 perimeter nodes
@@ -111,19 +115,13 @@ fn bench_travel_opt_4obj(c: &mut Criterion) {
     ];
 
     for (name, alg) in &algorithms {
-        group.bench_with_input(
-            BenchmarkId::new(*name, node_count),
-            &nodes,
-            |b, nodes| {
-                let config = TravelOptConfig {
-                    algorithm: *alg,
-                    ..TravelOptConfig::default()
-                };
-                b.iter(|| {
-                    optimize_tour(black_box(nodes), black_box(start), black_box(&config))
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new(*name, node_count), &nodes, |b, nodes| {
+            let config = TravelOptConfig {
+                algorithm: *alg,
+                ..TravelOptConfig::default()
+            };
+            b.iter(|| optimize_tour(black_box(nodes), black_box(start), black_box(&config)));
+        });
     }
     group.finish();
 }
@@ -143,19 +141,13 @@ fn bench_travel_opt_9obj(c: &mut Criterion) {
     ];
 
     for (name, alg) in &algorithms {
-        group.bench_with_input(
-            BenchmarkId::new(*name, node_count),
-            &nodes,
-            |b, nodes| {
-                let config = TravelOptConfig {
-                    algorithm: *alg,
-                    ..TravelOptConfig::default()
-                };
-                b.iter(|| {
-                    optimize_tour(black_box(nodes), black_box(start), black_box(&config))
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new(*name, node_count), &nodes, |b, nodes| {
+            let config = TravelOptConfig {
+                algorithm: *alg,
+                ..TravelOptConfig::default()
+            };
+            b.iter(|| optimize_tour(black_box(nodes), black_box(start), black_box(&config)));
+        });
     }
     group.finish();
 }
@@ -173,19 +165,13 @@ fn bench_travel_opt_25obj(c: &mut Criterion) {
     ];
 
     for (name, alg) in &algorithms {
-        group.bench_with_input(
-            BenchmarkId::new(*name, node_count),
-            &nodes,
-            |b, nodes| {
-                let config = TravelOptConfig {
-                    algorithm: *alg,
-                    ..TravelOptConfig::default()
-                };
-                b.iter(|| {
-                    optimize_tour(black_box(nodes), black_box(start), black_box(&config))
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::new(*name, node_count), &nodes, |b, nodes| {
+            let config = TravelOptConfig {
+                algorithm: *alg,
+                ..TravelOptConfig::default()
+            };
+            b.iter(|| optimize_tour(black_box(nodes), black_box(start), black_box(&config)));
+        });
     }
     group.finish();
 }
@@ -196,16 +182,10 @@ fn bench_travel_opt_scattered(c: &mut Criterion) {
     let node_count = nodes.len();
     let start = Point2::new(0.0, 0.0);
 
-    group.bench_with_input(
-        BenchmarkId::new("auto", node_count),
-        &nodes,
-        |b, nodes| {
-            let config = TravelOptConfig::default();
-            b.iter(|| {
-                optimize_tour(black_box(nodes), black_box(start), black_box(&config))
-            });
-        },
-    );
+    group.bench_with_input(BenchmarkId::new("auto", node_count), &nodes, |b, nodes| {
+        let config = TravelOptConfig::default();
+        b.iter(|| optimize_tour(black_box(nodes), black_box(start), black_box(&config)));
+    });
     group.finish();
 }
 

@@ -362,12 +362,7 @@ pub fn assemble_layer_toolpath(
                 let skip_hole =
                     !pi.is_outer && config.scarf_joint.scarf_joint_type == ScarfJointType::Contour;
                 if should_apply && !skip_hole {
-                    apply_scarf_joint(
-                        &mut polygon_segments,
-                        &config.scarf_joint,
-                        layer_height,
-                        z,
-                    );
+                    apply_scarf_joint(&mut polygon_segments, &config.scarf_joint, layer_height, z);
                 }
             }
 
@@ -423,7 +418,10 @@ pub fn assemble_layer_toolpath(
                 baseline_travel += distance(&baseline_pos, &first_pt);
                 baseline_pos = last_pt;
             }
-            valid_gap_fills.iter().map(|&(idx, _, _)| (idx, false)).collect()
+            valid_gap_fills
+                .iter()
+                .map(|&(idx, _, _)| (idx, false))
+                .collect()
         };
 
         for &(gap_idx, reversed) in &gap_order {
@@ -993,7 +991,8 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _, _, _) = assemble_layer_toolpath(0, 0.2, 0.2, &[], &[], &infill, &config, None);
+        let (toolpath, _, _, _) =
+            assemble_layer_toolpath(0, 0.2, 0.2, &[], &[], &infill, &config, None);
         assert!(
             toolpath.segments.is_empty(),
             "Empty perimeters and infill should produce empty toolpath"
@@ -1033,7 +1032,8 @@ mod tests {
         };
 
         let config = default_config();
-        let (toolpath, _, _, _) = assemble_layer_toolpath(1, 0.4, 0.2, &[], &[], &infill, &config, None);
+        let (toolpath, _, _, _) =
+            assemble_layer_toolpath(1, 0.4, 0.2, &[], &[], &infill, &config, None);
 
         let has_solid = toolpath
             .segments

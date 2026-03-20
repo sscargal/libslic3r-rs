@@ -84,12 +84,7 @@ impl Tour {
 
     /// Distance from tour position `i`'s exit to tour position `j`'s entry,
     /// accounting for reversal flags.
-    fn edge_distance(
-        &self,
-        nodes: &[TspNode],
-        i: usize,
-        j: usize,
-    ) -> f64 {
+    fn edge_distance(&self, nodes: &[TspNode], i: usize, j: usize) -> f64 {
         let from = self.order[i];
         let to = self.order[j];
         let from_reversed = self.reversed[i];
@@ -334,7 +329,11 @@ fn greedy_edge_insertion(matrix: &DistanceMatrix, nodes: &[TspNode]) -> Tour {
             }
         }
     }
-    edges.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap_or(std::cmp::Ordering::Equal));
+    edges.sort_by(|a, b| {
+        a.distance
+            .partial_cmp(&b.distance)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let mut uf = UnionFind::new(n);
     let mut out_degree = vec![0usize; n];
@@ -416,11 +415,7 @@ fn greedy_edge_insertion(matrix: &DistanceMatrix, nodes: &[TspNode]) -> Tour {
 /// Iteratively reverses sub-segments of the tour when doing so reduces total
 /// travel distance. Stops when no improvement is found or `max_iterations`
 /// passes are exhausted (0 = no limit).
-fn two_opt_improve(
-    tour: &mut Tour,
-    nodes: &[TspNode],
-    max_iterations: u32,
-) {
+fn two_opt_improve(tour: &mut Tour, nodes: &[TspNode], max_iterations: u32) {
     let n = tour.order.len();
     if n <= 2 {
         return;
@@ -644,7 +639,10 @@ pub fn optimize_tour(
 fn optimize_two_nodes(nodes: &[TspNode], start_pos: Point2) -> Vec<(usize, bool)> {
     // Consider all 4 combinations for 2 nodes (normal/reversed for each, in both orders).
     let mut best_dist = f64::INFINITY;
-    let mut best = vec![(nodes[0].original_index, false), (nodes[1].original_index, false)];
+    let mut best = vec![
+        (nodes[0].original_index, false),
+        (nodes[1].original_index, false),
+    ];
 
     for &(first, second) in &[(0usize, 1usize), (1, 0)] {
         for &first_rev in &[false, true] {
@@ -895,21 +893,15 @@ mod tests {
         // Node with different entry and exit -> dist(i,j) != dist(j,i).
         let nodes = vec![
             make_node((0.0, 0.0), (5.0, 0.0), 0), // exit at (5,0)
-            make_node((3.0, 0.0), (3.0, 0.0), 1),  // entry/exit at (3,0)
+            make_node((3.0, 0.0), (3.0, 0.0), 1), // entry/exit at (3,0)
         ];
         let matrix = DistanceMatrix::new(&nodes);
 
         let d01 = matrix.dist(0, 1); // exit(0)=(5,0) to entry(1)=(3,0) = 2
         let d10 = matrix.dist(1, 0); // exit(1)=(3,0) to entry(0)=(0,0) = 3
 
-        assert!(
-            (d01 - 2.0).abs() < 1e-9,
-            "Expected d(0->1)=2, got {d01}"
-        );
-        assert!(
-            (d10 - 3.0).abs() < 1e-9,
-            "Expected d(1->0)=3, got {d10}"
-        );
+        assert!((d01 - 2.0).abs() < 1e-9, "Expected d(0->1)=2, got {d01}");
+        assert!((d10 - 3.0).abs() < 1e-9, "Expected d(1->0)=3, got {d10}");
         assert!(
             (d01 - d10).abs() > 0.5,
             "Distance matrix should be asymmetric"

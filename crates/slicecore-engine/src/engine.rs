@@ -616,7 +616,12 @@ fn process_single_layer(
         }
     }
 
-    Ok((toolpath, layer_seam, layer_baseline_travel, layer_optimized_travel))
+    Ok((
+        toolpath,
+        layer_seam,
+        layer_baseline_travel,
+        layer_optimized_travel,
+    ))
 }
 
 /// The slicing engine -- orchestrates the full pipeline.
@@ -1263,8 +1268,7 @@ impl Engine {
             // Pass 1: Process all layers in parallel with previous_seam = None.
             // Each layer is independent except for seam alignment.
             let progress = AtomicProgress::new(total_layers);
-            let layer_results: Result<Vec<LayerResult>, EngineError> =
-                maybe_par_iter!(layers)
+            let layer_results: Result<Vec<LayerResult>, EngineError> = maybe_par_iter!(layers)
                 .enumerate()
                 .map(|(layer_idx, layer)| {
                     // Check cancellation at the start of each layer.
@@ -2002,8 +2006,7 @@ impl Engine {
 
         if use_parallel {
             // Parallel pass 1: process all layers without seam alignment.
-            let layer_results: Result<Vec<LayerResult>, EngineError> =
-                maybe_par_iter!(layers)
+            let layer_results: Result<Vec<LayerResult>, EngineError> = maybe_par_iter!(layers)
                 .enumerate()
                 .map(|(layer_idx, layer)| {
                     if let Some(ref token) = cancel {

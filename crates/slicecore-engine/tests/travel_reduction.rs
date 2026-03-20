@@ -186,11 +186,11 @@ fn travel_reduction_varying_sizes() {
     // Objects in deliberately poor zigzag order: far corners first, then
     // nearby ones, maximizing back-and-forth travel.
     let positions_with_sizes: &[(f64, f64, usize, usize)] = &[
-        (20.0, 20.0, 5, 3),    // large, bottom-left
-        (180.0, 180.0, 5, 3),  // large, top-right (long jump)
-        (180.0, 20.0, 2, 2),   // small, bottom-right (back down)
-        (20.0, 180.0, 2, 2),   // small, top-left (back across)
-        (100.0, 100.0, 2, 2),  // small, center (back to middle)
+        (20.0, 20.0, 5, 3),   // large, bottom-left
+        (180.0, 180.0, 5, 3), // large, top-right (long jump)
+        (180.0, 20.0, 2, 2),  // small, bottom-right (back down)
+        (20.0, 180.0, 2, 2),  // small, top-left (back across)
+        (100.0, 100.0, 2, 2), // small, center (back to middle)
     ];
 
     for &(cx, cy, perims, infills) in positions_with_sizes {
@@ -251,7 +251,10 @@ fn travel_opt_disabled_returns_identity() {
     // (NN from origin visits 0, 1, 2, 3, 4 in order.)
     let expected_order: Vec<usize> = (0..5).collect();
     let actual_order: Vec<usize> = result.iter().map(|&(idx, _)| idx).collect();
-    assert_eq!(actual_order, expected_order, "Well-ordered nodes should stay sequential");
+    assert_eq!(
+        actual_order, expected_order,
+        "Well-ordered nodes should stay sequential"
+    );
 
     // No reversals on closed paths.
     for &(_, reversed) in &result {
