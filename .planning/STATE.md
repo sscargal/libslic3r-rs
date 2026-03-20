@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 41-03-PLAN.md
-last_updated: "2026-03-20T17:10:05.696Z"
-last_activity: "2026-03-20 - Completed 41-03: CLI flag for travel optimization bypass"
+status: completed
+stopped_at: Completed 41-04-PLAN.md
+last_updated: "2026-03-20T17:28:26.887Z"
+last_activity: "2026-03-20 - Completed 41-04: Benchmark validation and travel reduction tests"
 progress:
   total_phases: 41
-  completed_phases: 40
+  completed_phases: 41
   total_plans: 170
-  completed_plans: 169
-  percent: 99
+  completed_plans: 170
+  percent: 100
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 41 of 41 (Travel move optimization with TSP algorithms)
-Plan: 3 of 4 in current phase (3 complete)
-Status: In Progress
-Last activity: 2026-03-20 - Completed 41-03: CLI flag for travel optimization bypass
+Plan: 4 of 4 in current phase (4 complete)
+Status: Complete
+Last activity: 2026-03-20 - Completed 41-04: Benchmark validation and travel reduction tests
 
-Progress: [██████████] 99% (169/170 overall)
+Progress: [██████████] 100% (170/170 overall)
 
 ## Performance Metrics
 
@@ -148,6 +148,7 @@ Progress: [██████████] 99% (169/170 overall)
 | Phase 41 P01 | 13 | 2 tasks | 3 files |
 | Phase 41 P02 | 11min | 2 tasks | 5 files |
 | Phase 41 P03 | 2min | 1 tasks | 1 files |
+| Phase 41 P04 | 14min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -665,6 +666,7 @@ Recent decisions affecting current work:
 - [Phase 41]: LayerResult type alias for expanded 4-tuple return from process_single_layer
 - [Phase 41]: Travel stats accumulated per-layer then summed after parallel collect for rayon safety
 - [Phase 41]: CLI flag override applied after config resolution but before Engine::new for deterministic precedence
+- [Phase 41]: Relaxed Auto-vs-individual algorithm comparison to account for start-position effects in Tour::total_distance
 
 ### Roadmap Evolution
 
@@ -717,6 +719,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-20T17:10:05.692Z
-Stopped at: Completed 41-03-PLAN.md
+Last session: 2026-03-20T17:28:26.880Z
+Stopped at: Completed 41-04-PLAN.md
 Resume file: None
