@@ -760,7 +760,7 @@ Plans:
 **Goal:** Optimize toolpath ordering within layers using TSP heuristics (NN, greedy edge insertion, 2-opt) to reduce non-extrusion travel distance by 20-35% on multi-object plates, with criterion benchmarks and CI-enforcing integration tests.
 **Requirements**: [GCODE-05]
 **Depends on:** Phase 40
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [ ] 41-01-PLAN.md — Core TSP algorithms and config types

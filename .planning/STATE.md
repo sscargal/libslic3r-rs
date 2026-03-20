@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 41-02-PLAN.md
-last_updated: "2026-03-20T17:05:55.528Z"
-last_activity: "2026-03-20 - Completed 41-02: Pipeline integration with parallel-safe travel stats"
+stopped_at: Completed 41-03-PLAN.md
+last_updated: "2026-03-20T17:10:05.696Z"
+last_activity: "2026-03-20 - Completed 41-03: CLI flag for travel optimization bypass"
 progress:
   total_phases: 41
   completed_phases: 40
   total_plans: 170
-  completed_plans: 168
-  percent: 100
+  completed_plans: 169
+  percent: 99
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 41 of 41 (Travel move optimization with TSP algorithms)
-Plan: 2 of 4 in current phase (2 complete)
+Plan: 3 of 4 in current phase (3 complete)
 Status: In Progress
-Last activity: 2026-03-20 - Completed 41-02: Pipeline integration with parallel-safe travel stats
+Last activity: 2026-03-20 - Completed 41-03: CLI flag for travel optimization bypass
 
-Progress: [██████████] 100% (168/170 overall)
+Progress: [██████████] 99% (169/170 overall)
 
 ## Performance Metrics
 
@@ -147,6 +147,7 @@ Progress: [██████████] 100% (168/170 overall)
 | Phase 40 P03 | 7min | 2 tasks | 7 files |
 | Phase 41 P01 | 13 | 2 tasks | 3 files |
 | Phase 41 P02 | 11min | 2 tasks | 5 files |
+| Phase 41 P03 | 2min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -663,6 +664,7 @@ Recent decisions affecting current work:
 - [Phase 41]: Contour-level TSP reordering for perimeters preserving wall order within each contour
 - [Phase 41]: LayerResult type alias for expanded 4-tuple return from process_single_layer
 - [Phase 41]: Travel stats accumulated per-layer then summed after parallel collect for rayon safety
+- [Phase 41]: CLI flag override applied after config resolution but before Engine::new for deterministic precedence
 
 ### Roadmap Evolution
 
@@ -715,6 +717,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-20T17:05:55.523Z
-Stopped at: Completed 41-02-PLAN.md
+Last session: 2026-03-20T17:10:05.692Z
+Stopped at: Completed 41-03-PLAN.md
 Resume file: None
