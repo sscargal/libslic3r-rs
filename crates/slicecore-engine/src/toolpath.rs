@@ -19,6 +19,7 @@ use crate::infill::LayerInfill;
 use crate::perimeter::ContourPerimeters;
 use crate::scarf::apply_scarf_joint;
 use crate::seam::select_seam_point;
+use crate::travel_optimizer::{optimize_tour, TspNode};
 
 /// The type of feature being printed (affects speed and extrusion settings).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -137,9 +138,12 @@ impl LayerToolpath {
 /// - `previous_seam`: Seam point from the previous layer for cross-layer alignment.
 ///
 /// # Returns
-/// A tuple of `(LayerToolpath, Option<IPoint2>)` where the second element is
-/// the last seam point used on this layer (for cross-layer seam tracking).
-#[allow(clippy::too_many_arguments)]
+/// A tuple of `(LayerToolpath, Option<IPoint2>, f64, f64)` where:
+/// - The first element is the assembled layer toolpath.
+/// - The second element is the last seam point used (for cross-layer seam tracking).
+/// - The third element is baseline travel distance in mm (original ordering).
+/// - The fourth element is optimized travel distance in mm (after TSP reordering).
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub fn assemble_layer_toolpath(
     layer_index: usize,
     z: f64,
@@ -149,11 +153,12 @@ pub fn assemble_layer_toolpath(
     infill: &LayerInfill,
     config: &PrintConfig,
     previous_seam: Option<IPoint2>,
-) -> (LayerToolpath, Option<IPoint2>) {
+) -> (LayerToolpath, Option<IPoint2>, f64, f64) {
     let mut segments = Vec::new();
 
     let extrusion_width = config.extrusion_width();
     let is_first_layer = layer_index == 0;
+    let opt_enabled = config.travel_opt.enabled;
 
     // Speeds in mm/min (config stores mm/s).
     let perimeter_speed = if is_first_layer {
@@ -174,8 +179,45 @@ pub fn assemble_layer_toolpath(
     // Track seam point for cross-layer alignment.
     let mut last_seam: Option<IPoint2> = previous_seam;
 
+    // Travel distance accumulators for baseline vs optimized.
+    let mut baseline_travel = 0.0_f64;
+    let mut optimized_travel = 0.0_f64;
+
     // --- Perimeters ---
+    // Pre-compute seam info for all polygons across all shells so we can
+    // build TspNodes with known entry/exit points, then optimize the visit
+    // order while preserving per-contour wall order.
+    //
+    // We flatten perimeters into a list of (contour_idx, shell_idx, polygon_idx)
+    // entries, each with its seam point. The optimizer reorders ACROSS contours
+    // but within each contour we preserve the shell ordering (inner/outer).
+    //
+    // Strategy: Build TspNodes at the contour level (one node per contour using
+    // the first shell's first polygon seam as entry/exit). Optimize the contour
+    // visit order, then emit shells in their original order within each contour.
+
+    // Collect per-polygon seam data: (seam_pt, seam_idx, polygon_ref, feature, shell_is_outer).
+    struct PerimInfo<'a> {
+        polygon: &'a slicecore_geo::polygon::ValidPolygon,
+        seam_idx: usize,
+        seam_pt: Point2,
+        feature: FeatureType,
+        is_outer: bool,
+    }
+
+    // Build per-contour data: for each contour, collect all its polygons
+    // with seam info, and determine the contour's representative entry point.
+    struct ContourData<'a> {
+        perims: Vec<PerimInfo<'a>>,
+        entry_pt: Point2,
+    }
+
+    let mut contour_data: Vec<ContourData<'_>> = Vec::with_capacity(perimeters.len());
+
     for contour_perims in perimeters {
+        let mut perims = Vec::new();
+        let mut first_seam_pt: Option<Point2> = None;
+
         for shell in &contour_perims.shells {
             let feature = if shell.is_outer {
                 FeatureType::OuterPerimeter
@@ -188,112 +230,218 @@ pub fn assemble_layer_toolpath(
                 if pts.len() < 2 {
                     continue;
                 }
-                let n = pts.len();
 
-                // Select the seam point (starting vertex) for this polygon.
                 let seam_idx =
                     select_seam_point(polygon, config.seam_position, last_seam, layer_index);
-
-                // Update the seam tracking point.
                 last_seam = Some(pts[seam_idx]);
 
-                // Convert seam point to mm.
                 let (seam_x, seam_y) = pts[seam_idx].to_mm();
                 let seam_pt = Point2::new(seam_x, seam_y);
 
-                // Insert travel to the seam point of this polygon if needed.
-                if let Some(pos) = current_pos {
-                    let dist = distance(&pos, &seam_pt);
-                    if dist > 0.001 {
-                        segments.push(ToolpathSegment {
-                            start: pos,
-                            end: seam_pt,
-                            feature: FeatureType::Travel,
-                            e_value: 0.0,
-                            feedrate: travel_speed,
-                            z,
-                            extrusion_width: None,
-                        });
-                    }
+                if first_seam_pt.is_none() {
+                    first_seam_pt = Some(seam_pt);
                 }
 
-                // Emit extrusion segments starting from the seam point,
-                // wrapping around the polygon.
-                let mut polygon_segments: Vec<ToolpathSegment> = Vec::new();
-                let mut prev = seam_pt;
-                for offset in 1..=n {
-                    let idx = (seam_idx + offset) % n;
-                    let (px, py) = pts[idx].to_mm();
-                    let pt = Point2::new(px, py);
-                    let seg_len = distance(&prev, &pt);
-
-                    if seg_len > 0.0001 {
-                        let e = compute_e_value(
-                            seg_len,
-                            extrusion_width,
-                            layer_height,
-                            config.filament.diameter,
-                            config.extrusion_multiplier,
-                        );
-
-                        polygon_segments.push(ToolpathSegment {
-                            start: prev,
-                            end: pt,
-                            feature,
-                            e_value: e,
-                            feedrate: perimeter_speed,
-                            z,
-                            extrusion_width: None,
-                        });
-                    }
-
-                    prev = pt;
-                }
-
-                // Apply scarf joint if enabled and applicable to this polygon type.
-                if config.scarf_joint.enabled {
-                    let should_apply = if shell.is_outer {
-                        true
-                    } else {
-                        config.scarf_joint.scarf_inner_walls
-                    };
-                    // Skip holes unless ContourAndHole is set.
-                    let skip_hole = !shell.is_outer
-                        && config.scarf_joint.scarf_joint_type == ScarfJointType::Contour;
-                    if should_apply && !skip_hole {
-                        apply_scarf_joint(
-                            &mut polygon_segments,
-                            &config.scarf_joint,
-                            layer_height,
-                            z,
-                        );
-                    }
-                }
-
-                segments.extend(polygon_segments);
-
-                // After wrapping around, prev should be back at seam_pt.
-                // No explicit close needed since we iterate n edges (seam_idx -> ... -> seam_idx).
-                current_pos = Some(seam_pt);
+                perims.push(PerimInfo {
+                    polygon,
+                    seam_idx,
+                    seam_pt,
+                    feature,
+                    is_outer: shell.is_outer,
+                });
             }
+        }
+
+        if !perims.is_empty() {
+            let entry_pt = first_seam_pt.unwrap_or(Point2::new(0.0, 0.0));
+            contour_data.push(ContourData { perims, entry_pt });
+        }
+    }
+
+    // Build TspNodes for contour-level optimization.
+    // Each contour is a closed path (entry == exit == seam of first polygon).
+    let contour_order: Vec<usize> = if opt_enabled && contour_data.len() > 1 {
+        let tsp_nodes: Vec<TspNode> = contour_data
+            .iter()
+            .enumerate()
+            .map(|(idx, cd)| TspNode {
+                entry: cd.entry_pt,
+                exit: cd.entry_pt,
+                reversible: false,
+                original_index: idx,
+            })
+            .collect();
+
+        let start = current_pos.unwrap_or(Point2::new(0.0, 0.0));
+
+        // Compute baseline travel for contour ordering.
+        let mut baseline_pos = start;
+        for cd in &contour_data {
+            baseline_travel += distance(&baseline_pos, &cd.entry_pt);
+            // After printing all polygons in contour, nozzle returns to seam.
+            baseline_pos = cd.entry_pt;
+        }
+
+        let tour = optimize_tour(&tsp_nodes, start, &config.travel_opt);
+        tour.iter().map(|&(idx, _)| idx).collect()
+    } else {
+        // No optimization or single contour: compute baseline = optimized.
+        let start = current_pos.unwrap_or(Point2::new(0.0, 0.0));
+        let mut baseline_pos = start;
+        for cd in &contour_data {
+            baseline_travel += distance(&baseline_pos, &cd.entry_pt);
+            baseline_pos = cd.entry_pt;
+        }
+        (0..contour_data.len()).collect()
+    };
+
+    // Emit perimeter segments in optimized contour order.
+    for &contour_idx in &contour_order {
+        let cd = &contour_data[contour_idx];
+
+        for pi in &cd.perims {
+            let pts = pi.polygon.points();
+            let n = pts.len();
+
+            // Insert travel to the seam point of this polygon if needed.
+            if let Some(pos) = current_pos {
+                let dist = distance(&pos, &pi.seam_pt);
+                if dist > 0.001 {
+                    optimized_travel += dist;
+                    segments.push(ToolpathSegment {
+                        start: pos,
+                        end: pi.seam_pt,
+                        feature: FeatureType::Travel,
+                        e_value: 0.0,
+                        feedrate: travel_speed,
+                        z,
+                        extrusion_width: None,
+                    });
+                }
+            }
+
+            // Emit extrusion segments starting from the seam point.
+            let mut polygon_segments: Vec<ToolpathSegment> = Vec::new();
+            let mut prev = pi.seam_pt;
+            for offset in 1..=n {
+                let idx = (pi.seam_idx + offset) % n;
+                let (px, py) = pts[idx].to_mm();
+                let pt = Point2::new(px, py);
+                let seg_len = distance(&prev, &pt);
+
+                if seg_len > 0.0001 {
+                    let e = compute_e_value(
+                        seg_len,
+                        extrusion_width,
+                        layer_height,
+                        config.filament.diameter,
+                        config.extrusion_multiplier,
+                    );
+
+                    polygon_segments.push(ToolpathSegment {
+                        start: prev,
+                        end: pt,
+                        feature: pi.feature,
+                        e_value: e,
+                        feedrate: perimeter_speed,
+                        z,
+                        extrusion_width: None,
+                    });
+                }
+
+                prev = pt;
+            }
+
+            // Apply scarf joint if enabled and applicable to this polygon type.
+            if config.scarf_joint.enabled {
+                let should_apply = if pi.is_outer {
+                    true
+                } else {
+                    config.scarf_joint.scarf_inner_walls
+                };
+                let skip_hole =
+                    !pi.is_outer && config.scarf_joint.scarf_joint_type == ScarfJointType::Contour;
+                if should_apply && !skip_hole {
+                    apply_scarf_joint(
+                        &mut polygon_segments,
+                        &config.scarf_joint,
+                        layer_height,
+                        z,
+                    );
+                }
+            }
+
+            segments.extend(polygon_segments);
+            current_pos = Some(pi.seam_pt);
         }
     }
 
     // --- Gap Fill ---
     if !gap_fills.is_empty() {
-        for gap_path in gap_fills {
-            if gap_path.points.len() < 2 {
-                continue;
+        // Filter valid gap fills and build TspNodes.
+        let valid_gap_fills: Vec<(usize, Point2, Point2)> = gap_fills
+            .iter()
+            .enumerate()
+            .filter(|(_, gp)| gp.points.len() >= 2)
+            .map(|(idx, gp)| {
+                let (fx, fy) = gp.points[0].to_mm();
+                let (lx, ly) = gp.points[gp.points.len() - 1].to_mm();
+                (idx, Point2::new(fx, fy), Point2::new(lx, ly))
+            })
+            .collect();
+
+        let gap_order: Vec<(usize, bool)> = if opt_enabled && valid_gap_fills.len() > 1 {
+            let tsp_nodes: Vec<TspNode> = valid_gap_fills
+                .iter()
+                .enumerate()
+                .map(|(tsp_idx, &(_, first_pt, last_pt))| TspNode {
+                    entry: first_pt,
+                    exit: last_pt,
+                    reversible: true,
+                    original_index: tsp_idx,
+                })
+                .collect();
+
+            let start = current_pos.unwrap_or(Point2::new(0.0, 0.0));
+
+            // Baseline: sequential order travel.
+            let mut baseline_pos = start;
+            for &(_, first_pt, _last_pt) in &valid_gap_fills {
+                baseline_travel += distance(&baseline_pos, &first_pt);
+                baseline_pos = _last_pt;
             }
 
-            // Convert first point to mm for travel.
-            let (fx, fy) = gap_path.points[0].to_mm();
+            let tour = optimize_tour(&tsp_nodes, start, &config.travel_opt);
+            tour.iter()
+                .map(|&(tsp_idx, reversed)| (valid_gap_fills[tsp_idx].0, reversed))
+                .collect()
+        } else {
+            // Baseline = optimized for single or no items.
+            let start = current_pos.unwrap_or(Point2::new(0.0, 0.0));
+            let mut baseline_pos = start;
+            for &(_, first_pt, last_pt) in &valid_gap_fills {
+                baseline_travel += distance(&baseline_pos, &first_pt);
+                baseline_pos = last_pt;
+            }
+            valid_gap_fills.iter().map(|&(idx, _, _)| (idx, false)).collect()
+        };
+
+        for &(gap_idx, reversed) in &gap_order {
+            let gap_path = &gap_fills[gap_idx];
+
+            let points: Vec<IPoint2> = if reversed {
+                gap_path.points.iter().copied().rev().collect()
+            } else {
+                gap_path.points.clone()
+            };
+
+            let (fx, fy) = points[0].to_mm();
             let first_pt = Point2::new(fx, fy);
 
-            // Insert travel to gap fill path start if needed.
             if let Some(pos) = current_pos {
                 let dist = distance(&pos, &first_pt);
                 if dist > 0.001 {
+                    optimized_travel += dist;
                     segments.push(ToolpathSegment {
                         start: pos,
                         end: first_pt,
@@ -306,15 +454,13 @@ pub fn assemble_layer_toolpath(
                 }
             }
 
-            // Emit extrusion segments along the gap fill path.
             let mut prev = first_pt;
-            for i in 1..gap_path.points.len() {
-                let (px, py) = gap_path.points[i].to_mm();
+            for point in &points[1..] {
+                let (px, py) = point.to_mm();
                 let pt = Point2::new(px, py);
                 let seg_len = distance(&prev, &pt);
 
                 if seg_len > 0.0001 {
-                    // Use the gap fill's width for E-value computation.
                     let e = compute_e_value(
                         seg_len,
                         gap_path.width,
@@ -349,53 +495,147 @@ pub fn assemble_layer_toolpath(
             FeatureType::SparseInfill
         };
 
-        // Order infill lines by nearest-neighbor heuristic.
-        let ordered_lines = nearest_neighbor_order(&infill.lines, current_pos);
+        if opt_enabled && infill.lines.len() > 1 {
+            // TSP optimizer for infill line ordering.
+            let tsp_nodes: Vec<TspNode> = infill
+                .lines
+                .iter()
+                .enumerate()
+                .map(|(idx, line)| {
+                    let (sx, sy) = line.start.to_mm();
+                    let (ex, ey) = line.end.to_mm();
+                    TspNode {
+                        entry: Point2::new(sx, sy),
+                        exit: Point2::new(ex, ey),
+                        reversible: true,
+                        original_index: idx,
+                    }
+                })
+                .collect();
 
-        for line in &ordered_lines {
-            let (sx, sy) = line.start.to_mm();
-            let (ex, ey) = line.end.to_mm();
-            let start_pt = Point2::new(sx, sy);
-            let end_pt = Point2::new(ex, ey);
+            let start = current_pos.unwrap_or(Point2::new(0.0, 0.0));
 
-            // Insert travel to infill line start if needed.
-            if let Some(pos) = current_pos {
-                let dist = distance(&pos, &start_pt);
-                if dist > 0.001 {
+            // Compute baseline travel (sequential order).
+            let mut baseline_pos = start;
+            for line in &infill.lines {
+                let (sx, sy) = line.start.to_mm();
+                let start_pt = Point2::new(sx, sy);
+                let (ex, ey) = line.end.to_mm();
+                let end_pt = Point2::new(ex, ey);
+                baseline_travel += distance(&baseline_pos, &start_pt);
+                baseline_pos = end_pt;
+            }
+
+            let tour = optimize_tour(&tsp_nodes, start, &config.travel_opt);
+
+            for &(orig_idx, reversed) in &tour {
+                let line = &infill.lines[orig_idx];
+                let (sx, sy) = line.start.to_mm();
+                let (ex, ey) = line.end.to_mm();
+
+                let (start_pt, end_pt) = if reversed {
+                    (Point2::new(ex, ey), Point2::new(sx, sy))
+                } else {
+                    (Point2::new(sx, sy), Point2::new(ex, ey))
+                };
+
+                if let Some(pos) = current_pos {
+                    let dist = distance(&pos, &start_pt);
+                    if dist > 0.001 {
+                        optimized_travel += dist;
+                        segments.push(ToolpathSegment {
+                            start: pos,
+                            end: start_pt,
+                            feature: FeatureType::Travel,
+                            e_value: 0.0,
+                            feedrate: travel_speed,
+                            z,
+                            extrusion_width: None,
+                        });
+                    }
+                }
+
+                let seg_len = distance(&start_pt, &end_pt);
+                if seg_len > 0.0001 {
+                    let e = compute_e_value(
+                        seg_len,
+                        extrusion_width,
+                        layer_height,
+                        config.filament.diameter,
+                        config.extrusion_multiplier,
+                    );
+
                     segments.push(ToolpathSegment {
-                        start: pos,
-                        end: start_pt,
-                        feature: FeatureType::Travel,
-                        e_value: 0.0,
-                        feedrate: travel_speed,
+                        start: start_pt,
+                        end: end_pt,
+                        feature: infill_feature,
+                        e_value: e,
+                        feedrate: infill_speed,
                         z,
                         extrusion_width: None,
                     });
+
+                    current_pos = Some(end_pt);
                 }
             }
+        } else {
+            // Fallback: nearest-neighbor ordering when optimizer disabled.
+            let ordered_lines = nearest_neighbor_order(&infill.lines, current_pos);
 
-            // Emit the infill extrusion.
-            let seg_len = distance(&start_pt, &end_pt);
-            if seg_len > 0.0001 {
-                let e = compute_e_value(
-                    seg_len,
-                    extrusion_width,
-                    layer_height,
-                    config.filament.diameter,
-                    config.extrusion_multiplier,
-                );
+            // Compute baseline travel for NN-ordered lines.
+            let start = current_pos.unwrap_or(Point2::new(0.0, 0.0));
+            let mut baseline_pos = start;
+            for line in &infill.lines {
+                let (sx, sy) = line.start.to_mm();
+                baseline_travel += distance(&baseline_pos, &Point2::new(sx, sy));
+                let (ex, ey) = line.end.to_mm();
+                baseline_pos = Point2::new(ex, ey);
+            }
 
-                segments.push(ToolpathSegment {
-                    start: start_pt,
-                    end: end_pt,
-                    feature: infill_feature,
-                    e_value: e,
-                    feedrate: infill_speed,
-                    z,
-                    extrusion_width: None,
-                });
+            for line in &ordered_lines {
+                let (sx, sy) = line.start.to_mm();
+                let (ex, ey) = line.end.to_mm();
+                let start_pt = Point2::new(sx, sy);
+                let end_pt = Point2::new(ex, ey);
 
-                current_pos = Some(end_pt);
+                if let Some(pos) = current_pos {
+                    let dist = distance(&pos, &start_pt);
+                    if dist > 0.001 {
+                        optimized_travel += dist;
+                        segments.push(ToolpathSegment {
+                            start: pos,
+                            end: start_pt,
+                            feature: FeatureType::Travel,
+                            e_value: 0.0,
+                            feedrate: travel_speed,
+                            z,
+                            extrusion_width: None,
+                        });
+                    }
+                }
+
+                let seg_len = distance(&start_pt, &end_pt);
+                if seg_len > 0.0001 {
+                    let e = compute_e_value(
+                        seg_len,
+                        extrusion_width,
+                        layer_height,
+                        config.filament.diameter,
+                        config.extrusion_multiplier,
+                    );
+
+                    segments.push(ToolpathSegment {
+                        start: start_pt,
+                        end: end_pt,
+                        feature: infill_feature,
+                        e_value: e,
+                        feedrate: infill_speed,
+                        z,
+                        extrusion_width: None,
+                    });
+
+                    current_pos = Some(end_pt);
+                }
             }
         }
     }
@@ -408,6 +648,8 @@ pub fn assemble_layer_toolpath(
             segments,
         },
         last_seam,
+        baseline_travel,
+        optimized_travel,
     )
 }
 
@@ -539,7 +781,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) =
+        let (toolpath, _, _, _) =
             assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // Should have segments.
@@ -581,7 +823,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) =
+        let (toolpath, _, _, _) =
             assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         let travel_count = toolpath
@@ -611,7 +853,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) =
+        let (toolpath, _, _, _) =
             assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         for seg in &toolpath.segments {
@@ -647,7 +889,7 @@ mod tests {
         };
 
         // Layer 0 (first layer).
-        let (toolpath, _) =
+        let (toolpath, _, _, _) =
             assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &[], &infill, &config, None);
         let first_layer_speed_mmmin = 20.0 * 60.0;
 
@@ -679,7 +921,7 @@ mod tests {
         };
 
         // Layer 2 (not first layer).
-        let (toolpath, _) =
+        let (toolpath, _, _, _) =
             assemble_layer_toolpath(2, 0.7, 0.2, &perimeters, &[], &infill, &config, None);
 
         let perim_speed_mmmin = 45.0 * 60.0;
@@ -732,7 +974,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) =
+        let (toolpath, _, _, _) =
             assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         let time = toolpath.estimated_time_seconds();
@@ -751,7 +993,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) = assemble_layer_toolpath(0, 0.2, 0.2, &[], &[], &infill, &config, None);
+        let (toolpath, _, _, _) = assemble_layer_toolpath(0, 0.2, 0.2, &[], &[], &infill, &config, None);
         assert!(
             toolpath.segments.is_empty(),
             "Empty perimeters and infill should produce empty toolpath"
@@ -791,7 +1033,7 @@ mod tests {
         };
 
         let config = default_config();
-        let (toolpath, _) = assemble_layer_toolpath(1, 0.4, 0.2, &[], &[], &infill, &config, None);
+        let (toolpath, _, _, _) = assemble_layer_toolpath(1, 0.4, 0.2, &[], &[], &infill, &config, None);
 
         let has_solid = toolpath
             .segments
@@ -818,13 +1060,13 @@ mod tests {
         };
 
         // Layer 0 -- no previous seam.
-        let (tp0, seam0) =
+        let (tp0, seam0, _, _) =
             assemble_layer_toolpath(0, 0.3, 0.3, &perimeters, &[], &infill, &config, None);
         assert!(!tp0.segments.is_empty(), "Layer 0 should have segments");
         assert!(seam0.is_some(), "Layer 0 should have a seam point");
 
         // Layer 1 -- pass previous seam from layer 0.
-        let (tp1, seam1) =
+        let (tp1, seam1, _, _) =
             assemble_layer_toolpath(1, 0.5, 0.2, &perimeters, &[], &infill, &config, seam0);
         assert!(!tp1.segments.is_empty(), "Layer 1 should have segments");
         assert!(seam1.is_some(), "Layer 1 should have a seam point");
@@ -854,7 +1096,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) =
+        let (toolpath, _, _, _) =
             assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // Find the first perimeter extrusion segment.
@@ -884,7 +1126,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) =
+        let (toolpath, _, _, _) =
             assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // Count total perimeter extrusion length.
@@ -979,7 +1221,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) =
+        let (toolpath, _, _, _) =
             assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // With scarf enabled, some perimeter segments should have Z != 0.4.
@@ -1012,7 +1254,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) =
+        let (toolpath, _, _, _) =
             assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         // With scarf disabled, all perimeter segments should have Z == 0.4.
@@ -1036,7 +1278,7 @@ mod tests {
             is_solid: false,
         };
 
-        let (toolpath, _) =
+        let (toolpath, _, _, _) =
             assemble_layer_toolpath(1, 0.4, 0.2, &perimeters, &[], &infill, &config, None);
 
         for seg in &toolpath.segments {

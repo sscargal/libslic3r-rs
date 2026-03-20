@@ -48,6 +48,9 @@ use rayon::prelude::*;
 
 use slicecore_math::Point2;
 
+/// Per-layer processing result: toolpath, seam, baseline travel, optimized travel.
+type LayerResult = (LayerToolpath, Option<slicecore_math::IPoint2>, f64, f64);
+
 /// Thread-safe cancellation token for cooperative cancellation of slicing operations.
 ///
 /// Create a token, pass it (or a clone) to a slice method, and call `.cancel()`
@@ -355,7 +358,7 @@ fn process_single_layer(
     lightning_ctx: Option<&lightning::LightningContext>,
     support_result: &support::SupportResult,
     previous_seam: Option<slicecore_math::IPoint2>,
-) -> Result<(LayerToolpath, Option<slicecore_math::IPoint2>), EngineError> {
+) -> Result<LayerResult, EngineError> {
     if layer.contours.is_empty() {
         return Ok((
             LayerToolpath {
@@ -365,6 +368,8 @@ fn process_single_layer(
                 segments: Vec::new(),
             },
             previous_seam,
+            0.0,
+            0.0,
         ));
     }
 
@@ -526,16 +531,17 @@ fn process_single_layer(
     };
 
     // 2e. Assemble toolpath.
-    let (mut toolpath, layer_seam) = assemble_layer_toolpath(
-        layer_idx,
-        layer.z,
-        layer.layer_height,
-        &perimeters,
-        &gap_fills,
-        &infill,
-        config,
-        previous_seam,
-    );
+    let (mut toolpath, layer_seam, layer_baseline_travel, layer_optimized_travel) =
+        assemble_layer_toolpath(
+            layer_idx,
+            layer.z,
+            layer.layer_height,
+            &perimeters,
+            &gap_fills,
+            &infill,
+            config,
+            previous_seam,
+        );
 
     // 2f. Arachne variable-width perimeter segments.
     if !arachne_segments.is_empty() {
@@ -610,7 +616,7 @@ fn process_single_layer(
         }
     }
 
-    Ok((toolpath, layer_seam))
+    Ok((toolpath, layer_seam, layer_baseline_travel, layer_optimized_travel))
 }
 
 /// The slicing engine -- orchestrates the full pipeline.
@@ -1249,16 +1255,16 @@ impl Engine {
         // 2. Process each layer: perimeters, surface classification, infill, toolpath.
         let total_layers = layers.len();
         let mut layer_toolpaths: Vec<LayerToolpath>;
+        let mut total_baseline_travel = 0.0_f64;
+        let mut total_optimized_travel = 0.0_f64;
 
         if use_parallel {
             // --- PARALLEL PATH ---
             // Pass 1: Process all layers in parallel with previous_seam = None.
             // Each layer is independent except for seam alignment.
             let progress = AtomicProgress::new(total_layers);
-            let layer_results: Result<
-                Vec<(LayerToolpath, Option<slicecore_math::IPoint2>)>,
-                EngineError,
-            > = maybe_par_iter!(layers)
+            let layer_results: Result<Vec<LayerResult>, EngineError> =
+                maybe_par_iter!(layers)
                 .enumerate()
                 .map(|(layer_idx, layer)| {
                     // Check cancellation at the start of each layer.
@@ -1294,11 +1300,11 @@ impl Engine {
             let mut previous_seam: Option<slicecore_math::IPoint2> = None;
             let mut final_toolpaths = Vec::with_capacity(layer_results.len());
 
-            for (layer_idx, (tp, layer_seam)) in layer_results.into_iter().enumerate() {
+            for (layer_idx, (tp, layer_seam, bl, opt)) in layer_results.into_iter().enumerate() {
                 if previous_seam.is_some() && !layers[layer_idx].contours.is_empty() {
                     // Re-process this layer with the correct previous_seam
                     // to get bit-identical seam placement.
-                    let (re_tp, re_seam) = process_single_layer(
+                    let (re_tp, re_seam, re_bl, re_opt) = process_single_layer(
                         layer_idx,
                         &layers[layer_idx],
                         &layers,
@@ -1310,12 +1316,16 @@ impl Engine {
                     if re_seam.is_some() {
                         previous_seam = re_seam;
                     }
+                    total_baseline_travel += re_bl;
+                    total_optimized_travel += re_opt;
                     final_toolpaths.push(re_tp);
                 } else {
                     // First layer or empty layer: parallel result is correct.
                     if layer_seam.is_some() {
                         previous_seam = layer_seam;
                     }
+                    total_baseline_travel += bl;
+                    total_optimized_travel += opt;
                     final_toolpaths.push(tp);
                 }
             }
@@ -1510,7 +1520,7 @@ impl Engine {
                     Vec::new()
                 };
 
-                let (mut toolpath, layer_seam) = assemble_layer_toolpath(
+                let (mut toolpath, layer_seam, bl, opt) = assemble_layer_toolpath(
                     layer_idx,
                     layer.z,
                     layer.layer_height,
@@ -1520,6 +1530,8 @@ impl Engine {
                     &self.config,
                     previous_seam,
                 );
+                total_baseline_travel += bl;
+                total_optimized_travel += opt;
 
                 if !arachne_segments.is_empty() {
                     let travel_speed = self.config.speeds.travel * 60.0;
@@ -1894,6 +1906,19 @@ impl Engine {
         };
         gcode_writer.write_end_gcode(&end_config)?;
 
+        // Compute travel optimization stats from per-layer accumulators.
+        let travel_opt_stats = if self.config.travel_opt.enabled && total_baseline_travel > 0.0 {
+            Some(crate::statistics::TravelOptStats {
+                baseline_travel_distance: total_baseline_travel,
+                optimized_travel_distance: total_optimized_travel,
+                travel_reduction_percent: (total_baseline_travel - total_optimized_travel)
+                    / total_baseline_travel
+                    * 100.0,
+            })
+        } else {
+            None
+        };
+
         Ok(SliceResult {
             gcode: Vec::new(), // Not used in writer path.
             layer_count,
@@ -1902,7 +1927,7 @@ impl Engine {
             filament_usage,
             preview: None,
             statistics: Some(statistics),
-            travel_opt_stats: None,
+            travel_opt_stats,
         })
     }
 
@@ -1977,10 +2002,8 @@ impl Engine {
 
         if use_parallel {
             // Parallel pass 1: process all layers without seam alignment.
-            let layer_results: Result<
-                Vec<(LayerToolpath, Option<slicecore_math::IPoint2>)>,
-                EngineError,
-            > = maybe_par_iter!(layers)
+            let layer_results: Result<Vec<LayerResult>, EngineError> =
+                maybe_par_iter!(layers)
                 .enumerate()
                 .map(|(layer_idx, layer)| {
                     if let Some(ref token) = cancel {
@@ -2006,9 +2029,9 @@ impl Engine {
             let mut previous_seam: Option<slicecore_math::IPoint2> = None;
             let mut final_toolpaths = Vec::with_capacity(layer_results.len());
 
-            for (layer_idx, (tp, layer_seam)) in layer_results.into_iter().enumerate() {
+            for (layer_idx, (tp, layer_seam, _bl, _opt)) in layer_results.into_iter().enumerate() {
                 if previous_seam.is_some() && !layers[layer_idx].contours.is_empty() {
-                    let (re_tp, re_seam) = process_single_layer(
+                    let (re_tp, re_seam, _re_bl, _re_opt) = process_single_layer(
                         layer_idx,
                         &layers[layer_idx],
                         &layers,
@@ -2042,7 +2065,7 @@ impl Engine {
                     }
                 }
 
-                let (tp, layer_seam) = process_single_layer(
+                let (tp, layer_seam, _bl, _opt) = process_single_layer(
                     layer_idx,
                     layer,
                     &layers,
@@ -2242,7 +2265,7 @@ impl Engine {
                 };
 
                 // Assemble toolpath for this region.
-                let (region_toolpath, layer_seam) = assemble_layer_toolpath(
+                let (region_toolpath, layer_seam, _bl, _opt) = assemble_layer_toolpath(
                     layer_idx,
                     layer.z,
                     layer.layer_height,

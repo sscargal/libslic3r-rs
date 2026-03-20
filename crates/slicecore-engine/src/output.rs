@@ -166,6 +166,7 @@ mod tests {
             },
             preview: None,
             statistics: None,
+            travel_opt_stats: None,
         }
     }
 
