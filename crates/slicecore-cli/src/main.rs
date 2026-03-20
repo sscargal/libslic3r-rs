@@ -262,6 +262,10 @@ enum Commands {
         /// Auto-arrange input mesh(es) on bed before slicing.
         #[arg(long)]
         auto_arrange: bool,
+
+        /// Disable travel move optimization (for debugging/comparison).
+        #[arg(long)]
+        no_travel_opt: bool,
     },
 
     /// Validate a G-code file
@@ -725,6 +729,7 @@ fn main() {
             thumbnail_format,
             thumbnail_quality,
             auto_arrange,
+            no_travel_opt,
         } => cmd_slice(
             &input,
             config.as_deref(),
@@ -755,6 +760,7 @@ fn main() {
             &thumbnail_format,
             thumbnail_quality,
             auto_arrange,
+            no_travel_opt,
             color_mode,
         ),
         Commands::Validate { input } => cmd_validate(&input),
@@ -1039,6 +1045,7 @@ fn cmd_slice(
     thumbnail_format: &str,
     thumbnail_quality: Option<u8>,
     auto_arrange: bool,
+    no_travel_opt: bool,
     color_mode: cli_output::ColorMode,
 ) {
     // Determine if we're using the new profile-based workflow or legacy --config path.
@@ -1105,7 +1112,7 @@ fn cmd_slice(
     output.finish_step(&step1, "Load mesh");
 
     // Step 2 (& 3 for profile workflow): Load config / Resolve profiles / Validate.
-    let (print_config, gcode_header_opt) = if use_profile_workflow {
+    let (mut print_config, gcode_header_opt) = if use_profile_workflow {
         let step2 = output.start_step(2, total_steps, "Resolve profiles");
 
         let workflow_options = slice_workflow::SliceWorkflowOptions {
@@ -1181,6 +1188,11 @@ fn cmd_slice(
         output
             .info("Set 'plugin_dir' in your config TOML or use --plugin-dir on the command line.");
         process::exit(1);
+    }
+
+    // Apply CLI flag overrides.
+    if no_travel_opt {
+        print_config.travel_opt.enabled = false;
     }
 
     // Create engine (auto-loads plugins from config.plugin_dir when plugins feature enabled).
