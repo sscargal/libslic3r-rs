@@ -111,7 +111,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 ### API & CLI (API)
 
 - [ ] **API-01**: Well-documented Rust public API (all public items have rustdoc)
-- [ ] **API-02**: Full-featured CLI interface (slice, validate, analyze commands)
+- [x] **API-02**: Full-featured CLI interface (slice, validate, analyze commands)
 - [ ] **API-03**: JSON structured output (settings, slicing results, metadata)
 - [ ] **API-04**: MessagePack structured output option
 - [x] **API-05**: Event system for progress, warnings, errors (pub/sub)
@@ -212,7 +212,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | GCODE-08 | Phase 3 | Pending |
 | GCODE-09 | Phase 3 | Pending |
 | GCODE-10 | Phase 3 | Pending |
-| API-02 | Phase 3 | Pending |
+| API-02 | Phase 3 | Complete |
 | SLICE-02 | Phase 4 | Pending |
 | SLICE-04 | Phase 4 | Pending |
 | PERIM-02 | Phase 4 | Pending |

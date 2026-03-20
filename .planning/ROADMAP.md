@@ -328,6 +328,16 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 15. Printer and Filament Profile Library | 3/3 | ✓ Complete | 2026-02-18 |
 | 16. PrusaSlicer Profile Migration | 2/2 | ✓ Complete | 2026-02-19 |
 | 17. BambuStudio Profile Migration | 1/1 | ✓ Complete | 2026-02-19 |
+| 42. Clone and Customize Profiles | 2/2 | Complete    | 2026-03-20 |
+| 43. Enable/Disable Printer and Filament Profiles | 0/0 | ○ Pending | - |
+| 44. Search and Filter Profiles by Compatibility | 0/0 | ○ Pending | - |
+| 45. Global and Per-Object Settings Override System | 0/0 | ○ Pending | - |
+| 46. Job Output Directories | 0/0 | ○ Pending | - |
+| 47. Variable Layer Height Algorithms | 0/0 | ○ Pending | - |
+| 48. Selective Adaptive Z-Hop Control | 0/0 | ○ Pending | - |
+| 49. Hybrid Sequential Printing | 0/0 | ○ Pending | - |
+| 50. 3MF Project Output with Embedded G-code | 0/0 | ○ Pending | - |
+| 51. Comprehensive Documentation Suite | 0/0 | ○ Pending | - |
 
 ### Phase 14: Profile Conversion Tool (JSON to TOML)
 
@@ -767,3 +777,95 @@ Plans:
 - [ ] 41-02-PLAN.md — Engine integration (toolpath optimizer wiring + travel stats)
 - [ ] 41-03-PLAN.md — CLI --no-travel-opt flag
 - [ ] 41-04-PLAN.md — Benchmarks and integration tests (>= 20% reduction assertions)
+
+### Phase 42: Clone and customize profiles from defaults — add profile clone command for creating custom profiles from existing presets with edit and validate workflow
+
+**Goal:** Enable users to create custom profiles by cloning existing presets via `slicecore profile clone <source> <new-name>`, with subsequent editing via `slicecore profile set` and schema-based validation.
+**Requirements**: [API-02]
+**Depends on:** Phase 41
+**Plans:** 2/2 plans complete
+
+Plans:
+- [ ] 42-01-PLAN.md — ProfileCommand enum, clone command, name validation, main.rs wiring
+- [ ] 42-02-PLAN.md — Set/get/reset/edit/validate/delete/rename commands and alias wiring
+
+### Phase 43: Enable/disable printer and filament profiles to narrow search scope — add profile activation system with first-run wizard and per-printer filament visibility
+
+**Goal:** Implement an enable/disable system for printer and filament profiles using `~/.config/slicecore/enabled-profiles.toml`, with CLI commands (enable/disable/list/setup), interactive first-run wizard, and per-printer filament visibility filtering.
+**Requirements**: [API-02]
+**Depends on:** Phase 42
+**Plans:** 0 plans
+
+Plans:
+
+### Phase 44: Search and filter profiles by printer and filament compatibility — add profile search with compatibility engine and enhanced list command
+
+**Goal:** Add `slicecore profile search <query>` with filters (printer, material, nozzle, manufacturer), a compatibility engine (nozzle match, temp ranges, hardware requirements), enhanced `list` command with filtering, and profile sets for favorites.
+**Requirements**: [API-02]
+**Depends on:** Phase 43
+**Plans:** 0 plans
+
+Plans:
+
+### Phase 45: Global and per-object settings override system — implement layered settings resolution with per-object and per-region overrides
+
+**Goal:** Implement a layered settings override system (global → per-object → per-region) with proper cascading, validation, and serialization, enabling users to customize specific objects on multi-object plates with different infill, layer height, or other parameters.
+**Requirements**: [ADV-03]
+**Depends on:** Phase 44
+**Plans:** 0 plans
+
+Plans:
+
+### Phase 46: Job output directories for isolated slice execution — add --job-dir flag with structured output directory containing G-code, logs, config snapshot, thumbnail, and manifest
+
+**Goal:** Implement job directory concept with structured output (G-code, logs, config snapshot, thumbnail, manifest) via `--job-dir` flag, enabling isolated artifact management for parallel slicing, batch workflows, and future daemon/farm/SaaS features.
+**Requirements**: [API-02]
+**Depends on:** Phase 45
+**Plans:** 0 plans
+
+Plans:
+
+### Phase 47: Variable layer height algorithms — implement multi-objective VLH optimization with curvature, feature-aware heights, and Laplacian smoothing
+
+**Goal:** Extend variable layer height beyond basic curvature analysis with multi-objective optimization (quality + speed + strength), feature-aware height selection, perceptual surface quality models, Laplacian smoothing for transition continuity, and time-budgeted optimization.
+**Requirements**: [SLICE-05]
+**Depends on:** Phase 46
+**Plans:** 0 plans
+
+Plans:
+
+### Phase 48: Selective adaptive z-hop control for top surfaces — implement surface-type-based z-hop with distance gating and height-proportional lift
+
+**Goal:** Replace global z-hop with intelligent surface-type-based z-hop that activates only on top solids and ironing surfaces, with layer-position-based rules, height-proportional lift, and distance-gated activation to eliminate unnecessary stringing on interior layers.
+**Requirements**: [GCODE-03]
+**Depends on:** Phase 47
+**Plans:** 0 plans
+
+Plans:
+
+### Phase 49: Hybrid sequential printing — first N layers all objects together, then switch to by-object sequential printing
+
+**Goal:** Implement hybrid print mode where Phase 1 prints first N layers of all objects together for adhesion verification, then Phase 2 switches to sequential by-object printing for quality, with early failure detection and conditional object skipping.
+**Requirements**: [ADV-02]
+**Depends on:** Phase 48
+**Plans:** 0 plans
+
+Plans:
+
+### Phase 50: 3MF project output with model settings and embedded G-code — implement full 3MF project write support with settings metadata, thumbnails, and Bambu printer compatibility
+
+**Goal:** Enable saving complete slice sessions in 3MF project format containing model geometry, print settings metadata, thumbnail images, and embedded G-code, with Bambu/OrcaSlicer compatibility for direct-to-printer workflows.
+**Requirements**: [MESH-03]
+**Depends on:** Phase 49
+**Plans:** 0 plans
+
+Plans:
+
+### Phase 51: Comprehensive documentation suite for users and developers — build mdBook-based docs with install guide, user guide, API reference, and developer guide
+
+**Goal:** Create a complete mdBook-based documentation suite covering installation, user guide (CLI usage, profiles, slicing workflows), configuration reference, API reference (rustdoc integration), developer guide (architecture, contributing), and examples gallery.
+**Requirements**: [API-01]
+**Depends on:** Phase 50
+**Plans:** 0 plans
+
+Plans:

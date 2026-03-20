@@ -30,6 +30,7 @@ slicecore-math = { path = "../slicecore-math" }
 console = "0.15"
 indicatif = "0.17"
 anyhow = { workspace = true }
+home = "0.5"
 
 [dev-dependencies]
 tempfile = { workspace = true }
