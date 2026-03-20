@@ -31,7 +31,7 @@ pub enum ProfileCommand {
     /// Create a custom profile by cloning an existing preset.
     ///
     /// Copies the source profile to ~/.slicecore/profiles/{type}/ with a
-    /// [metadata] section recording the clone lineage.
+    /// \[metadata\] section recording the clone lineage.
     Clone {
         /// Source profile name or path (e.g., BBL/PLA_Basic)
         source: String,
