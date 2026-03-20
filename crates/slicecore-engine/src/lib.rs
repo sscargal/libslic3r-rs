@@ -64,6 +64,7 @@ pub mod statistics;
 pub mod support;
 pub mod surface;
 pub mod toolpath;
+pub mod travel_optimizer;
 
 // Re-export primary types at crate root.
 pub use arachne::{generate_arachne_perimeters, ArachnePerimeter, ArachneResult};
@@ -129,6 +130,7 @@ pub use support::config::SupportConfig;
 pub use support::{SupportRegion, SupportResult};
 pub use surface::{classify_surfaces, SurfaceClassification};
 pub use toolpath::{assemble_layer_toolpath, FeatureType, LayerToolpath, ToolpathSegment};
+pub use travel_optimizer::{optimize_tour, Tour, TspNode};
 
 // Re-export plugin types when the plugins feature is enabled.
 #[cfg(feature = "plugins")]
