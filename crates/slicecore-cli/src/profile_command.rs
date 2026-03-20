@@ -19,8 +19,11 @@
 use std::path::{Path, PathBuf};
 
 use clap::Subcommand;
+use slicecore_config_schema::SettingKey;
 use slicecore_engine::config::PrintConfig;
-use slicecore_engine::profile_resolve::{ProfileError, ProfileResolver, ResolvedProfile};
+use slicecore_engine::profile_resolve::{
+    ProfileError, ProfileResolver, ProfileSource, ResolvedProfile,
+};
 
 /// Profile management subcommands.
 #[derive(Subcommand)]
@@ -235,38 +238,71 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
             r#type.as_deref(),
             profiles_dir.as_deref(),
         ),
-        ProfileCommand::Set { .. } => {
-            anyhow::bail!("profile set not yet implemented")
-        }
-        ProfileCommand::Get { .. } => {
-            anyhow::bail!("profile get not yet implemented")
-        }
-        ProfileCommand::Reset { .. } => {
-            anyhow::bail!("profile reset not yet implemented")
-        }
-        ProfileCommand::Edit { .. } => {
-            anyhow::bail!("profile edit not yet implemented")
-        }
-        ProfileCommand::Validate { .. } => {
-            anyhow::bail!("profile validate not yet implemented")
-        }
-        ProfileCommand::Delete { .. } => {
-            anyhow::bail!("profile delete not yet implemented")
-        }
-        ProfileCommand::Rename { .. } => {
-            anyhow::bail!("profile rename not yet implemented")
-        }
-        ProfileCommand::List { .. } => {
-            anyhow::bail!("profile list not yet implemented (use top-level list-profiles)")
-        }
-        ProfileCommand::Show { .. } => {
-            anyhow::bail!("profile show not yet implemented (use top-level show-profile)")
-        }
-        ProfileCommand::Search { .. } => {
-            anyhow::bail!("profile search not yet implemented (use top-level search-profiles)")
-        }
-        ProfileCommand::Diff(_) => {
-            anyhow::bail!("profile diff not yet implemented (use top-level diff-profiles)")
+        ProfileCommand::Set {
+            name,
+            key,
+            value,
+            profiles_dir,
+        } => cmd_set(&name, &key, &value, profiles_dir.as_deref()),
+        ProfileCommand::Get {
+            name,
+            key,
+            profiles_dir,
+        } => cmd_get(&name, &key, profiles_dir.as_deref()),
+        ProfileCommand::Reset {
+            name,
+            key,
+            profiles_dir,
+        } => cmd_reset(&name, &key, profiles_dir.as_deref()),
+        ProfileCommand::Edit {
+            name,
+            profiles_dir,
+        } => cmd_edit(&name, profiles_dir.as_deref()),
+        ProfileCommand::Validate {
+            name,
+            profiles_dir,
+            json,
+        } => cmd_validate(&name, json, profiles_dir.as_deref()),
+        ProfileCommand::Delete {
+            name,
+            yes,
+            profiles_dir,
+        } => cmd_delete(&name, yes, profiles_dir.as_deref()),
+        ProfileCommand::Rename {
+            old_name,
+            new_name,
+            profiles_dir,
+        } => cmd_rename(&old_name, &new_name, profiles_dir.as_deref()),
+        ProfileCommand::List {
+            vendor,
+            profile_type,
+            material,
+            vendors,
+            profiles_dir,
+            json,
+        } => cmd_list(
+            vendor.as_deref(),
+            profile_type.as_deref(),
+            material.as_deref(),
+            vendors,
+            profiles_dir.as_deref(),
+            json,
+        ),
+        ProfileCommand::Show {
+            id,
+            raw,
+            profiles_dir,
+        } => cmd_show(&id, raw, profiles_dir.as_deref()),
+        ProfileCommand::Search {
+            query,
+            limit,
+            profiles_dir,
+            json,
+        } => cmd_search(&query, limit, profiles_dir.as_deref(), json),
+        ProfileCommand::Diff(args) => {
+            crate::diff_profiles_command::run_diff_profiles_command(&args, "auto", false)
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            Ok(())
         }
     }
 }
@@ -414,6 +450,570 @@ fn cmd_clone(
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// Helper: navigate a dotted key path in a TOML value tree (immutable)
+// ---------------------------------------------------------------------------
+
+/// Navigates a dotted key path (e.g., `"speed.perimeter"`) in a `toml::Value`.
+///
+/// Returns `None` if any intermediate key is missing or not a table.
+fn navigate_toml_path<'a>(doc: &'a toml::Value, key: &str) -> Option<&'a toml::Value> {
+    let mut current = doc;
+    for part in key.split('.') {
+        current = current.as_table()?.get(part)?;
+    }
+    Some(current)
+}
+
+// ---------------------------------------------------------------------------
+// Helper: navigate a dotted key path in a TOML value tree (mutable)
+// ---------------------------------------------------------------------------
+
+/// Navigates a dotted key path, creating intermediate tables as needed.
+///
+/// Returns a mutable reference to the leaf value's parent slot. The caller
+/// should then insert or update the final key.
+fn navigate_toml_path_mut<'a>(doc: &'a mut toml::Value, key: &str) -> &'a mut toml::Value {
+    let parts: Vec<&str> = key.split('.').collect();
+    let mut current = doc;
+    // Navigate/create all parts including the leaf -- the caller sets the value
+    for part in &parts[..parts.len().saturating_sub(1)] {
+        // Ensure current is a table
+        if !current.is_table() {
+            *current = toml::Value::Table(toml::map::Map::new());
+        }
+        let table = current.as_table_mut().expect("just ensured table");
+        if !table.contains_key(*part) {
+            table.insert((*part).to_string(), toml::Value::Table(toml::map::Map::new()));
+        }
+        current = table.get_mut(*part).expect("just inserted");
+    }
+    current
+}
+
+// ---------------------------------------------------------------------------
+// Helper: parse a string value into a toml::Value with type inference
+// ---------------------------------------------------------------------------
+
+/// Parses a string value into a `toml::Value`, inferring the type.
+///
+/// Tries integer, float, boolean in order; falls back to string.
+fn parse_toml_value(value: &str) -> toml::Value {
+    if let Ok(i) = value.parse::<i64>() {
+        return toml::Value::Integer(i);
+    }
+    if let Ok(f) = value.parse::<f64>() {
+        return toml::Value::Float(f);
+    }
+    if let Ok(b) = value.parse::<bool>() {
+        return toml::Value::Boolean(b);
+    }
+    toml::Value::String(value.to_string())
+}
+
+// ---------------------------------------------------------------------------
+// Helper: require user-source profile (reject library/builtin)
+// ---------------------------------------------------------------------------
+
+/// Returns an error if the resolved profile is not a user profile.
+fn require_user_profile(resolved: &ResolvedProfile) -> Result<(), anyhow::Error> {
+    if resolved.source != ProfileSource::User {
+        anyhow::bail!(
+            "Cannot modify {} profile '{}'. Clone it first:\n  slicecore profile clone {} my-{}",
+            resolved.source,
+            resolved.name,
+            resolved.name,
+            resolved.name,
+        );
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// cmd_set: Set a single setting value in a custom profile
+// ---------------------------------------------------------------------------
+
+/// Implements the `profile set` command.
+fn cmd_set(
+    name: &str,
+    key: &str,
+    value: &str,
+    profiles_dir: Option<&Path>,
+) -> Result<(), anyhow::Error> {
+    let resolver = ProfileResolver::new(profiles_dir);
+    let resolved = try_resolve_any(&resolver, name, None)?;
+    require_user_profile(&resolved)?;
+
+    // Validate key against setting registry
+    let registry = slicecore_engine::setting_registry();
+    if registry.get(&SettingKey::new(key)).is_none() {
+        let suggestions = registry.search(key);
+        if suggestions.is_empty() {
+            anyhow::bail!("Unknown setting key '{key}'");
+        }
+        let top: Vec<&str> = suggestions.iter().take(3).map(|d| d.key.0.as_str()).collect();
+        anyhow::bail!("Unknown setting key '{key}'. Did you mean: {}?", top.join(", "));
+    }
+
+    // Parse and update TOML
+    let contents = std::fs::read_to_string(&resolved.path)?;
+    let mut doc: toml::Value = toml::from_str(&contents)?;
+
+    let parts: Vec<&str> = key.split('.').collect();
+    let leaf_key = parts.last().expect("key is non-empty");
+    let parent = navigate_toml_path_mut(&mut doc, key);
+    let table = parent
+        .as_table_mut()
+        .ok_or_else(|| anyhow::anyhow!("Cannot set key '{key}': parent is not a table"))?;
+    table.insert((*leaf_key).to_string(), parse_toml_value(value));
+
+    std::fs::write(&resolved.path, toml::to_string_pretty(&doc)?)?;
+    println!("Set {key} = {value} in profile '{name}'");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// cmd_get: Get a single setting value from a profile
+// ---------------------------------------------------------------------------
+
+/// Implements the `profile get` command.
+fn cmd_get(
+    name: &str,
+    key: &str,
+    profiles_dir: Option<&Path>,
+) -> Result<(), anyhow::Error> {
+    let resolver = ProfileResolver::new(profiles_dir);
+    let resolved = try_resolve_any(&resolver, name, None)?;
+
+    let contents = std::fs::read_to_string(&resolved.path)?;
+    let doc: toml::Value = toml::from_str(&contents)?;
+
+    match navigate_toml_path(&doc, key) {
+        Some(val) => {
+            println!("{val}");
+            Ok(())
+        }
+        None => anyhow::bail!("Key '{key}' not found in profile '{name}'"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// cmd_reset: Reset a setting to its inherited source value
+// ---------------------------------------------------------------------------
+
+/// Implements the `profile reset` command.
+fn cmd_reset(
+    name: &str,
+    key: &str,
+    profiles_dir: Option<&Path>,
+) -> Result<(), anyhow::Error> {
+    let resolver = ProfileResolver::new(profiles_dir);
+    let resolved = try_resolve_any(&resolver, name, None)?;
+    require_user_profile(&resolved)?;
+
+    // Read target profile
+    let contents = std::fs::read_to_string(&resolved.path)?;
+    let mut doc: toml::Value = toml::from_str(&contents)?;
+
+    // Find inherits field
+    let inherits = doc
+        .get("metadata")
+        .and_then(|m| m.get("inherits"))
+        .and_then(toml::Value::as_str)
+        .map(String::from);
+
+    let inherits = match inherits {
+        Some(s) => s,
+        None => anyhow::bail!(
+            "Profile '{name}' has no inherited source. Cannot reset to original value."
+        ),
+    };
+
+    // Resolve the source profile
+    let source_resolved = try_resolve_any(&resolver, &inherits, None)?;
+    let source_contents = std::fs::read_to_string(&source_resolved.path)?;
+    let source_doc: toml::Value = toml::from_str(&source_contents)?;
+
+    let source_val = navigate_toml_path(&source_doc, key)
+        .ok_or_else(|| anyhow::anyhow!("Key '{key}' not found in source profile '{inherits}'"))?
+        .clone();
+
+    // Set key in target to source value
+    let parts: Vec<&str> = key.split('.').collect();
+    let leaf_key = parts.last().expect("key is non-empty");
+    let parent = navigate_toml_path_mut(&mut doc, key);
+    let table = parent
+        .as_table_mut()
+        .ok_or_else(|| anyhow::anyhow!("Cannot reset key '{key}': parent is not a table"))?;
+    table.insert((*leaf_key).to_string(), source_val);
+
+    std::fs::write(&resolved.path, toml::to_string_pretty(&doc)?)?;
+    println!("Reset {key} in profile '{name}' to inherited value from '{inherits}'");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// cmd_validate: Validate a profile against the setting schema
+// ---------------------------------------------------------------------------
+
+/// Implements the `profile validate` command.
+fn cmd_validate(
+    name: &str,
+    json_output: bool,
+    profiles_dir: Option<&Path>,
+) -> Result<(), anyhow::Error> {
+    let resolver = ProfileResolver::new(profiles_dir);
+    let resolved = try_resolve_any(&resolver, name, None)?;
+
+    let config = PrintConfig::from_file(&resolved.path)?;
+    let config_json = serde_json::to_value(&config)?;
+    let issues = slicecore_engine::setting_registry().validate_config(&config_json);
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&issues)?);
+        return Ok(());
+    }
+
+    if issues.is_empty() {
+        println!("Profile '{name}' is valid");
+        return Ok(());
+    }
+
+    let mut errors = 0usize;
+    let mut warnings = 0usize;
+
+    for issue in &issues {
+        let prefix = match issue.severity {
+            slicecore_config_schema::ValidationSeverity::Error => {
+                errors += 1;
+                "ERROR"
+            }
+            slicecore_config_schema::ValidationSeverity::Warning => {
+                warnings += 1;
+                "WARNING"
+            }
+            slicecore_config_schema::ValidationSeverity::Info => "INFO",
+        };
+        println!("{prefix}: [{}] {}", issue.key, issue.message);
+    }
+
+    eprintln!("{errors} error(s), {warnings} warning(s)");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// cmd_edit: Open profile in $EDITOR for manual editing
+// ---------------------------------------------------------------------------
+
+/// Implements the `profile edit` command.
+fn cmd_edit(name: &str, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let resolver = ProfileResolver::new(profiles_dir);
+    let resolved = try_resolve_any(&resolver, name, None)?;
+    require_user_profile(&resolved)?;
+
+    let editor = std::env::var("VISUAL")
+        .or_else(|_| std::env::var("EDITOR"))
+        .unwrap_or_else(|_| "nano".to_string());
+
+    let status = std::process::Command::new(&editor)
+        .arg(&resolved.path)
+        .status()?;
+
+    if !status.success() {
+        eprintln!("Editor exited with non-zero status");
+    }
+
+    if !resolved.path.exists() {
+        anyhow::bail!("Profile file was deleted during editing");
+    }
+
+    // Validate TOML syntax
+    let contents = std::fs::read_to_string(&resolved.path)?;
+    match toml::from_str::<toml::Value>(&contents) {
+        Ok(_doc) => {
+            // Run schema validation and print any issues
+            if let Ok(config) = PrintConfig::from_file(&resolved.path) {
+                if let Ok(config_json) = serde_json::to_value(&config) {
+                    let issues =
+                        slicecore_engine::setting_registry().validate_config(&config_json);
+                    for issue in &issues {
+                        let prefix = match issue.severity {
+                            slicecore_config_schema::ValidationSeverity::Error => "ERROR",
+                            slicecore_config_schema::ValidationSeverity::Warning => "WARNING",
+                            slicecore_config_schema::ValidationSeverity::Info => "INFO",
+                        };
+                        eprintln!("{prefix}: [{}] {}", issue.key, issue.message);
+                    }
+                }
+            }
+        }
+        Err(err) => {
+            eprintln!(
+                "Warning: TOML syntax error: {err}. File saved but may need fixing."
+            );
+        }
+    }
+
+    println!("Profile '{name}' updated at {}", resolved.path.display());
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// cmd_delete: Delete a custom profile
+// ---------------------------------------------------------------------------
+
+/// Implements the `profile delete` command.
+fn cmd_delete(name: &str, yes: bool, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let resolver = ProfileResolver::new(profiles_dir);
+    let resolved = try_resolve_any(&resolver, name, None)?;
+
+    if resolved.source != ProfileSource::User {
+        anyhow::bail!(
+            "Cannot delete {} profile '{}'. Only user profiles can be deleted.",
+            resolved.source,
+            resolved.name,
+        );
+    }
+
+    println!("Will delete: {}", resolved.path.display());
+
+    if !yes {
+        anyhow::bail!("Use --yes to confirm deletion, or abort");
+    }
+
+    std::fs::remove_file(&resolved.path)?;
+    println!("Deleted profile '{name}'");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// cmd_rename: Rename a custom profile
+// ---------------------------------------------------------------------------
+
+/// Implements the `profile rename` command.
+fn cmd_rename(
+    old_name: &str,
+    new_name: &str,
+    profiles_dir: Option<&Path>,
+) -> Result<(), anyhow::Error> {
+    if !is_valid_profile_name(new_name) {
+        anyhow::bail!(
+            "Invalid profile name '{}'. Use only letters, numbers, hyphens, and \
+             underscores (must not start with hyphen).",
+            new_name,
+        );
+    }
+
+    let resolver = ProfileResolver::new(profiles_dir);
+    let resolved = try_resolve_any(&resolver, old_name, None)?;
+    require_user_profile(&resolved)?;
+
+    let new_path = resolved
+        .path
+        .parent()
+        .expect("profile file has parent dir")
+        .join(format!("{new_name}.toml"));
+
+    if new_path.exists() {
+        anyhow::bail!(
+            "Profile '{new_name}' already exists at {}",
+            new_path.display()
+        );
+    }
+
+    // Read, update metadata.name, write to new path
+    let contents = std::fs::read_to_string(&resolved.path)?;
+    let mut doc: toml::Value = toml::from_str(&contents)?;
+
+    if let Some(meta) = doc.get_mut("metadata").and_then(toml::Value::as_table_mut) {
+        meta.insert("name".to_string(), toml::Value::String(new_name.to_string()));
+    }
+
+    std::fs::write(&new_path, toml::to_string_pretty(&doc)?)?;
+    std::fs::remove_file(&resolved.path)?;
+
+    println!(
+        "Renamed profile '{old_name}' to '{new_name}' at {}",
+        new_path.display()
+    );
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Alias commands: list, show, search (thin wrappers using ProfileResolver)
+// ---------------------------------------------------------------------------
+
+/// Implements the `profile list` alias command.
+fn cmd_list(
+    vendor: Option<&str>,
+    profile_type: Option<&str>,
+    _material: Option<&str>,
+    vendors_only: bool,
+    profiles_dir: Option<&Path>,
+    json_output: bool,
+) -> Result<(), anyhow::Error> {
+    let resolver = ProfileResolver::new(profiles_dir);
+    let all_profiles = resolver.search("", profile_type, usize::MAX);
+
+    // Filter by vendor
+    let filtered: Vec<&ResolvedProfile> = all_profiles
+        .iter()
+        .filter(|p| {
+            if let Some(v) = vendor {
+                match &p.source {
+                    ProfileSource::Library { vendor: pv } => {
+                        pv.to_lowercase().contains(&v.to_lowercase())
+                    }
+                    _ => false,
+                }
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    if vendors_only {
+        let mut vendors: Vec<String> = filtered
+            .iter()
+            .filter_map(|p| match &p.source {
+                ProfileSource::Library { vendor: v } => Some(v.clone()),
+                _ => None,
+            })
+            .collect();
+        vendors.sort();
+        vendors.dedup();
+
+        if json_output {
+            println!("{}", serde_json::to_string_pretty(&vendors)?);
+        } else {
+            for v in &vendors {
+                println!("{v}");
+            }
+            eprintln!("{} vendor(s) found", vendors.len());
+        }
+        return Ok(());
+    }
+
+    if json_output {
+        let entries: Vec<serde_json::Value> = filtered
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "name": p.name,
+                    "profile_type": p.profile_type,
+                    "source": p.source.to_string(),
+                    "path": p.path.display().to_string(),
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&entries)?);
+    } else {
+        println!(
+            "{:<10} {:<12} {:<50} {:<15}",
+            "TYPE", "VENDOR", "NAME", "SOURCE"
+        );
+        println!("{}", "-".repeat(91));
+        for p in &filtered {
+            let vendor_name = match &p.source {
+                ProfileSource::Library { vendor: v } => v.as_str(),
+                _ => "-",
+            };
+            println!(
+                "{:<10} {:<12} {:<50} {:<15}",
+                p.profile_type, vendor_name, p.name, p.source,
+            );
+        }
+        eprintln!("{} profile(s) found", filtered.len());
+    }
+    Ok(())
+}
+
+/// Implements the `profile show` alias command.
+fn cmd_show(id: &str, raw: bool, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let resolver = ProfileResolver::new(profiles_dir);
+    let resolved = try_resolve_any(&resolver, id, None)?;
+
+    if raw {
+        let contents = std::fs::read_to_string(&resolved.path)?;
+        print!("{contents}");
+    } else {
+        println!("Name:   {}", resolved.name);
+        println!("Type:   {}", resolved.profile_type);
+        println!("Source: {}", resolved.source);
+        println!("Path:   {}", resolved.path.display());
+        println!();
+
+        let contents = std::fs::read_to_string(&resolved.path)?;
+        let doc: toml::Value = toml::from_str(&contents)?;
+        if let Some(table) = doc.as_table() {
+            for (section, val) in table {
+                if section == "metadata" {
+                    continue;
+                }
+                if let Some(inner) = val.as_table() {
+                    println!("[{section}]");
+                    for (k, v) in inner {
+                        println!("  {k} = {v}");
+                    }
+                    println!();
+                } else {
+                    println!("{section} = {val}");
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Implements the `profile search` alias command.
+fn cmd_search(
+    query: &str,
+    limit: usize,
+    profiles_dir: Option<&Path>,
+    json_output: bool,
+) -> Result<(), anyhow::Error> {
+    let resolver = ProfileResolver::new(profiles_dir);
+    let matching = resolver.search(query, None, limit);
+
+    if matching.is_empty() {
+        eprintln!("No profiles found matching '{query}'.");
+        return Ok(());
+    }
+
+    if json_output {
+        let entries: Vec<serde_json::Value> = matching
+            .iter()
+            .map(|p| {
+                serde_json::json!({
+                    "name": p.name,
+                    "profile_type": p.profile_type,
+                    "source": p.source.to_string(),
+                    "path": p.path.display().to_string(),
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&entries)?);
+    } else {
+        println!(
+            "{:<10} {:<12} {:<50} {:<15}",
+            "TYPE", "VENDOR", "NAME", "SOURCE"
+        );
+        println!("{}", "-".repeat(91));
+        for p in &matching {
+            let vendor_name = match &p.source {
+                ProfileSource::Library { vendor: v } => v.as_str(),
+                _ => "-",
+            };
+            println!(
+                "{:<10} {:<12} {:<50} {:<15}",
+                p.profile_type, vendor_name, p.name, p.source,
+            );
+        }
+        eprintln!("{} result(s) (showing up to {limit})", matching.len());
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -441,5 +1041,69 @@ mod tests {
 
         let name_129 = "a".repeat(129);
         assert!(!is_valid_profile_name(&name_129));
+    }
+
+    #[test]
+    fn test_parse_toml_value_integer() {
+        assert_eq!(parse_toml_value("42"), toml::Value::Integer(42));
+    }
+
+    #[test]
+    fn test_parse_toml_value_float() {
+        assert_eq!(parse_toml_value("1.5"), toml::Value::Float(1.5));
+    }
+
+    #[test]
+    fn test_parse_toml_value_bool() {
+        assert_eq!(parse_toml_value("true"), toml::Value::Boolean(true));
+        assert_eq!(parse_toml_value("false"), toml::Value::Boolean(false));
+    }
+
+    #[test]
+    fn test_parse_toml_value_string() {
+        assert_eq!(
+            parse_toml_value("hello"),
+            toml::Value::String("hello".to_string())
+        );
+    }
+
+    #[test]
+    fn test_navigate_toml_path() {
+        let doc = toml::Value::Table({
+            let mut root = toml::map::Map::new();
+            let mut speed = toml::map::Map::new();
+            speed.insert("perimeter".to_string(), toml::Value::Integer(50));
+            root.insert("speed".to_string(), toml::Value::Table(speed));
+            root
+        });
+
+        let result = navigate_toml_path(&doc, "speed.perimeter");
+        assert_eq!(result, Some(&toml::Value::Integer(50)));
+    }
+
+    #[test]
+    fn test_navigate_toml_path_missing() {
+        let doc = toml::Value::Table({
+            let mut root = toml::map::Map::new();
+            let mut speed = toml::map::Map::new();
+            speed.insert("perimeter".to_string(), toml::Value::Integer(50));
+            root.insert("speed".to_string(), toml::Value::Table(speed));
+            root
+        });
+
+        let result = navigate_toml_path(&doc, "speed.nonexistent");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_navigate_toml_path_mut_creates_intermediate() {
+        let mut doc = toml::Value::Table(toml::map::Map::new());
+        let parent = navigate_toml_path_mut(&mut doc, "a.b.c");
+        let table = parent.as_table_mut().expect("should be a table");
+        table.insert("c".to_string(), toml::Value::Integer(99));
+
+        // Verify the nested structure was created
+        let result = navigate_toml_path(&doc, "a.b.c");
+        assert_eq!(result, Some(&toml::Value::Integer(99)));
     }
 }
