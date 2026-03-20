@@ -56,3 +56,7 @@ harness = false
 name = "parallel_benchmark"
 harness = false
 required-features = ["parallel"]
+
+[[bench]]
+name = "travel_benchmark"
+harness = false
