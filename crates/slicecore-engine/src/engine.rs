@@ -129,6 +129,8 @@ pub struct SliceResult {
     pub preview: Option<SlicePreview>,
     /// Detailed per-feature print statistics.
     pub statistics: Option<crate::statistics::PrintStatistics>,
+    /// Travel optimization statistics (populated when travel_opt is enabled).
+    pub travel_opt_stats: Option<crate::statistics::TravelOptStats>,
 }
 
 /// Assembles support toolpath segments from support regions.
@@ -922,6 +924,7 @@ impl Engine {
             filament_usage: result.filament_usage,
             preview: None,
             statistics: result.statistics,
+            travel_opt_stats: result.travel_opt_stats,
         })
     }
 
@@ -977,6 +980,7 @@ impl Engine {
             filament_usage: result.filament_usage,
             preview: None,
             statistics: result.statistics,
+            travel_opt_stats: result.travel_opt_stats,
         })
     }
 
@@ -1898,6 +1902,7 @@ impl Engine {
             filament_usage,
             preview: None,
             statistics: Some(statistics),
+            travel_opt_stats: None,
         })
     }
 
@@ -2513,6 +2518,7 @@ impl Engine {
             filament_usage,
             preview: None,
             statistics: Some(statistics),
+            travel_opt_stats: None,
         })
     }
 }
@@ -3950,6 +3956,7 @@ mod tests {
             },
             preview: None,
             statistics: None,
+            travel_opt_stats: None,
         };
 
         // Serialize to JSON.

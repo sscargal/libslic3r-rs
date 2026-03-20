@@ -124,7 +124,7 @@ pub use seam::{select_seam_point, SeamPosition};
 pub use sequential::{detect_collision, order_objects, plan_sequential_print, ObjectBounds};
 pub use statistics::{
     compute_statistics, FeatureStatistics, GcodeMetrics, PrintStatistics, StatisticsSummary,
-    StatsSortOrder, TimePrecision,
+    StatsSortOrder, TimePrecision, TravelOptStats,
 };
 pub use support::config::SupportConfig;
 pub use support::{SupportRegion, SupportResult};
