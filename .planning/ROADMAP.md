@@ -783,9 +783,11 @@ Plans:
 **Goal:** Enable users to create custom profiles by cloning existing presets via `slicecore profile clone <source> <new-name>`, with subsequent editing via `slicecore profile set` and schema-based validation.
 **Requirements**: [API-02]
 **Depends on:** Phase 41
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
+- [ ] 42-01-PLAN.md — ProfileCommand enum, clone command, name validation, main.rs wiring
+- [ ] 42-02-PLAN.md — Set/get/reset/edit/validate/delete/rename commands and alias wiring
 
 ### Phase 43: Enable/disable printer and filament profiles to narrow search scope — add profile activation system with first-run wizard and per-printer filament visibility
 
