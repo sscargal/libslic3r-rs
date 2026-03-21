@@ -63,7 +63,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Default: use debug binary after build
 SLICECORE="${SLICECORE_BIN:-}"
 
-ALL_GROUPS="build bench mesh slice gcode csg convert thumbnail arrange profile postprocess calibrate schema ai plugin errors coverage"
+ALL_GROUPS="build bench mesh slice travel-opt global-flags gcode csg convert thumbnail arrange profile profile-manage profile-activate postprocess calibrate schema ai plugin errors coverage"
 
 # ---------------------------------------------------------------------------
 # Color helpers
@@ -558,6 +558,53 @@ group_slice() {
 
     run_test "slice with --thumbnails" \
         "$SLICECORE" slice "$TMPDIR_QA/cube.stl" --thumbnails -o "$TMPDIR_QA/thumb_slice.gcode"
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: travel-opt
+# ---------------------------------------------------------------------------
+group_travel_opt() {
+    should_run_group "travel-opt" || return 0
+    group_header "Travel Optimization Flags"
+
+    run_test "slice with --no-travel-opt" \
+        "$SLICECORE" slice "$TMPDIR_QA/cube.stl" --no-travel-opt -o "$TMPDIR_QA/no_travel.gcode"
+
+    run_test_file_exists "no-travel-opt output exists" "$TMPDIR_QA/no_travel.gcode"
+
+    run_test "slice default (travel opt enabled)" \
+        "$SLICECORE" slice "$TMPDIR_QA/cube.stl" -o "$TMPDIR_QA/with_travel.gcode"
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: global-flags
+# ---------------------------------------------------------------------------
+group_global_flags() {
+    should_run_group "global-flags" || return 0
+    group_header "Global Flags (--quiet, --color, --json)"
+
+    run_test "slice --quiet suppresses progress" \
+        "$SLICECORE" slice "$TMPDIR_QA/cube.stl" --quiet -o "$TMPDIR_QA/quiet_out.gcode"
+
+    run_test "analyze --quiet" \
+        "$SLICECORE" analyze "$TMPDIR_QA/cube.stl" --quiet
+
+    run_test "slice --color never" \
+        "$SLICECORE" slice "$TMPDIR_QA/cube.stl" --color never -o "$TMPDIR_QA/nocolor.gcode"
+
+    # Create test_profile.json fixture inline (group_profile may not have run)
+    cat > "$TMPDIR_QA/test_profile_gf.json" << 'JSONEOF'
+    {
+      "layer_height": "0.2",
+      "wall_loops": "3",
+      "sparse_infill_density": "15%",
+      "nozzle_temperature": ["220"],
+      "hot_plate_temp": ["60"]
+    }
+JSONEOF
+
+    run_test_json "convert-profile --json" \
+        "$SLICECORE" convert-profile "$TMPDIR_QA/test_profile_gf.json" --json -o "$TMPDIR_QA/converted_json.toml"
 }
 
 # ---------------------------------------------------------------------------
@@ -1150,7 +1197,7 @@ main() {
 
     # Determine if we need fixtures
     local needs_fixtures=false
-    for g in mesh slice gcode csg convert thumbnail arrange postprocess errors; do
+    for g in mesh slice travel-opt global-flags gcode csg convert thumbnail arrange postprocess errors; do
         if should_run_group "$g"; then
             needs_fixtures=true
             break
@@ -1177,6 +1224,8 @@ main() {
     # Run test groups
     group_mesh
     group_slice
+    group_travel_opt
+    group_global_flags
     group_gcode
     group_csg
     group_convert
