@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 43 of 51 (Enable/disable printer and filament profiles)
 Plan: 3 of 3 in current phase
 Status: Phase Complete
-Last activity: 2026-03-21 - Completed quick task 260321-1n6: Fix cargo fmt formatting error in enabled_profiles.rs
+Last activity: 2026-03-21 - Completed quick task 260321-1pj: Fix test assertion for TTY guard in enable command
 
 Progress: [██████████] 100% (175/175 overall)
 
@@ -730,6 +730,7 @@ Recent decisions affecting current work:
 | 260320-ud5 | Fix cargo fmt formatting in profile_command.rs | 2026-03-20 | e4aed6a | [260320-ud5-fix-cargo-fmt-formatting-in-profile-comm](./quick/260320-ud5-fix-cargo-fmt-formatting-in-profile-comm/) |
 | 260320-ury | Fix cargo doc --no-deps --workspace errors | 2026-03-20 | d97f7f6 | [260320-ury-fix-cargo-doc-no-deps-workspace-errors](./quick/260320-ury-fix-cargo-doc-no-deps-workspace-errors/) |
 | 260321-1n6 | Fix cargo fmt formatting across phase 43 files | 2026-03-21 | bd3b6ac | [260321-1n6-fix-cargo-fmt-formatting-error-in-enable](./quick/260321-1n6-fix-cargo-fmt-formatting-error-in-enable/) |
+| 260321-1pj | Fix test assertion for TTY guard in enable command | 2026-03-21 | af75e4d | [260321-1pj-fix-test-profile-enable-no-args-errors-a](./quick/260321-1pj-fix-test-profile-enable-no-args-errors-a/) |
 
 ## Session Continuity
 
