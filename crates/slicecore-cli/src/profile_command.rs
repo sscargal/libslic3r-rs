@@ -18,10 +18,10 @@
 //! - `enable`: Enable one or more profiles by ID
 //! - `disable`: Disable one or more profiles by ID
 //! - `status`: Show enabled profile summary
+//! - `setup`: Interactive first-run wizard or non-interactive setup
 //! - `list`: List profiles with activation-aware filtering
 
 use std::path::{Path, PathBuf};
-use std::process;
 
 use clap::Subcommand;
 use slicecore_config_schema::SettingKey;
@@ -283,6 +283,36 @@ pub enum ProfileCommand {
         json: bool,
     },
 
+    /// Interactive first-run setup wizard.
+    ///
+    /// Guides through vendor -> printer -> filament selection.
+    /// Re-runnable to add/remove profiles. Use --reset to start fresh.
+    Setup {
+        /// Clear all enabled profiles and start fresh
+        #[arg(long)]
+        reset: bool,
+
+        /// Machine profile ID (non-interactive mode)
+        #[arg(long)]
+        machine: Vec<String>,
+
+        /// Filament profile ID (non-interactive mode)
+        #[arg(long)]
+        filament: Vec<String>,
+
+        /// Process profile ID (non-interactive mode)
+        #[arg(long)]
+        process: Vec<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+
     /// Compare two print profiles side by side.
     ///
     /// Alias for the top-level `diff-profiles` command.
@@ -389,6 +419,26 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
             profiles_dir,
             json,
         } => cmd_search(&query, limit, profiles_dir.as_deref(), json),
+        ProfileCommand::Setup {
+            reset,
+            machine,
+            filament,
+            process,
+            json: _json,
+            profiles_dir,
+        } => {
+            if !machine.is_empty() || !filament.is_empty() || !process.is_empty() {
+                crate::profile_wizard::run_setup_noninteractive(
+                    &machine,
+                    &filament,
+                    &process,
+                    profiles_dir.as_deref(),
+                    reset,
+                )
+            } else {
+                crate::profile_wizard::run_setup_wizard(profiles_dir.as_deref(), reset)
+            }
+        }
         ProfileCommand::Diff(args) => {
             crate::diff_profiles_command::run_diff_profiles_command(&args, "auto", false)
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -963,18 +1013,23 @@ fn cmd_enable(
     json_output: bool,
     profiles_dir: Option<&Path>,
 ) -> Result<(), anyhow::Error> {
-    if ids.is_empty() {
-        eprintln!("Interactive picker not yet implemented. Specify profile IDs.");
-        process::exit(1);
-    }
-
     let path = enabled_profiles_path(profiles_dir)?;
     let mut enabled = EnabledProfiles::load(&path)?.unwrap_or_default();
-    let resolver = ProfileResolver::new(profiles_dir);
 
+    let effective_ids: Vec<String> = if ids.is_empty() {
+        crate::profile_wizard::run_enable_picker(type_hint, profiles_dir)?
+    } else {
+        ids.to_vec()
+    };
+
+    if effective_ids.is_empty() {
+        return Ok(());
+    }
+
+    let resolver = ProfileResolver::new(profiles_dir);
     let mut results: Vec<serde_json::Value> = Vec::new();
 
-    for id in ids {
+    for id in &effective_ids {
         let resolved = try_resolve_any(&resolver, id, type_hint)?;
         enabled.enable(&resolved.profile_type, &resolved.name);
         eprintln!(
@@ -1009,11 +1064,6 @@ fn cmd_disable(
     json_output: bool,
     profiles_dir: Option<&Path>,
 ) -> Result<(), anyhow::Error> {
-    if ids.is_empty() {
-        eprintln!("Interactive picker not yet implemented. Specify profile IDs.");
-        process::exit(1);
-    }
-
     let path = enabled_profiles_path(profiles_dir)?;
     let loaded = EnabledProfiles::load(&path)?;
     let Some(mut enabled) = loaded else {
@@ -1021,7 +1071,17 @@ fn cmd_disable(
         return Ok(());
     };
 
-    for id in ids {
+    let effective_ids: Vec<String> = if ids.is_empty() {
+        crate::profile_wizard::run_disable_picker(type_hint, profiles_dir)?
+    } else {
+        ids.to_vec()
+    };
+
+    if effective_ids.is_empty() {
+        return Ok(());
+    }
+
+    for id in &effective_ids {
         if let Some(t) = type_hint {
             enabled.disable(t, id);
         } else {
@@ -1037,7 +1097,7 @@ fn cmd_disable(
     if json_output {
         println!(
             "{}",
-            serde_json::to_string_pretty(&serde_json::json!({ "disabled": ids }))?
+            serde_json::to_string_pretty(&serde_json::json!({ "disabled": &effective_ids }))?
         );
     }
 

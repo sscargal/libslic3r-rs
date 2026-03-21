@@ -369,7 +369,7 @@ fn wizard_select_filaments(
         .interact()?;
 
     // Clear previously auto-selected filaments, then add user's choices
-    for e in *display_filaments {
+    for e in display_filaments {
         enabled.disable("filament", &e.name);
     }
     for &i in &selections {
@@ -384,18 +384,18 @@ fn wizard_auto_enable_process(
     index: &ProfileIndex,
     enabled: &mut EnabledProfiles,
 ) -> Result<(), anyhow::Error> {
-    let machine_names: HashSet<&str> = enabled
+    let machine_names: HashSet<String> = enabled
         .machine
         .enabled
         .iter()
-        .map(String::as_str)
+        .cloned()
         .collect();
 
     // Collect vendor names from enabled machines in the index
     let machine_vendors: HashSet<&str> = index
         .profiles
         .iter()
-        .filter(|e| e.profile_type == "machine" && machine_names.contains(e.name.as_str()))
+        .filter(|e| e.profile_type == "machine" && machine_names.contains(&e.name))
         .map(|e| e.vendor.as_str())
         .collect();
 
@@ -410,7 +410,7 @@ fn wizard_auto_enable_process(
     for entry in &process_entries {
         // Match by printer_model containing a machine name or by vendor
         let matches = if let Some(ref model) = entry.printer_model {
-            machine_names.iter().any(|m| model.contains(m))
+            machine_names.iter().any(|m| model.contains(m.as_str()))
         } else {
             machine_vendors.contains(entry.vendor.as_str())
         };
