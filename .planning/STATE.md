@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 43-01-PLAN.md
-last_updated: "2026-03-21T00:48:56.289Z"
-last_activity: "2026-03-21 - Completed plan 43-01: EnabledProfiles data model"
+stopped_at: Completed 43-02-PLAN.md
+last_updated: "2026-03-21T00:54:41.452Z"
+last_activity: "2026-03-21 - Completed plan 43-02: Enable/disable/status CLI commands"
 progress:
   total_phases: 51
   completed_phases: 42
   total_plans: 175
-  completed_plans: 173
-  percent: 100
+  completed_plans: 174
+  percent: 99
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 43 of 51 (Enable/disable printer and filament profiles)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-03-21 - Completed plan 43-01: EnabledProfiles data model
+Last activity: 2026-03-21 - Completed plan 43-02: Enable/disable/status CLI commands
 
-Progress: [██████████] 100% (173/175 overall)
+Progress: [██████████] 99% (174/175 overall)
 
 ## Performance Metrics
 
@@ -152,6 +152,7 @@ Progress: [██████████] 100% (173/175 overall)
 | Phase 42 P01 | 5min | 2 tasks | 3 files |
 | Phase 42 P02 | 6min | 2 tasks | 2 files |
 | Phase 43 P01 | 3 | 2 tasks | 3 files |
+| Phase 43 P02 | 4 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -674,6 +675,7 @@ Recent decisions affecting current work:
 - [Phase 42]: Added home crate for portable home directory resolution in profile clone
 - [Phase 43]: EnabledProfiles uses TOML with [machine]/[filament]/[process] sections for human-readable persistence
 - [Phase 43]: filter_enabled is a static method on ProfileResolver (no &self) since it operates on already-resolved profiles
+- [Phase 43]: Enable/disable CLI uses cross-type removal by default; activation-aware list defaults to --enabled when config exists
 
 ### Roadmap Evolution
 
@@ -728,6 +730,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-21T00:48:56.284Z
-Stopped at: Completed 43-01-PLAN.md
+Last session: 2026-03-21T00:54:41.448Z
+Stopped at: Completed 43-02-PLAN.md
 Resume file: None
