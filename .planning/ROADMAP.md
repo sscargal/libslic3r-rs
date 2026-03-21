@@ -794,9 +794,12 @@ Plans:
 **Goal:** Implement an enable/disable system for printer and filament profiles using `~/.config/slicecore/enabled-profiles.toml`, with CLI commands (enable/disable/list/setup), interactive first-run wizard, and per-printer filament visibility filtering.
 **Requirements**: [API-02]
 **Depends on:** Phase 42
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
+- [ ] 43-01-PLAN.md -- EnabledProfiles data model, compatibility types, and ProfileResolver filtering
+- [ ] 43-02-PLAN.md -- Enable, disable, status CLI commands and activation-aware list filtering
+- [ ] 43-03-PLAN.md -- Interactive setup wizard, setup command, and slice trigger
 
 ### Phase 44: Search and filter profiles by printer and filament compatibility — add profile search with compatibility engine and enhanced list command
 
