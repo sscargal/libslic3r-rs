@@ -853,6 +853,126 @@ JSONEOF
 }
 
 # ---------------------------------------------------------------------------
+# GROUP: profile-manage
+# ---------------------------------------------------------------------------
+group_profile_manage() {
+    should_run_group "profile-manage" || return 0
+    group_header "Profile Management (clone/set/get/validate/rename/delete)"
+
+    # Set up isolated HOME so cloned profiles land in user_dir
+    local ORIG_HOME="$HOME"
+    export HOME="$TMPDIR_QA/fakehome"
+    mkdir -p "$HOME/.slicecore/profiles/machine"
+    mkdir -p "$HOME/.slicecore/profiles/process"
+
+    # Seed a machine profile as a source for cloning
+    cat > "$HOME/.slicecore/profiles/machine/test-printer.toml" << 'TOML'
+[metadata]
+name = "test-printer"
+type = "machine"
+
+[settings]
+nozzle_diameter = [0.4]
+TOML
+
+    # Seed a process profile
+    cat > "$HOME/.slicecore/profiles/process/test-process.toml" << 'TOML'
+[metadata]
+name = "test-process"
+type = "process"
+
+[settings]
+layer_height = 0.2
+TOML
+
+    # Clone
+    run_test "profile clone" \
+        "$SLICECORE" profile clone test-printer my-printer
+
+    run_test_file_exists "cloned profile exists" \
+        "$HOME/.slicecore/profiles/machine/my-printer.toml"
+
+    # Validate
+    run_test "profile validate" \
+        "$SLICECORE" profile validate my-printer
+
+    # Set
+    run_test "profile set" \
+        "$SLICECORE" profile set my-printer machine.nozzle_diameters 0.6
+
+    # Get
+    run_test_output_contains "profile get" "0.6" \
+        "$SLICECORE" profile get my-printer machine.nozzle_diameters
+
+    # Rename
+    run_test "profile rename" \
+        "$SLICECORE" profile rename my-printer my-printer-renamed
+
+    # Delete
+    run_test "profile delete" \
+        "$SLICECORE" profile delete my-printer-renamed --yes
+
+    # Error: invalid name (leading hyphen)
+    run_test_expect_fail "profile clone invalid name" \
+        "$SLICECORE" profile clone test-printer -- "-bad-name"
+
+    # Error: delete nonexistent
+    run_test_expect_fail "profile delete nonexistent" \
+        "$SLICECORE" profile delete nonexistent-profile --yes
+
+    export HOME="$ORIG_HOME"
+}
+
+# ---------------------------------------------------------------------------
+# GROUP: profile-activate
+# ---------------------------------------------------------------------------
+group_profile_activate() {
+    should_run_group "profile-activate" || return 0
+    group_header "Profile Activation (enable/disable/status)"
+
+    # Set up isolated HOME for activation state
+    local ORIG_HOME="$HOME"
+    export HOME="$TMPDIR_QA/fakehome_activate"
+    mkdir -p "$HOME/.slicecore/profiles/machine"
+
+    # Seed a machine profile
+    cat > "$HOME/.slicecore/profiles/machine/test-printer.toml" << 'TOML'
+[metadata]
+name = "test-printer"
+type = "machine"
+
+[settings]
+nozzle_diameter = [0.4]
+TOML
+
+    # Enable
+    run_test "profile enable" \
+        "$SLICECORE" profile enable test-printer
+
+    # Status --json
+    run_test_json "profile status --json" \
+        "$SLICECORE" profile status --json
+
+    # Status shows enabled count
+    run_test_output_contains "profile status shows enabled" "1 enabled" \
+        "$SLICECORE" profile status
+
+    # Disable
+    run_test "profile disable" \
+        "$SLICECORE" profile disable test-printer
+
+    # List --all
+    run_test "profile list --all" \
+        "$SLICECORE" profile list --all
+
+    # Error: enable nonexistent
+    run_test_expect_fail "profile enable nonexistent" \
+        "$SLICECORE" profile enable nonexistent-profile
+
+    export HOME="$ORIG_HOME"
+}
+
+# ---------------------------------------------------------------------------
 # GROUP: postprocess
 # ---------------------------------------------------------------------------
 group_postprocess() {
@@ -1232,6 +1352,8 @@ main() {
     group_thumbnail
     group_arrange
     group_profile
+    group_profile_manage
+    group_profile_activate
     group_postprocess
     group_calibrate
     group_schema
