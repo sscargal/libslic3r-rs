@@ -28,6 +28,7 @@ slicecore-render = { path = "../slicecore-render" }
 slicecore-arrange = { path = "../slicecore-arrange" }
 slicecore-math = { path = "../slicecore-math" }
 console = "0.15"
+dialoguer = "0.12"
 indicatif = "0.17"
 anyhow = { workspace = true }
 home = "0.5"
