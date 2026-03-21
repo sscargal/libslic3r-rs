@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 43 context gathered
-last_updated: "2026-03-21T00:21:11.810Z"
-last_activity: "2026-03-20 - Completed quick task 260320-ury: Fix cargo doc --no-deps --workspace errors"
+status: executing
+stopped_at: Completed 43-01-PLAN.md
+last_updated: "2026-03-21T00:48:56.289Z"
+last_activity: "2026-03-21 - Completed plan 43-01: EnabledProfiles data model"
 progress:
   total_phases: 51
   completed_phases: 42
-  total_plans: 172
-  completed_plans: 172
+  total_plans: 175
+  completed_plans: 173
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 42 of 51 (Clone and customize profiles from defaults)
-Plan: 2 of 2 in current phase
-Status: Phase Complete
-Last activity: 2026-03-20 - Completed quick task 260320-ury: Fix cargo doc --no-deps --workspace errors
+Phase: 43 of 51 (Enable/disable printer and filament profiles)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-21 - Completed plan 43-01: EnabledProfiles data model
 
-Progress: [██████████] 100% (172/172 overall)
+Progress: [██████████] 100% (173/175 overall)
 
 ## Performance Metrics
 
@@ -151,6 +151,7 @@ Progress: [██████████] 100% (172/172 overall)
 | Phase 41 P04 | 14min | 2 tasks | 3 files |
 | Phase 42 P01 | 5min | 2 tasks | 3 files |
 | Phase 42 P02 | 6min | 2 tasks | 2 files |
+| Phase 43 P01 | 3 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -671,6 +672,8 @@ Recent decisions affecting current work:
 - [Phase 41]: CLI flag override applied after config resolution but before Engine::new for deterministic precedence
 - [Phase 41]: Relaxed Auto-vs-individual algorithm comparison to account for start-position effects in Tour::total_distance
 - [Phase 42]: Added home crate for portable home directory resolution in profile clone
+- [Phase 43]: EnabledProfiles uses TOML with [machine]/[filament]/[process] sections for human-readable persistence
+- [Phase 43]: filter_enabled is a static method on ProfileResolver (no &self) since it operates on already-resolved profiles
 
 ### Roadmap Evolution
 
@@ -725,6 +728,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-21T00:21:11.805Z
-Stopped at: Phase 43 context gathered
-Resume file: .planning/phases/43-enable-disable-printer-and-filament-profiles-to-narrow-search-scope-add-profile-activation-system-with-first-run-wizard-and-per-printer-filament-visibility/43-CONTEXT.md
+Last session: 2026-03-21T00:48:56.284Z
+Stopped at: Completed 43-01-PLAN.md
+Resume file: None
