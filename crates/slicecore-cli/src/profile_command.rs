@@ -15,12 +15,18 @@
 //! - `validate`: Validate profile against schema
 //! - `delete`: Delete a custom profile
 //! - `rename`: Rename a custom profile
+//! - `enable`: Enable one or more profiles by ID
+//! - `disable`: Disable one or more profiles by ID
+//! - `status`: Show enabled profile summary
+//! - `list`: List profiles with activation-aware filtering
 
 use std::path::{Path, PathBuf};
+use std::process;
 
 use clap::Subcommand;
 use slicecore_config_schema::SettingKey;
 use slicecore_engine::config::PrintConfig;
+use slicecore_engine::enabled_profiles::EnabledProfiles;
 use slicecore_engine::profile_resolve::{
     ProfileError, ProfileResolver, ProfileSource, ResolvedProfile,
 };
@@ -145,6 +151,60 @@ pub enum ProfileCommand {
         profiles_dir: Option<PathBuf>,
     },
 
+    /// Enable one or more profiles by ID.
+    ///
+    /// Auto-detects profile type from library index metadata.
+    /// Omit IDs to launch interactive picker (requires terminal).
+    Enable {
+        /// Profile IDs to enable (omit for interactive picker)
+        ids: Vec<String>,
+
+        /// Profile type filter for interactive picker
+        #[arg(long)]
+        r#type: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+
+    /// Disable one or more profiles.
+    ///
+    /// Omit IDs to launch interactive picker showing enabled profiles.
+    Disable {
+        /// Profile IDs to disable (omit for interactive picker)
+        ids: Vec<String>,
+
+        /// Profile type filter for interactive picker
+        #[arg(long)]
+        r#type: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+
+    /// Show enabled profile summary.
+    ///
+    /// Displays count of enabled profiles by type (machine, filament, process).
+    Status {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+
     /// List profiles from the profile library.
     ///
     /// Alias for the top-level `list-profiles` command, available under the
@@ -173,6 +233,18 @@ pub enum ProfileCommand {
         /// Output as JSON
         #[arg(long)]
         json: bool,
+
+        /// Show only enabled profiles (default when enabled-profiles.toml exists)
+        #[arg(long)]
+        enabled: bool,
+
+        /// Show only disabled profiles
+        #[arg(long)]
+        disabled: bool,
+
+        /// Show all profiles regardless of activation status
+        #[arg(long)]
+        all: bool,
     },
 
     /// Show details of a specific profile.
@@ -270,6 +342,21 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
             new_name,
             profiles_dir,
         } => cmd_rename(&old_name, &new_name, profiles_dir.as_deref()),
+        ProfileCommand::Enable {
+            ids,
+            r#type,
+            json,
+            profiles_dir,
+        } => cmd_enable(&ids, r#type.as_deref(), json, profiles_dir.as_deref()),
+        ProfileCommand::Disable {
+            ids,
+            r#type,
+            json,
+            profiles_dir,
+        } => cmd_disable(&ids, r#type.as_deref(), json, profiles_dir.as_deref()),
+        ProfileCommand::Status { json, profiles_dir } => {
+            cmd_status(json, profiles_dir.as_deref())
+        }
         ProfileCommand::List {
             vendor,
             profile_type,
@@ -277,6 +364,9 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
             vendors,
             profiles_dir,
             json,
+            enabled,
+            disabled,
+            all,
         } => cmd_list(
             vendor.as_deref(),
             profile_type.as_deref(),
@@ -284,6 +374,9 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
             vendors,
             profiles_dir.as_deref(),
             json,
+            enabled,
+            disabled,
+            all,
         ),
         ProfileCommand::Show {
             id,
@@ -847,6 +940,148 @@ fn cmd_rename(
 // ---------------------------------------------------------------------------
 
 /// Implements the `profile list` alias command.
+// ---------------------------------------------------------------------------
+// Enable / Disable / Status commands
+// ---------------------------------------------------------------------------
+/// Returns the path for `enabled-profiles.toml`, respecting `--profiles-dir`.
+///
+/// When `profiles_dir` is given, uses `<profiles_dir>/enabled-profiles.toml`.
+/// Otherwise falls back to `EnabledProfiles::default_path()`.
+fn enabled_profiles_path(profiles_dir: Option<&Path>) -> Result<PathBuf, anyhow::Error> {
+    if let Some(dir) = profiles_dir {
+        Ok(dir.join("enabled-profiles.toml"))
+    } else {
+        EnabledProfiles::default_path()
+            .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))
+    }
+}
+
+/// Implements the `profile enable` command.
+fn cmd_enable(
+    ids: &[String],
+    type_hint: Option<&str>,
+    json_output: bool,
+    profiles_dir: Option<&Path>,
+) -> Result<(), anyhow::Error> {
+    if ids.is_empty() {
+        eprintln!("Interactive picker not yet implemented. Specify profile IDs.");
+        process::exit(1);
+    }
+
+    let path = enabled_profiles_path(profiles_dir)?;
+    let mut enabled = EnabledProfiles::load(&path)?.unwrap_or_default();
+    let resolver = ProfileResolver::new(profiles_dir);
+
+    let mut results: Vec<serde_json::Value> = Vec::new();
+
+    for id in ids {
+        let resolved = try_resolve_any(&resolver, id, type_hint)?;
+        enabled.enable(&resolved.profile_type, &resolved.name);
+        eprintln!(
+            "Enabled {} profile: {}",
+            resolved.profile_type, resolved.name
+        );
+        if json_output {
+            results.push(serde_json::json!({
+                "id": resolved.name,
+                "type": resolved.profile_type,
+            }));
+        }
+    }
+
+    enabled.save(&path)?;
+
+    if json_output {
+        let all: Vec<&str> = enabled.all_enabled().iter().map(|(_, id)| *id).collect();
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({ "enabled": all }))?
+        );
+    }
+
+    Ok(())
+}
+
+/// Implements the `profile disable` command.
+fn cmd_disable(
+    ids: &[String],
+    type_hint: Option<&str>,
+    json_output: bool,
+    profiles_dir: Option<&Path>,
+) -> Result<(), anyhow::Error> {
+    if ids.is_empty() {
+        eprintln!("Interactive picker not yet implemented. Specify profile IDs.");
+        process::exit(1);
+    }
+
+    let path = enabled_profiles_path(profiles_dir)?;
+    let loaded = EnabledProfiles::load(&path)?;
+    let Some(mut enabled) = loaded else {
+        eprintln!("No profiles are enabled.");
+        return Ok(());
+    };
+
+    for id in ids {
+        if let Some(t) = type_hint {
+            enabled.disable(t, id);
+        } else {
+            enabled.disable("machine", id);
+            enabled.disable("filament", id);
+            enabled.disable("process", id);
+        }
+        eprintln!("Disabled profile: {id}");
+    }
+
+    enabled.save(&path)?;
+
+    if json_output {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({ "disabled": ids }))?
+        );
+    }
+
+    Ok(())
+}
+
+/// Implements the `profile status` command.
+fn cmd_status(json_output: bool, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let path = enabled_profiles_path(profiles_dir)?;
+    let loaded = EnabledProfiles::load(&path)?;
+
+    let Some(enabled) = loaded else {
+        eprintln!("No profiles enabled. Run 'slicecore profile setup' to get started.");
+        return Ok(());
+    };
+
+    let (mc, fc, pc) = enabled.counts();
+
+    if json_output {
+        let machine_list: &[String] = &enabled.machine.enabled;
+        let filament_list: &[String] = &enabled.filament.enabled;
+        let process_list: &[String] = &enabled.process.enabled;
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "machine_count": mc,
+                "filament_count": fc,
+                "process_count": pc,
+                "machine": machine_list,
+                "filament": filament_list,
+                "process": process_list,
+            }))?
+        );
+    } else {
+        println!("Profile activation status:");
+        println!("  Machines:  {mc} enabled");
+        println!("  Filaments: {fc} enabled");
+        println!("  Process:   {pc} enabled");
+    }
+
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)] // activation filter flags added alongside existing params
 fn cmd_list(
     vendor: Option<&str>,
     profile_type: Option<&str>,
@@ -854,12 +1089,58 @@ fn cmd_list(
     vendors_only: bool,
     profiles_dir: Option<&Path>,
     json_output: bool,
+    filter_enabled: bool,
+    filter_disabled: bool,
+    filter_all: bool,
 ) -> Result<(), anyhow::Error> {
     let resolver = ProfileResolver::new(profiles_dir);
     let all_profiles = resolver.search("", profile_type, usize::MAX);
 
+    // Determine activation filter mode
+    let ep_path = enabled_profiles_path(profiles_dir).ok();
+    let enabled_profiles = ep_path
+        .as_ref()
+        .and_then(|p| EnabledProfiles::load(p).ok().flatten());
+
+    let show_all = filter_all
+        || (!filter_enabled && !filter_disabled && enabled_profiles.is_none());
+    let show_enabled = filter_enabled
+        || (!filter_all && !filter_disabled && enabled_profiles.is_some());
+    let show_disabled = filter_disabled;
+
+    // Apply activation filtering
+    let activation_filtered: Vec<&ResolvedProfile> = if show_all {
+        all_profiles.iter().collect()
+    } else if show_disabled {
+        if let Some(ref ep) = enabled_profiles {
+            all_profiles
+                .iter()
+                .filter(|p| !ep.is_enabled(&p.profile_type, &p.name))
+                .collect()
+        } else {
+            all_profiles.iter().collect()
+        }
+    } else if show_enabled {
+        if let Some(ref ep) = enabled_profiles {
+            let result: Vec<&ResolvedProfile> = all_profiles
+                .iter()
+                .filter(|p| ep.is_enabled(&p.profile_type, &p.name))
+                .collect();
+            if result.is_empty() {
+                eprintln!(
+                    "No enabled profiles. Run 'slicecore profile setup' or use --all to see everything."
+                );
+            }
+            result
+        } else {
+            all_profiles.iter().collect()
+        }
+    } else {
+        all_profiles.iter().collect()
+    };
+
     // Filter by vendor
-    let filtered: Vec<&ResolvedProfile> = all_profiles
+    let filtered: Vec<&&ResolvedProfile> = activation_filtered
         .iter()
         .filter(|p| {
             if let Some(v) = vendor {
