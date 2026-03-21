@@ -1091,32 +1091,21 @@ fn cmd_slice(
 
     // Check if profile setup is needed (first-run wizard trigger)
     if use_profile_workflow {
-        let enabled_path =
-            slicecore_engine::enabled_profiles::EnabledProfiles::default_path();
+        let enabled_path = slicecore_engine::enabled_profiles::EnabledProfiles::default_path();
         if let Some(ref path) = enabled_path {
             if !path.exists() && !force {
                 if std::io::stdin().is_terminal() {
                     eprintln!("No profiles enabled yet. Starting setup wizard...");
-                    eprintln!(
-                        "(Use --force to skip, or run 'slicecore profile setup' manually)\n"
-                    );
-                    if let Err(e) =
-                        crate::profile_wizard::run_setup_wizard(profiles_dir, false)
-                    {
+                    eprintln!("(Use --force to skip, or run 'slicecore profile setup' manually)\n");
+                    if let Err(e) = crate::profile_wizard::run_setup_wizard(profiles_dir, false) {
                         eprintln!("Setup wizard failed: {e}");
-                        eprintln!(
-                            "Run 'slicecore profile setup' manually or use --force to skip."
-                        );
+                        eprintln!("Run 'slicecore profile setup' manually or use --force to skip.");
                         std::process::exit(1);
                     }
                 } else {
                     eprintln!("Error: No enabled profiles found.");
-                    eprintln!(
-                        "Run: slicecore profile setup --machine <id> --filament <id>"
-                    );
-                    eprintln!(
-                        "Or use --force to proceed without profile activation."
-                    );
+                    eprintln!("Run: slicecore profile setup --machine <id> --filament <id>");
+                    eprintln!("Or use --force to proceed without profile activation.");
                     std::process::exit(1);
                 }
             }

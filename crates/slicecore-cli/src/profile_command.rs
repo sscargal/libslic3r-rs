@@ -384,9 +384,7 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
             json,
             profiles_dir,
         } => cmd_disable(&ids, r#type.as_deref(), json, profiles_dir.as_deref()),
-        ProfileCommand::Status { json, profiles_dir } => {
-            cmd_status(json, profiles_dir.as_deref())
-        }
+        ProfileCommand::Status { json, profiles_dir } => cmd_status(json, profiles_dir.as_deref()),
         ProfileCommand::List {
             vendor,
             profile_type,
@@ -1162,10 +1160,10 @@ fn cmd_list(
         .as_ref()
         .and_then(|p| EnabledProfiles::load(p).ok().flatten());
 
-    let show_all = filter_all
-        || (!filter_enabled && !filter_disabled && enabled_profiles.is_none());
-    let show_enabled = filter_enabled
-        || (!filter_all && !filter_disabled && enabled_profiles.is_some());
+    let show_all =
+        filter_all || (!filter_enabled && !filter_disabled && enabled_profiles.is_none());
+    let show_enabled =
+        filter_enabled || (!filter_all && !filter_disabled && enabled_profiles.is_some());
     let show_disabled = filter_disabled;
 
     // Apply activation filtering

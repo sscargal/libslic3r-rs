@@ -422,10 +422,7 @@ impl CompatibilityInfo {
         if let Some(ref types) = self.filament_types {
             if let Some(ref material) = entry.material {
                 let material_lower = material.to_lowercase();
-                if types
-                    .iter()
-                    .any(|t| t.to_lowercase() == material_lower)
-                {
+                if types.iter().any(|t| t.to_lowercase() == material_lower) {
                     return true;
                 }
             }
@@ -434,10 +431,7 @@ impl CompatibilityInfo {
         // Check filament_vendors
         if let Some(ref vendors) = self.filament_vendors {
             let vendor_lower = entry.vendor.to_lowercase();
-            if vendors
-                .iter()
-                .any(|v| v.to_lowercase() == vendor_lower)
-            {
+            if vendors.iter().any(|v| v.to_lowercase() == vendor_lower) {
                 return true;
             }
         }
@@ -531,9 +525,7 @@ impl CompatibilityInfo {
             };
 
             // Check if this filament's printer_model matches any enabled machine
-            let matches = machine_models
-                .iter()
-                .any(|model| entry_model == model);
+            let matches = machine_models.iter().any(|model| entry_model == model);
 
             if matches {
                 filament_ids.push(entry.id.clone());
@@ -773,10 +765,8 @@ enabled = []
             ],
         };
 
-        let compat = CompatibilityInfo::from_index_entries(
-            &["machine/BBL/Bambu_X1C".to_string()],
-            &index,
-        );
+        let compat =
+            CompatibilityInfo::from_index_entries(&["machine/BBL/Bambu_X1C".to_string()], &index);
 
         // Should have found PLA and PETG as compatible types
         let types = compat.filament_types.as_ref().unwrap();

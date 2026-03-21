@@ -140,13 +140,7 @@ enabled = ["test/Standard", "test/Fast"]
 
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        stdout.contains("Machines:  1 enabled"),
-        "stdout: {stdout}"
-    );
-    assert!(
-        stdout.contains("Filaments: 1 enabled"),
-        "stdout: {stdout}"
-    );
+    assert!(stdout.contains("Machines:  1 enabled"), "stdout: {stdout}");
+    assert!(stdout.contains("Filaments: 1 enabled"), "stdout: {stdout}");
     assert!(stdout.contains("Process:   2 enabled"), "stdout: {stdout}");
 }

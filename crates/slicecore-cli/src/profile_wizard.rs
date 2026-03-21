@@ -21,10 +21,7 @@ use slicecore_engine::profile_resolve::ProfileResolver;
 ///
 /// Returns an error if profile loading/saving fails or the terminal is
 /// not interactive.
-pub fn run_setup_wizard(
-    profiles_dir: Option<&Path>,
-    reset: bool,
-) -> Result<(), anyhow::Error> {
+pub fn run_setup_wizard(profiles_dir: Option<&Path>, reset: bool) -> Result<(), anyhow::Error> {
     require_tty()?;
 
     let mut enabled = if reset {
@@ -346,10 +343,7 @@ fn wizard_select_filaments(
     let labels: Vec<String> = display_filaments
         .iter()
         .map(|e| {
-            let material = e
-                .material
-                .as_deref()
-                .unwrap_or("unknown");
+            let material = e.material.as_deref().unwrap_or("unknown");
             format!("{} ({}, {})", e.name, material, e.vendor)
         })
         .collect();
@@ -357,9 +351,7 @@ fn wizard_select_filaments(
     // Pre-select all compatible filaments (user can deselect)
     let defaults: Vec<bool> = display_filaments
         .iter()
-        .map(|e| {
-            enabled.is_enabled("filament", &e.name) || compat.is_compatible(e)
-        })
+        .map(|e| enabled.is_enabled("filament", &e.name) || compat.is_compatible(e))
         .collect();
 
     let selections = dialoguer::MultiSelect::new()
@@ -384,12 +376,7 @@ fn wizard_auto_enable_process(
     index: &ProfileIndex,
     enabled: &mut EnabledProfiles,
 ) -> Result<(), anyhow::Error> {
-    let machine_names: HashSet<String> = enabled
-        .machine
-        .enabled
-        .iter()
-        .cloned()
-        .collect();
+    let machine_names: HashSet<String> = enabled.machine.enabled.iter().cloned().collect();
 
     // Collect vendor names from enabled machines in the index
     let machine_vendors: HashSet<&str> = index
@@ -424,9 +411,7 @@ fn wizard_auto_enable_process(
     // If no matches, enable generic/vendor-neutral process profiles
     if count == 0 {
         for entry in &process_entries {
-            if entry.vendor.to_lowercase() == "generic"
-                || entry.printer_model.is_none()
-            {
+            if entry.vendor.to_lowercase() == "generic" || entry.printer_model.is_none() {
                 enabled.enable("process", &entry.name);
                 count += 1;
             }
