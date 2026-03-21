@@ -28,6 +28,7 @@ pub mod config;
 pub mod config_validate;
 pub mod cost_model;
 pub mod custom_gcode;
+pub mod enabled_profiles;
 pub mod engine;
 pub mod error;
 pub mod estimation;
