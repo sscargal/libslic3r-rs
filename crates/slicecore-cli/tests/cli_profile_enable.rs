@@ -85,8 +85,8 @@ fn test_profile_enable_no_args_errors() {
 
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(
-        stderr.contains("Interactive picker not yet implemented"),
-        "Expected interactive picker message, got: {stderr}"
+        stderr.contains("Interactive mode requires a terminal"),
+        "Expected TTY requirement message, got: {stderr}"
     );
     assert!(!output.status.success());
 }
