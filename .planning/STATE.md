@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 44-01-PLAN.md
-last_updated: "2026-03-23T21:55:24.911Z"
-last_activity: "2026-03-23 - Completed 44-01: engine-layer compatibility and filter foundation"
+stopped_at: Completed 44-02-PLAN.md
+last_updated: "2026-03-23T22:05:23.807Z"
+last_activity: "2026-03-23 - Completed 44-02: CLI profile search/list/compat commands"
 progress:
   total_phases: 51
   completed_phases: 43
   total_plans: 178
-  completed_plans: 176
+  completed_plans: 177
   percent: 100
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 44 of 51 (Search and filter profiles by printer and filament compatibility)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-03-23 - Completed 44-01: engine-layer compatibility and filter foundation
+Last activity: 2026-03-23 - Completed 44-02: CLI profile search/list/compat commands
 
-Progress: [██████████] 100% (176/178 overall)
+Progress: [██████████] 100% (177/178 overall)
 
 ## Performance Metrics
 
@@ -681,6 +681,7 @@ Recent decisions affecting current work:
 - [Phase 43]: Used dialoguer MultiSelect for wizard with TTY guard pattern
 - [Phase 44]: Used 0.001 epsilon for nozzle diameter float comparison
 - [Phase 44]: Conservative 300C default threshold for temperature check
+- [Phase 44]: Replaced individual vendor/material/profile_type args on List with flattened CliProfileFilters (--profile-type becomes --type)
 
 ### Roadmap Evolution
 
@@ -739,6 +740,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-23T21:55:24.906Z
-Stopped at: Completed 44-01-PLAN.md
+Last session: 2026-03-23T22:05:19.047Z
+Stopped at: Completed 44-02-PLAN.md
 Resume file: None
