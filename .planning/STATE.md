@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 42-01-PLAN.md
-last_updated: "2026-03-20T21:48:01.745Z"
-last_activity: 2026-03-20 - Completed 42-02 profile subcommands (set/get/reset/edit/validate/delete/rename + aliases)
+stopped_at: Completed 43-03-PLAN.md
+last_updated: "2026-03-21T01:09:09.622Z"
+last_activity: "2026-03-21 - Completed plan 43-03: Interactive setup wizard"
 progress:
   total_phases: 51
-  completed_phases: 42
-  total_plans: 172
-  completed_plans: 172
+  completed_phases: 43
+  total_plans: 175
+  completed_plans: 175
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 42 of 51 (Clone and customize profiles from defaults)
-Plan: 2 of 2 in current phase
+Phase: 43 of 51 (Enable/disable printer and filament profiles)
+Plan: 3 of 3 in current phase
 Status: Phase Complete
-Last activity: 2026-03-20 - Completed quick task 260320-ury: Fix cargo doc --no-deps --workspace errors
+Last activity: 2026-03-23 - Completed quick task 260323-l8a: Fix cli_slice_profiles wizard trigger
 
-Progress: [██████████] 100% (172/172 overall)
+Progress: [██████████] 100% (175/175 overall)
 
 ## Performance Metrics
 
@@ -151,6 +151,9 @@ Progress: [██████████] 100% (172/172 overall)
 | Phase 41 P04 | 14min | 2 tasks | 3 files |
 | Phase 42 P01 | 5min | 2 tasks | 3 files |
 | Phase 42 P02 | 6min | 2 tasks | 2 files |
+| Phase 43 P01 | 3 | 2 tasks | 3 files |
+| Phase 43 P02 | 4 | 2 tasks | 2 files |
+| Phase 43 P03 | 7 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -671,6 +674,10 @@ Recent decisions affecting current work:
 - [Phase 41]: CLI flag override applied after config resolution but before Engine::new for deterministic precedence
 - [Phase 41]: Relaxed Auto-vs-individual algorithm comparison to account for start-position effects in Tour::total_distance
 - [Phase 42]: Added home crate for portable home directory resolution in profile clone
+- [Phase 43]: EnabledProfiles uses TOML with [machine]/[filament]/[process] sections for human-readable persistence
+- [Phase 43]: filter_enabled is a static method on ProfileResolver (no &self) since it operates on already-resolved profiles
+- [Phase 43]: Enable/disable CLI uses cross-type removal by default; activation-aware list defaults to --enabled when config exists
+- [Phase 43]: Used dialoguer MultiSelect for wizard with TTY guard pattern
 
 ### Roadmap Evolution
 
@@ -722,9 +729,13 @@ Recent decisions affecting current work:
 | 260319-viy | Fix cargo fmt issues from phase 40 | 2026-03-19 | 3f25cd2 | [260319-viy-fix-the-issues-reported-by-cargo-fmt-all](./quick/260319-viy-fix-the-issues-reported-by-cargo-fmt-all/) |
 | 260320-ud5 | Fix cargo fmt formatting in profile_command.rs | 2026-03-20 | e4aed6a | [260320-ud5-fix-cargo-fmt-formatting-in-profile-comm](./quick/260320-ud5-fix-cargo-fmt-formatting-in-profile-comm/) |
 | 260320-ury | Fix cargo doc --no-deps --workspace errors | 2026-03-20 | d97f7f6 | [260320-ury-fix-cargo-doc-no-deps-workspace-errors](./quick/260320-ury-fix-cargo-doc-no-deps-workspace-errors/) |
+| 260321-1n6 | Fix cargo fmt formatting across phase 43 files | 2026-03-21 | bd3b6ac | [260321-1n6-fix-cargo-fmt-formatting-error-in-enable](./quick/260321-1n6-fix-cargo-fmt-formatting-error-in-enable/) |
+| 260321-1pj | Fix test assertion for TTY guard in enable command | 2026-03-21 | af75e4d | [260321-1pj-fix-test-profile-enable-no-args-errors-a](./quick/260321-1pj-fix-test-profile-enable-no-args-errors-a/) |
+| 260321-1s9 | Add QA tests for phase 40+ features | 2026-03-21 | 616a7b1 | [260321-1s9-add-qa-tests-for-phase-40-features](./quick/260321-1s9-add-qa-tests-for-phase-40-features/) |
+| 260323-l8a | Fix cli_slice_profiles wizard trigger | 2026-03-23 | 4ba1299 | [260323-l8a-fix-cli-slice-profiles-test-failures-fro](./quick/260323-l8a-fix-cli-slice-profiles-test-failures-fro/) |
 
 ## Session Continuity
 
-Last session: 2026-03-20T21:32:29.429Z
-Stopped at: Completed 42-01-PLAN.md
+Last session: 2026-03-21T01:05:20.453Z
+Stopped at: Completed 43-03-PLAN.md
 Resume file: None

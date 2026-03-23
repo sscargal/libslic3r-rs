@@ -329,7 +329,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 16. PrusaSlicer Profile Migration | 2/2 | ✓ Complete | 2026-02-19 |
 | 17. BambuStudio Profile Migration | 1/1 | ✓ Complete | 2026-02-19 |
 | 42. Clone and Customize Profiles | 2/2 | Complete    | 2026-03-20 |
-| 43. Enable/Disable Printer and Filament Profiles | 0/0 | ○ Pending | - |
+| 43. Enable/Disable Printer and Filament Profiles | 3/3 | Complete    | 2026-03-21 |
 | 44. Search and Filter Profiles by Compatibility | 0/0 | ○ Pending | - |
 | 45. Global and Per-Object Settings Override System | 0/0 | ○ Pending | - |
 | 46. Job Output Directories | 0/0 | ○ Pending | - |
@@ -794,9 +794,12 @@ Plans:
 **Goal:** Implement an enable/disable system for printer and filament profiles using `~/.config/slicecore/enabled-profiles.toml`, with CLI commands (enable/disable/list/setup), interactive first-run wizard, and per-printer filament visibility filtering.
 **Requirements**: [API-02]
 **Depends on:** Phase 42
-**Plans:** 0 plans
+**Plans:** 3/3 plans complete
 
 Plans:
+- [ ] 43-01-PLAN.md -- EnabledProfiles data model, compatibility types, and ProfileResolver filtering
+- [ ] 43-02-PLAN.md -- Enable, disable, status CLI commands and activation-aware list filtering
+- [ ] 43-03-PLAN.md -- Interactive setup wizard, setup command, and slice trigger
 
 ### Phase 44: Search and filter profiles by printer and filament compatibility — add profile search with compatibility engine and enhanced list command
 

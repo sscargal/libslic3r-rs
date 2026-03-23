@@ -27,6 +27,7 @@ mod csg_info;
 mod diff_profiles_command;
 mod plugins_command;
 mod profile_command;
+mod profile_wizard;
 mod schema_command;
 mod slice_workflow;
 mod stats_display;
@@ -1087,6 +1088,32 @@ fn cmd_slice(
         || save_config.is_some()
         || show_config
         || unsafe_defaults;
+
+    // Check if profile setup is needed (first-run wizard trigger)
+    // Skip when profiles are explicitly specified via -m/-f/-p or --profiles-dir
+    let has_explicit_profiles =
+        machine.is_some() || filament.is_some() || process.is_some() || unsafe_defaults;
+    if use_profile_workflow && !has_explicit_profiles && profiles_dir.is_none() {
+        let enabled_path = slicecore_engine::enabled_profiles::EnabledProfiles::default_path();
+        if let Some(ref path) = enabled_path {
+            if !path.exists() && !force {
+                if std::io::stdin().is_terminal() {
+                    eprintln!("No profiles enabled yet. Starting setup wizard...");
+                    eprintln!("(Use --force to skip, or run 'slicecore profile setup' manually)\n");
+                    if let Err(e) = crate::profile_wizard::run_setup_wizard(profiles_dir, false) {
+                        eprintln!("Setup wizard failed: {e}");
+                        eprintln!("Run 'slicecore profile setup' manually or use --force to skip.");
+                        std::process::exit(1);
+                    }
+                } else {
+                    eprintln!("Error: No enabled profiles found.");
+                    eprintln!("Run: slicecore profile setup --machine <id> --filament <id>");
+                    eprintln!("Or use --force to proceed without profile activation.");
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
 
     let total_steps = if use_profile_workflow { 5 } else { 4 };
     let output = cli_output::CliOutput::new(quiet, json_output, color_mode);

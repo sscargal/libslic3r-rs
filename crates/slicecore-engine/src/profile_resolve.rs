@@ -27,6 +27,7 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
+use crate::enabled_profiles::EnabledProfiles;
 use crate::error::EngineError;
 use crate::profile_library::{load_index, ProfileIndex, ProfileIndexEntry};
 
@@ -466,6 +467,64 @@ impl ProfileResolver {
         }
 
         dirs
+    }
+
+    /// Filters a list of resolved profiles to only those that are enabled.
+    ///
+    /// Profiles are matched by type and name against the [`EnabledProfiles`] config.
+    /// If `enabled` is `None`, returns all profiles unfiltered (for `--all` mode).
+    ///
+    /// This is a static method because it operates on already-resolved profiles.
+    /// The caller provides the [`EnabledProfiles`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use slicecore_engine::profile_resolve::{ProfileResolver, ResolvedProfile, ProfileSource};
+    /// use slicecore_engine::enabled_profiles::EnabledProfiles;
+    /// use std::path::PathBuf;
+    ///
+    /// let profiles = vec![
+    ///     ResolvedProfile {
+    ///         path: PathBuf::from("machine.toml"),
+    ///         source: ProfileSource::BuiltIn,
+    ///         profile_type: "machine".to_string(),
+    ///         name: "X1C".to_string(),
+    ///         checksum: String::new(),
+    ///     },
+    /// ];
+    /// // None means return all (--all mode)
+    /// let all = ProfileResolver::filter_enabled(&profiles, None);
+    /// assert_eq!(all.len(), 1);
+    /// ```
+    #[must_use]
+    pub fn filter_enabled(
+        profiles: &[ResolvedProfile],
+        enabled: Option<&EnabledProfiles>,
+    ) -> Vec<ResolvedProfile> {
+        match enabled {
+            None => profiles.to_vec(),
+            Some(ep) => profiles
+                .iter()
+                .filter(|p| ep.is_enabled(&p.profile_type, &p.name))
+                .cloned()
+                .collect(),
+        }
+    }
+
+    /// Returns a reference to the loaded profile index, if any.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use slicecore_engine::profile_resolve::ProfileResolver;
+    ///
+    /// let resolver = ProfileResolver::with_dirs(None, vec![], None);
+    /// assert!(resolver.index().is_none());
+    /// ```
+    #[must_use]
+    pub fn index(&self) -> Option<&ProfileIndex> {
+        self.index.as_ref()
     }
 
     // -----------------------------------------------------------------------
@@ -1235,5 +1294,45 @@ mod tests {
         let result = resolver.resolve("PLA_Basic", "filament").unwrap();
         assert_eq!(result.name, "PLA_Basic");
         assert!(matches!(result.source, ProfileSource::Library { .. }));
+    }
+
+    #[test]
+    fn filter_enabled_with_some_filters_by_enabled() {
+        let profiles = vec![
+            ResolvedProfile {
+                path: std::path::PathBuf::from("machine.toml"),
+                source: ProfileSource::BuiltIn,
+                profile_type: "machine".to_string(),
+                name: "X1C".to_string(),
+                checksum: String::new(),
+            },
+            ResolvedProfile {
+                path: std::path::PathBuf::from("filament.toml"),
+                source: ProfileSource::BuiltIn,
+                profile_type: "filament".to_string(),
+                name: "PLA_Basic".to_string(),
+                checksum: String::new(),
+            },
+            ResolvedProfile {
+                path: std::path::PathBuf::from("process.toml"),
+                source: ProfileSource::BuiltIn,
+                profile_type: "process".to_string(),
+                name: "Standard".to_string(),
+                checksum: String::new(),
+            },
+        ];
+
+        let mut ep = crate::enabled_profiles::EnabledProfiles::default();
+        ep.enable("machine", "X1C");
+
+        // With Some(ep), only the enabled machine profile should be returned
+        let filtered = ProfileResolver::filter_enabled(&profiles, Some(&ep));
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].name, "X1C");
+        assert_eq!(filtered[0].profile_type, "machine");
+
+        // With None (--all mode), all profiles should be returned
+        let all = ProfileResolver::filter_enabled(&profiles, None);
+        assert_eq!(all.len(), 3);
     }
 }
