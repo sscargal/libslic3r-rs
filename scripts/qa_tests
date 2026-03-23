@@ -897,8 +897,8 @@ TOML
         "$SLICECORE" profile validate my-printer
 
     # Set
-    run_test "profile set" \
-        "$SLICECORE" profile set my-printer machine.nozzle_diameters 0.6
+    run_test "profile setting" \
+        "$SLICECORE" profile setting my-printer machine.nozzle_diameters 0.6
 
     # Get
     run_test_output_contains "profile get" "0.6" \
