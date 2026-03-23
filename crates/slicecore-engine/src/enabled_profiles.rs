@@ -23,6 +23,7 @@
 //! distinguishing a first-run scenario (no file yet) from a corrupt file
 //! (parse error).
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -50,6 +51,53 @@ pub struct ProfileSection {
     pub enabled: Vec<String>,
 }
 
+/// A named profile set: machine + filament + process triple.
+///
+/// Represents a complete configuration for slicing, combining one printer,
+/// one filament, and one process profile.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::enabled_profiles::ProfileSet;
+///
+/// let set = ProfileSet {
+///     machine: "BBL/Bambu_X1C".to_string(),
+///     filament: "Bambu_PLA_Basic".to_string(),
+///     process: "0.20mm_Standard".to_string(),
+/// };
+/// assert_eq!(set.machine, "BBL/Bambu_X1C");
+/// ```
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct ProfileSet {
+    /// Machine (printer) profile identifier.
+    pub machine: String,
+    /// Filament profile identifier.
+    pub filament: String,
+    /// Process (print settings) profile identifier.
+    pub process: String,
+}
+
+/// Defaults section for enabled-profiles.toml.
+///
+/// Stores which profile set (if any) should be used as the default
+/// for slicing operations.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::enabled_profiles::DefaultsSection;
+///
+/// let defaults = DefaultsSection { set: Some("my-set".to_string()) };
+/// assert_eq!(defaults.set, Some("my-set".to_string()));
+/// ```
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct DefaultsSection {
+    /// Name of the default profile set, if configured.
+    #[serde(default)]
+    pub set: Option<String>,
+}
+
 /// Tracks which profiles are enabled across machine, filament, and process types.
 ///
 /// This is the primary data structure for profile activation. It serializes
@@ -75,6 +123,12 @@ pub struct EnabledProfiles {
     /// Enabled process (print settings) profiles.
     #[serde(default)]
     pub process: ProfileSection,
+    /// Named profile sets (machine + filament + process triples).
+    #[serde(default)]
+    pub sets: HashMap<String, ProfileSet>,
+    /// Default profile set configuration.
+    #[serde(default)]
+    pub defaults: DefaultsSection,
 }
 
 impl EnabledProfiles {
@@ -307,6 +361,51 @@ impl EnabledProfiles {
             self.filament.enabled.len(),
             self.process.enabled.len(),
         )
+    }
+
+    /// Adds a named profile set.
+    ///
+    /// Inserts the set into the `sets` map, replacing any existing set with
+    /// the same name.
+    pub fn add_set(&mut self, name: String, set: ProfileSet) {
+        self.sets.insert(name, set);
+    }
+
+    /// Removes a named profile set.
+    ///
+    /// If the removed set is also the default, the default is cleared.
+    /// Returns the removed set if it existed.
+    pub fn remove_set(&mut self, name: &str) -> Option<ProfileSet> {
+        let removed = self.sets.remove(name);
+        if self.defaults.set.as_deref() == Some(name) {
+            self.defaults.set = None;
+        }
+        removed
+    }
+
+    /// Returns a reference to the named profile set, if it exists.
+    #[must_use]
+    pub fn get_set(&self, name: &str) -> Option<&ProfileSet> {
+        self.sets.get(name)
+    }
+
+    /// Sets the default profile set name.
+    ///
+    /// If `name` is `Some`, validates that the set exists in the `sets` map.
+    /// If the set does not exist, the default is not changed.
+    pub fn set_default(&mut self, name: Option<String>) {
+        match &name {
+            Some(n) if !self.sets.contains_key(n.as_str()) => {}
+            _ => self.defaults.set = name,
+        }
+    }
+
+    /// Returns the default profile set name and value, if configured.
+    #[must_use]
+    pub fn default_set(&self) -> Option<(&str, &ProfileSet)> {
+        let name = self.defaults.set.as_deref()?;
+        let set = self.sets.get(name)?;
+        Some((name, set))
     }
 
     /// Returns `true` when no profiles are enabled in any section.
@@ -1016,5 +1115,109 @@ enabled = []
         assert!(ids.contains(&"filament/BBL/PLA_X1C".to_string()));
         assert!(ids.contains(&"filament/BBL/PETG_X1C".to_string()));
         assert!(!ids.contains(&"filament/Creality/PLA_Ender".to_string()));
+    }
+
+    // -----------------------------------------------------------------------
+    // ProfileSet / DefaultsSection / EnabledProfiles extension tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_profile_set_toml_roundtrip() {
+        let mut ep = EnabledProfiles::default();
+        ep.enable("machine", "X1C");
+        ep.add_set(
+            "my-set".to_string(),
+            ProfileSet {
+                machine: "X1C".to_string(),
+                filament: "PLA".to_string(),
+                process: "Standard".to_string(),
+            },
+        );
+        ep.defaults.set = Some("my-set".to_string());
+
+        let toml_str = toml::to_string_pretty(&ep).unwrap();
+        let loaded: EnabledProfiles = toml::from_str(&toml_str).unwrap();
+
+        assert_eq!(ep, loaded);
+        assert_eq!(loaded.sets.len(), 1);
+        assert_eq!(loaded.defaults.set, Some("my-set".to_string()));
+    }
+
+    #[test]
+    fn test_enabled_profiles_backward_compat() {
+        // TOML without [sets] or [defaults] should deserialize with empty defaults
+        let content = r#"
+[machine]
+enabled = ["X1C"]
+
+[filament]
+enabled = ["PLA"]
+
+[process]
+enabled = []
+"#;
+        let loaded: EnabledProfiles = toml::from_str(content).unwrap();
+        assert_eq!(loaded.machine.enabled, vec!["X1C"]);
+        assert!(loaded.sets.is_empty());
+        assert_eq!(loaded.defaults.set, None);
+    }
+
+    #[test]
+    fn test_add_remove_set() {
+        let mut ep = EnabledProfiles::default();
+        let set = ProfileSet {
+            machine: "X1C".to_string(),
+            filament: "PLA".to_string(),
+            process: "Standard".to_string(),
+        };
+        ep.add_set("my-set".to_string(), set.clone());
+        assert!(ep.get_set("my-set").is_some());
+
+        let removed = ep.remove_set("my-set");
+        assert_eq!(removed, Some(set));
+        assert!(ep.get_set("my-set").is_none());
+    }
+
+    #[test]
+    fn test_set_default() {
+        let mut ep = EnabledProfiles::default();
+        let set = ProfileSet {
+            machine: "X1C".to_string(),
+            filament: "PLA".to_string(),
+            process: "Standard".to_string(),
+        };
+        ep.add_set("my-set".to_string(), set);
+        ep.set_default(Some("my-set".to_string()));
+
+        let (name, ps) = ep.default_set().unwrap();
+        assert_eq!(name, "my-set");
+        assert_eq!(ps.machine, "X1C");
+
+        // Setting default to nonexistent set should be a no-op
+        ep.set_default(Some("nonexistent".to_string()));
+        assert_eq!(ep.defaults.set, Some("my-set".to_string()));
+
+        // Setting to None clears default
+        ep.set_default(None);
+        assert!(ep.default_set().is_none());
+    }
+
+    #[test]
+    fn test_remove_set_clears_default() {
+        let mut ep = EnabledProfiles::default();
+        ep.add_set(
+            "my-set".to_string(),
+            ProfileSet {
+                machine: "X1C".to_string(),
+                filament: "PLA".to_string(),
+                process: "Standard".to_string(),
+            },
+        );
+        ep.set_default(Some("my-set".to_string()));
+        assert!(ep.default_set().is_some());
+
+        ep.remove_set("my-set");
+        assert_eq!(ep.defaults.set, None);
+        assert!(ep.default_set().is_none());
     }
 }

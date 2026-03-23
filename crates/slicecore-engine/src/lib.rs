@@ -117,8 +117,9 @@ pub use preview::{generate_preview, LayerPreview, SlicePreview};
 pub use profile_convert::{convert_to_toml, merge_import_results, ConvertResult};
 pub use profile_import::{detect_config_format, ConfigFormat, ImportResult, ProfileMetadata};
 pub use profile_library::{
-    batch_convert_profiles, batch_convert_prusaslicer_profiles, load_index, write_index,
-    write_merged_index, BatchConvertResult, ProfileIndex, ProfileIndexEntry,
+    batch_convert_profiles, batch_convert_prusaslicer_profiles, load_index, matches_filters,
+    write_index, write_merged_index, BatchConvertResult, ProfileFilters, ProfileIndex,
+    ProfileIndexEntry,
 };
 pub use scarf::apply_scarf_joint;
 pub use seam::{select_seam_point, SeamPosition};
