@@ -969,10 +969,11 @@ fn cmd_set_list(json_output: bool, profiles_dir: Option<&Path>) -> Result<(), an
     let default_name = enabled.defaults.set.as_deref();
 
     // Table header
-    println!(
-        "{:<20} {:<30} {:<30} {:<30} {}",
-        "NAME", "MACHINE", "FILAMENT", "PROCESS", "DEFAULT"
+    let header = format!(
+        "{:<20} {:<30} {:<30} {:<30} DEFAULT",
+        "NAME", "MACHINE", "FILAMENT", "PROCESS"
     );
+    println!("{header}");
     println!("{}", "-".repeat(120));
 
     let mut names: Vec<&String> = enabled.sets.keys().collect();

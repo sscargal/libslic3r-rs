@@ -80,6 +80,13 @@ pub fn run_slice_workflow(
     // 1. Create resolver
     let resolver = ProfileResolver::new(options.profiles_dir.as_deref());
 
+    // Pre-slice compatibility warnings (non-blocking)
+    if let (Some(ref machine_name), Some(ref filament_name)) =
+        (&options.machine, &options.filament)
+    {
+        emit_compat_warnings(machine_name, filament_name, options.profiles_dir.as_deref());
+    }
+
     // 2. Check unsafe-defaults mode
     if options.unsafe_defaults
         && options.machine.is_none()
@@ -735,4 +742,65 @@ fn epoch_days_to_date(days: u64) -> (u64, u64, u64) {
 /// Returns true if the given year is a leap year.
 const fn is_leap_year(year: u64) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
+}
+
+/// Emits pre-slice compatibility warnings to stderr (non-blocking).
+///
+/// Loads the profile index and checks the filament profile against enabled
+/// machine profiles for nozzle and temperature mismatches. Warnings never
+/// prevent slicing from proceeding.
+fn emit_compat_warnings(machine_name: &str, filament_name: &str, profiles_dir: Option<&Path>) {
+    use slicecore_engine::enabled_profiles::{CompatCheck, CompatibilityInfo};
+
+    // Determine the profiles directory for loading the index
+    let default_dir = home::home_dir().map(|h| h.join(".slicecore").join("profiles"));
+    let dir = profiles_dir
+        .map(std::path::Path::to_path_buf)
+        .or(default_dir);
+    let Some(dir) = dir else { return };
+
+    let index = match slicecore_engine::load_index(&dir) {
+        Ok(idx) => idx,
+        Err(_) => return,
+    };
+
+    let machine_entries: Vec<&slicecore_engine::ProfileIndexEntry> = index
+        .profiles
+        .iter()
+        .filter(|e| e.profile_type == "machine" && e.id.contains(machine_name))
+        .collect();
+
+    let filament_entry = index.profiles.iter().find(|e| {
+        e.profile_type == "filament"
+            && (e.id.contains(filament_name) || e.name.contains(filament_name))
+    });
+
+    let Some(filament) = filament_entry else {
+        return;
+    };
+
+    let report = CompatibilityInfo::compat_report(filament, &machine_entries, 300.0, None);
+    for warning in report.warnings() {
+        match warning {
+            CompatCheck::NozzleMismatch {
+                profile_nozzle,
+                printer_nozzles,
+            } => {
+                eprintln!(
+                    "Warning: Filament profile specifies {profile_nozzle:.1}mm nozzle, \
+                     but printer supports {printer_nozzles:?}mm"
+                );
+            }
+            CompatCheck::TemperatureWarning {
+                filament_min,
+                printer_max,
+            } => {
+                eprintln!(
+                    "Warning: Filament requires {filament_min:.0}C minimum, \
+                     printer max is {printer_max:.0}C"
+                );
+            }
+            CompatCheck::Compatible => {}
+        }
+    }
 }
