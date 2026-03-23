@@ -491,24 +491,27 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
                 filament,
                 process,
                 profiles_dir,
-            } => cmd_set_create(&name, &machine, &filament, &process, profiles_dir.as_deref()),
+            } => cmd_set_create(
+                &name,
+                &machine,
+                &filament,
+                &process,
+                profiles_dir.as_deref(),
+            ),
             ProfileSetCommand::Delete {
                 name,
                 yes: _,
                 profiles_dir,
             } => cmd_set_delete(&name, profiles_dir.as_deref()),
-            ProfileSetCommand::List {
-                json,
-                profiles_dir,
-            } => cmd_set_list(json, profiles_dir.as_deref()),
-            ProfileSetCommand::Show {
-                name,
-                profiles_dir,
-            } => cmd_set_show(&name, profiles_dir.as_deref()),
-            ProfileSetCommand::Default {
-                name,
-                profiles_dir,
-            } => cmd_set_default(name.as_deref(), profiles_dir.as_deref()),
+            ProfileSetCommand::List { json, profiles_dir } => {
+                cmd_set_list(json, profiles_dir.as_deref())
+            }
+            ProfileSetCommand::Show { name, profiles_dir } => {
+                cmd_set_show(&name, profiles_dir.as_deref())
+            }
+            ProfileSetCommand::Default { name, profiles_dir } => {
+                cmd_set_default(name.as_deref(), profiles_dir.as_deref())
+            }
         },
         ProfileCommand::Get {
             name,
@@ -1472,8 +1475,7 @@ fn cmd_list(
     show_compat: bool,
 ) -> Result<(), anyhow::Error> {
     let resolver = ProfileResolver::new(profiles_dir);
-    let all_profiles =
-        resolver.search("", cli_filters.profile_type.as_deref(), usize::MAX);
+    let all_profiles = resolver.search("", cli_filters.profile_type.as_deref(), usize::MAX);
 
     // Determine activation filter mode
     let ep_path = enabled_profiles_path(profiles_dir).ok();
@@ -1549,8 +1551,7 @@ fn cmd_list(
     let compat_info = if show_compat {
         index.and_then(|idx| {
             enabled_profiles.as_ref().map(|ep| {
-                let machine_ids: Vec<String> =
-                    ep.machine.enabled.clone();
+                let machine_ids: Vec<String> = ep.machine.enabled.clone();
                 CompatibilityInfo::from_index_entries(&machine_ids, idx)
             })
         })
@@ -1564,10 +1565,7 @@ fn cmd_list(
             if let Some(ref ep) = enabled_profiles {
                 idx.profiles
                     .iter()
-                    .filter(|e| {
-                        e.profile_type == "machine"
-                            && ep.machine.enabled.contains(&e.id)
-                    })
+                    .filter(|e| e.profile_type == "machine" && ep.machine.enabled.contains(&e.id))
                     .collect()
             } else {
                 Vec::new()
@@ -1615,17 +1613,14 @@ fn cmd_list(
                 if show_compat {
                     if let Some(ref ci) = compat_info {
                         if let Some(idx) = index {
-                            if let Some(entry) =
-                                idx.profiles.iter().find(|e| e.name == p.name)
-                            {
+                            if let Some(entry) = idx.profiles.iter().find(|e| e.name == p.name) {
                                 let report = CompatibilityInfo::compat_report(
                                     entry,
                                     &machine_entry_refs,
                                     300.0,
                                     None,
                                 );
-                                obj["compatible"] =
-                                    serde_json::json!(ci.is_compatible(entry));
+                                obj["compatible"] = serde_json::json!(ci.is_compatible(entry));
                                 obj["compat_report"] =
                                     serde_json::to_value(&report).unwrap_or_default();
                             }
@@ -1658,9 +1653,7 @@ fn cmd_list(
             if show_compat {
                 let compat_marker = if let Some(ref ci) = compat_info {
                     if let Some(idx) = index {
-                        if let Some(entry) =
-                            idx.profiles.iter().find(|e| e.name == p.name)
-                        {
+                        if let Some(entry) = idx.profiles.iter().find(|e| e.name == p.name) {
                             if ci.is_compatible(entry) {
                                 "OK"
                             } else {
@@ -1807,9 +1800,7 @@ fn cmd_search(
         if let Some(ref ep) = enabled_profiles {
             idx.profiles
                 .iter()
-                .filter(|e| {
-                    e.profile_type == "machine" && ep.machine.enabled.contains(&e.id)
-                })
+                .filter(|e| e.profile_type == "machine" && ep.machine.enabled.contains(&e.id))
                 .collect()
         } else {
             Vec::new()
@@ -1899,9 +1890,7 @@ fn cmd_search(
     // If --enable flag, enable matched profiles
     if enable {
         let path = enabled_profiles_path(profiles_dir)?;
-        let mut ep = enabled_profiles
-            .clone()
-            .unwrap_or_default();
+        let mut ep = enabled_profiles.clone().unwrap_or_default();
         for (p, _) in &compat_filtered {
             ep.enable(&p.profile_type, &p.name);
             eprintln!("Enabled {} profile: {}", p.profile_type, p.name);
@@ -1970,12 +1959,15 @@ fn cmd_compat(
 
     // Load enabled profiles to get machine entries
     let ep_path = enabled_profiles_path(profiles_dir)?;
-    let enabled = EnabledProfiles::load(&ep_path)?
-        .ok_or_else(|| anyhow::anyhow!("No enabled profiles. Run 'slicecore profile setup' first."))?;
+    let enabled = EnabledProfiles::load(&ep_path)?.ok_or_else(|| {
+        anyhow::anyhow!("No enabled profiles. Run 'slicecore profile setup' first.")
+    })?;
 
     let machine_ids: Vec<String> = enabled.machine.enabled.clone();
     if machine_ids.is_empty() {
-        anyhow::bail!("No machine profiles enabled. Enable a printer first with 'slicecore profile enable'.");
+        anyhow::bail!(
+            "No machine profiles enabled. Enable a printer first with 'slicecore profile enable'."
+        );
     }
 
     // Get machine entries from index
@@ -2016,7 +2008,10 @@ fn cmd_compat(
             println!("  Nozzle size:  {nozzle}mm");
         }
         println!();
-        println!("Checked against {} enabled machine(s):", machine_entries.len());
+        println!(
+            "Checked against {} enabled machine(s):",
+            machine_entries.len()
+        );
         for m in &machine_entries {
             println!("  - {} ({})", m.name, m.id);
         }

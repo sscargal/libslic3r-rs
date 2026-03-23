@@ -17,12 +17,31 @@ fn test_set_help_shows_subcommands() {
         .unwrap();
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(output.status.success(), "Expected success, stderr: {}", String::from_utf8_lossy(&output.stderr));
-    assert!(stdout.contains("create"), "Expected 'create' in help output: {stdout}");
-    assert!(stdout.contains("delete"), "Expected 'delete' in help output: {stdout}");
-    assert!(stdout.contains("list"), "Expected 'list' in help output: {stdout}");
-    assert!(stdout.contains("show"), "Expected 'show' in help output: {stdout}");
-    assert!(stdout.contains("default"), "Expected 'default' in help output: {stdout}");
+    assert!(
+        output.status.success(),
+        "Expected success, stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        stdout.contains("create"),
+        "Expected 'create' in help output: {stdout}"
+    );
+    assert!(
+        stdout.contains("delete"),
+        "Expected 'delete' in help output: {stdout}"
+    );
+    assert!(
+        stdout.contains("list"),
+        "Expected 'list' in help output: {stdout}"
+    );
+    assert!(
+        stdout.contains("show"),
+        "Expected 'show' in help output: {stdout}"
+    );
+    assert!(
+        stdout.contains("default"),
+        "Expected 'default' in help output: {stdout}"
+    );
 }
 
 #[test]
@@ -105,10 +124,7 @@ fn test_setting_command_exists() {
 
 #[test]
 fn test_slice_profile_set_flag_exists() {
-    let output = slicecore_bin()
-        .args(["slice", "--help"])
-        .output()
-        .unwrap();
+    let output = slicecore_bin().args(["slice", "--help"]).output().unwrap();
 
     assert!(output.status.success(), "Expected slice --help to succeed");
     let stdout = String::from_utf8_lossy(&output.stdout);

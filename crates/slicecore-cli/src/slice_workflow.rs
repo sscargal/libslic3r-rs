@@ -81,8 +81,7 @@ pub fn run_slice_workflow(
     let resolver = ProfileResolver::new(options.profiles_dir.as_deref());
 
     // Pre-slice compatibility warnings (non-blocking)
-    if let (Some(ref machine_name), Some(ref filament_name)) =
-        (&options.machine, &options.filament)
+    if let (Some(ref machine_name), Some(ref filament_name)) = (&options.machine, &options.filament)
     {
         emit_compat_warnings(machine_name, filament_name, options.profiles_dir.as_deref());
     }

@@ -887,8 +887,7 @@ mod tests {
     fn test_compat_report_all_compatible() {
         let entry = make_test_entry(Some(0.4), "filament");
         let machine = make_test_entry(Some(0.4), "machine");
-        let report =
-            CompatibilityInfo::compat_report(&entry, &[&machine], 300.0, None);
+        let report = CompatibilityInfo::compat_report(&entry, &[&machine], 300.0, None);
         assert!(report.is_compatible());
         assert!(report.warnings().is_empty());
     }
@@ -897,8 +896,7 @@ mod tests {
     fn test_compat_report_with_warnings() {
         let entry = make_test_entry(Some(0.4), "filament");
         let machine = make_test_entry(Some(0.6), "machine");
-        let report =
-            CompatibilityInfo::compat_report(&entry, &[&machine], 300.0, None);
+        let report = CompatibilityInfo::compat_report(&entry, &[&machine], 300.0, None);
         assert!(!report.is_compatible());
         assert_eq!(report.warnings().len(), 1);
     }

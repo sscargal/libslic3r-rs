@@ -762,14 +762,16 @@ fn main() {
             // Expand --profile-set flag to -m/-f/-p
             let (machine, filament, process) = if let Some(ref set_name) = profile_set {
                 let ep_path = slicecore_engine::enabled_profiles::EnabledProfiles::default_path()
-                    .or_else(|| profiles_dir.as_ref().map(|d| d.join("enabled-profiles.toml")));
-                let ep = ep_path
-                    .as_ref()
-                    .and_then(|p| {
-                        slicecore_engine::enabled_profiles::EnabledProfiles::load(p)
-                            .ok()
-                            .flatten()
+                    .or_else(|| {
+                        profiles_dir
+                            .as_ref()
+                            .map(|d| d.join("enabled-profiles.toml"))
                     });
+                let ep = ep_path.as_ref().and_then(|p| {
+                    slicecore_engine::enabled_profiles::EnabledProfiles::load(p)
+                        .ok()
+                        .flatten()
+                });
                 match ep.and_then(|e| e.get_set(set_name).cloned()) {
                     Some(set) => (Some(set.machine), Some(set.filament), Some(set.process)),
                     None => {
@@ -785,14 +787,16 @@ fn main() {
             {
                 // Try default set
                 let ep_path = slicecore_engine::enabled_profiles::EnabledProfiles::default_path()
-                    .or_else(|| profiles_dir.as_ref().map(|d| d.join("enabled-profiles.toml")));
-                let ep = ep_path
-                    .as_ref()
-                    .and_then(|p| {
-                        slicecore_engine::enabled_profiles::EnabledProfiles::load(p)
-                            .ok()
-                            .flatten()
+                    .or_else(|| {
+                        profiles_dir
+                            .as_ref()
+                            .map(|d| d.join("enabled-profiles.toml"))
                     });
+                let ep = ep_path.as_ref().and_then(|p| {
+                    slicecore_engine::enabled_profiles::EnabledProfiles::load(p)
+                        .ok()
+                        .flatten()
+                });
                 match ep.and_then(|e| e.default_set().map(|(_, s)| s.clone())) {
                     Some(set) => {
                         eprintln!(
