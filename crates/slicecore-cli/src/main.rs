@@ -1090,7 +1090,10 @@ fn cmd_slice(
         || unsafe_defaults;
 
     // Check if profile setup is needed (first-run wizard trigger)
-    if use_profile_workflow {
+    // Skip when profiles are explicitly specified via -m/-f/-p or --profiles-dir
+    let has_explicit_profiles =
+        machine.is_some() || filament.is_some() || process.is_some() || unsafe_defaults;
+    if use_profile_workflow && !has_explicit_profiles && profiles_dir.is_none() {
         let enabled_path = slicecore_engine::enabled_profiles::EnabledProfiles::default_path();
         if let Some(ref path) = enabled_path {
             if !path.exists() && !force {
