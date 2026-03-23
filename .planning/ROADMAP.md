@@ -806,9 +806,12 @@ Plans:
 **Goal:** Add `slicecore profile search <query>` with filters (printer, material, nozzle, manufacturer), a compatibility engine (nozzle match, temp ranges, hardware requirements), enhanced `list` command with filtering, and profile sets for favorites.
 **Requirements**: [API-02]
 **Depends on:** Phase 43
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
+- [ ] 44-01-PLAN.md — Compatibility engine extensions + filter infrastructure + profile sets data model
+- [ ] 44-02-PLAN.md — Search/list/compat CLI commands with filter flags and compatibility display
+- [ ] 44-03-PLAN.md — Profile sets CLI commands + slice --set flag + pre-slice compatibility warnings
 
 ### Phase 45: Global and per-object settings override system — implement layered settings resolution with per-object and per-region overrides
 
