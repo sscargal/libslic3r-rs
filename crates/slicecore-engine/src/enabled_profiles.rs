@@ -327,6 +327,59 @@ impl EnabledProfiles {
     }
 }
 
+/// Result of a single compatibility check between a profile and printer capabilities.
+///
+/// Each variant represents a specific type of compatibility issue that may be
+/// detected when evaluating whether a filament/process profile works with the
+/// user's enabled printers.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum CompatCheck {
+    /// Profile is fully compatible.
+    Compatible,
+    /// Profile nozzle size does not match any printer nozzle.
+    NozzleMismatch {
+        /// Nozzle size specified by the profile.
+        profile_nozzle: f64,
+        /// Nozzle sizes available on the printer(s).
+        printer_nozzles: Vec<f64>,
+    },
+    /// Filament minimum temperature exceeds printer maximum.
+    TemperatureWarning {
+        /// Minimum temperature the filament requires.
+        filament_min: f64,
+        /// Maximum temperature the printer supports.
+        printer_max: f64,
+    },
+}
+
+/// Aggregated compatibility report for a profile against printer capabilities.
+///
+/// Collects the results of multiple [`CompatCheck`] evaluations and provides
+/// convenience methods to determine overall compatibility.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct CompatReport {
+    /// Individual check results.
+    pub checks: Vec<CompatCheck>,
+}
+
+impl CompatReport {
+    /// Returns `true` when all checks passed (all are [`CompatCheck::Compatible`])
+    /// or when no checks were performed.
+    #[must_use]
+    pub fn is_compatible(&self) -> bool {
+        self.checks.iter().all(|c| *c == CompatCheck::Compatible)
+    }
+
+    /// Returns references to checks that are not [`CompatCheck::Compatible`].
+    #[must_use]
+    pub fn warnings(&self) -> Vec<&CompatCheck> {
+        self.checks
+            .iter()
+            .filter(|c| **c != CompatCheck::Compatible)
+            .collect()
+    }
+}
+
 /// Compatibility information derived from enabled machine profiles.
 ///
 /// Used to filter filament/process profiles to only those compatible with
@@ -437,6 +490,93 @@ impl CompatibilityInfo {
         }
 
         false
+    }
+
+    /// Checks nozzle diameter compatibility between a profile entry and printer entries.
+    ///
+    /// Returns `None` if compatible (matching nozzle found within epsilon tolerance,
+    /// or entry has no nozzle size, or no printer nozzle data).
+    /// Returns `Some(NozzleMismatch)` when the profile nozzle does not match any
+    /// printer nozzle within an epsilon of 0.001.
+    #[must_use]
+    pub fn check_nozzle(
+        entry: &ProfileIndexEntry,
+        machine_entries: &[&ProfileIndexEntry],
+    ) -> Option<CompatCheck> {
+        let filament_nozzle = entry.nozzle_size?;
+
+        let printer_nozzles: Vec<f64> = machine_entries
+            .iter()
+            .filter_map(|m| m.nozzle_size)
+            .collect();
+
+        if printer_nozzles.is_empty() {
+            return None;
+        }
+
+        let matches = printer_nozzles
+            .iter()
+            .any(|n| (n - filament_nozzle).abs() < 0.001);
+
+        if matches {
+            None
+        } else {
+            Some(CompatCheck::NozzleMismatch {
+                profile_nozzle: filament_nozzle,
+                printer_nozzles,
+            })
+        }
+    }
+
+    /// Checks temperature compatibility between filament requirements and printer capabilities.
+    ///
+    /// Uses a conservative 300C default threshold because `MachineConfig` does not yet
+    /// expose per-printer max nozzle temperature. When per-printer temps become available
+    /// in profile metadata, this default should be replaced with actual printer capabilities.
+    ///
+    /// Returns `None` if compatible or if no filament temperature data is available.
+    /// Returns `Some(TemperatureWarning)` when `filament_min_temp` exceeds `printer_max_temp`.
+    #[must_use]
+    pub fn check_temperature(
+        filament_min_temp: Option<f64>,
+        printer_max_temp: f64,
+    ) -> Option<CompatCheck> {
+        let min_temp = filament_min_temp?;
+
+        if min_temp > printer_max_temp {
+            Some(CompatCheck::TemperatureWarning {
+                filament_min: min_temp,
+                printer_max: printer_max_temp,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Builds a compatibility report by running nozzle and temperature checks.
+    ///
+    /// Collects all check results into a [`CompatReport`]. Checks that return `None`
+    /// (compatible) are added as [`CompatCheck::Compatible`].
+    #[must_use]
+    pub fn compat_report(
+        entry: &ProfileIndexEntry,
+        machine_entries: &[&ProfileIndexEntry],
+        printer_max_temp: f64,
+        filament_min_temp: Option<f64>,
+    ) -> CompatReport {
+        let mut checks = Vec::new();
+
+        match Self::check_nozzle(entry, machine_entries) {
+            Some(check) => checks.push(check),
+            None => checks.push(CompatCheck::Compatible),
+        }
+
+        match Self::check_temperature(filament_min_temp, printer_max_temp) {
+            Some(check) => checks.push(check),
+            None => checks.push(CompatCheck::Compatible),
+        }
+
+        CompatReport { checks }
     }
 
     /// Builds compatibility info from enabled machine IDs and a profile index.
@@ -566,6 +706,103 @@ fn home_dir() -> Option<PathBuf> {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    /// Helper to create a test `ProfileIndexEntry` with minimal required fields.
+    fn make_test_entry(nozzle_size: Option<f64>, profile_type: &str) -> ProfileIndexEntry {
+        ProfileIndexEntry {
+            id: "test/entry".to_string(),
+            name: "Test Entry".to_string(),
+            source: "test".to_string(),
+            vendor: "TestVendor".to_string(),
+            profile_type: profile_type.to_string(),
+            material: Some("PLA".to_string()),
+            nozzle_size,
+            printer_model: None,
+            path: "test.toml".to_string(),
+            layer_height: None,
+            quality: None,
+        }
+    }
+
+    #[test]
+    fn test_check_nozzle_matching() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let machine = make_test_entry(Some(0.4), "machine");
+        let result = CompatibilityInfo::check_nozzle(&entry, &[&machine]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_nozzle_mismatch() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let machine = make_test_entry(Some(0.6), "machine");
+        let result = CompatibilityInfo::check_nozzle(&entry, &[&machine]);
+        assert!(matches!(result, Some(CompatCheck::NozzleMismatch { .. })));
+    }
+
+    #[test]
+    fn test_check_nozzle_no_filament_size() {
+        let entry = make_test_entry(None, "filament");
+        let machine = make_test_entry(Some(0.4), "machine");
+        let result = CompatibilityInfo::check_nozzle(&entry, &[&machine]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_nozzle_no_printer_data() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let result = CompatibilityInfo::check_nozzle(&entry, &[]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_nozzle_epsilon() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let machine = make_test_entry(Some(0.400_000_01), "machine");
+        let result = CompatibilityInfo::check_nozzle(&entry, &[&machine]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_temperature_ok() {
+        let result = CompatibilityInfo::check_temperature(Some(190.0), 300.0);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_temperature_warning() {
+        let result = CompatibilityInfo::check_temperature(Some(350.0), 300.0);
+        assert!(matches!(
+            result,
+            Some(CompatCheck::TemperatureWarning { .. })
+        ));
+    }
+
+    #[test]
+    fn test_check_temperature_no_data() {
+        let result = CompatibilityInfo::check_temperature(None, 300.0);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_compat_report_all_compatible() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let machine = make_test_entry(Some(0.4), "machine");
+        let report =
+            CompatibilityInfo::compat_report(&entry, &[&machine], 300.0, None);
+        assert!(report.is_compatible());
+        assert!(report.warnings().is_empty());
+    }
+
+    #[test]
+    fn test_compat_report_with_warnings() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let machine = make_test_entry(Some(0.6), "machine");
+        let report =
+            CompatibilityInfo::compat_report(&entry, &[&machine], 300.0, None);
+        assert!(!report.is_compatible());
+        assert_eq!(report.warnings().len(), 1);
+    }
 
     #[test]
     fn default_has_empty_sections() {
