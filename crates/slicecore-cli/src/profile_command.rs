@@ -8,7 +8,8 @@
 //!
 //! Available subcommands:
 //! - `clone`: Create a custom profile from an existing preset
-//! - `set`: Set a single setting value
+//! - `setting`: Set a single setting value
+//! - `set`: Manage saved profile sets (create, delete, list, show, default)
 //! - `get`: Get a single setting value
 //! - `reset`: Reset a setting to its inherited value
 //! - `edit`: Open profile in `$EDITOR`
@@ -19,17 +20,53 @@
 //! - `disable`: Disable one or more profiles by ID
 //! - `status`: Show enabled profile summary
 //! - `setup`: Interactive first-run wizard or non-interactive setup
-//! - `list`: List profiles with activation-aware filtering
+//! - `list`: List profiles with activation-aware filtering and `--compat` column
+//! - `search`: Search profiles with `--material`, `--vendor`, `--nozzle`, `--type` filter flags
+//! - `compat`: Show detailed compatibility breakdown for a profile
 
 use std::path::{Path, PathBuf};
 
 use clap::Subcommand;
 use slicecore_config_schema::SettingKey;
 use slicecore_engine::config::PrintConfig;
-use slicecore_engine::enabled_profiles::EnabledProfiles;
+use slicecore_engine::enabled_profiles::{CompatibilityInfo, EnabledProfiles, ProfileSet};
+use slicecore_engine::profile_library::{matches_filters, ProfileFilters, ProfileIndex};
 use slicecore_engine::profile_resolve::{
     ProfileError, ProfileResolver, ProfileSource, ResolvedProfile,
 };
+
+/// Shared filter flags for profile search and list commands.
+///
+/// All specified filters use AND logic: every set filter must match.
+#[derive(clap::Args, Debug, Default, Clone)]
+pub struct CliProfileFilters {
+    /// Filter by material type (PLA, ABS, PETG, etc.)
+    #[arg(short = 'm', long)]
+    pub material: Option<String>,
+
+    /// Filter by vendor name
+    #[arg(short = 'v', long)]
+    pub vendor: Option<String>,
+
+    /// Filter by nozzle diameter (mm)
+    #[arg(short = 'n', long)]
+    pub nozzle: Option<f64>,
+
+    /// Filter by profile type (machine, filament, process)
+    #[arg(short = 't', long = "type")]
+    pub profile_type: Option<String>,
+}
+
+impl From<&CliProfileFilters> for ProfileFilters {
+    fn from(cli: &CliProfileFilters) -> Self {
+        Self {
+            material: cli.material.clone(),
+            vendor: cli.vendor.clone(),
+            nozzle: cli.nozzle,
+            profile_type: cli.profile_type.clone(),
+        }
+    }
+}
 
 /// Profile management subcommands.
 #[derive(Subcommand)]
@@ -59,7 +96,8 @@ pub enum ProfileCommand {
     },
 
     /// Set a single setting value in a custom profile.
-    Set {
+    #[command(name = "setting")]
+    Setting {
         /// Profile name
         name: String,
 
@@ -72,6 +110,13 @@ pub enum ProfileCommand {
         /// Override profiles directory
         #[arg(long)]
         profiles_dir: Option<PathBuf>,
+    },
+
+    /// Manage saved profile sets (machine + filament + process combos).
+    #[command(name = "set")]
+    Set {
+        #[command(subcommand)]
+        command: ProfileSetCommand,
     },
 
     /// Get a single setting value from a profile.
@@ -208,19 +253,12 @@ pub enum ProfileCommand {
     /// List profiles from the profile library.
     ///
     /// Alias for the top-level `list-profiles` command, available under the
-    /// `profile` command group for convenience.
+    /// `profile` command group for convenience. Supports `--material`, `--vendor`,
+    /// `--nozzle`, and `--type` filter flags via flattened `CliProfileFilters`.
     List {
-        /// Filter by vendor name (e.g., BBL, Creality, Prusa)
-        #[arg(long)]
-        vendor: Option<String>,
-
-        /// Filter by profile type (filament, process, machine)
-        #[arg(long, value_name = "TYPE")]
-        profile_type: Option<String>,
-
-        /// Filter by material type (PLA, ABS, PETG, TPU, etc.)
-        #[arg(long)]
-        material: Option<String>,
+        /// Shared filter flags (--material, --vendor, --nozzle, --type)
+        #[command(flatten)]
+        filters: CliProfileFilters,
 
         /// List available vendors only (no individual profiles)
         #[arg(long)]
@@ -243,8 +281,12 @@ pub enum ProfileCommand {
         disabled: bool,
 
         /// Show all profiles regardless of activation status
-        #[arg(long)]
+        #[arg(long, conflicts_with_all = ["enabled", "disabled"])]
         all: bool,
+
+        /// Show compatibility column
+        #[arg(long)]
+        compat: bool,
     },
 
     /// Show details of a specific profile.
@@ -263,16 +305,51 @@ pub enum ProfileCommand {
         profiles_dir: Option<PathBuf>,
     },
 
-    /// Search profiles by keyword.
+    /// Search profiles by keyword with filter flags.
     ///
-    /// Alias for the top-level `search-profiles` command.
+    /// Returns case-insensitive substring matches across name, vendor, material,
+    /// and ID. By default shows only profiles compatible with enabled printers;
+    /// use `--include-incompatible` to show all.
     Search {
-        /// Search query
+        /// Search query (matches name, vendor, material, ID)
         query: String,
 
         /// Maximum number of results
         #[arg(short, long, default_value = "20")]
         limit: usize,
+
+        /// Shared filter flags (--material, --vendor, --nozzle, --type)
+        #[command(flatten)]
+        filters: CliProfileFilters,
+
+        /// Show all profiles including those incompatible with enabled printers
+        #[arg(long)]
+        include_incompatible: bool,
+
+        /// Enable matched profiles after search
+        #[arg(long)]
+        enable: bool,
+
+        /// Show all profiles regardless of activation status
+        #[arg(long)]
+        all: bool,
+
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Show detailed compatibility information for a profile.
+    ///
+    /// Displays nozzle, temperature, and type compatibility checks against
+    /// enabled printers. Use `--json` for structured output.
+    Compat {
+        /// Profile ID to check compatibility for
+        id: String,
 
         /// Override profiles directory
         #[arg(long)]
@@ -319,6 +396,67 @@ pub enum ProfileCommand {
     Diff(crate::diff_profiles_command::DiffProfilesArgs),
 }
 
+/// Profile set management subcommands.
+///
+/// Manages named profile sets (machine + filament + process triples)
+/// for quick slicing with pre-configured profile combos.
+#[derive(Subcommand)]
+pub enum ProfileSetCommand {
+    /// Create a named profile set (machine + filament + process combo).
+    Create {
+        /// Name for the profile set (e.g., my-x1c-pla)
+        name: String,
+        /// Machine profile ID
+        #[arg(long)]
+        machine: String,
+        /// Filament profile ID
+        #[arg(long)]
+        filament: String,
+        /// Process profile ID
+        #[arg(long)]
+        process: String,
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+    /// Delete a saved profile set.
+    Delete {
+        /// Name of the set to delete
+        name: String,
+        /// Skip confirmation
+        #[arg(long)]
+        yes: bool,
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+    /// List all saved profile sets.
+    List {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+    /// Show details of a saved profile set.
+    Show {
+        /// Name of the set to show
+        name: String,
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+    /// Set the default profile set for slicing.
+    Default {
+        /// Name of the set to make default (omit to show current default)
+        name: Option<String>,
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+}
+
 /// Runs a profile management subcommand.
 ///
 /// # Errors
@@ -340,12 +478,41 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
             r#type.as_deref(),
             profiles_dir.as_deref(),
         ),
-        ProfileCommand::Set {
+        ProfileCommand::Setting {
             name,
             key,
             value,
             profiles_dir,
         } => cmd_set(&name, &key, &value, profiles_dir.as_deref()),
+        ProfileCommand::Set { command } => match command {
+            ProfileSetCommand::Create {
+                name,
+                machine,
+                filament,
+                process,
+                profiles_dir,
+            } => cmd_set_create(
+                &name,
+                &machine,
+                &filament,
+                &process,
+                profiles_dir.as_deref(),
+            ),
+            ProfileSetCommand::Delete {
+                name,
+                yes: _,
+                profiles_dir,
+            } => cmd_set_delete(&name, profiles_dir.as_deref()),
+            ProfileSetCommand::List { json, profiles_dir } => {
+                cmd_set_list(json, profiles_dir.as_deref())
+            }
+            ProfileSetCommand::Show { name, profiles_dir } => {
+                cmd_set_show(&name, profiles_dir.as_deref())
+            }
+            ProfileSetCommand::Default { name, profiles_dir } => {
+                cmd_set_default(name.as_deref(), profiles_dir.as_deref())
+            }
+        },
         ProfileCommand::Get {
             name,
             key,
@@ -386,25 +553,23 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
         } => cmd_disable(&ids, r#type.as_deref(), json, profiles_dir.as_deref()),
         ProfileCommand::Status { json, profiles_dir } => cmd_status(json, profiles_dir.as_deref()),
         ProfileCommand::List {
-            vendor,
-            profile_type,
-            material,
+            filters,
             vendors,
             profiles_dir,
             json,
             enabled,
             disabled,
             all,
+            compat,
         } => cmd_list(
-            vendor.as_deref(),
-            profile_type.as_deref(),
-            material.as_deref(),
+            &filters,
             vendors,
             profiles_dir.as_deref(),
             json,
             enabled,
             disabled,
             all,
+            compat,
         ),
         ProfileCommand::Show {
             id,
@@ -414,9 +579,27 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
         ProfileCommand::Search {
             query,
             limit,
+            filters,
+            include_incompatible,
+            enable,
+            all,
             profiles_dir,
             json,
-        } => cmd_search(&query, limit, profiles_dir.as_deref(), json),
+        } => cmd_search(
+            &query,
+            limit,
+            &filters,
+            include_incompatible,
+            enable,
+            all,
+            profiles_dir.as_deref(),
+            json,
+        ),
+        ProfileCommand::Compat {
+            id,
+            profiles_dir,
+            json,
+        } => cmd_compat(&id, profiles_dir.as_deref(), json),
         ProfileCommand::Setup {
             reset,
             machine,
@@ -722,6 +905,147 @@ fn cmd_set(
     std::fs::write(&resolved.path, toml::to_string_pretty(&doc)?)?;
     println!("Set {key} = {value} in profile '{name}'");
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Profile set management handlers
+// ---------------------------------------------------------------------------
+
+/// Implements the `profile set create` command.
+fn cmd_set_create(
+    name: &str,
+    machine: &str,
+    filament: &str,
+    process: &str,
+    profiles_dir: Option<&Path>,
+) -> Result<(), anyhow::Error> {
+    let path = enabled_profiles_path(profiles_dir)?;
+    let mut enabled = EnabledProfiles::load(&path)?.unwrap_or_default();
+
+    let set = ProfileSet {
+        machine: machine.to_string(),
+        filament: filament.to_string(),
+        process: process.to_string(),
+    };
+
+    enabled.add_set(name.to_string(), set);
+    enabled.save(&path)?;
+
+    println!(
+        "Created profile set '{name}': machine={machine}, filament={filament}, process={process}"
+    );
+    Ok(())
+}
+
+/// Implements the `profile set delete` command.
+fn cmd_set_delete(name: &str, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let path = enabled_profiles_path(profiles_dir)?;
+    let mut enabled = EnabledProfiles::load(&path)?
+        .ok_or_else(|| anyhow::anyhow!("No enabled-profiles.toml found. No sets to delete."))?;
+
+    if enabled.get_set(name).is_none() {
+        anyhow::bail!("Profile set '{name}' not found.");
+    }
+
+    enabled.remove_set(name);
+    enabled.save(&path)?;
+
+    println!("Deleted profile set '{name}'");
+    Ok(())
+}
+
+/// Implements the `profile set list` command.
+fn cmd_set_list(json_output: bool, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let path = enabled_profiles_path(profiles_dir)?;
+    let enabled = EnabledProfiles::load(&path)?.unwrap_or_default();
+
+    if enabled.sets.is_empty() {
+        eprintln!("No saved profile sets.");
+        return Ok(());
+    }
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&enabled.sets)?);
+        return Ok(());
+    }
+
+    let default_name = enabled.defaults.set.as_deref();
+
+    // Table header
+    let header = format!(
+        "{:<20} {:<30} {:<30} {:<30} DEFAULT",
+        "NAME", "MACHINE", "FILAMENT", "PROCESS"
+    );
+    println!("{header}");
+    println!("{}", "-".repeat(120));
+
+    let mut names: Vec<&String> = enabled.sets.keys().collect();
+    names.sort();
+
+    for name in names {
+        let set = &enabled.sets[name];
+        let is_default = default_name == Some(name.as_str());
+        let marker = if is_default { "[default]" } else { "" };
+        println!(
+            "{:<20} {:<30} {:<30} {:<30} {}",
+            name, set.machine, set.filament, set.process, marker
+        );
+    }
+
+    Ok(())
+}
+
+/// Implements the `profile set show` command.
+fn cmd_set_show(name: &str, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let path = enabled_profiles_path(profiles_dir)?;
+    let enabled = EnabledProfiles::load(&path)?
+        .ok_or_else(|| anyhow::anyhow!("No enabled-profiles.toml found."))?;
+
+    let set = enabled
+        .get_set(name)
+        .ok_or_else(|| anyhow::anyhow!("Profile set '{name}' not found."))?;
+
+    let is_default = enabled.defaults.set.as_deref() == Some(name);
+
+    println!("Profile Set: {name}");
+    println!("  Machine:  {}", set.machine);
+    println!("  Filament: {}", set.filament);
+    println!("  Process:  {}", set.process);
+    println!("  Default:  {is_default}");
+
+    Ok(())
+}
+
+/// Implements the `profile set default` command.
+fn cmd_set_default(name: Option<&str>, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let path = enabled_profiles_path(profiles_dir)?;
+    let mut enabled = EnabledProfiles::load(&path)?.unwrap_or_default();
+
+    match name {
+        None => {
+            match enabled.default_set() {
+                Some((n, set)) => {
+                    println!("Default profile set: {n}");
+                    println!("  Machine:  {}", set.machine);
+                    println!("  Filament: {}", set.filament);
+                    println!("  Process:  {}", set.process);
+                }
+                None => {
+                    println!("No default set configured.");
+                }
+            }
+            Ok(())
+        }
+        Some(n) => {
+            if enabled.get_set(n).is_none() {
+                anyhow::bail!("Profile set '{n}' not found. Create it first with: slicecore profile set create {n} --machine <M> --filament <F> --process <P>");
+            }
+            enabled.set_default(Some(n.to_string()));
+            enabled.save(&path)?;
+            println!("Set '{n}' as default profile set.");
+            Ok(())
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1141,18 +1465,17 @@ fn cmd_status(json_output: bool, profiles_dir: Option<&Path>) -> Result<(), anyh
 
 #[allow(clippy::too_many_arguments)] // activation filter flags added alongside existing params
 fn cmd_list(
-    vendor: Option<&str>,
-    profile_type: Option<&str>,
-    _material: Option<&str>,
+    cli_filters: &CliProfileFilters,
     vendors_only: bool,
     profiles_dir: Option<&Path>,
     json_output: bool,
     filter_enabled: bool,
     filter_disabled: bool,
     filter_all: bool,
+    show_compat: bool,
 ) -> Result<(), anyhow::Error> {
     let resolver = ProfileResolver::new(profiles_dir);
-    let all_profiles = resolver.search("", profile_type, usize::MAX);
+    let all_profiles = resolver.search("", cli_filters.profile_type.as_deref(), usize::MAX);
 
     // Determine activation filter mode
     let ep_path = enabled_profiles_path(profiles_dir).ok();
@@ -1197,22 +1520,63 @@ fn cmd_list(
         all_profiles.iter().collect()
     };
 
-    // Filter by vendor
+    // Apply ProfileFilters from CLI (vendor, material, nozzle, type)
+    let engine_filters: ProfileFilters = cli_filters.into();
+    let index = resolver.index();
     let filtered: Vec<&&ResolvedProfile> = activation_filtered
         .iter()
         .filter(|p| {
-            if let Some(v) = vendor {
+            // If we have an index, use matches_filters for precise filtering
+            if let Some(idx) = index {
+                if let Some(entry) = idx.profiles.iter().find(|e| e.name == p.name) {
+                    return matches_filters(entry, &engine_filters);
+                }
+            }
+            // Fallback: filter by vendor from ProfileSource
+            if let Some(ref v) = cli_filters.vendor {
                 match &p.source {
                     ProfileSource::Library { vendor: pv } => {
-                        pv.to_lowercase().contains(&v.to_lowercase())
+                        if !pv.to_lowercase().contains(&v.to_lowercase()) {
+                            return false;
+                        }
                     }
-                    _ => false,
+                    _ => return false,
                 }
-            } else {
-                true
             }
+            true
         })
         .collect();
+
+    // Build compatibility info for --compat column
+    let compat_info = if show_compat {
+        index.and_then(|idx| {
+            enabled_profiles.as_ref().map(|ep| {
+                let machine_ids: Vec<String> = ep.machine.enabled.clone();
+                CompatibilityInfo::from_index_entries(&machine_ids, idx)
+            })
+        })
+    } else {
+        None
+    };
+
+    // Get machine entries for compat_report
+    let machine_entries_data: Vec<_> = if show_compat {
+        if let Some(idx) = index {
+            if let Some(ref ep) = enabled_profiles {
+                idx.profiles
+                    .iter()
+                    .filter(|e| e.profile_type == "machine" && ep.machine.enabled.contains(&e.id))
+                    .collect()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
+    let machine_entry_refs: Vec<&_> = machine_entries_data.to_vec();
 
     if vendors_only {
         let mut vendors: Vec<String> = filtered
@@ -1240,30 +1604,80 @@ fn cmd_list(
         let entries: Vec<serde_json::Value> = filtered
             .iter()
             .map(|p| {
-                serde_json::json!({
+                let mut obj = serde_json::json!({
                     "name": p.name,
                     "profile_type": p.profile_type,
                     "source": p.source.to_string(),
                     "path": p.path.display().to_string(),
-                })
+                });
+                if show_compat {
+                    if let Some(ref ci) = compat_info {
+                        if let Some(idx) = index {
+                            if let Some(entry) = idx.profiles.iter().find(|e| e.name == p.name) {
+                                let report = CompatibilityInfo::compat_report(
+                                    entry,
+                                    &machine_entry_refs,
+                                    300.0,
+                                    None,
+                                );
+                                obj["compatible"] = serde_json::json!(ci.is_compatible(entry));
+                                obj["compat_report"] =
+                                    serde_json::to_value(&report).unwrap_or_default();
+                            }
+                        }
+                    }
+                }
+                obj
             })
             .collect();
         println!("{}", serde_json::to_string_pretty(&entries)?);
     } else {
-        println!(
-            "{:<10} {:<12} {:<50} {:<15}",
-            "TYPE", "VENDOR", "NAME", "SOURCE"
-        );
-        println!("{}", "-".repeat(91));
+        if show_compat {
+            println!(
+                "{:<10} {:<12} {:<50} {:<10} {:<15}",
+                "TYPE", "VENDOR", "NAME", "COMPAT", "SOURCE"
+            );
+            println!("{}", "-".repeat(101));
+        } else {
+            println!(
+                "{:<10} {:<12} {:<50} {:<15}",
+                "TYPE", "VENDOR", "NAME", "SOURCE"
+            );
+            println!("{}", "-".repeat(91));
+        }
         for p in &filtered {
             let vendor_name = match &p.source {
                 ProfileSource::Library { vendor: v } => v.as_str(),
                 _ => "-",
             };
-            println!(
-                "{:<10} {:<12} {:<50} {:<15}",
-                p.profile_type, vendor_name, p.name, p.source,
-            );
+            if show_compat {
+                let compat_marker = if let Some(ref ci) = compat_info {
+                    if let Some(idx) = index {
+                        if let Some(entry) = idx.profiles.iter().find(|e| e.name == p.name) {
+                            if ci.is_compatible(entry) {
+                                "OK"
+                            } else {
+                                "WARN"
+                            }
+                        } else {
+                            "?"
+                        }
+                    } else {
+                        "?"
+                    }
+                } else {
+                    "-"
+                };
+                println!(
+                    "{:<10} {:<12} {:<50} {:<10} {:<15}",
+                    p.profile_type, vendor_name, p.name, compat_marker, p.source,
+                );
+            } else {
+                println!(
+                    "{:<10} {:<12} {:<50} {:<15}",
+                    p.profile_type, vendor_name, p.name, p.source,
+                );
+            }
         }
         eprintln!("{} profile(s) found", filtered.len());
     }
@@ -1307,31 +1721,142 @@ fn cmd_show(id: &str, raw: bool, profiles_dir: Option<&Path>) -> Result<(), anyh
     Ok(())
 }
 
-/// Implements the `profile search` alias command.
+/// Implements the `profile search` command with filter flags and compatibility filtering.
+#[allow(clippy::too_many_arguments)]
 fn cmd_search(
     query: &str,
     limit: usize,
+    cli_filters: &CliProfileFilters,
+    include_incompatible: bool,
+    enable: bool,
+    show_all: bool,
     profiles_dir: Option<&Path>,
     json_output: bool,
 ) -> Result<(), anyhow::Error> {
     let resolver = ProfileResolver::new(profiles_dir);
-    let matching = resolver.search(query, None, limit);
+    let matching = resolver.search(query, cli_filters.profile_type.as_deref(), limit);
 
     if matching.is_empty() {
         eprintln!("No profiles found matching '{query}'.");
         return Ok(());
     }
 
+    // Load index for filter application
+    let index = resolver.index();
+    let engine_filters: ProfileFilters = cli_filters.into();
+
+    // Apply ProfileFilters
+    let filtered: Vec<&ResolvedProfile> = matching
+        .iter()
+        .filter(|p| {
+            if let Some(idx) = index {
+                if let Some(entry) = idx.profiles.iter().find(|e| e.name == p.name) {
+                    return matches_filters(entry, &engine_filters);
+                }
+            }
+            // Fallback: vendor filter from source
+            if let Some(ref v) = cli_filters.vendor {
+                match &p.source {
+                    ProfileSource::Library { vendor: pv } => {
+                        if !pv.to_lowercase().contains(&v.to_lowercase()) {
+                            return false;
+                        }
+                    }
+                    _ => return false,
+                }
+            }
+            true
+        })
+        .collect();
+
+    // Load enabled profiles for activation and compatibility filtering
+    let ep_path = enabled_profiles_path(profiles_dir).ok();
+    let enabled_profiles = ep_path
+        .as_ref()
+        .and_then(|p| EnabledProfiles::load(p).ok().flatten());
+
+    // Apply activation filter (show only enabled unless --all)
+    let activation_filtered: Vec<&ResolvedProfile> = if show_all || enabled_profiles.is_none() {
+        filtered
+    } else if let Some(ref ep) = enabled_profiles {
+        filtered
+            .into_iter()
+            .filter(|p| ep.is_enabled(&p.profile_type, &p.name))
+            .collect()
+    } else {
+        filtered
+    };
+
+    // Build compat info for compatibility filtering
+    let compat_info = index.and_then(|idx| {
+        enabled_profiles.as_ref().map(|ep| {
+            let machine_ids: Vec<String> = ep.machine.enabled.clone();
+            CompatibilityInfo::from_index_entries(&machine_ids, idx)
+        })
+    });
+
+    // Get machine entries for nozzle checks
+    let machine_entries_data: Vec<_> = if let Some(idx) = index {
+        if let Some(ref ep) = enabled_profiles {
+            idx.profiles
+                .iter()
+                .filter(|e| e.profile_type == "machine" && ep.machine.enabled.contains(&e.id))
+                .collect()
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
+    let machine_entry_refs: Vec<&_> = machine_entries_data.to_vec();
+
+    // Apply compatibility filtering unless --include-incompatible
+    let compat_filtered: Vec<(&ResolvedProfile, Option<String>)> = activation_filtered
+        .into_iter()
+        .filter_map(|p| {
+            if include_incompatible {
+                // Show all, but annotate with warning markers
+                let warning = get_compat_warning(p, index, &compat_info, &machine_entry_refs);
+                Some((p, warning))
+            } else if let Some(ref ci) = compat_info {
+                if let Some(idx) = index {
+                    if let Some(entry) = idx.profiles.iter().find(|e| e.name == p.name) {
+                        if ci.is_compatible(entry) {
+                            return Some((p, None));
+                        }
+                        // Also check nozzle
+                        if CompatibilityInfo::check_nozzle(entry, &machine_entry_refs).is_some() {
+                            return None; // Nozzle mismatch, filter out
+                        }
+                        return Some((p, None));
+                    }
+                }
+                Some((p, None))
+            } else {
+                Some((p, None))
+            }
+        })
+        .collect();
+
+    if compat_filtered.is_empty() {
+        eprintln!("No profiles found matching '{query}' with current filters.");
+        return Ok(());
+    }
+
     if json_output {
-        let entries: Vec<serde_json::Value> = matching
+        let entries: Vec<serde_json::Value> = compat_filtered
             .iter()
-            .map(|p| {
-                serde_json::json!({
+            .map(|(p, warning)| {
+                let mut obj = serde_json::json!({
                     "name": p.name,
                     "profile_type": p.profile_type,
                     "source": p.source.to_string(),
                     "path": p.path.display().to_string(),
-                })
+                });
+                if let Some(w) = warning {
+                    obj["warning"] = serde_json::json!(w);
+                }
+                obj
             })
             .collect();
         println!("{}", serde_json::to_string_pretty(&entries)?);
@@ -1341,18 +1866,198 @@ fn cmd_search(
             "TYPE", "VENDOR", "NAME", "SOURCE"
         );
         println!("{}", "-".repeat(91));
-        for p in &matching {
+        for (p, warning) in &compat_filtered {
             let vendor_name = match &p.source {
                 ProfileSource::Library { vendor: v } => v.as_str(),
                 _ => "-",
             };
+            let name_display = if let Some(w) = warning {
+                format!("{} [{}]", p.name, w)
+            } else {
+                p.name.clone()
+            };
             println!(
                 "{:<10} {:<12} {:<50} {:<15}",
-                p.profile_type, vendor_name, p.name, p.source,
+                p.profile_type, vendor_name, name_display, p.source,
             );
         }
-        eprintln!("{} result(s) (showing up to {limit})", matching.len());
+        eprintln!(
+            "{} result(s) (showing up to {limit})",
+            compat_filtered.len()
+        );
     }
+
+    // If --enable flag, enable matched profiles
+    if enable {
+        let path = enabled_profiles_path(profiles_dir)?;
+        let mut ep = enabled_profiles.clone().unwrap_or_default();
+        for (p, _) in &compat_filtered {
+            ep.enable(&p.profile_type, &p.name);
+            eprintln!("Enabled {} profile: {}", p.profile_type, p.name);
+        }
+        ep.save(&path)?;
+    }
+
+    Ok(())
+}
+
+/// Returns a compatibility warning string for a profile, or `None` if compatible.
+fn get_compat_warning(
+    p: &ResolvedProfile,
+    index: Option<&ProfileIndex>,
+    compat_info: &Option<CompatibilityInfo>,
+    machine_entries: &[&slicecore_engine::profile_library::ProfileIndexEntry],
+) -> Option<String> {
+    let idx = index?;
+    let entry = idx.profiles.iter().find(|e| e.name == p.name)?;
+
+    let mut warnings = Vec::new();
+
+    if let Some(ref ci) = compat_info {
+        if !ci.is_compatible(entry) {
+            warnings.push("TYPE");
+        }
+    }
+
+    if let Some(slicecore_engine::enabled_profiles::CompatCheck::NozzleMismatch { .. }) =
+        CompatibilityInfo::check_nozzle(entry, machine_entries)
+    {
+        warnings.push("NOZZLE");
+    }
+
+    if let Some(slicecore_engine::enabled_profiles::CompatCheck::TemperatureWarning { .. }) =
+        CompatibilityInfo::check_temperature(None, 300.0)
+    {
+        warnings.push("TEMP");
+    }
+
+    if warnings.is_empty() {
+        None
+    } else {
+        Some(warnings.join(","))
+    }
+}
+
+/// Implements the `profile compat` command.
+///
+/// Shows detailed compatibility breakdown for a profile against enabled printers.
+fn cmd_compat(
+    id: &str,
+    profiles_dir: Option<&Path>,
+    json_output: bool,
+) -> Result<(), anyhow::Error> {
+    let resolver = ProfileResolver::new(profiles_dir);
+    let index = resolver
+        .index()
+        .ok_or_else(|| anyhow::anyhow!("No profile index found. Run profile conversion first."))?;
+
+    let entry = index
+        .profiles
+        .iter()
+        .find(|e| e.id == id || e.name == id)
+        .ok_or_else(|| anyhow::anyhow!("Profile '{id}' not found in index"))?;
+
+    // Load enabled profiles to get machine entries
+    let ep_path = enabled_profiles_path(profiles_dir)?;
+    let enabled = EnabledProfiles::load(&ep_path)?.ok_or_else(|| {
+        anyhow::anyhow!("No enabled profiles. Run 'slicecore profile setup' first.")
+    })?;
+
+    let machine_ids: Vec<String> = enabled.machine.enabled.clone();
+    if machine_ids.is_empty() {
+        anyhow::bail!(
+            "No machine profiles enabled. Enable a printer first with 'slicecore profile enable'."
+        );
+    }
+
+    // Get machine entries from index
+    let machine_entries: Vec<&_> = index
+        .profiles
+        .iter()
+        .filter(|e| e.profile_type == "machine" && machine_ids.contains(&e.id))
+        .collect();
+
+    // Build compat info for type/vendor/ID checking
+    let compat_info = CompatibilityInfo::from_index_entries(&machine_ids, index);
+
+    // Build full compat report (nozzle + temperature checks)
+    let report = CompatibilityInfo::compat_report(entry, &machine_entries, 300.0, None);
+
+    // Check type compatibility via CompatibilityInfo
+    let type_compatible = compat_info.is_compatible(entry);
+
+    if json_output {
+        let output = serde_json::json!({
+            "profile_id": entry.id,
+            "profile_name": entry.name,
+            "profile_type": entry.profile_type,
+            "type_compatible": type_compatible,
+            "overall_compatible": type_compatible && report.is_compatible(),
+            "compat_report": serde_json::to_value(&report)?,
+            "machines_checked": machine_ids,
+        });
+        println!("{}", serde_json::to_string_pretty(&output)?);
+    } else {
+        println!("Compatibility report for: {}", entry.name);
+        println!("  Profile ID:   {}", entry.id);
+        println!("  Profile type: {}", entry.profile_type);
+        if let Some(ref mat) = entry.material {
+            println!("  Material:     {mat}");
+        }
+        if let Some(nozzle) = entry.nozzle_size {
+            println!("  Nozzle size:  {nozzle}mm");
+        }
+        println!();
+        println!(
+            "Checked against {} enabled machine(s):",
+            machine_entries.len()
+        );
+        for m in &machine_entries {
+            println!("  - {} ({})", m.name, m.id);
+        }
+        println!();
+
+        // Type compatibility
+        let type_status = if type_compatible { "OK" } else { "MISMATCH" };
+        println!("Type compatibility: {type_status}");
+
+        // Individual checks from report
+        for check in &report.checks {
+            match check {
+                slicecore_engine::enabled_profiles::CompatCheck::Compatible => {
+                    println!("  Check: OK");
+                }
+                slicecore_engine::enabled_profiles::CompatCheck::NozzleMismatch {
+                    profile_nozzle,
+                    printer_nozzles,
+                } => {
+                    let nozzles_str: Vec<String> =
+                        printer_nozzles.iter().map(|n| format!("{n}mm")).collect();
+                    println!(
+                        "  Nozzle: MISMATCH (profile: {profile_nozzle}mm, printers: {})",
+                        nozzles_str.join(", ")
+                    );
+                }
+                slicecore_engine::enabled_profiles::CompatCheck::TemperatureWarning {
+                    filament_min,
+                    printer_max,
+                } => {
+                    println!(
+                        "  Temperature: WARNING (filament min: {filament_min}C, printer max: {printer_max}C)"
+                    );
+                }
+            }
+        }
+
+        println!();
+        let overall = type_compatible && report.is_compatible();
+        if overall {
+            println!("Overall: COMPATIBLE");
+        } else {
+            println!("Overall: INCOMPATIBLE");
+        }
+    }
+
     Ok(())
 }
 

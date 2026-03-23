@@ -281,6 +281,10 @@ enum Commands {
         /// Disable travel move optimization (for debugging/comparison).
         #[arg(long)]
         no_travel_opt: bool,
+
+        /// Use a saved profile set (expands to -m/-f/-p)
+        #[arg(long = "profile-set", value_name = "SET_NAME", conflicts_with_all = ["config", "machine", "filament", "process"])]
+        profile_set: Option<String>,
     },
 
     /// Validate a G-code file
@@ -753,39 +757,94 @@ fn main() {
             thumbnail_quality,
             auto_arrange,
             no_travel_opt,
-        } => cmd_slice(
-            &input,
-            config.as_deref(),
-            machine.as_deref(),
-            filament.as_deref(),
-            process.as_deref(),
-            overrides.as_deref(),
-            &set_overrides,
-            dry_run,
-            save_config.as_deref(),
-            show_config,
-            unsafe_defaults,
-            force,
-            no_log,
-            log_file.as_deref(),
-            profiles_dir.as_deref(),
-            output.as_deref(),
-            json,
-            msgpack,
-            global_plugin_dir.as_deref(),
-            &stats_format,
-            global_quiet,
-            stats_file.as_deref(),
-            json_no_stats,
-            &time_precision,
-            &sort_stats,
-            thumbnails,
-            &thumbnail_format,
-            thumbnail_quality,
-            auto_arrange,
-            no_travel_opt,
-            color_mode,
-        ),
+            profile_set,
+        } => {
+            // Expand --profile-set flag to -m/-f/-p
+            let (machine, filament, process) = if let Some(ref set_name) = profile_set {
+                let ep_path = slicecore_engine::enabled_profiles::EnabledProfiles::default_path()
+                    .or_else(|| {
+                        profiles_dir
+                            .as_ref()
+                            .map(|d| d.join("enabled-profiles.toml"))
+                    });
+                let ep = ep_path.as_ref().and_then(|p| {
+                    slicecore_engine::enabled_profiles::EnabledProfiles::load(p)
+                        .ok()
+                        .flatten()
+                });
+                match ep.and_then(|e| e.get_set(set_name).cloned()) {
+                    Some(set) => (Some(set.machine), Some(set.filament), Some(set.process)),
+                    None => {
+                        eprintln!("Error: Profile set '{set_name}' not found.");
+                        eprintln!("Run: slicecore profile set list");
+                        std::process::exit(1);
+                    }
+                }
+            } else if machine.is_none()
+                && filament.is_none()
+                && process.is_none()
+                && config.is_none()
+            {
+                // Try default set
+                let ep_path = slicecore_engine::enabled_profiles::EnabledProfiles::default_path()
+                    .or_else(|| {
+                        profiles_dir
+                            .as_ref()
+                            .map(|d| d.join("enabled-profiles.toml"))
+                    });
+                let ep = ep_path.as_ref().and_then(|p| {
+                    slicecore_engine::enabled_profiles::EnabledProfiles::load(p)
+                        .ok()
+                        .flatten()
+                });
+                match ep.and_then(|e| e.default_set().map(|(_, s)| s.clone())) {
+                    Some(set) => {
+                        eprintln!(
+                            "Using default profile set: machine={}, filament={}, process={}",
+                            set.machine, set.filament, set.process
+                        );
+                        (Some(set.machine), Some(set.filament), Some(set.process))
+                    }
+                    None => (machine, filament, process),
+                }
+            } else {
+                (machine, filament, process)
+            };
+
+            cmd_slice(
+                &input,
+                config.as_deref(),
+                machine.as_deref(),
+                filament.as_deref(),
+                process.as_deref(),
+                overrides.as_deref(),
+                &set_overrides,
+                dry_run,
+                save_config.as_deref(),
+                show_config,
+                unsafe_defaults,
+                force,
+                no_log,
+                log_file.as_deref(),
+                profiles_dir.as_deref(),
+                output.as_deref(),
+                json,
+                msgpack,
+                global_plugin_dir.as_deref(),
+                &stats_format,
+                global_quiet,
+                stats_file.as_deref(),
+                json_no_stats,
+                &time_precision,
+                &sort_stats,
+                thumbnails,
+                &thumbnail_format,
+                thumbnail_quality,
+                auto_arrange,
+                no_travel_opt,
+                color_mode,
+            );
+        }
         Commands::Validate { input } => cmd_validate(&input),
         Commands::Analyze { input } => cmd_analyze(&input),
         Commands::ConvertProfile {

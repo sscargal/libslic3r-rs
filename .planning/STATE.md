@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 43-03-PLAN.md
-last_updated: "2026-03-21T01:09:09.622Z"
-last_activity: "2026-03-21 - Completed plan 43-03: Interactive setup wizard"
+stopped_at: Completed 44-03-PLAN.md
+last_updated: "2026-03-23T22:38:23.522Z"
+last_activity: "2026-03-23 - Completed 44-03: Profile set CLI commands and slice integration"
 progress:
   total_phases: 51
-  completed_phases: 43
-  total_plans: 175
-  completed_plans: 175
+  completed_phases: 44
+  total_plans: 178
+  completed_plans: 178
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 43 of 51 (Enable/disable printer and filament profiles)
+Phase: 44 of 51 (Search and filter profiles by printer and filament compatibility)
 Plan: 3 of 3 in current phase
 Status: Phase Complete
-Last activity: 2026-03-23 - Completed quick task 260323-l8a: Fix cli_slice_profiles wizard trigger
+Last activity: 2026-03-23 - Completed quick task 260323-wwu: Fix profile set/get QA test failures
 
-Progress: [██████████] 100% (175/175 overall)
+Progress: [██████████] 100% (178/178 overall)
 
 ## Performance Metrics
 
@@ -154,6 +154,8 @@ Progress: [██████████] 100% (175/175 overall)
 | Phase 43 P01 | 3 | 2 tasks | 3 files |
 | Phase 43 P02 | 4 | 2 tasks | 2 files |
 | Phase 43 P03 | 7 | 2 tasks | 4 files |
+| Phase 44 P01 | 7min | 2 tasks | 3 files |
+| Phase 44 P03 | 17min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -678,6 +680,11 @@ Recent decisions affecting current work:
 - [Phase 43]: filter_enabled is a static method on ProfileResolver (no &self) since it operates on already-resolved profiles
 - [Phase 43]: Enable/disable CLI uses cross-type removal by default; activation-aware list defaults to --enabled when config exists
 - [Phase 43]: Used dialoguer MultiSelect for wizard with TTY guard pattern
+- [Phase 44]: Used 0.001 epsilon for nozzle diameter float comparison
+- [Phase 44]: Conservative 300C default threshold for temperature check
+- [Phase 44]: Replaced individual vendor/material/profile_type args on List with flattened CliProfileFilters (--profile-type becomes --type)
+- [Phase 44]: Renamed Set to Setting to free 'set' subcommand for profile set management
+- [Phase 44]: Used --profile-set flag (not --set) to avoid Clap collision with existing --set config override
 
 ### Roadmap Evolution
 
@@ -731,11 +738,12 @@ Recent decisions affecting current work:
 | 260320-ury | Fix cargo doc --no-deps --workspace errors | 2026-03-20 | d97f7f6 | [260320-ury-fix-cargo-doc-no-deps-workspace-errors](./quick/260320-ury-fix-cargo-doc-no-deps-workspace-errors/) |
 | 260321-1n6 | Fix cargo fmt formatting across phase 43 files | 2026-03-21 | bd3b6ac | [260321-1n6-fix-cargo-fmt-formatting-error-in-enable](./quick/260321-1n6-fix-cargo-fmt-formatting-error-in-enable/) |
 | 260321-1pj | Fix test assertion for TTY guard in enable command | 2026-03-21 | af75e4d | [260321-1pj-fix-test-profile-enable-no-args-errors-a](./quick/260321-1pj-fix-test-profile-enable-no-args-errors-a/) |
+| 260323-wwu | Fix profile set/get QA test failures caused by Set->Setting rename | 2026-03-23 | 95ba52a | [260323-wwu-fix-profile-set-get-qa-test-failures-cau](./quick/260323-wwu-fix-profile-set-get-qa-test-failures-cau/) |
 | 260321-1s9 | Add QA tests for phase 40+ features | 2026-03-21 | 616a7b1 | [260321-1s9-add-qa-tests-for-phase-40-features](./quick/260321-1s9-add-qa-tests-for-phase-40-features/) |
 | 260323-l8a | Fix cli_slice_profiles wizard trigger | 2026-03-23 | 4ba1299 | [260323-l8a-fix-cli-slice-profiles-test-failures-fro](./quick/260323-l8a-fix-cli-slice-profiles-test-failures-fro/) |
 
 ## Session Continuity
 
-Last session: 2026-03-21T01:05:20.453Z
-Stopped at: Completed 43-03-PLAN.md
+Last session: 2026-03-23T22:25:35.427Z
+Stopped at: Completed 44-03-PLAN.md
 Resume file: None

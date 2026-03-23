@@ -85,6 +85,68 @@ pub struct BatchConvertResult {
     pub index: ProfileIndex,
 }
 
+/// Shared filter criteria for profile search and list operations.
+///
+/// All specified filters must match (AND logic). Unset filters (`None`) are
+/// ignored.
+#[derive(Debug, Clone, Default)]
+pub struct ProfileFilters {
+    /// Filter by material type (case-insensitive substring match).
+    pub material: Option<String>,
+    /// Filter by vendor name (case-insensitive substring match).
+    pub vendor: Option<String>,
+    /// Filter by nozzle diameter (epsilon 0.001 comparison).
+    pub nozzle: Option<f64>,
+    /// Filter by profile type (exact match).
+    pub profile_type: Option<String>,
+}
+
+/// Applies filter flags to a profile index entry using AND logic.
+///
+/// All specified filters must match. Case-insensitive substring matching
+/// for material and vendor. Epsilon comparison (0.001) for nozzle. Exact
+/// match for profile type.
+///
+/// Returns `true` when all filters pass (or all are `None`).
+#[must_use]
+pub fn matches_filters(entry: &ProfileIndexEntry, filters: &ProfileFilters) -> bool {
+    if let Some(ref mat) = filters.material {
+        match &entry.material {
+            Some(entry_mat) => {
+                if !entry_mat.to_lowercase().contains(&mat.to_lowercase()) {
+                    return false;
+                }
+            }
+            None => return false,
+        }
+    }
+
+    if let Some(ref vendor) = filters.vendor {
+        if !entry.vendor.to_lowercase().contains(&vendor.to_lowercase()) {
+            return false;
+        }
+    }
+
+    if let Some(nozzle) = filters.nozzle {
+        match entry.nozzle_size {
+            Some(entry_nozzle) => {
+                if (entry_nozzle - nozzle).abs() >= 0.001 {
+                    return false;
+                }
+            }
+            None => return false,
+        }
+    }
+
+    if let Some(ref pt) = filters.profile_type {
+        if entry.profile_type != *pt {
+            return false;
+        }
+    }
+
+    true
+}
+
 // ---------------------------------------------------------------------------
 // Inheritance resolution
 // ---------------------------------------------------------------------------
@@ -1370,5 +1432,143 @@ mod tests {
         assert!(sources.contains(&"prusaslicer"));
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // -----------------------------------------------------------------------
+    // ProfileFilters / matches_filters tests
+    // -----------------------------------------------------------------------
+
+    fn make_filter_entry(
+        material: Option<&str>,
+        vendor: &str,
+        nozzle_size: Option<f64>,
+        profile_type: &str,
+    ) -> ProfileIndexEntry {
+        ProfileIndexEntry {
+            id: "test/entry".to_string(),
+            name: "Test Entry".to_string(),
+            source: "test".to_string(),
+            vendor: vendor.to_string(),
+            profile_type: profile_type.to_string(),
+            material: material.map(String::from),
+            nozzle_size,
+            printer_model: None,
+            path: "test.toml".to_string(),
+            layer_height: None,
+            quality: None,
+        }
+    }
+
+    #[test]
+    fn test_matches_filters_no_filters() {
+        let entry = make_filter_entry(Some("PLA"), "BBL", Some(0.4), "filament");
+        let filters = ProfileFilters::default();
+        assert!(matches_filters(&entry, &filters));
+    }
+
+    #[test]
+    fn test_matches_filters_material_match() {
+        let entry = make_filter_entry(Some("PLA"), "BBL", None, "filament");
+        let filters = ProfileFilters {
+            material: Some("PLA".to_string()),
+            ..Default::default()
+        };
+        assert!(matches_filters(&entry, &filters));
+    }
+
+    #[test]
+    fn test_matches_filters_material_case_insensitive() {
+        let entry = make_filter_entry(Some("PLA"), "BBL", None, "filament");
+        let filters = ProfileFilters {
+            material: Some("pla".to_string()),
+            ..Default::default()
+        };
+        assert!(matches_filters(&entry, &filters));
+    }
+
+    #[test]
+    fn test_matches_filters_material_no_match() {
+        let entry = make_filter_entry(Some("ABS"), "BBL", None, "filament");
+        let filters = ProfileFilters {
+            material: Some("PLA".to_string()),
+            ..Default::default()
+        };
+        assert!(!matches_filters(&entry, &filters));
+    }
+
+    #[test]
+    fn test_matches_filters_vendor_match() {
+        let entry = make_filter_entry(Some("PLA"), "BBL", None, "filament");
+        let filters = ProfileFilters {
+            vendor: Some("BBL".to_string()),
+            ..Default::default()
+        };
+        assert!(matches_filters(&entry, &filters));
+    }
+
+    #[test]
+    fn test_matches_filters_nozzle_match() {
+        let entry = make_filter_entry(Some("PLA"), "BBL", Some(0.4), "filament");
+        let filters = ProfileFilters {
+            nozzle: Some(0.4),
+            ..Default::default()
+        };
+        assert!(matches_filters(&entry, &filters));
+    }
+
+    #[test]
+    fn test_matches_filters_nozzle_no_match() {
+        let entry = make_filter_entry(Some("PLA"), "BBL", Some(0.6), "filament");
+        let filters = ProfileFilters {
+            nozzle: Some(0.4),
+            ..Default::default()
+        };
+        assert!(!matches_filters(&entry, &filters));
+    }
+
+    #[test]
+    fn test_matches_filters_nozzle_none() {
+        let entry = make_filter_entry(Some("PLA"), "BBL", None, "filament");
+        let filters = ProfileFilters {
+            nozzle: Some(0.4),
+            ..Default::default()
+        };
+        assert!(!matches_filters(&entry, &filters));
+    }
+
+    #[test]
+    fn test_matches_filters_and_logic() {
+        let entry = make_filter_entry(Some("PLA"), "BBL", Some(0.4), "filament");
+        // Both material and vendor match
+        let filters = ProfileFilters {
+            material: Some("PLA".to_string()),
+            vendor: Some("BBL".to_string()),
+            ..Default::default()
+        };
+        assert!(matches_filters(&entry, &filters));
+
+        // Material matches but vendor doesn't
+        let filters2 = ProfileFilters {
+            material: Some("PLA".to_string()),
+            vendor: Some("Creality".to_string()),
+            ..Default::default()
+        };
+        assert!(!matches_filters(&entry, &filters2));
+    }
+
+    #[test]
+    fn test_matches_filters_profile_type() {
+        let entry = make_filter_entry(Some("PLA"), "BBL", None, "filament");
+        let filters = ProfileFilters {
+            profile_type: Some("filament".to_string()),
+            ..Default::default()
+        };
+        assert!(matches_filters(&entry, &filters));
+
+        let filters2 = ProfileFilters {
+            profile_type: Some("machine".to_string()),
+            ..Default::default()
+        };
+        assert!(!matches_filters(&entry, &filters2));
     }
 }

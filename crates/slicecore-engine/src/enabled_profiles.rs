@@ -23,6 +23,7 @@
 //! distinguishing a first-run scenario (no file yet) from a corrupt file
 //! (parse error).
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -50,6 +51,53 @@ pub struct ProfileSection {
     pub enabled: Vec<String>,
 }
 
+/// A named profile set: machine + filament + process triple.
+///
+/// Represents a complete configuration for slicing, combining one printer,
+/// one filament, and one process profile.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::enabled_profiles::ProfileSet;
+///
+/// let set = ProfileSet {
+///     machine: "BBL/Bambu_X1C".to_string(),
+///     filament: "Bambu_PLA_Basic".to_string(),
+///     process: "0.20mm_Standard".to_string(),
+/// };
+/// assert_eq!(set.machine, "BBL/Bambu_X1C");
+/// ```
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct ProfileSet {
+    /// Machine (printer) profile identifier.
+    pub machine: String,
+    /// Filament profile identifier.
+    pub filament: String,
+    /// Process (print settings) profile identifier.
+    pub process: String,
+}
+
+/// Defaults section for enabled-profiles.toml.
+///
+/// Stores which profile set (if any) should be used as the default
+/// for slicing operations.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::enabled_profiles::DefaultsSection;
+///
+/// let defaults = DefaultsSection { set: Some("my-set".to_string()) };
+/// assert_eq!(defaults.set, Some("my-set".to_string()));
+/// ```
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct DefaultsSection {
+    /// Name of the default profile set, if configured.
+    #[serde(default)]
+    pub set: Option<String>,
+}
+
 /// Tracks which profiles are enabled across machine, filament, and process types.
 ///
 /// This is the primary data structure for profile activation. It serializes
@@ -75,6 +123,12 @@ pub struct EnabledProfiles {
     /// Enabled process (print settings) profiles.
     #[serde(default)]
     pub process: ProfileSection,
+    /// Named profile sets (machine + filament + process triples).
+    #[serde(default)]
+    pub sets: HashMap<String, ProfileSet>,
+    /// Default profile set configuration.
+    #[serde(default)]
+    pub defaults: DefaultsSection,
 }
 
 impl EnabledProfiles {
@@ -309,6 +363,51 @@ impl EnabledProfiles {
         )
     }
 
+    /// Adds a named profile set.
+    ///
+    /// Inserts the set into the `sets` map, replacing any existing set with
+    /// the same name.
+    pub fn add_set(&mut self, name: String, set: ProfileSet) {
+        self.sets.insert(name, set);
+    }
+
+    /// Removes a named profile set.
+    ///
+    /// If the removed set is also the default, the default is cleared.
+    /// Returns the removed set if it existed.
+    pub fn remove_set(&mut self, name: &str) -> Option<ProfileSet> {
+        let removed = self.sets.remove(name);
+        if self.defaults.set.as_deref() == Some(name) {
+            self.defaults.set = None;
+        }
+        removed
+    }
+
+    /// Returns a reference to the named profile set, if it exists.
+    #[must_use]
+    pub fn get_set(&self, name: &str) -> Option<&ProfileSet> {
+        self.sets.get(name)
+    }
+
+    /// Sets the default profile set name.
+    ///
+    /// If `name` is `Some`, validates that the set exists in the `sets` map.
+    /// If the set does not exist, the default is not changed.
+    pub fn set_default(&mut self, name: Option<String>) {
+        match &name {
+            Some(n) if !self.sets.contains_key(n.as_str()) => {}
+            _ => self.defaults.set = name,
+        }
+    }
+
+    /// Returns the default profile set name and value, if configured.
+    #[must_use]
+    pub fn default_set(&self) -> Option<(&str, &ProfileSet)> {
+        let name = self.defaults.set.as_deref()?;
+        let set = self.sets.get(name)?;
+        Some((name, set))
+    }
+
     /// Returns `true` when no profiles are enabled in any section.
     ///
     /// # Examples
@@ -324,6 +423,59 @@ impl EnabledProfiles {
         self.machine.enabled.is_empty()
             && self.filament.enabled.is_empty()
             && self.process.enabled.is_empty()
+    }
+}
+
+/// Result of a single compatibility check between a profile and printer capabilities.
+///
+/// Each variant represents a specific type of compatibility issue that may be
+/// detected when evaluating whether a filament/process profile works with the
+/// user's enabled printers.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub enum CompatCheck {
+    /// Profile is fully compatible.
+    Compatible,
+    /// Profile nozzle size does not match any printer nozzle.
+    NozzleMismatch {
+        /// Nozzle size specified by the profile.
+        profile_nozzle: f64,
+        /// Nozzle sizes available on the printer(s).
+        printer_nozzles: Vec<f64>,
+    },
+    /// Filament minimum temperature exceeds printer maximum.
+    TemperatureWarning {
+        /// Minimum temperature the filament requires.
+        filament_min: f64,
+        /// Maximum temperature the printer supports.
+        printer_max: f64,
+    },
+}
+
+/// Aggregated compatibility report for a profile against printer capabilities.
+///
+/// Collects the results of multiple [`CompatCheck`] evaluations and provides
+/// convenience methods to determine overall compatibility.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct CompatReport {
+    /// Individual check results.
+    pub checks: Vec<CompatCheck>,
+}
+
+impl CompatReport {
+    /// Returns `true` when all checks passed (all are [`CompatCheck::Compatible`])
+    /// or when no checks were performed.
+    #[must_use]
+    pub fn is_compatible(&self) -> bool {
+        self.checks.iter().all(|c| *c == CompatCheck::Compatible)
+    }
+
+    /// Returns references to checks that are not [`CompatCheck::Compatible`].
+    #[must_use]
+    pub fn warnings(&self) -> Vec<&CompatCheck> {
+        self.checks
+            .iter()
+            .filter(|c| **c != CompatCheck::Compatible)
+            .collect()
     }
 }
 
@@ -437,6 +589,93 @@ impl CompatibilityInfo {
         }
 
         false
+    }
+
+    /// Checks nozzle diameter compatibility between a profile entry and printer entries.
+    ///
+    /// Returns `None` if compatible (matching nozzle found within epsilon tolerance,
+    /// or entry has no nozzle size, or no printer nozzle data).
+    /// Returns `Some(NozzleMismatch)` when the profile nozzle does not match any
+    /// printer nozzle within an epsilon of 0.001.
+    #[must_use]
+    pub fn check_nozzle(
+        entry: &ProfileIndexEntry,
+        machine_entries: &[&ProfileIndexEntry],
+    ) -> Option<CompatCheck> {
+        let filament_nozzle = entry.nozzle_size?;
+
+        let printer_nozzles: Vec<f64> = machine_entries
+            .iter()
+            .filter_map(|m| m.nozzle_size)
+            .collect();
+
+        if printer_nozzles.is_empty() {
+            return None;
+        }
+
+        let matches = printer_nozzles
+            .iter()
+            .any(|n| (n - filament_nozzle).abs() < 0.001);
+
+        if matches {
+            None
+        } else {
+            Some(CompatCheck::NozzleMismatch {
+                profile_nozzle: filament_nozzle,
+                printer_nozzles,
+            })
+        }
+    }
+
+    /// Checks temperature compatibility between filament requirements and printer capabilities.
+    ///
+    /// Uses a conservative 300C default threshold because `MachineConfig` does not yet
+    /// expose per-printer max nozzle temperature. When per-printer temps become available
+    /// in profile metadata, this default should be replaced with actual printer capabilities.
+    ///
+    /// Returns `None` if compatible or if no filament temperature data is available.
+    /// Returns `Some(TemperatureWarning)` when `filament_min_temp` exceeds `printer_max_temp`.
+    #[must_use]
+    pub fn check_temperature(
+        filament_min_temp: Option<f64>,
+        printer_max_temp: f64,
+    ) -> Option<CompatCheck> {
+        let min_temp = filament_min_temp?;
+
+        if min_temp > printer_max_temp {
+            Some(CompatCheck::TemperatureWarning {
+                filament_min: min_temp,
+                printer_max: printer_max_temp,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Builds a compatibility report by running nozzle and temperature checks.
+    ///
+    /// Collects all check results into a [`CompatReport`]. Checks that return `None`
+    /// (compatible) are added as [`CompatCheck::Compatible`].
+    #[must_use]
+    pub fn compat_report(
+        entry: &ProfileIndexEntry,
+        machine_entries: &[&ProfileIndexEntry],
+        printer_max_temp: f64,
+        filament_min_temp: Option<f64>,
+    ) -> CompatReport {
+        let mut checks = Vec::new();
+
+        match Self::check_nozzle(entry, machine_entries) {
+            Some(check) => checks.push(check),
+            None => checks.push(CompatCheck::Compatible),
+        }
+
+        match Self::check_temperature(filament_min_temp, printer_max_temp) {
+            Some(check) => checks.push(check),
+            None => checks.push(CompatCheck::Compatible),
+        }
+
+        CompatReport { checks }
     }
 
     /// Builds compatibility info from enabled machine IDs and a profile index.
@@ -566,6 +805,101 @@ fn home_dir() -> Option<PathBuf> {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    /// Helper to create a test `ProfileIndexEntry` with minimal required fields.
+    fn make_test_entry(nozzle_size: Option<f64>, profile_type: &str) -> ProfileIndexEntry {
+        ProfileIndexEntry {
+            id: "test/entry".to_string(),
+            name: "Test Entry".to_string(),
+            source: "test".to_string(),
+            vendor: "TestVendor".to_string(),
+            profile_type: profile_type.to_string(),
+            material: Some("PLA".to_string()),
+            nozzle_size,
+            printer_model: None,
+            path: "test.toml".to_string(),
+            layer_height: None,
+            quality: None,
+        }
+    }
+
+    #[test]
+    fn test_check_nozzle_matching() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let machine = make_test_entry(Some(0.4), "machine");
+        let result = CompatibilityInfo::check_nozzle(&entry, &[&machine]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_nozzle_mismatch() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let machine = make_test_entry(Some(0.6), "machine");
+        let result = CompatibilityInfo::check_nozzle(&entry, &[&machine]);
+        assert!(matches!(result, Some(CompatCheck::NozzleMismatch { .. })));
+    }
+
+    #[test]
+    fn test_check_nozzle_no_filament_size() {
+        let entry = make_test_entry(None, "filament");
+        let machine = make_test_entry(Some(0.4), "machine");
+        let result = CompatibilityInfo::check_nozzle(&entry, &[&machine]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_nozzle_no_printer_data() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let result = CompatibilityInfo::check_nozzle(&entry, &[]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_nozzle_epsilon() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let machine = make_test_entry(Some(0.400_000_01), "machine");
+        let result = CompatibilityInfo::check_nozzle(&entry, &[&machine]);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_temperature_ok() {
+        let result = CompatibilityInfo::check_temperature(Some(190.0), 300.0);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_temperature_warning() {
+        let result = CompatibilityInfo::check_temperature(Some(350.0), 300.0);
+        assert!(matches!(
+            result,
+            Some(CompatCheck::TemperatureWarning { .. })
+        ));
+    }
+
+    #[test]
+    fn test_check_temperature_no_data() {
+        let result = CompatibilityInfo::check_temperature(None, 300.0);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_compat_report_all_compatible() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let machine = make_test_entry(Some(0.4), "machine");
+        let report = CompatibilityInfo::compat_report(&entry, &[&machine], 300.0, None);
+        assert!(report.is_compatible());
+        assert!(report.warnings().is_empty());
+    }
+
+    #[test]
+    fn test_compat_report_with_warnings() {
+        let entry = make_test_entry(Some(0.4), "filament");
+        let machine = make_test_entry(Some(0.6), "machine");
+        let report = CompatibilityInfo::compat_report(&entry, &[&machine], 300.0, None);
+        assert!(!report.is_compatible());
+        assert_eq!(report.warnings().len(), 1);
+    }
 
     #[test]
     fn default_has_empty_sections() {
@@ -779,5 +1113,109 @@ enabled = []
         assert!(ids.contains(&"filament/BBL/PLA_X1C".to_string()));
         assert!(ids.contains(&"filament/BBL/PETG_X1C".to_string()));
         assert!(!ids.contains(&"filament/Creality/PLA_Ender".to_string()));
+    }
+
+    // -----------------------------------------------------------------------
+    // ProfileSet / DefaultsSection / EnabledProfiles extension tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_profile_set_toml_roundtrip() {
+        let mut ep = EnabledProfiles::default();
+        ep.enable("machine", "X1C");
+        ep.add_set(
+            "my-set".to_string(),
+            ProfileSet {
+                machine: "X1C".to_string(),
+                filament: "PLA".to_string(),
+                process: "Standard".to_string(),
+            },
+        );
+        ep.defaults.set = Some("my-set".to_string());
+
+        let toml_str = toml::to_string_pretty(&ep).unwrap();
+        let loaded: EnabledProfiles = toml::from_str(&toml_str).unwrap();
+
+        assert_eq!(ep, loaded);
+        assert_eq!(loaded.sets.len(), 1);
+        assert_eq!(loaded.defaults.set, Some("my-set".to_string()));
+    }
+
+    #[test]
+    fn test_enabled_profiles_backward_compat() {
+        // TOML without [sets] or [defaults] should deserialize with empty defaults
+        let content = r#"
+[machine]
+enabled = ["X1C"]
+
+[filament]
+enabled = ["PLA"]
+
+[process]
+enabled = []
+"#;
+        let loaded: EnabledProfiles = toml::from_str(content).unwrap();
+        assert_eq!(loaded.machine.enabled, vec!["X1C"]);
+        assert!(loaded.sets.is_empty());
+        assert_eq!(loaded.defaults.set, None);
+    }
+
+    #[test]
+    fn test_add_remove_set() {
+        let mut ep = EnabledProfiles::default();
+        let set = ProfileSet {
+            machine: "X1C".to_string(),
+            filament: "PLA".to_string(),
+            process: "Standard".to_string(),
+        };
+        ep.add_set("my-set".to_string(), set.clone());
+        assert!(ep.get_set("my-set").is_some());
+
+        let removed = ep.remove_set("my-set");
+        assert_eq!(removed, Some(set));
+        assert!(ep.get_set("my-set").is_none());
+    }
+
+    #[test]
+    fn test_set_default() {
+        let mut ep = EnabledProfiles::default();
+        let set = ProfileSet {
+            machine: "X1C".to_string(),
+            filament: "PLA".to_string(),
+            process: "Standard".to_string(),
+        };
+        ep.add_set("my-set".to_string(), set);
+        ep.set_default(Some("my-set".to_string()));
+
+        let (name, ps) = ep.default_set().unwrap();
+        assert_eq!(name, "my-set");
+        assert_eq!(ps.machine, "X1C");
+
+        // Setting default to nonexistent set should be a no-op
+        ep.set_default(Some("nonexistent".to_string()));
+        assert_eq!(ep.defaults.set, Some("my-set".to_string()));
+
+        // Setting to None clears default
+        ep.set_default(None);
+        assert!(ep.default_set().is_none());
+    }
+
+    #[test]
+    fn test_remove_set_clears_default() {
+        let mut ep = EnabledProfiles::default();
+        ep.add_set(
+            "my-set".to_string(),
+            ProfileSet {
+                machine: "X1C".to_string(),
+                filament: "PLA".to_string(),
+                process: "Standard".to_string(),
+            },
+        );
+        ep.set_default(Some("my-set".to_string()));
+        assert!(ep.default_set().is_some());
+
+        ep.remove_set("my-set");
+        assert_eq!(ep.defaults.set, None);
+        assert!(ep.default_set().is_none());
     }
 }
