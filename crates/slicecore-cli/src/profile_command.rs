@@ -8,7 +8,8 @@
 //!
 //! Available subcommands:
 //! - `clone`: Create a custom profile from an existing preset
-//! - `set`: Set a single setting value
+//! - `setting`: Set a single setting value
+//! - `set`: Manage saved profile sets (create, delete, list, show, default)
 //! - `get`: Get a single setting value
 //! - `reset`: Reset a setting to its inherited value
 //! - `edit`: Open profile in `$EDITOR`
@@ -28,7 +29,7 @@ use std::path::{Path, PathBuf};
 use clap::Subcommand;
 use slicecore_config_schema::SettingKey;
 use slicecore_engine::config::PrintConfig;
-use slicecore_engine::enabled_profiles::{CompatibilityInfo, EnabledProfiles};
+use slicecore_engine::enabled_profiles::{CompatibilityInfo, EnabledProfiles, ProfileSet};
 use slicecore_engine::profile_library::{matches_filters, ProfileFilters, ProfileIndex};
 use slicecore_engine::profile_resolve::{
     ProfileError, ProfileResolver, ProfileSource, ResolvedProfile,
@@ -95,7 +96,8 @@ pub enum ProfileCommand {
     },
 
     /// Set a single setting value in a custom profile.
-    Set {
+    #[command(name = "setting")]
+    Setting {
         /// Profile name
         name: String,
 
@@ -108,6 +110,13 @@ pub enum ProfileCommand {
         /// Override profiles directory
         #[arg(long)]
         profiles_dir: Option<PathBuf>,
+    },
+
+    /// Manage saved profile sets (machine + filament + process combos).
+    #[command(name = "set")]
+    Set {
+        #[command(subcommand)]
+        command: ProfileSetCommand,
     },
 
     /// Get a single setting value from a profile.
@@ -387,6 +396,67 @@ pub enum ProfileCommand {
     Diff(crate::diff_profiles_command::DiffProfilesArgs),
 }
 
+/// Profile set management subcommands.
+///
+/// Manages named profile sets (machine + filament + process triples)
+/// for quick slicing with pre-configured profile combos.
+#[derive(Subcommand)]
+pub enum ProfileSetCommand {
+    /// Create a named profile set (machine + filament + process combo).
+    Create {
+        /// Name for the profile set (e.g., my-x1c-pla)
+        name: String,
+        /// Machine profile ID
+        #[arg(long)]
+        machine: String,
+        /// Filament profile ID
+        #[arg(long)]
+        filament: String,
+        /// Process profile ID
+        #[arg(long)]
+        process: String,
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+    /// Delete a saved profile set.
+    Delete {
+        /// Name of the set to delete
+        name: String,
+        /// Skip confirmation
+        #[arg(long)]
+        yes: bool,
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+    /// List all saved profile sets.
+    List {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+    /// Show details of a saved profile set.
+    Show {
+        /// Name of the set to show
+        name: String,
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+    /// Set the default profile set for slicing.
+    Default {
+        /// Name of the set to make default (omit to show current default)
+        name: Option<String>,
+        /// Override profiles directory
+        #[arg(long)]
+        profiles_dir: Option<PathBuf>,
+    },
+}
+
 /// Runs a profile management subcommand.
 ///
 /// # Errors
@@ -408,12 +478,38 @@ pub fn run_profile_command(cmd: ProfileCommand) -> Result<(), anyhow::Error> {
             r#type.as_deref(),
             profiles_dir.as_deref(),
         ),
-        ProfileCommand::Set {
+        ProfileCommand::Setting {
             name,
             key,
             value,
             profiles_dir,
         } => cmd_set(&name, &key, &value, profiles_dir.as_deref()),
+        ProfileCommand::Set { command } => match command {
+            ProfileSetCommand::Create {
+                name,
+                machine,
+                filament,
+                process,
+                profiles_dir,
+            } => cmd_set_create(&name, &machine, &filament, &process, profiles_dir.as_deref()),
+            ProfileSetCommand::Delete {
+                name,
+                yes: _,
+                profiles_dir,
+            } => cmd_set_delete(&name, profiles_dir.as_deref()),
+            ProfileSetCommand::List {
+                json,
+                profiles_dir,
+            } => cmd_set_list(json, profiles_dir.as_deref()),
+            ProfileSetCommand::Show {
+                name,
+                profiles_dir,
+            } => cmd_set_show(&name, profiles_dir.as_deref()),
+            ProfileSetCommand::Default {
+                name,
+                profiles_dir,
+            } => cmd_set_default(name.as_deref(), profiles_dir.as_deref()),
+        },
         ProfileCommand::Get {
             name,
             key,
@@ -806,6 +902,146 @@ fn cmd_set(
     std::fs::write(&resolved.path, toml::to_string_pretty(&doc)?)?;
     println!("Set {key} = {value} in profile '{name}'");
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Profile set management handlers
+// ---------------------------------------------------------------------------
+
+/// Implements the `profile set create` command.
+fn cmd_set_create(
+    name: &str,
+    machine: &str,
+    filament: &str,
+    process: &str,
+    profiles_dir: Option<&Path>,
+) -> Result<(), anyhow::Error> {
+    let path = enabled_profiles_path(profiles_dir)?;
+    let mut enabled = EnabledProfiles::load(&path)?.unwrap_or_default();
+
+    let set = ProfileSet {
+        machine: machine.to_string(),
+        filament: filament.to_string(),
+        process: process.to_string(),
+    };
+
+    enabled.add_set(name.to_string(), set);
+    enabled.save(&path)?;
+
+    println!(
+        "Created profile set '{name}': machine={machine}, filament={filament}, process={process}"
+    );
+    Ok(())
+}
+
+/// Implements the `profile set delete` command.
+fn cmd_set_delete(name: &str, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let path = enabled_profiles_path(profiles_dir)?;
+    let mut enabled = EnabledProfiles::load(&path)?
+        .ok_or_else(|| anyhow::anyhow!("No enabled-profiles.toml found. No sets to delete."))?;
+
+    if enabled.get_set(name).is_none() {
+        anyhow::bail!("Profile set '{name}' not found.");
+    }
+
+    enabled.remove_set(name);
+    enabled.save(&path)?;
+
+    println!("Deleted profile set '{name}'");
+    Ok(())
+}
+
+/// Implements the `profile set list` command.
+fn cmd_set_list(json_output: bool, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let path = enabled_profiles_path(profiles_dir)?;
+    let enabled = EnabledProfiles::load(&path)?.unwrap_or_default();
+
+    if enabled.sets.is_empty() {
+        eprintln!("No saved profile sets.");
+        return Ok(());
+    }
+
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&enabled.sets)?);
+        return Ok(());
+    }
+
+    let default_name = enabled.defaults.set.as_deref();
+
+    // Table header
+    println!(
+        "{:<20} {:<30} {:<30} {:<30} {}",
+        "NAME", "MACHINE", "FILAMENT", "PROCESS", "DEFAULT"
+    );
+    println!("{}", "-".repeat(120));
+
+    let mut names: Vec<&String> = enabled.sets.keys().collect();
+    names.sort();
+
+    for name in names {
+        let set = &enabled.sets[name];
+        let is_default = default_name == Some(name.as_str());
+        let marker = if is_default { "[default]" } else { "" };
+        println!(
+            "{:<20} {:<30} {:<30} {:<30} {}",
+            name, set.machine, set.filament, set.process, marker
+        );
+    }
+
+    Ok(())
+}
+
+/// Implements the `profile set show` command.
+fn cmd_set_show(name: &str, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let path = enabled_profiles_path(profiles_dir)?;
+    let enabled = EnabledProfiles::load(&path)?
+        .ok_or_else(|| anyhow::anyhow!("No enabled-profiles.toml found."))?;
+
+    let set = enabled
+        .get_set(name)
+        .ok_or_else(|| anyhow::anyhow!("Profile set '{name}' not found."))?;
+
+    let is_default = enabled.defaults.set.as_deref() == Some(name);
+
+    println!("Profile Set: {name}");
+    println!("  Machine:  {}", set.machine);
+    println!("  Filament: {}", set.filament);
+    println!("  Process:  {}", set.process);
+    println!("  Default:  {is_default}");
+
+    Ok(())
+}
+
+/// Implements the `profile set default` command.
+fn cmd_set_default(name: Option<&str>, profiles_dir: Option<&Path>) -> Result<(), anyhow::Error> {
+    let path = enabled_profiles_path(profiles_dir)?;
+    let mut enabled = EnabledProfiles::load(&path)?.unwrap_or_default();
+
+    match name {
+        None => {
+            match enabled.default_set() {
+                Some((n, set)) => {
+                    println!("Default profile set: {n}");
+                    println!("  Machine:  {}", set.machine);
+                    println!("  Filament: {}", set.filament);
+                    println!("  Process:  {}", set.process);
+                }
+                None => {
+                    println!("No default set configured.");
+                }
+            }
+            Ok(())
+        }
+        Some(n) => {
+            if enabled.get_set(n).is_none() {
+                anyhow::bail!("Profile set '{n}' not found. Create it first with: slicecore profile set create {n} --machine <M> --filament <F> --process <P>");
+            }
+            enabled.set_default(Some(n.to_string()));
+            enabled.save(&path)?;
+            println!("Set '{n}' as default profile set.");
+            Ok(())
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
