@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 44 of 51 (Search and filter profiles by printer and filament compatibility)
 Plan: 3 of 3 in current phase
 Status: Phase Complete
-Last activity: 2026-03-23 - Completed 44-03: Profile set CLI commands and slice integration
+Last activity: 2026-03-23 - Completed quick task 260323-wwu: Fix profile set/get QA test failures
 
 Progress: [██████████] 100% (178/178 overall)
 
@@ -738,6 +738,7 @@ Recent decisions affecting current work:
 | 260320-ury | Fix cargo doc --no-deps --workspace errors | 2026-03-20 | d97f7f6 | [260320-ury-fix-cargo-doc-no-deps-workspace-errors](./quick/260320-ury-fix-cargo-doc-no-deps-workspace-errors/) |
 | 260321-1n6 | Fix cargo fmt formatting across phase 43 files | 2026-03-21 | bd3b6ac | [260321-1n6-fix-cargo-fmt-formatting-error-in-enable](./quick/260321-1n6-fix-cargo-fmt-formatting-error-in-enable/) |
 | 260321-1pj | Fix test assertion for TTY guard in enable command | 2026-03-21 | af75e4d | [260321-1pj-fix-test-profile-enable-no-args-errors-a](./quick/260321-1pj-fix-test-profile-enable-no-args-errors-a/) |
+| 260323-wwu | Fix profile set/get QA test failures caused by Set->Setting rename | 2026-03-23 | 95ba52a | [260323-wwu-fix-profile-set-get-qa-test-failures-cau](./quick/260323-wwu-fix-profile-set-get-qa-test-failures-cau/) |
 | 260321-1s9 | Add QA tests for phase 40+ features | 2026-03-21 | 616a7b1 | [260321-1s9-add-qa-tests-for-phase-40-features](./quick/260321-1s9-add-qa-tests-for-phase-40-features/) |
 | 260323-l8a | Fix cli_slice_profiles wizard trigger | 2026-03-23 | 4ba1299 | [260323-l8a-fix-cli-slice-profiles-test-failures-fro](./quick/260323-l8a-fix-cli-slice-profiles-test-failures-fro/) |
 
