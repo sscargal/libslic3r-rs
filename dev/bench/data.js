@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774312500346,
+  "lastUpdate": 1774387021827,
   "repoUrl": "https://github.com/sscargal/libslic3r-rs",
   "entries": {
     "libslic3r-rs Benchmarks": [
@@ -1763,6 +1763,300 @@ window.BENCHMARK_DATA = {
             "name": "bvh_build/build/64seg",
             "value": 2711345,
             "range": "± 8766",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "37674041+sscargal@users.noreply.github.com",
+            "name": "Steve Scargall",
+            "username": "sscargal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "379c88b6ab14dd56e8e65ab3c8e21775ab5fdefa",
+          "message": "Merge pull request #15 from sscargal/phase-45-plan-05-engine-integration\n\nPhase 45 plan 05 engine integration",
+          "timestamp": "2026-03-24T14:27:59-06:00",
+          "tree_id": "6a45b0914aff7270c2006b89982682109448b5ab",
+          "url": "https://github.com/sscargal/libslic3r-rs/commit/379c88b6ab14dd56e8e65ab3c8e21775ab5fdefa"
+        },
+        "date": 1774387021374,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "slice_calibration_cube",
+            "value": 7633874,
+            "range": "± 755943",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "slice_cylinder_64sides",
+            "value": 117953092,
+            "range": "± 3415069",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "slice_dense_sphere_1280tri",
+            "value": 3794082,
+            "range": "± 16237",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "slice_thin_wall_box",
+            "value": 15992425,
+            "range": "± 343834",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "slice_multi_overhang",
+            "value": 12205329,
+            "range": "± 441959",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "slice_cube_full_config",
+            "value": 22747517106,
+            "range": "± 321811367",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "memory_estimate_cube",
+            "value": 7804813,
+            "range": "± 294643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "polygon_union_overlapping",
+            "value": 1469,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "polygon_intersection_overlapping",
+            "value": 1089,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "polygon_difference_overlapping",
+            "value": 1225,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "offset_star_12pt_outward_2mm",
+            "value": 10521,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "offset_star_12pt_inward_2mm",
+            "value": 10340,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "offset_rect_collapse",
+            "value": 1689,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "point_in_polygon_inside",
+            "value": 93,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "point_in_polygon_outside",
+            "value": 88,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "point_in_polygon_boundary",
+            "value": 93,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "slice_mesh_sphere_1280tri_0.2mm",
+            "value": 1624866,
+            "range": "± 17384",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bvh_ray_intersect_100rays",
+            "value": 51284,
+            "range": "± 375",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parallel_vs_sequential/sequential/40mm_cube",
+            "value": 11225033,
+            "range": "± 97462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parallel_vs_sequential/parallel_auto/40mm_cube",
+            "value": 13446516,
+            "range": "± 43386",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "parallel_vs_sequential/parallel_4_threads/40mm_cube",
+            "value": 13517041,
+            "range": "± 87526",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/union/small_box_12tri",
+            "value": 71104,
+            "range": "± 506",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/difference/small_box_12tri",
+            "value": 69378,
+            "range": "± 320",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/intersection/small_box_12tri",
+            "value": 66454,
+            "range": "± 302",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/union/medium_sphere_16seg",
+            "value": 1656866,
+            "range": "± 14880",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/difference/medium_sphere_16seg",
+            "value": 1585453,
+            "range": "± 8125",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/intersection/medium_sphere_16seg",
+            "value": 1531187,
+            "range": "± 33387",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/union/large_sphere_32seg",
+            "value": 8037988,
+            "range": "± 27713",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/difference/large_sphere_32seg",
+            "value": 7456484,
+            "range": "± 73072",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/intersection/large_sphere_32seg",
+            "value": 7058303,
+            "range": "± 34348",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/union/xl_sphere_64seg",
+            "value": 40459490,
+            "range": "± 208415",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/difference/xl_sphere_64seg",
+            "value": 32891227,
+            "range": "± 125532",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "boolean_ops/intersection/xl_sphere_64seg",
+            "value": 29576138,
+            "range": "± 101961",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "primitives/box",
+            "value": 194,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "primitives/sphere_32seg",
+            "value": 20004,
+            "range": "± 69",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "primitives/cylinder_32seg",
+            "value": 2614,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "primitives/torus_32x16",
+            "value": 20617,
+            "range": "± 62",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "plane_split/equator_split/16seg",
+            "value": 68388,
+            "range": "± 130",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "plane_split/equator_split/32seg",
+            "value": 261096,
+            "range": "± 706",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "plane_split/equator_split/64seg",
+            "value": 1036901,
+            "range": "± 8254",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hollow/hollow/box",
+            "value": 53884,
+            "range": "± 155",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "hollow/hollow/sphere_32seg",
+            "value": 7157020,
+            "range": "± 45993",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bvh_build/build/16seg",
+            "value": 87185,
+            "range": "± 414",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bvh_build/build/32seg",
+            "value": 518673,
+            "range": "± 2621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bvh_build/build/64seg",
+            "value": 2716893,
+            "range": "± 5636",
             "unit": "ns/iter"
           }
         ]
