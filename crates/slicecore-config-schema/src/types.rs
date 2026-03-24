@@ -199,20 +199,15 @@ pub enum Constraint {
 /// Controls whether a setting can be meaningfully overridden at the object
 /// or region level. Used by the cascade resolver to warn or ignore
 /// nonsensical overrides.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum OverrideSafety {
     /// Safe to override in any context (per-object, per-region).
+    #[default]
     Safe,
     /// Nonsensical in some override contexts but allowed (warns).
     Warn,
     /// Has no effect as a per-region override (silently ignored).
     Ignored,
-}
-
-impl Default for OverrideSafety {
-    fn default() -> Self {
-        Self::Safe
-    }
 }
 
 impl std::fmt::Display for OverrideSafety {
