@@ -838,9 +838,14 @@ Plans:
 **Goal:** Implement job directory concept with structured output (G-code, logs, config snapshot, thumbnail, manifest) via `--job-dir` flag, enabling isolated artifact management for parallel slicing, batch workflows, and future daemon/farm/SaaS features.
 **Requirements**: [API-02]
 **Depends on:** Phase 45
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
+- [ ] 46-01-PLAN.md -- JobDir module with struct, manifest, locking, artifact paths, and unit tests
+- [ ] 46-02-PLAN.md -- CLI integration (--job-dir, --job-base flags) with cmd_slice wiring and integration tests
+
+
+
 
 ### Phase 47: Variable layer height algorithms — implement multi-objective VLH optimization with curvature, feature-aware heights, and Laplacian smoothing
 
