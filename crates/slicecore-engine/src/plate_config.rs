@@ -109,6 +109,7 @@ pub struct LayerRangeOverride {
 
 /// Per-object configuration within a plate.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct ObjectConfig {
     /// How to obtain the mesh for this object.
     pub mesh_source: MeshSource,
@@ -119,8 +120,10 @@ pub struct ObjectConfig {
     /// Inline setting overrides (takes precedence over `override_set`).
     pub inline_overrides: Option<toml::map::Map<String, toml::Value>>,
     /// Modifier volumes with per-region overrides.
+    #[serde(default)]
     pub modifiers: Vec<ModifierConfig>,
     /// Layer-range overrides for this object.
+    #[serde(default)]
     pub layer_overrides: Vec<LayerRangeOverride>,
     /// Object transform (position, rotation, scale).
     pub transform: Option<Transform>,
@@ -149,6 +152,7 @@ impl Default for ObjectConfig {
 /// and per-object configurations. Single-object plates are backward compatible
 /// via [`PlateConfig::single_object`] and [`From<PrintConfig>`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct PlateConfig {
     /// Machine/printer profile name or path.
     pub machine_profile: Option<String>,
@@ -166,6 +170,21 @@ pub struct PlateConfig {
     pub override_sets: HashMap<String, toml::map::Map<String, toml::Value>>,
     /// Per-object configurations.
     pub objects: Vec<ObjectConfig>,
+}
+
+impl Default for PlateConfig {
+    fn default() -> Self {
+        Self {
+            machine_profile: None,
+            filament_profile: None,
+            process_profile: None,
+            user_override_file: None,
+            cli_set_overrides: Vec::new(),
+            default_object_overrides: None,
+            override_sets: HashMap::new(),
+            objects: Vec::new(),
+        }
+    }
 }
 
 impl PlateConfig {
