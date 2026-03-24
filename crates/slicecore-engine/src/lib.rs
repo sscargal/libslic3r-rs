@@ -24,6 +24,7 @@ pub mod arachne;
 pub mod builtin_profiles;
 pub mod calibrate;
 pub mod calibration;
+pub mod cascade;
 pub mod config;
 pub mod config_validate;
 pub mod cost_model;
