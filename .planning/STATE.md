@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 45-01-PLAN.md
-last_updated: "2026-03-24T03:51:20.846Z"
-last_activity: "2026-03-24 - Completed 45-01: Core data model for per-object override system"
+stopped_at: Completed 45-02-PLAN.md
+last_updated: "2026-03-24T16:11:03.726Z"
+last_activity: "2026-03-24 - Completed 45-02: Override safety annotations and derive macro extension"
 progress:
   total_phases: 51
   completed_phases: 44
   total_plans: 188
-  completed_plans: 179
-  percent: 95
+  completed_plans: 180
+  percent: 96
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 ## Current Position
 
 Phase: 45 of 51 (Global and per-object settings override system)
-Plan: 1 of 5 in current phase
+Plan: 2 of 5 in current phase
 Status: In Progress
-Last activity: 2026-03-24 - Completed 45-01: Core data model for per-object override system
+Last activity: 2026-03-24 - Completed 45-02: Override safety annotations and derive macro extension
 
-Progress: [██████████] 95% (179/188 overall)
+Progress: [██████████] 96% (180/188 overall)
 
 ## Performance Metrics
 
@@ -157,6 +157,7 @@ Progress: [██████████] 95% (179/188 overall)
 | Phase 44 P01 | 7min | 2 tasks | 3 files |
 | Phase 44 P03 | 17min | 2 tasks | 4 files |
 | Phase 45 P01 | 7min | 2 tasks | 11 files |
+| Phase 45 P02 | 8min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -165,6 +166,8 @@ Progress: [██████████] 95% (179/188 overall)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [45-02]: 374 config fields classified: 190 safe, 106 warn, 78 ignored for per-object/per-region override safety
+- [45-02]: Override safety CLI filter via --override-safety flag, new to_filtered_metadata_json_with_safety preserves backward compat
 - [42-02]: Profile alias commands (list/show/search) use ProfileResolver directly rather than delegating to main.rs private functions
 - [30-05]: Used indicatif with hidden ProgressBar for non-TTY fallback, deprecated find_profiles_dir in favor of ProfileResolver
 - [Roadmap]: Integer coordinates (i64 Coord, COORD_SCALE) must be locked in Phase 1 before any algorithms
@@ -747,6 +750,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-24T03:51:20.841Z
-Stopped at: Completed 45-01-PLAN.md
+Last session: 2026-03-24T16:11:03.718Z
+Stopped at: Completed 45-02-PLAN.md
 Resume file: None
