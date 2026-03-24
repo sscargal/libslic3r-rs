@@ -132,7 +132,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 
 - [ ] **ADV-01**: Multi-material support (MMU tool changes, purge tower)
 - [x] **ADV-02**: Sequential printing (object-by-object with collision detection)
-- [ ] **ADV-03**: Modifier meshes (region-specific setting overrides)
+- [x] **ADV-03**: Modifier meshes (region-specific setting overrides)
 - [x] **ADV-04**: Custom G-code injection (per-layer, per-feature hooks)
 - [ ] **ADV-05**: Per-feature flow control (10+ feature types)
 - [ ] **ADV-06**: Pressure advance calibration pattern generation
@@ -243,7 +243,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | GCODE-13 | Phase 6 | Complete |
 | ADV-01 | Phase 6 | Pending |
 | ADV-02 | Phase 6 | Complete |
-| ADV-03 | Phase 6 | Pending |
+| ADV-03 | Phase 6 | Complete |
 | ADV-04 | Phase 6 | Complete |
 | ADV-05 | Phase 6 | Pending |
 | ADV-06 | Phase 6 | Pending |
