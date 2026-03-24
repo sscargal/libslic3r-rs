@@ -818,9 +818,19 @@ Plans:
 **Goal:** Implement a layered settings override system (global → per-object → per-region) with proper cascading, validation, and serialization, enabling users to customize specific objects on multi-object plates with different infill, layer height, or other parameters.
 **Requirements**: [ADV-03]
 **Depends on:** Phase 44
-**Plans:** 0 plans
+**Plans:** 10 plans
 
 Plans:
+- [ ] 45-01-PLAN.md — Core data model: PlateConfig, ObjectConfig, FieldSource extension, OverrideSafety enum
+- [ ] 45-02-PLAN.md — Override safety derive macro + OVERRIDE_SAFETY_MAP.md + user review
+- [ ] 45-03-PLAN.md — 10-layer cascade resolution + Z-schedule computation + proptest
+- [ ] 45-04-PLAN.md — Modifier mesh migration: replace SettingOverrides with TOML partial merge
+- [ ] 45-05-PLAN.md — Engine integration: Engine::new(PlateConfig), per-object slicing, backward compat
+- [ ] 45-06-PLAN.md — Override set CRUD CLI + plate init/from-3mf/to-3mf commands
+- [ ] 45-07-PLAN.md — CLI integration: --plate, --object flags, multi-model, validation
+- [ ] 45-08-PLAN.md — 3MF import/export of per-object settings and modifier meshes
+- [ ] 45-09-PLAN.md — Serialization: G-code header, per-object stats, provenance, checksum
+- [ ] 45-10-PLAN.md — E2E tests, test fixtures, criterion benchmarks, regression tests
 
 ### Phase 46: Job output directories for isolated slice execution — add --job-dir flag with structured output directory containing G-code, logs, config snapshot, thumbnail, and manifest
 
