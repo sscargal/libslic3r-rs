@@ -25,6 +25,7 @@ pub mod cli_output;
 mod csg_command;
 mod csg_info;
 mod diff_profiles_command;
+mod override_set;
 mod plugins_command;
 mod profile_command;
 mod profile_wizard;
@@ -666,6 +667,14 @@ enum Commands {
     #[command(subcommand)]
     Profile(profile_command::ProfileCommand),
 
+    /// Manage named override sets (CRUD, diff).
+    ///
+    /// Override sets are reusable partial configs stored in
+    /// ~/.slicecore/override-sets/ as TOML files. Use them in plate.toml
+    /// to apply named setting bundles to objects.
+    #[command(subcommand)]
+    OverrideSet(override_set::OverrideSetCommands),
+
     /// Post-process an existing G-code file.
     ///
     /// Reads a G-code file, applies configured post-processors (pause-at-layer,
@@ -1072,6 +1081,13 @@ fn main() {
         Commands::Profile(profile_cmd) => {
             let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
             if let Err(e) = profile_command::run_profile_command(profile_cmd) {
+                output_ctx.error_msg(&format!("{e}"));
+                process::exit(1);
+            }
+        }
+        Commands::OverrideSet(cmd) => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
+            if let Err(e) = override_set::run_override_set(cmd) {
                 output_ctx.error_msg(&format!("{e}"));
                 process::exit(1);
             }
