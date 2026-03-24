@@ -139,6 +139,152 @@ pub fn from_msgpack(data: &[u8]) -> Result<SliceMetadata, rmp_serde::decode::Err
     rmp_serde::from_slice(data)
 }
 
+// ---------------------------------------------------------------------------
+// Per-object plate output JSON structures
+// ---------------------------------------------------------------------------
+
+/// A single override diff entry for JSON output.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OverrideDiffJson {
+    /// Value from the base config.
+    pub base: serde_json::Value,
+    /// Overridden value for this object.
+    pub value: serde_json::Value,
+    /// Source of the override (e.g. `"per-object(main-body)"`).
+    pub source: String,
+}
+
+/// Per-object statistics in JSON output.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObjectStatsJson {
+    /// Number of layers.
+    pub layers: usize,
+    /// Estimated print time in seconds.
+    pub time_seconds: f64,
+    /// Filament weight in grams.
+    pub filament_grams: f64,
+    /// Filament length in mm.
+    pub filament_mm: f64,
+}
+
+/// Per-object JSON output entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObjectOutputJson {
+    /// Object index (0-based).
+    pub index: usize,
+    /// Object name.
+    pub name: String,
+    /// Number of copies.
+    pub copies: u32,
+    /// Override diffs from base config (key -> diff).
+    pub overrides: std::collections::HashMap<String, OverrideDiffJson>,
+    /// Per-object statistics.
+    pub statistics: ObjectStatsJson,
+}
+
+/// Aggregate totals for plate JSON output.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlateTotalsJson {
+    /// Total layers (max across objects, since they print in parallel on the Z axis).
+    pub layers: usize,
+    /// Total time in seconds.
+    pub time_seconds: f64,
+    /// Total filament in grams.
+    pub filament_grams: f64,
+    /// Total filament in mm.
+    pub filament_mm: f64,
+}
+
+/// Complete plate JSON output with per-object data, checksum, and totals.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlateOutputJson {
+    /// SHA-256 checksum of the plate config.
+    pub plate_checksum: String,
+    /// Per-object output entries.
+    pub objects: Vec<ObjectOutputJson>,
+    /// Aggregate totals.
+    pub totals: PlateTotalsJson,
+}
+
+/// Builds a [`PlateOutputJson`] from plate results and configs.
+///
+/// This creates the structured JSON output for multi-object plates, including
+/// per-object override diffs and statistics.
+pub fn build_plate_output_json(
+    checksum: &str,
+    objects: &[crate::engine::ObjectSliceResult],
+    base_config: &PrintConfig,
+    resolved_configs: &[&PrintConfig],
+) -> PlateOutputJson {
+    let mut obj_outputs = Vec::new();
+    let mut total_time = 0.0_f64;
+    let mut total_filament_g = 0.0_f64;
+    let mut total_filament_mm = 0.0_f64;
+    let mut max_layers = 0_usize;
+
+    for (i, obj) in objects.iter().enumerate() {
+        let obj_config = resolved_configs.get(i).copied().unwrap_or(base_config);
+        let diffs = crate::gcode_gen::compute_override_diffs(base_config, obj_config);
+
+        let mut overrides = std::collections::HashMap::new();
+        for diff in &diffs {
+            overrides.insert(
+                diff.key.clone(),
+                OverrideDiffJson {
+                    base: diff.base_value.clone(),
+                    value: diff.override_value.clone(),
+                    source: format!("per-object({})", obj.name),
+                },
+            );
+        }
+
+        let copies_f64 = f64::from(obj.copies);
+        let obj_time = obj.result.estimated_time_seconds * copies_f64;
+        let obj_filament_g = obj.result.filament_usage.weight_g * copies_f64;
+        let obj_filament_mm = obj.result.filament_usage.length_mm * copies_f64;
+
+        total_time += obj_time;
+        total_filament_g += obj_filament_g;
+        total_filament_mm += obj_filament_mm;
+        if obj.result.layer_count > max_layers {
+            max_layers = obj.result.layer_count;
+        }
+
+        obj_outputs.push(ObjectOutputJson {
+            index: obj.index,
+            name: obj.name.clone(),
+            copies: obj.copies,
+            overrides,
+            statistics: ObjectStatsJson {
+                layers: obj.result.layer_count,
+                time_seconds: obj.result.estimated_time_seconds,
+                filament_grams: obj.result.filament_usage.weight_g,
+                filament_mm: obj.result.filament_usage.length_mm,
+            },
+        });
+    }
+
+    PlateOutputJson {
+        plate_checksum: checksum.to_string(),
+        objects: obj_outputs,
+        totals: PlateTotalsJson {
+            layers: max_layers,
+            time_seconds: total_time,
+            filament_grams: total_filament_g,
+            filament_mm: total_filament_mm,
+        },
+    }
+}
+
+/// Serializes plate output as pretty-printed JSON.
+///
+/// # Errors
+///
+/// Returns `serde_json::Error` if serialization fails.
+pub fn plate_to_json(plate_output: &PlateOutputJson) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(plate_output)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

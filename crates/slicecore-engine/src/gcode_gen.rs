@@ -6,15 +6,24 @@
 //! The main entry points are:
 //! - [`generate_layer_gcode`]: Converts a single layer's toolpath to G-code commands
 //! - [`generate_full_gcode`]: Converts all layers into a complete print body
+//! - [`generate_plate_header`]: Generates a G-code header with per-object sections
+//! - [`plate_checksum`]: Computes SHA-256 checksum of a plate configuration
+//! - [`reproduce_command`]: Generates a CLI command to reproduce the plate
 //!
 //! Start/end G-code is NOT generated here -- that is handled by
 //! `GcodeWriter` from slicecore-gcode-io.
 //! This module produces only the print body commands.
 
+use std::collections::BTreeMap;
+use std::path::Path;
+
+use sha2::{Digest, Sha256};
 use slicecore_gcode_io::{format_acceleration, format_pressure_advance, GcodeCommand};
 
 use crate::config::PrintConfig;
 use crate::custom_gcode::substitute_placeholders;
+use crate::engine::PlateSliceResult;
+use crate::plate_config::{MeshSource, PlateConfig};
 use crate::planner::{plan_bridge_fan, plan_fan, plan_retraction, plan_temperatures};
 use crate::toolpath::{FeatureType, LayerToolpath};
 
@@ -291,6 +300,242 @@ fn feature_label(feature: FeatureType) -> &'static str {
         FeatureType::Ironing => "Ironing",
         FeatureType::PurgeTower => "Purge tower",
     }
+}
+
+// ---------------------------------------------------------------------------
+// Per-object plate header generation
+// ---------------------------------------------------------------------------
+
+/// A single field that differs between an object's config and the base config.
+#[derive(Debug, Clone)]
+pub struct OverrideDiffEntry {
+    /// Dotted key path (e.g. `"layer_height"`).
+    pub key: String,
+    /// Base config value.
+    pub base_value: serde_json::Value,
+    /// Object's overridden value.
+    pub override_value: serde_json::Value,
+}
+
+/// Computes the SHA-256 checksum of a [`PlateConfig`]'s TOML serialization.
+///
+/// Returns a string in the format `sha256:<hex-digest>`.
+///
+/// # Examples
+///
+/// ```
+/// use slicecore_engine::plate_config::PlateConfig;
+/// use slicecore_engine::gcode_gen::plate_checksum;
+///
+/// let plate = PlateConfig::default();
+/// let checksum = plate_checksum(&plate);
+/// assert!(checksum.starts_with("sha256:"));
+/// assert!(checksum.len() > 10);
+/// ```
+pub fn plate_checksum(plate: &PlateConfig) -> String {
+    let toml_str = toml::to_string(plate).unwrap_or_default();
+    let hash = Sha256::digest(toml_str.as_bytes());
+    format!("sha256:{hash:x}")
+}
+
+/// Generates a CLI command string that can reproduce the plate slice.
+///
+/// If `plate_file` is provided, uses `--plate` reference. Otherwise builds
+/// a full command from the plate config with `--object` flags for overrides.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use slicecore_engine::plate_config::PlateConfig;
+/// use slicecore_engine::gcode_gen::reproduce_command;
+///
+/// let plate = PlateConfig::default();
+/// let cmd = reproduce_command(&plate, Some(Path::new("plate.toml")), Path::new("out.gcode"));
+/// assert!(cmd.contains("--plate plate.toml"));
+/// ```
+pub fn reproduce_command(
+    plate: &PlateConfig,
+    plate_file: Option<&Path>,
+    output_file: &Path,
+) -> String {
+    if let Some(plate_path) = plate_file {
+        format!(
+            "slicecore slice --plate {} --output {}",
+            plate_path.display(),
+            output_file.display()
+        )
+    } else {
+        let mut cmd = String::from("slicecore slice");
+        for obj in &plate.objects {
+            if let MeshSource::File(path) = &obj.mesh_source {
+                cmd.push_str(&format!(" {}", path.display()));
+            }
+        }
+        cmd.push_str(&format!(" --output {}", output_file.display()));
+        cmd
+    }
+}
+
+/// Computes override diffs between an object's config and the base config.
+///
+/// Serializes both configs to JSON, flattens to dotted keys, and returns
+/// entries where the values differ.
+pub fn compute_override_diffs(
+    base_config: &PrintConfig,
+    object_config: &PrintConfig,
+) -> Vec<OverrideDiffEntry> {
+    let base_json = serde_json::to_value(base_config).unwrap_or_default();
+    let obj_json = serde_json::to_value(object_config).unwrap_or_default();
+
+    let mut base_flat = BTreeMap::new();
+    let mut obj_flat = BTreeMap::new();
+    flatten_json("", &base_json, &mut base_flat);
+    flatten_json("", &obj_json, &mut obj_flat);
+
+    let mut diffs = Vec::new();
+    for (key, obj_val) in &obj_flat {
+        if let Some(base_val) = base_flat.get(key) {
+            if base_val != obj_val {
+                diffs.push(OverrideDiffEntry {
+                    key: key.clone(),
+                    base_value: base_val.clone(),
+                    override_value: obj_val.clone(),
+                });
+            }
+        }
+    }
+    diffs
+}
+
+/// Recursively flattens a JSON value into dotted-key entries.
+fn flatten_json(
+    prefix: &str,
+    value: &serde_json::Value,
+    out: &mut BTreeMap<String, serde_json::Value>,
+) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (k, v) in map {
+                let full_key = if prefix.is_empty() {
+                    k.clone()
+                } else {
+                    format!("{prefix}.{k}")
+                };
+                flatten_json(&full_key, v, out);
+            }
+        }
+        other => {
+            if !prefix.is_empty() {
+                out.insert(prefix.to_string(), other.clone());
+            }
+        }
+    }
+}
+
+/// Formats a time in seconds as a human-readable `Xh Ym` or `Ym Zs` string.
+fn format_time_short(seconds: f64) -> String {
+    let total_secs = seconds as u64;
+    let hours = total_secs / 3600;
+    let mins = (total_secs % 3600) / 60;
+    let secs = total_secs % 60;
+    if hours > 0 {
+        format!("{hours}h{mins:02}m")
+    } else {
+        format!("{mins}m{secs:02}s")
+    }
+}
+
+/// Generates G-code comment lines for a plate header with per-object sections.
+///
+/// The header includes:
+/// - Plate SHA-256 checksum
+/// - Per-object sections with override diffs and statistics
+/// - Reproduce command
+///
+/// Returns a list of [`GcodeCommand::Comment`] entries to prepend to the G-code.
+pub fn generate_plate_header(
+    plate: &PlateConfig,
+    plate_result: &PlateSliceResult,
+    base_config: &PrintConfig,
+    resolved_configs: &[&PrintConfig],
+    plate_file: Option<&Path>,
+    output_file: &Path,
+) -> Vec<GcodeCommand> {
+    let mut cmds = Vec::new();
+
+    let checksum = plate_checksum(plate);
+    cmds.push(GcodeCommand::Comment(
+        "=== SliceCore Plate Configuration ===".to_string(),
+    ));
+    cmds.push(GcodeCommand::Comment(format!("Plate checksum: {checksum}")));
+    cmds.push(GcodeCommand::Comment(format!(
+        "Objects: {}",
+        plate_result.objects.len()
+    )));
+    cmds.push(GcodeCommand::Comment(String::new()));
+
+    for (i, obj_result) in plate_result.objects.iter().enumerate() {
+        let obj_config = resolved_configs.get(i).copied().unwrap_or(base_config);
+        let diffs = compute_override_diffs(base_config, obj_config);
+
+        cmds.push(GcodeCommand::Comment(format!(
+            "--- Object {}: {} ---",
+            i + 1,
+            obj_result.name
+        )));
+
+        if diffs.is_empty() {
+            cmds.push(GcodeCommand::Comment(
+                "Overrides: none (uses base config)".to_string(),
+            ));
+        } else {
+            // Find the override set name if any.
+            if let Some(obj_cfg) = plate.objects.get(i) {
+                if let Some(ref set_name) = obj_cfg.override_set {
+                    cmds.push(GcodeCommand::Comment(format!(
+                        "Override set: {set_name}"
+                    )));
+                }
+            }
+            cmds.push(GcodeCommand::Comment(
+                "Overrides from base:".to_string(),
+            ));
+            for diff in &diffs {
+                cmds.push(GcodeCommand::Comment(format!(
+                    "  {} = {} (base: {})",
+                    diff.key, diff.override_value, diff.base_value
+                )));
+            }
+        }
+
+        cmds.push(GcodeCommand::Comment(format!(
+            "Copies: {}",
+            obj_result.copies
+        )));
+        cmds.push(GcodeCommand::Comment(format!(
+            "Layers: {}",
+            obj_result.result.layer_count
+        )));
+        cmds.push(GcodeCommand::Comment(format!(
+            "Filament: {:.1}g ({:.1}m)",
+            obj_result.result.filament_usage.weight_g,
+            obj_result.result.filament_usage.length_m,
+        )));
+        cmds.push(GcodeCommand::Comment(format!(
+            "Time: {}",
+            format_time_short(obj_result.result.estimated_time_seconds)
+        )));
+        cmds.push(GcodeCommand::Comment(String::new()));
+    }
+
+    let repr_cmd = reproduce_command(plate, plate_file, output_file);
+    cmds.push(GcodeCommand::Comment(
+        "=== Reproduce Command ===".to_string(),
+    ));
+    cmds.push(GcodeCommand::Comment(repr_cmd));
+
+    cmds
 }
 
 // ---------------------------------------------------------------------------
@@ -973,5 +1218,188 @@ mod tests {
             has_purge_comment,
             "PurgeTower feature should produce TYPE:Purge tower comment"
         );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Plate header / checksum / reproduce command tests
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn plate_checksum_produces_sha256_prefix() {
+        use crate::plate_config::PlateConfig;
+        let plate = PlateConfig::default();
+        let checksum = plate_checksum(&plate);
+        assert!(checksum.starts_with("sha256:"), "Checksum should start with sha256:");
+        assert!(checksum.len() > 10, "Checksum should be non-trivially long");
+    }
+
+    #[test]
+    fn reproduce_command_with_plate_file() {
+        use crate::plate_config::PlateConfig;
+        let plate = PlateConfig::default();
+        let cmd = reproduce_command(
+            &plate,
+            Some(std::path::Path::new("plate.toml")),
+            std::path::Path::new("output.gcode"),
+        );
+        assert!(cmd.contains("--plate plate.toml"));
+        assert!(cmd.contains("--output output.gcode"));
+    }
+
+    #[test]
+    fn reproduce_command_without_plate_file() {
+        use crate::plate_config::{MeshSource, ObjectConfig, PlateConfig};
+        let plate = PlateConfig {
+            objects: vec![
+                ObjectConfig {
+                    mesh_source: MeshSource::File(std::path::PathBuf::from("model.stl")),
+                    ..ObjectConfig::default()
+                },
+            ],
+            ..PlateConfig::default()
+        };
+        let cmd = reproduce_command(
+            &plate,
+            None,
+            std::path::Path::new("output.gcode"),
+        );
+        assert!(cmd.contains("model.stl"));
+        assert!(cmd.contains("--output output.gcode"));
+        assert!(!cmd.contains("--plate"));
+    }
+
+    #[test]
+    fn compute_override_diffs_detects_changed_fields() {
+        let base = PrintConfig::default();
+        let mut modified = base.clone();
+        modified.layer_height = 0.1;
+        modified.wall_count = 5;
+
+        let diffs = compute_override_diffs(&base, &modified);
+        let keys: Vec<&str> = diffs.iter().map(|d| d.key.as_str()).collect();
+        assert!(keys.contains(&"layer_height"), "Should detect layer_height diff");
+        assert!(keys.contains(&"wall_count"), "Should detect wall_count diff");
+    }
+
+    #[test]
+    fn compute_override_diffs_empty_for_identical_configs() {
+        let config = PrintConfig::default();
+        let diffs = compute_override_diffs(&config, &config);
+        assert!(diffs.is_empty(), "Identical configs should have no diffs");
+    }
+
+    #[test]
+    fn generate_plate_header_contains_object_sections() {
+        use crate::engine::{ObjectSliceResult, PlateSliceResult, SliceResult};
+        use crate::estimation::PrintTimeEstimate;
+        use crate::filament::FilamentUsage;
+        use crate::plate_config::PlateConfig;
+
+        let plate = PlateConfig::default();
+        let base_config = PrintConfig::default();
+        let result = PlateSliceResult {
+            objects: vec![
+                ObjectSliceResult {
+                    name: "TestObject".to_string(),
+                    index: 0,
+                    result: SliceResult {
+                        gcode: Vec::new(),
+                        layer_count: 100,
+                        estimated_time_seconds: 3600.0,
+                        time_estimate: PrintTimeEstimate {
+                            total_seconds: 3600.0,
+                            move_time_seconds: 2800.0,
+                            travel_time_seconds: 600.0,
+                            retraction_count: 50,
+                        },
+                        filament_usage: FilamentUsage {
+                            length_mm: 5000.0,
+                            length_m: 5.0,
+                            weight_g: 15.0,
+                            cost: 0.38,
+                        },
+                        preview: None,
+                        statistics: None,
+                        travel_opt_stats: None,
+                    },
+                    copies: 1,
+                },
+            ],
+        };
+
+        let configs = vec![&base_config];
+        let cmds = generate_plate_header(
+            &plate,
+            &result,
+            &base_config,
+            &configs,
+            None,
+            std::path::Path::new("output.gcode"),
+        );
+
+        let text: String = cmds
+            .iter()
+            .filter_map(|c| {
+                if let GcodeCommand::Comment(t) = c {
+                    Some(t.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert!(text.contains("Plate checksum: sha256:"), "Header should contain checksum");
+        assert!(text.contains("Objects: 1"), "Header should contain object count");
+        assert!(text.contains("Object 1: TestObject"), "Header should contain object name");
+        assert!(text.contains("Reproduce Command"), "Header should contain reproduce section");
+    }
+
+    #[test]
+    fn plate_header_json_output_contains_per_object_data() {
+        use crate::engine::{ObjectSliceResult, SliceResult};
+        use crate::estimation::PrintTimeEstimate;
+        use crate::filament::FilamentUsage;
+        use crate::output::build_plate_output_json;
+
+        let base_config = PrintConfig::default();
+        let mut obj_config = base_config.clone();
+        obj_config.layer_height = 0.1;
+
+        let objects = vec![ObjectSliceResult {
+            name: "Test".to_string(),
+            index: 0,
+            result: SliceResult {
+                gcode: Vec::new(),
+                layer_count: 200,
+                estimated_time_seconds: 2700.0,
+                time_estimate: PrintTimeEstimate {
+                    total_seconds: 2700.0,
+                    move_time_seconds: 2000.0,
+                    travel_time_seconds: 500.0,
+                    retraction_count: 30,
+                },
+                filament_usage: FilamentUsage {
+                    length_mm: 4200.0,
+                    length_m: 4.2,
+                    weight_g: 12.5,
+                    cost: 0.30,
+                },
+                preview: None,
+                statistics: None,
+                travel_opt_stats: None,
+            },
+            copies: 2,
+        }];
+
+        let configs = vec![&obj_config as &PrintConfig];
+        let plate_json = build_plate_output_json("sha256:test123", &objects, &base_config, &configs);
+
+        assert_eq!(plate_json.objects.len(), 1);
+        assert_eq!(plate_json.objects[0].name, "Test");
+        assert_eq!(plate_json.objects[0].copies, 2);
+        assert!(plate_json.objects[0].overrides.contains_key("layer_height"));
+        // Totals should account for copies
+        assert!((plate_json.totals.filament_grams - 25.0).abs() < 0.01);
     }
 }

@@ -96,7 +96,10 @@ pub use gcode_analysis::{
     parse_gcode_file, ComparisonDelta, ComparisonResult, FeatureDelta, FeatureFormat,
     FeatureMetrics, GcodeAnalysis, HeaderMetadata, LayerMetrics, SlicerType, SpeedStats,
 };
-pub use gcode_gen::{generate_full_gcode, generate_layer_gcode};
+pub use gcode_gen::{
+    compute_override_diffs, generate_full_gcode, generate_layer_gcode, generate_plate_header,
+    plate_checksum, reproduce_command, OverrideDiffEntry,
+};
 pub use infill::{
     alternate_infill_angle, generate_infill, generate_rectilinear_infill, InfillLine,
     InfillPattern, LayerInfill,
@@ -107,7 +110,10 @@ pub use multimaterial::{
     assign_tools_per_region, generate_purge_tower_layer, generate_tool_change, PurgeTowerLayer,
     ToolChangeSequence,
 };
-pub use output::{to_json, to_msgpack, SliceMetadata};
+pub use output::{
+    build_plate_output_json, plate_to_json, to_json, to_msgpack, ObjectOutputJson,
+    ObjectStatsJson, OverrideDiffJson, PlateOutputJson, PlateTotalsJson, SliceMetadata,
+};
 pub use perimeter::{generate_perimeters, ContourPerimeters, PerimeterShell};
 pub use planner::{
     generate_brim, generate_skirt, plan_fan, plan_retraction, plan_temperatures, RetractionMove,
