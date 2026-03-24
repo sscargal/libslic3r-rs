@@ -26,6 +26,7 @@ mod csg_command;
 mod csg_info;
 mod diff_profiles_command;
 mod override_set;
+mod plate_cmd;
 mod plugins_command;
 mod profile_command;
 mod profile_wizard;
@@ -675,6 +676,13 @@ enum Commands {
     #[command(subcommand)]
     OverrideSet(override_set::OverrideSetCommands),
 
+    /// Manage plate configurations (init, 3MF import/export).
+    ///
+    /// Initialize plate.toml templates, extract objects from 3MF files,
+    /// and package plate configs into 3MF archives.
+    #[command(subcommand)]
+    Plate(plate_cmd::PlateCommands),
+
     /// Post-process an existing G-code file.
     ///
     /// Reads a G-code file, applies configured post-processors (pause-at-layer,
@@ -1088,6 +1096,13 @@ fn main() {
         Commands::OverrideSet(cmd) => {
             let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
             if let Err(e) = override_set::run_override_set(cmd) {
+                output_ctx.error_msg(&format!("{e}"));
+                process::exit(1);
+            }
+        }
+        Commands::Plate(cmd) => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
+            if let Err(e) = plate_cmd::run_plate(cmd) {
                 output_ctx.error_msg(&format!("{e}"));
                 process::exit(1);
             }
