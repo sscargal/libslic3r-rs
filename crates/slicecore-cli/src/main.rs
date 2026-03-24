@@ -21,6 +21,8 @@
 
 mod analysis_display;
 mod calibrate;
+// TODO(phase-46-02): Remove allow(dead_code) once job_dir is wired into cmd_slice.
+#[allow(dead_code)]
 mod job_dir;
 pub mod cli_output;
 mod csg_command;
