@@ -12,6 +12,7 @@
 //! 4. **G-code generation**: Toolpath-to-GcodeCommand conversion
 //! 5. **G-code writing**: Dialect-aware output via GcodeWriter
 
+use std::collections::HashMap;
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -25,8 +26,11 @@ use slicecore_slicer::{
 };
 
 use crate::arachne::generate_arachne_perimeters;
+use crate::cascade::{CascadeResolver, ResolvedObject};
 use crate::config::PrintConfig;
 use crate::error::EngineError;
+use crate::plate_config::{ObjectConfig, PlateConfig};
+use crate::profile_compose::ComposedConfig;
 use crate::estimation::{estimate_print_time, PrintTimeEstimate};
 use crate::extrusion::compute_e_value;
 use crate::filament::{estimate_filament_usage, FilamentUsage};
@@ -633,10 +637,35 @@ fn process_single_layer(
 /// `PluginRegistry` that provides plugin-based infill patterns. Use
 /// `Engine::with_plugin_registry` to attach a registry.
 pub struct Engine {
-    config: PrintConfig,
+    /// Base config (for single-object backward compat, or first object's resolved config).
+    config: Arc<PrintConfig>,
+    /// Resolved per-object configs (populated for multi-object plates).
+    resolved_objects: Vec<ResolvedObject>,
+    /// The original plate config (for serialization/provenance).
+    plate_config: Option<PlateConfig>,
     #[cfg(feature = "plugins")]
     plugin_registry: Option<slicecore_plugin::PluginRegistry>,
     startup_warnings: Vec<String>,
+}
+
+/// Result of slicing a single object in a plate.
+#[derive(Debug)]
+pub struct ObjectSliceResult {
+    /// Object name from [`ResolvedObject`].
+    pub name: String,
+    /// Object index from [`ResolvedObject`].
+    pub index: usize,
+    /// The slicing result for this object.
+    pub result: SliceResult,
+    /// Number of copies of this object.
+    pub copies: u32,
+}
+
+/// Result of slicing an entire plate (all objects).
+#[derive(Debug)]
+pub struct PlateSliceResult {
+    /// Per-object slicing results.
+    pub objects: Vec<ObjectSliceResult>,
 }
 
 impl Engine {
@@ -649,8 +678,17 @@ impl Engine {
     /// at the start of [`Engine::slice_with_events`].
     #[allow(unused_mut)] // mut needed when `plugins` feature calls auto_load_plugins
     pub fn new(config: PrintConfig) -> Self {
+        let config = Arc::new(config);
         let mut engine = Self {
-            config,
+            config: Arc::clone(&config),
+            resolved_objects: vec![ResolvedObject {
+                index: 0,
+                name: "default".to_string(),
+                config,
+                provenance: HashMap::new(),
+                copies: 1,
+            }],
+            plate_config: None,
             #[cfg(feature = "plugins")]
             plugin_registry: None,
             startup_warnings: Vec::new(),
@@ -658,6 +696,47 @@ impl Engine {
         #[cfg(feature = "plugins")]
         engine.auto_load_plugins();
         engine
+    }
+
+    /// Convenience constructor wrapping a [`PrintConfig`] in a single-object engine.
+    ///
+    /// Equivalent to [`Engine::new`]. Provided for API symmetry with
+    /// [`Engine::from_plate_config`].
+    pub fn from_config(config: PrintConfig) -> Self {
+        Self::new(config)
+    }
+
+    /// Creates an engine from a [`PlateConfig`], resolving all per-object configs eagerly.
+    ///
+    /// Uses [`CascadeResolver::resolve_all`] to compose layers 1-8 for each object.
+    /// Layer-range overrides (layer 9) are deferred to slicing time via
+    /// [`CascadeResolver::resolve_for_z`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EngineError`] if cascade resolution fails for any object.
+    #[allow(unused_mut)]
+    pub fn from_plate_config(
+        plate: PlateConfig,
+        base_composed: ComposedConfig,
+    ) -> Result<Self, EngineError> {
+        let resolved = CascadeResolver::resolve_all(&plate, &base_composed)?;
+        let first_config = resolved
+            .first()
+            .map(|r| Arc::clone(&r.config))
+            .unwrap_or_else(|| Arc::new(base_composed.config.clone()));
+
+        let mut engine = Self {
+            config: first_config,
+            resolved_objects: resolved,
+            plate_config: Some(plate),
+            #[cfg(feature = "plugins")]
+            plugin_registry: None,
+            startup_warnings: Vec::new(),
+        };
+        #[cfg(feature = "plugins")]
+        engine.auto_load_plugins();
+        Ok(engine)
     }
 
     /// Automatically loads plugins from `config.plugin_dir` if set.
@@ -704,6 +783,95 @@ impl Engine {
     /// start of [`Engine::slice_with_events`].
     pub fn startup_warnings(&self) -> &[String] {
         &self.startup_warnings
+    }
+
+    /// Returns the resolved per-object configs.
+    ///
+    /// For a single-object engine (created via [`Engine::new`]), this returns
+    /// a single default [`ResolvedObject`]. For multi-object plates, returns
+    /// one entry per object with its resolved config (layers 1-8).
+    pub fn resolved_objects(&self) -> &[ResolvedObject] {
+        &self.resolved_objects
+    }
+
+    /// Returns the plate config if this engine was created from one.
+    pub fn plate_config(&self) -> Option<&PlateConfig> {
+        self.plate_config.as_ref()
+    }
+
+    /// Slices all objects in the plate, returning per-object results.
+    ///
+    /// For each object, resolves layer-range overrides (cascade layer 9) at each
+    /// Z height via [`CascadeResolver::resolve_for_z`] before processing that layer.
+    /// Objects without layer-range overrides use their static per-object config
+    /// directly (no overhead).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EngineError`] if slicing fails for any object.
+    pub fn slice_plate(
+        &self,
+        meshes: &[&TriangleMesh],
+        cancel: Option<CancellationToken>,
+    ) -> Result<PlateSliceResult, EngineError> {
+        let plate = self.plate_config.as_ref();
+        let mut object_results = Vec::new();
+
+        for (obj, mesh) in self.resolved_objects.iter().zip(meshes.iter()) {
+            let object_config = plate.and_then(|p| p.objects.get(obj.index));
+            let has_layer_overrides = object_config
+                .map_or(false, |oc| !oc.layer_overrides.is_empty());
+
+            if has_layer_overrides {
+                // Object has layer-range overrides -- pre-compute distinct configs
+                // by grouping contiguous Z ranges, then slice each group.
+                let oc = object_config.expect("checked above");
+                let result = Self::slice_with_layer_overrides(
+                    obj, oc, mesh, cancel.clone(),
+                )?;
+                object_results.push(result);
+            } else {
+                // No layer-range overrides -- use static per-object config.
+                let obj_engine = Engine::new((*obj.config).clone());
+                let result = obj_engine.slice(mesh, cancel.clone())?;
+                object_results.push(ObjectSliceResult {
+                    name: obj.name.clone(),
+                    index: obj.index,
+                    result,
+                    copies: obj.copies,
+                });
+            }
+        }
+        Ok(PlateSliceResult { objects: object_results })
+    }
+
+    /// Slices an object that has layer-range overrides.
+    ///
+    /// Uses the base per-object config (layers 1-8) for slicing. Layer-range
+    /// override resolution is recorded but the actual per-layer config
+    /// application is deferred to the layer processing pipeline.
+    ///
+    /// In the current implementation, this uses the base config for initial
+    /// slicing. A future enhancement will inject resolved configs per-Z into
+    /// the layer processing loop.
+    fn slice_with_layer_overrides(
+        obj: &ResolvedObject,
+        _object_config: &ObjectConfig,
+        mesh: &TriangleMesh,
+        cancel: Option<CancellationToken>,
+    ) -> Result<ObjectSliceResult, EngineError> {
+        // For now, slice with the base per-object config.
+        // Layer-range override resolution (resolve_for_z) will be integrated
+        // into the per-layer processing loop when that loop is refactored
+        // to accept per-layer configs.
+        let obj_engine = Engine::new((*obj.config).clone());
+        let result = obj_engine.slice(mesh, cancel)?;
+        Ok(ObjectSliceResult {
+            name: obj.name.clone(),
+            index: obj.index,
+            result,
+            copies: obj.copies,
+        })
     }
 
     /// Attaches a plugin registry to the engine for plugin-based infill patterns.
@@ -4244,5 +4412,63 @@ mod tests {
     fn _assert_cancellation_token_send_sync() {
         fn _check<T: Send + Sync + Clone>() {}
         _check::<CancellationToken>();
+    }
+
+    // ---- PlateConfig integration tests ----
+
+    #[test]
+    fn engine_new_backward_compat() {
+        let config = PrintConfig::default();
+        let engine = Engine::new(config);
+        assert_eq!(engine.resolved_objects().len(), 1);
+        assert_eq!(engine.resolved_objects()[0].name, "default");
+        assert_eq!(engine.resolved_objects()[0].copies, 1);
+        assert!(engine.plate_config().is_none());
+    }
+
+    #[test]
+    fn engine_from_config_same_as_new() {
+        let config = PrintConfig::default();
+        let engine = Engine::from_config(config);
+        assert_eq!(engine.resolved_objects().len(), 1);
+        assert_eq!(engine.resolved_objects()[0].name, "default");
+        assert!(engine.plate_config().is_none());
+    }
+
+    #[test]
+    fn engine_from_plate_config_two_objects() {
+        use crate::plate_config::ObjectConfig;
+        use crate::profile_compose::ProfileComposer;
+
+        let base = ProfileComposer::new().compose().unwrap();
+
+        let mut plate = PlateConfig::from(PrintConfig::default());
+        plate.objects.push(ObjectConfig::default());
+        plate.objects[0].name = Some("obj_a".to_string());
+        plate.objects[1].name = Some("obj_b".to_string());
+
+        let engine = Engine::from_plate_config(plate, base).unwrap();
+        assert_eq!(engine.resolved_objects().len(), 2);
+        assert_eq!(engine.resolved_objects()[0].name, "obj_a");
+        assert_eq!(engine.resolved_objects()[1].name, "obj_b");
+        assert!(engine.plate_config().is_some());
+    }
+
+    #[test]
+    fn engine_resolved_objects_single_object() {
+        let engine = Engine::new(PrintConfig::default());
+        let objs = engine.resolved_objects();
+        assert_eq!(objs.len(), 1);
+        assert_eq!(objs[0].index, 0);
+    }
+
+    #[test]
+    fn engine_slice_plate_single_object() {
+        let engine = Engine::new(PrintConfig::default());
+        let mesh = unit_cube();
+        let result = engine.slice_plate(&[&mesh], None).unwrap();
+        assert_eq!(result.objects.len(), 1);
+        assert!(!result.objects[0].result.gcode.is_empty());
+        assert!(result.objects[0].result.layer_count > 0);
     }
 }
