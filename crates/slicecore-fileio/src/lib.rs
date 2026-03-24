@@ -44,6 +44,9 @@ pub use export::{
     ExportFormat,
 };
 pub use stl::parse_stl;
+pub use threemf::{
+    ThreeMfImportResult, ThreeMfImportSummary, ThreeMfModifier, ThreeMfObjectConfig,
+};
 
 use slicecore_mesh::TriangleMesh;
 

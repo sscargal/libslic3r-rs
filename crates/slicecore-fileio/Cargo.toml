@@ -16,6 +16,7 @@ tobj = { version = "4", default-features = false }
 lib3mf-core = { version = "0.4", default-features = false }
 lib3mf-converters = { version = "0.4", default-features = false }
 glam = ">=0.31, <0.32"
+toml = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
