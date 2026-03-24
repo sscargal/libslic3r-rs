@@ -68,6 +68,7 @@ pub mod support;
 pub mod surface;
 pub mod toolpath;
 pub mod travel_optimizer;
+pub mod z_schedule;
 
 // Re-export primary types at crate root.
 pub use arachne::{generate_arachne_perimeters, ArachnePerimeter, ArachneResult};
