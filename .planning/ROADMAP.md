@@ -818,7 +818,7 @@ Plans:
 **Goal:** Implement a layered settings override system (global → per-object → per-region) with proper cascading, validation, and serialization, enabling users to customize specific objects on multi-object plates with different infill, layer height, or other parameters.
 **Requirements**: [ADV-03]
 **Depends on:** Phase 44
-**Plans:** 10/10 plans complete
+**Plans:** 11 plans (10 complete, 1 gap closure)
 
 Plans:
 - [ ] 45-01-PLAN.md — Core data model: PlateConfig, ObjectConfig, FieldSource extension, OverrideSafety enum
@@ -831,6 +831,7 @@ Plans:
 - [ ] 45-08-PLAN.md — 3MF import/export of per-object settings and modifier meshes
 - [ ] 45-09-PLAN.md — Serialization: G-code header, per-object stats, provenance, checksum
 - [ ] 45-10-PLAN.md — E2E tests, test fixtures, criterion benchmarks, regression tests
+- [ ] 45-11-PLAN.md — Gap closure: wire plate from-3mf/to-3mf to per-object-aware fileio functions
 
 ### Phase 46: Job output directories for isolated slice execution — add --job-dir flag with structured output directory containing G-code, logs, config snapshot, thumbnail, and manifest
 
