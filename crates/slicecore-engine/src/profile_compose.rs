@@ -41,8 +41,16 @@ use crate::config::PrintConfig;
 use crate::error::EngineError;
 
 /// The type of source a profile field originated from.
+///
+/// Variants correspond to cascade layers 1-10:
+/// - Layers 1-6: base profile composition (Default through CliSet)
+/// - Layer 7: default object overrides applied to all objects
+/// - Layer 8: per-object overrides (named set or inline)
+/// - Layer 9: layer-range overrides within Z or layer bounds
+/// - Layer 10: per-region overrides from modifier meshes
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SourceType {
+    // --- Layers 1-6: base profile composition ---
     /// Engine-compiled defaults (`PrintConfig::default()`).
     Default,
     /// Machine/printer profile layer.
@@ -55,6 +63,28 @@ pub enum SourceType {
     UserOverride,
     /// CLI `--set key=value` override.
     CliSet,
+    // --- Layers 7-10: per-object override cascade ---
+    /// Default overrides applied to all objects (layer 7).
+    DefaultObjectOverride,
+    /// Per-object overrides from named set or inline (layer 8).
+    PerObjectOverride {
+        /// Identifier for the object these overrides apply to.
+        object_id: String,
+    },
+    /// Layer-range overrides within a Z or layer number range (layer 9).
+    LayerRangeOverride {
+        /// Identifier for the object these overrides apply to.
+        object_id: String,
+        /// Human-readable range description (e.g., "z:0.4-2.0" or "layers:5-10").
+        range_desc: String,
+    },
+    /// Per-region overrides from modifier meshes (layer 10).
+    PerRegionOverride {
+        /// Identifier for the object these overrides apply to.
+        object_id: String,
+        /// Identifier for the modifier mesh defining the region.
+        modifier_id: String,
+    },
 }
 
 impl std::fmt::Display for SourceType {
@@ -66,6 +96,18 @@ impl std::fmt::Display for SourceType {
             Self::Process => write!(f, "process"),
             Self::UserOverride => write!(f, "user-override"),
             Self::CliSet => write!(f, "cli-set"),
+            Self::DefaultObjectOverride => write!(f, "default-object-override"),
+            Self::PerObjectOverride { object_id } => {
+                write!(f, "per-object({object_id})")
+            }
+            Self::LayerRangeOverride {
+                object_id,
+                range_desc,
+            } => write!(f, "layer-range({object_id}:{range_desc})"),
+            Self::PerRegionOverride {
+                object_id,
+                modifier_id,
+            } => write!(f, "per-region({object_id}:{modifier_id})"),
         }
     }
 }
@@ -939,5 +981,58 @@ mod tests {
         let b = compute_sha256("hello");
         assert_eq!(a, b);
         assert_ne!(a, compute_sha256("world"));
+    }
+
+    #[test]
+    fn source_type_display_default_object_override() {
+        assert_eq!(
+            SourceType::DefaultObjectOverride.to_string(),
+            "default-object-override"
+        );
+    }
+
+    #[test]
+    fn source_type_display_per_object_override() {
+        let src = SourceType::PerObjectOverride {
+            object_id: "cube".to_string(),
+        };
+        assert_eq!(src.to_string(), "per-object(cube)");
+    }
+
+    #[test]
+    fn source_type_display_layer_range_override() {
+        let src = SourceType::LayerRangeOverride {
+            object_id: "cube".to_string(),
+            range_desc: "z:0.4-2.0".to_string(),
+        };
+        assert_eq!(src.to_string(), "layer-range(cube:z:0.4-2.0)");
+    }
+
+    #[test]
+    fn source_type_display_per_region_override() {
+        let src = SourceType::PerRegionOverride {
+            object_id: "cube".to_string(),
+            modifier_id: "box1".to_string(),
+        };
+        assert_eq!(src.to_string(), "per-region(cube:box1)");
+    }
+
+    #[test]
+    fn add_table_layer_merges_correctly() {
+        let mut composer = ProfileComposer::new();
+        let mut table = toml::map::Map::new();
+        let mut speeds = toml::map::Map::new();
+        speeds.insert("perimeter".to_string(), toml::Value::Float(80.0));
+        table.insert("speeds".to_string(), toml::Value::Table(speeds));
+
+        composer.add_table_layer(SourceType::DefaultObjectOverride, table);
+
+        let result = composer.compose().unwrap();
+        assert!(
+            (result.config.speeds.perimeter - 80.0).abs() < f64::EPSILON,
+            "table layer override should apply"
+        );
+        let source = result.provenance.get("speeds.perimeter").unwrap();
+        assert_eq!(source.source_type, SourceType::DefaultObjectOverride);
     }
 }

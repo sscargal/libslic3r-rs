@@ -194,6 +194,37 @@ pub enum Constraint {
     },
 }
 
+/// Override safety classification for per-object/per-region overrides.
+///
+/// Controls whether a setting can be meaningfully overridden at the object
+/// or region level. Used by the cascade resolver to warn or ignore
+/// nonsensical overrides.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum OverrideSafety {
+    /// Safe to override in any context (per-object, per-region).
+    Safe,
+    /// Nonsensical in some override contexts but allowed (warns).
+    Warn,
+    /// Has no effect as a per-region override (silently ignored).
+    Ignored,
+}
+
+impl Default for OverrideSafety {
+    fn default() -> Self {
+        Self::Safe
+    }
+}
+
+impl std::fmt::Display for OverrideSafety {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Safe => write!(f, "safe"),
+            Self::Warn => write!(f, "warn"),
+            Self::Ignored => write!(f, "ignored"),
+        }
+    }
+}
+
 /// Full metadata definition for a single setting in the schema.
 ///
 /// Contains all information needed for UI rendering, validation, documentation,
@@ -228,6 +259,8 @@ pub struct SettingDefinition {
     pub since_version: String,
     /// If deprecated, the reason/migration guidance.
     pub deprecated: Option<String>,
+    /// Override safety classification for per-object/per-region contexts.
+    pub override_safety: OverrideSafety,
 }
 
 /// Trait implemented by config structs to provide setting metadata.
@@ -241,4 +274,21 @@ pub trait HasSettingSchema {
     ///
     /// * `prefix` - Dotted path prefix to prepend to all setting keys (e.g., `"print"`).
     fn setting_definitions(prefix: &str) -> Vec<SettingDefinition>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn override_safety_display() {
+        assert_eq!(OverrideSafety::Safe.to_string(), "safe");
+        assert_eq!(OverrideSafety::Warn.to_string(), "warn");
+        assert_eq!(OverrideSafety::Ignored.to_string(), "ignored");
+    }
+
+    #[test]
+    fn override_safety_default_is_safe() {
+        assert_eq!(OverrideSafety::default(), OverrideSafety::Safe);
+    }
 }

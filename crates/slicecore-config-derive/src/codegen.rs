@@ -176,6 +176,7 @@ fn generate_struct_impl(
                     tags: ::std::vec![#(#tag_exprs),*],
                     since_version: #since_version.to_string(),
                     deprecated: #deprecated,
+                    override_safety: ::slicecore_config_schema::OverrideSafety::default(),
                 });
             }
         });
@@ -232,6 +233,7 @@ fn generate_enum_impl(_name: &syn::Ident, data: &syn::DataEnum) -> syn::Result<T
             tags: ::std::vec::Vec::new(),
             since_version: "0.1.0".to_string(),
             deprecated: ::std::option::Option::None,
+            override_safety: ::slicecore_config_schema::OverrideSafety::default(),
         }]
     })
 }
