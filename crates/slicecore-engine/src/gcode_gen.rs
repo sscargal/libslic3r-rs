@@ -23,8 +23,8 @@ use slicecore_gcode_io::{format_acceleration, format_pressure_advance, GcodeComm
 use crate::config::PrintConfig;
 use crate::custom_gcode::substitute_placeholders;
 use crate::engine::PlateSliceResult;
-use crate::plate_config::{MeshSource, PlateConfig};
 use crate::planner::{plan_bridge_fan, plan_fan, plan_retraction, plan_temperatures};
+use crate::plate_config::{MeshSource, PlateConfig};
 use crate::toolpath::{FeatureType, LayerToolpath};
 
 /// Generates G-code commands for a single layer's toolpath.
@@ -493,14 +493,10 @@ pub fn generate_plate_header(
             // Find the override set name if any.
             if let Some(obj_cfg) = plate.objects.get(i) {
                 if let Some(ref set_name) = obj_cfg.override_set {
-                    cmds.push(GcodeCommand::Comment(format!(
-                        "Override set: {set_name}"
-                    )));
+                    cmds.push(GcodeCommand::Comment(format!("Override set: {set_name}")));
                 }
             }
-            cmds.push(GcodeCommand::Comment(
-                "Overrides from base:".to_string(),
-            ));
+            cmds.push(GcodeCommand::Comment("Overrides from base:".to_string()));
             for diff in &diffs {
                 cmds.push(GcodeCommand::Comment(format!(
                     "  {} = {} (base: {})",
@@ -519,8 +515,7 @@ pub fn generate_plate_header(
         )));
         cmds.push(GcodeCommand::Comment(format!(
             "Filament: {:.1}g ({:.1}m)",
-            obj_result.result.filament_usage.weight_g,
-            obj_result.result.filament_usage.length_m,
+            obj_result.result.filament_usage.weight_g, obj_result.result.filament_usage.length_m,
         )));
         cmds.push(GcodeCommand::Comment(format!(
             "Time: {}",
@@ -1229,7 +1224,10 @@ mod tests {
         use crate::plate_config::PlateConfig;
         let plate = PlateConfig::default();
         let checksum = plate_checksum(&plate);
-        assert!(checksum.starts_with("sha256:"), "Checksum should start with sha256:");
+        assert!(
+            checksum.starts_with("sha256:"),
+            "Checksum should start with sha256:"
+        );
         assert!(checksum.len() > 10, "Checksum should be non-trivially long");
     }
 
@@ -1250,19 +1248,13 @@ mod tests {
     fn reproduce_command_without_plate_file() {
         use crate::plate_config::{MeshSource, ObjectConfig, PlateConfig};
         let plate = PlateConfig {
-            objects: vec![
-                ObjectConfig {
-                    mesh_source: MeshSource::File(std::path::PathBuf::from("model.stl")),
-                    ..ObjectConfig::default()
-                },
-            ],
+            objects: vec![ObjectConfig {
+                mesh_source: MeshSource::File(std::path::PathBuf::from("model.stl")),
+                ..ObjectConfig::default()
+            }],
             ..PlateConfig::default()
         };
-        let cmd = reproduce_command(
-            &plate,
-            None,
-            std::path::Path::new("output.gcode"),
-        );
+        let cmd = reproduce_command(&plate, None, std::path::Path::new("output.gcode"));
         assert!(cmd.contains("model.stl"));
         assert!(cmd.contains("--output output.gcode"));
         assert!(!cmd.contains("--plate"));
@@ -1277,8 +1269,14 @@ mod tests {
 
         let diffs = compute_override_diffs(&base, &modified);
         let keys: Vec<&str> = diffs.iter().map(|d| d.key.as_str()).collect();
-        assert!(keys.contains(&"layer_height"), "Should detect layer_height diff");
-        assert!(keys.contains(&"wall_count"), "Should detect wall_count diff");
+        assert!(
+            keys.contains(&"layer_height"),
+            "Should detect layer_height diff"
+        );
+        assert!(
+            keys.contains(&"wall_count"),
+            "Should detect wall_count diff"
+        );
     }
 
     #[test]
@@ -1298,33 +1296,31 @@ mod tests {
         let plate = PlateConfig::default();
         let base_config = PrintConfig::default();
         let result = PlateSliceResult {
-            objects: vec![
-                ObjectSliceResult {
-                    name: "TestObject".to_string(),
-                    index: 0,
-                    result: SliceResult {
-                        gcode: Vec::new(),
-                        layer_count: 100,
-                        estimated_time_seconds: 3600.0,
-                        time_estimate: PrintTimeEstimate {
-                            total_seconds: 3600.0,
-                            move_time_seconds: 2800.0,
-                            travel_time_seconds: 600.0,
-                            retraction_count: 50,
-                        },
-                        filament_usage: FilamentUsage {
-                            length_mm: 5000.0,
-                            length_m: 5.0,
-                            weight_g: 15.0,
-                            cost: 0.38,
-                        },
-                        preview: None,
-                        statistics: None,
-                        travel_opt_stats: None,
+            objects: vec![ObjectSliceResult {
+                name: "TestObject".to_string(),
+                index: 0,
+                result: SliceResult {
+                    gcode: Vec::new(),
+                    layer_count: 100,
+                    estimated_time_seconds: 3600.0,
+                    time_estimate: PrintTimeEstimate {
+                        total_seconds: 3600.0,
+                        move_time_seconds: 2800.0,
+                        travel_time_seconds: 600.0,
+                        retraction_count: 50,
                     },
-                    copies: 1,
+                    filament_usage: FilamentUsage {
+                        length_mm: 5000.0,
+                        length_m: 5.0,
+                        weight_g: 15.0,
+                        cost: 0.38,
+                    },
+                    preview: None,
+                    statistics: None,
+                    travel_opt_stats: None,
                 },
-            ],
+                copies: 1,
+            }],
         };
 
         let configs = vec![&base_config];
@@ -1349,10 +1345,22 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
 
-        assert!(text.contains("Plate checksum: sha256:"), "Header should contain checksum");
-        assert!(text.contains("Objects: 1"), "Header should contain object count");
-        assert!(text.contains("Object 1: TestObject"), "Header should contain object name");
-        assert!(text.contains("Reproduce Command"), "Header should contain reproduce section");
+        assert!(
+            text.contains("Plate checksum: sha256:"),
+            "Header should contain checksum"
+        );
+        assert!(
+            text.contains("Objects: 1"),
+            "Header should contain object count"
+        );
+        assert!(
+            text.contains("Object 1: TestObject"),
+            "Header should contain object name"
+        );
+        assert!(
+            text.contains("Reproduce Command"),
+            "Header should contain reproduce section"
+        );
     }
 
     #[test]
@@ -1393,7 +1401,8 @@ mod tests {
         }];
 
         let configs = vec![&obj_config as &PrintConfig];
-        let plate_json = build_plate_output_json("sha256:test123", &objects, &base_config, &configs);
+        let plate_json =
+            build_plate_output_json("sha256:test123", &objects, &base_config, &configs);
 
         assert_eq!(plate_json.objects.len(), 1);
         assert_eq!(plate_json.objects[0].name, "Test");

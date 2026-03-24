@@ -48,8 +48,8 @@ pub mod multimaterial;
 pub mod output;
 mod parallel;
 pub mod perimeter;
-pub mod plate_config;
 pub mod planner;
+pub mod plate_config;
 pub mod polyhole;
 pub mod postprocess_builtin;
 pub mod preview;
@@ -76,8 +76,7 @@ pub use builtin_profiles::{get_builtin_profile, list_builtin_profiles, BuiltinPr
 pub use calibration::{generate_pa_calibration, generate_pa_calibration_gcode};
 pub use config::{
     MultiMaterialConfig, PaCalibrationConfig, PrintConfig, PrintOrder, ScarfJointConfig,
-    ScarfJointType, SequentialConfig, ToolConfig, TravelOptAlgorithm,
-    TravelOptConfig, WallOrder,
+    ScarfJointType, SequentialConfig, ToolConfig, TravelOptAlgorithm, TravelOptConfig, WallOrder,
 };
 pub use config_validate::{
     resolve_template_variables, validate_config, ValidationIssue, ValidationSeverity,
@@ -111,8 +110,8 @@ pub use multimaterial::{
     ToolChangeSequence,
 };
 pub use output::{
-    build_plate_output_json, plate_to_json, to_json, to_msgpack, ObjectOutputJson,
-    ObjectStatsJson, OverrideDiffJson, PlateOutputJson, PlateTotalsJson, SliceMetadata,
+    build_plate_output_json, plate_to_json, to_json, to_msgpack, ObjectOutputJson, ObjectStatsJson,
+    OverrideDiffJson, PlateOutputJson, PlateTotalsJson, SliceMetadata,
 };
 pub use perimeter::{generate_perimeters, ContourPerimeters, PerimeterShell};
 pub use planner::{

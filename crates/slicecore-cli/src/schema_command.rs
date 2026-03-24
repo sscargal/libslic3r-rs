@@ -157,8 +157,7 @@ pub fn run_schema_command(args: &SchemaArgs) -> Result<(), Box<dyn std::error::E
                 .override_safety
                 .as_ref()
                 .map(SafetyFilter::to_override_safety);
-            let metadata =
-                registry.to_filtered_metadata_json_with_safety(tier, category, safety);
+            let metadata = registry.to_filtered_metadata_json_with_safety(tier, category, safety);
             println!("{}", serde_json::to_string_pretty(&metadata)?);
         }
     }

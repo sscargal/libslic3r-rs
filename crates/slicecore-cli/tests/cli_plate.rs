@@ -196,7 +196,9 @@ fn test_multiple_models_create_plate() {
         "Expected multi-model slice to succeed. stderr: {stderr}"
     );
     assert!(
-        stdout.contains("Objects: 2") || stderr.contains("object 1/") || stderr.contains("object 2/"),
+        stdout.contains("Objects: 2")
+            || stderr.contains("object 1/")
+            || stderr.contains("object 2/"),
         "Expected output to mention multiple objects. stdout: {stdout}, stderr: {stderr}"
     );
 }
@@ -240,10 +242,7 @@ fn test_invalid_object_index_error() {
 #[test]
 fn test_strict_flag_exists() {
     // Verify the --strict flag is accepted by the CLI parser
-    let output = slicecore_bin()
-        .args(["slice", "--help"])
-        .output()
-        .unwrap();
+    let output = slicecore_bin().args(["slice", "--help"]).output().unwrap();
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(

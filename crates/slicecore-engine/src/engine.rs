@@ -29,8 +29,6 @@ use crate::arachne::generate_arachne_perimeters;
 use crate::cascade::{CascadeResolver, ResolvedObject};
 use crate::config::PrintConfig;
 use crate::error::EngineError;
-use crate::plate_config::{ObjectConfig, PlateConfig};
-use crate::profile_compose::ComposedConfig;
 use crate::estimation::{estimate_print_time, PrintTimeEstimate};
 use crate::extrusion::compute_e_value;
 use crate::filament::{estimate_filament_usage, FilamentUsage};
@@ -42,7 +40,9 @@ use crate::modifier::{slice_modifier, split_by_modifiers, ModifierMesh};
 use crate::parallel::{maybe_par_iter, AtomicProgress};
 use crate::perimeter::generate_perimeters;
 use crate::planner::{generate_brim, generate_skirt};
+use crate::plate_config::{ObjectConfig, PlateConfig};
 use crate::preview::{generate_preview, SlicePreview};
+use crate::profile_compose::ComposedConfig;
 use crate::statistics::compute_statistics;
 use crate::support;
 use crate::surface::classify_surfaces;
@@ -819,16 +819,14 @@ impl Engine {
 
         for (obj, mesh) in self.resolved_objects.iter().zip(meshes.iter()) {
             let object_config = plate.and_then(|p| p.objects.get(obj.index));
-            let has_layer_overrides = object_config
-                .map_or(false, |oc| !oc.layer_overrides.is_empty());
+            let has_layer_overrides =
+                object_config.map_or(false, |oc| !oc.layer_overrides.is_empty());
 
             if has_layer_overrides {
                 // Object has layer-range overrides -- pre-compute distinct configs
                 // by grouping contiguous Z ranges, then slice each group.
                 let oc = object_config.expect("checked above");
-                let result = Self::slice_with_layer_overrides(
-                    obj, oc, mesh, cancel.clone(),
-                )?;
+                let result = Self::slice_with_layer_overrides(obj, oc, mesh, cancel.clone())?;
                 object_results.push(result);
             } else {
                 // No layer-range overrides -- use static per-object config.
@@ -842,7 +840,9 @@ impl Engine {
                 });
             }
         }
-        Ok(PlateSliceResult { objects: object_results })
+        Ok(PlateSliceResult {
+            objects: object_results,
+        })
     }
 
     /// Slices an object that has layer-range overrides.

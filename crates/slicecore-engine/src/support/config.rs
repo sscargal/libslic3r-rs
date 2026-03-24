@@ -550,7 +550,11 @@ impl Default for TreeSupportConfig {
 #[setting(category = "Support")]
 pub struct SupportConfig {
     /// Enable support generation.
-    #[setting(tier = 1, description = "Enable support structures", override_safety = "safe")]
+    #[setting(
+        tier = 1,
+        description = "Enable support structures",
+        override_safety = "safe"
+    )]
     pub enabled: bool,
     /// Support type selection strategy.
     #[setting(

@@ -33,9 +33,7 @@ fn bench_cascade_resolution(c: &mut Criterion) {
     group.bench_function("single_object_no_overrides", |b| {
         let plate = PlateConfig::single_object(PrintConfig::default());
         let base = base_composed();
-        b.iter(|| {
-            CascadeResolver::resolve_all(black_box(&plate), black_box(&base)).unwrap()
-        });
+        b.iter(|| CascadeResolver::resolve_all(black_box(&plate), black_box(&base)).unwrap());
     });
 
     // Benchmark: 10 objects with overrides
@@ -55,9 +53,7 @@ fn bench_cascade_resolution(c: &mut Criterion) {
             });
         }
         let base = base_composed();
-        b.iter(|| {
-            CascadeResolver::resolve_all(black_box(&plate), black_box(&base)).unwrap()
-        });
+        b.iter(|| CascadeResolver::resolve_all(black_box(&plate), black_box(&base)).unwrap());
     });
 
     // Benchmark: scaling with object count
@@ -68,8 +64,7 @@ fn bench_cascade_resolution(c: &mut Criterion) {
             |b, &count| {
                 let mut plate = PlateConfig::default();
                 let mut override_table = toml::map::Map::new();
-                override_table
-                    .insert("infill_density".to_string(), toml::Value::Float(0.5));
+                override_table.insert("infill_density".to_string(), toml::Value::Float(0.5));
                 plate
                     .override_sets
                     .insert("test".to_string(), override_table);
@@ -131,5 +126,9 @@ fn bench_config_merge_overhead(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_cascade_resolution, bench_config_merge_overhead);
+criterion_group!(
+    benches,
+    bench_cascade_resolution,
+    bench_config_merge_overhead
+);
 criterion_main!(benches);

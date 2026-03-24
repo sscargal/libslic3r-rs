@@ -121,11 +121,8 @@ pub fn split_by_modifiers(
         let intersection = polygon_intersection(&remainder, &modifier.contours).unwrap_or_default();
 
         if !intersection.is_empty() {
-            let effective_config = apply_toml_overrides(
-                &base_table,
-                &modifier.overrides,
-                &modifier.modifier_id,
-            );
+            let effective_config =
+                apply_toml_overrides(&base_table, &modifier.overrides, &modifier.modifier_id);
             regions.push((intersection, effective_config));
 
             // Subtract this modifier's footprint from the remainder.
@@ -250,7 +247,10 @@ mod tests {
         let region = region.unwrap();
         assert!(!region.contours.is_empty());
         assert_eq!(
-            region.overrides.get("infill_density").and_then(toml::Value::as_float),
+            region
+                .overrides
+                .get("infill_density")
+                .and_then(toml::Value::as_float),
             Some(0.8)
         );
     }

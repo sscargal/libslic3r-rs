@@ -156,7 +156,12 @@ mod tests {
             total_height: 1.0,
         }]);
         // Expected: 0.3, 0.5, 0.7, 0.9, 1.0
-        assert_eq!(schedule.z_heights.len(), 5, "z_heights: {:?}", schedule.z_heights);
+        assert_eq!(
+            schedule.z_heights.len(),
+            5,
+            "z_heights: {:?}",
+            schedule.z_heights
+        );
         assert!((schedule.z_heights[0] - 0.3).abs() < 1e-9);
         assert!((*schedule.z_heights.last().unwrap() - 1.0).abs() < 1e-9);
     }
@@ -200,7 +205,12 @@ mod tests {
         // Object 0: 0.1, 0.2, 0.3
         // Object 1: 0.3
         // Union: 0.1, 0.2, 0.3
-        assert_eq!(schedule.z_heights.len(), 3, "z_heights: {:?}", schedule.z_heights);
+        assert_eq!(
+            schedule.z_heights.len(),
+            3,
+            "z_heights: {:?}",
+            schedule.z_heights
+        );
         assert!(!schedule.is_uniform());
     }
 
@@ -271,7 +281,10 @@ mod tests {
         // Object 0: 50 layers, Object 1: ~71 layers, Object 2: ~167 layers
         // Union should be near 50+71+167 - overlaps => likely > 2*167
         if schedule2.z_heights.len() > 167 * 2 {
-            assert!(!schedule2.warnings.is_empty(), "should warn about Z explosion");
+            assert!(
+                !schedule2.warnings.is_empty(),
+                "should warn about Z explosion"
+            );
         }
         // Either way, verify the warning format is correct if present
         for w in &schedule.warnings {
@@ -305,7 +318,12 @@ mod tests {
             },
         ]);
         for w in schedule.z_heights.windows(2) {
-            assert!(w[0] <= w[1], "Z heights must be sorted: {} > {}", w[0], w[1]);
+            assert!(
+                w[0] <= w[1],
+                "Z heights must be sorted: {} > {}",
+                w[0],
+                w[1]
+            );
         }
     }
 }

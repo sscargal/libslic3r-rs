@@ -144,18 +144,13 @@ impl CascadeResolver {
         let mut results = Vec::with_capacity(plate.objects.len());
 
         for (i, object) in plate.objects.iter().enumerate() {
-            let name = object
-                .name
-                .clone()
-                .unwrap_or_else(|| format!("object_{i}"));
+            let name = object.name.clone().unwrap_or_else(|| format!("object_{i}"));
 
-            let needs_resolution = has_defaults
-                || object.override_set.is_some()
-                || object.inline_overrides.is_some();
+            let needs_resolution =
+                has_defaults || object.override_set.is_some() || object.inline_overrides.is_some();
 
             if needs_resolution {
-                let composed =
-                    Self::resolve_object_config(base_composed, plate, object, i)?;
+                let composed = Self::resolve_object_config(base_composed, plate, object, i)?;
                 results.push(ResolvedObject {
                     index: i,
                     name,
@@ -298,10 +293,7 @@ mod tests {
         let results = CascadeResolver::resolve_all(&plate, &base).unwrap();
         assert_eq!(results.len(), 1);
         // Config should match the base
-        assert_eq!(
-            results[0].config.layer_height,
-            base.config.layer_height,
-        );
+        assert_eq!(results[0].config.layer_height, base.config.layer_height,);
         assert_eq!(results[0].name, "object_0");
         assert_eq!(results[0].copies, 1);
     }
@@ -312,10 +304,7 @@ mod tests {
         let mut plate = simple_plate();
 
         let mut overrides = toml::map::Map::new();
-        overrides.insert(
-            "infill_density".to_string(),
-            toml::Value::Float(0.75),
-        );
+        overrides.insert("infill_density".to_string(), toml::Value::Float(0.75));
         plate.default_object_overrides = Some(overrides);
 
         let results = CascadeResolver::resolve_all(&plate, &base).unwrap();
@@ -349,10 +338,7 @@ mod tests {
         let mut plate = simple_plate();
 
         let mut inline = toml::map::Map::new();
-        inline.insert(
-            "layer_height".to_string(),
-            toml::Value::Float(0.1),
-        );
+        inline.insert("layer_height".to_string(), toml::Value::Float(0.1));
         plate.objects[0].inline_overrides = Some(inline);
 
         let results = CascadeResolver::resolve_all(&plate, &base).unwrap();
@@ -370,9 +356,7 @@ mod tests {
         // Named set says wall_count = 6
         let mut set_table = toml::map::Map::new();
         set_table.insert("wall_count".to_string(), toml::Value::Integer(6));
-        plate
-            .override_sets
-            .insert("thick".to_string(), set_table);
+        plate.override_sets.insert("thick".to_string(), set_table);
         plate.objects[0].override_set = Some("thick".to_string());
 
         // Inline says wall_count = 8 (should win)
@@ -393,10 +377,7 @@ mod tests {
         let mut plate = simple_plate();
 
         let mut inline = toml::map::Map::new();
-        inline.insert(
-            "infill_density".to_string(),
-            toml::Value::Float(0.5),
-        );
+        inline.insert("infill_density".to_string(), toml::Value::Float(0.5));
         plate.objects[0].inline_overrides = Some(inline);
 
         let results = CascadeResolver::resolve_all(&plate, &base).unwrap();
@@ -434,14 +415,11 @@ mod tests {
         let mut plate = simple_plate();
 
         let mut inline = toml::map::Map::new();
-        inline.insert(
-            "infill_density".to_string(),
-            toml::Value::Float(0.9),
-        );
+        inline.insert("infill_density".to_string(), toml::Value::Float(0.9));
         plate.objects[0].inline_overrides = Some(inline);
 
-        let composed = CascadeResolver::resolve_object_config(&base, &plate, &plate.objects[0], 0)
-            .unwrap();
+        let composed =
+            CascadeResolver::resolve_object_config(&base, &plate, &plate.objects[0], 0).unwrap();
         // The resolved config has infill_density = 0.9 (per-object)
         assert!((composed.config.infill_density - 0.9).abs() < f64::EPSILON);
 
@@ -585,11 +563,13 @@ mod tests {
         overrides.insert("wall_count".to_string(), toml::Value::Integer(10));
 
         let mut obj_config = ObjectConfig::default();
-        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
-            z_range: Some((0.5, 2.0)),
-            layer_range: None,
-            overrides,
-        });
+        obj_config
+            .layer_overrides
+            .push(crate::plate_config::LayerRangeOverride {
+                z_range: Some((0.5, 2.0)),
+                layer_range: None,
+                overrides,
+            });
 
         // z=1.0 is within [0.5, 2.0]
         let result = CascadeResolver::resolve_for_z(&resolved, &obj_config, 1.0, 5).unwrap();
@@ -597,7 +577,10 @@ mod tests {
             !Arc::ptr_eq(&result, &resolved.config),
             "should return new Arc when overrides match"
         );
-        assert_eq!(result.wall_count, 10, "wall_count should be overridden to 10");
+        assert_eq!(
+            result.wall_count, 10,
+            "wall_count should be overridden to 10"
+        );
         assert_ne!(original_wall_count, 10, "sanity: base wall_count is not 10");
     }
 
@@ -610,11 +593,13 @@ mod tests {
         overrides.insert("wall_count".to_string(), toml::Value::Integer(10));
 
         let mut obj_config = ObjectConfig::default();
-        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
-            z_range: Some((5.0, 10.0)),
-            layer_range: None,
-            overrides,
-        });
+        obj_config
+            .layer_overrides
+            .push(crate::plate_config::LayerRangeOverride {
+                z_range: Some((5.0, 10.0)),
+                layer_range: None,
+                overrides,
+            });
 
         // z=1.0 is outside [5.0, 10.0]
         let result = CascadeResolver::resolve_for_z(&resolved, &obj_config, 1.0, 5).unwrap();
@@ -633,11 +618,13 @@ mod tests {
         overrides.insert("infill_density".to_string(), toml::Value::Float(0.99));
 
         let mut obj_config = ObjectConfig::default();
-        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
-            z_range: None,
-            layer_range: Some((3, 7)),
-            overrides,
-        });
+        obj_config
+            .layer_overrides
+            .push(crate::plate_config::LayerRangeOverride {
+                z_range: None,
+                layer_range: Some((3, 7)),
+                overrides,
+            });
 
         // layer_number=5 is within [3, 7]
         let result = CascadeResolver::resolve_for_z(&resolved, &obj_config, 1.0, 5).unwrap();
@@ -660,16 +647,20 @@ mod tests {
         overrides2.insert("wall_count".to_string(), toml::Value::Integer(8));
 
         let mut obj_config = ObjectConfig::default();
-        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
-            z_range: Some((0.0, 5.0)),
-            layer_range: None,
-            overrides: overrides1,
-        });
-        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
-            z_range: Some((0.0, 3.0)),
-            layer_range: None,
-            overrides: overrides2,
-        });
+        obj_config
+            .layer_overrides
+            .push(crate::plate_config::LayerRangeOverride {
+                z_range: Some((0.0, 5.0)),
+                layer_range: None,
+                overrides: overrides1,
+            });
+        obj_config
+            .layer_overrides
+            .push(crate::plate_config::LayerRangeOverride {
+                z_range: Some((0.0, 3.0)),
+                layer_range: None,
+                overrides: overrides2,
+            });
 
         let result = CascadeResolver::resolve_for_z(&resolved, &obj_config, 1.0, 5).unwrap();
         assert_eq!(
@@ -691,11 +682,13 @@ mod tests {
         overrides.insert("wall_count".to_string(), toml::Value::Integer(7));
 
         let mut obj_config = ObjectConfig::default();
-        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
-            z_range: Some((1.0, 2.0)),
-            layer_range: None,
-            overrides,
-        });
+        obj_config
+            .layer_overrides
+            .push(crate::plate_config::LayerRangeOverride {
+                z_range: Some((1.0, 2.0)),
+                layer_range: None,
+                overrides,
+            });
 
         // Exactly at z_min boundary
         let result_min = CascadeResolver::resolve_for_z(&resolved, &obj_config, 1.0, 0).unwrap();
@@ -706,7 +699,8 @@ mod tests {
         assert_eq!(result_max.wall_count, 7, "should match at z_max boundary");
 
         // Just outside z_max
-        let result_outside = CascadeResolver::resolve_for_z(&resolved, &obj_config, 2.001, 0).unwrap();
+        let result_outside =
+            CascadeResolver::resolve_for_z(&resolved, &obj_config, 2.001, 0).unwrap();
         assert!(
             Arc::ptr_eq(&result_outside, &resolved.config),
             "should not match outside z_max + epsilon"

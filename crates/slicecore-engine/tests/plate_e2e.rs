@@ -209,10 +209,7 @@ fn plate_config_toml_round_trip() {
     );
 
     // Verify objects survived round-trip
-    assert_eq!(
-        parsed.objects[0].name.as_deref(),
-        Some("Detailed Part"),
-    );
+    assert_eq!(parsed.objects[0].name.as_deref(), Some("Detailed Part"),);
     assert_eq!(
         parsed.objects[0].override_set.as_deref(),
         Some("high_detail"),

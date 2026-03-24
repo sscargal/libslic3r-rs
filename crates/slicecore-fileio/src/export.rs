@@ -261,9 +261,7 @@ fn toml_value_to_slicer_string(key: &str, value: &toml::Value) -> String {
 /// Each object's overrides are written as `<metadata key="..." value="..."/>` elements
 /// inside an `<object>` block. Both SliceCore-native keys (prefixed `slicecore:`) and
 /// best-effort PrusaSlicer-compatible keys are written.
-fn build_model_settings_config(
-    object_configs: &[ThreeMfObjectConfig],
-) -> String {
+fn build_model_settings_config(object_configs: &[ThreeMfObjectConfig]) -> String {
     let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config>\n");
 
     for (idx, config) in object_configs.iter().enumerate() {
@@ -356,9 +354,7 @@ pub fn export_plate_to_3mf<W: Write + Seek>(
             lib3mf_mesh.add_triangle(tri[0], tri[1], tri[2]);
         }
 
-        let name = object_configs
-            .get(idx)
-            .and_then(|c| c.name.clone());
+        let name = object_configs.get(idx).and_then(|c| c.name.clone());
 
         let object = Object {
             id: resource_id,
@@ -580,14 +576,8 @@ mod tests {
     fn export_plate_with_overrides_writes_slicecore_namespace() {
         let mesh = tetrahedron_mesh();
         let mut overrides = toml::map::Map::new();
-        overrides.insert(
-            "infill_density".to_string(),
-            toml::Value::Float(0.5),
-        );
-        overrides.insert(
-            "wall_count".to_string(),
-            toml::Value::Integer(3),
-        );
+        overrides.insert("infill_density".to_string(), toml::Value::Float(0.5));
+        overrides.insert("wall_count".to_string(), toml::Value::Integer(3));
 
         let config = ThreeMfObjectConfig {
             name: Some("Part A".to_string()),
@@ -605,8 +595,7 @@ mod tests {
 
         // Verify the config file is in the archive by reading it back.
         let cursor = std::io::Cursor::new(data.as_slice());
-        let mut archiver =
-            lib3mf_core::archive::ZipArchiver::new(cursor).unwrap();
+        let mut archiver = lib3mf_core::archive::ZipArchiver::new(cursor).unwrap();
         assert!(archiver.entry_exists("Metadata/model_settings.config"));
 
         let config_data = archiver
@@ -637,14 +626,8 @@ mod tests {
     fn export_import_round_trip_preserves_overrides() {
         let mesh = tetrahedron_mesh();
         let mut overrides = toml::map::Map::new();
-        overrides.insert(
-            "wall_count".to_string(),
-            toml::Value::Integer(4),
-        );
-        overrides.insert(
-            "layer_height".to_string(),
-            toml::Value::Float(0.15),
-        );
+        overrides.insert("wall_count".to_string(), toml::Value::Integer(4));
+        overrides.insert("layer_height".to_string(), toml::Value::Float(0.15));
 
         let config = ThreeMfObjectConfig {
             name: Some("Test Object".to_string()),
@@ -670,12 +653,23 @@ mod tests {
         // perimeters -> wall_count, layer_height -> layer_height
         let re_overrides = &result.object_configs[0].overrides;
         assert_eq!(
-            re_overrides.get("wall_count").unwrap().as_integer().unwrap(),
+            re_overrides
+                .get("wall_count")
+                .unwrap()
+                .as_integer()
+                .unwrap(),
             4,
             "wall_count should round-trip"
         );
         assert!(
-            (re_overrides.get("layer_height").unwrap().as_float().unwrap() - 0.15).abs() < 0.001,
+            (re_overrides
+                .get("layer_height")
+                .unwrap()
+                .as_float()
+                .unwrap()
+                - 0.15)
+                .abs()
+                < 0.001,
             "layer_height should round-trip"
         );
     }

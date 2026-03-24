@@ -113,10 +113,7 @@ fn generate_plate_template(
     } else {
         for model in models {
             let model_str = model.display();
-            let name_hint = model
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("Part");
+            let name_hint = model.file_stem().and_then(|s| s.to_str()).unwrap_or("Part");
             out.push_str(&format!("\n[[objects]]\n"));
             out.push_str(&format!("model = \"{model_str}\"\n"));
             out.push_str(&format!("name = \"{name_hint}\"\n"));
@@ -194,7 +191,11 @@ pub fn run_plate(cmd: PlateCommands) -> Result<(), anyhow::Error> {
             }
         }
 
-        PlateCommands::From3mf { input, output, json } => {
+        PlateCommands::From3mf {
+            input,
+            output,
+            json,
+        } => {
             if !input.exists() {
                 anyhow::bail!("Input file not found: {}", input.display());
             }
@@ -231,8 +232,8 @@ pub fn run_plate(cmd: PlateCommands) -> Result<(), anyhow::Error> {
             for (idx, obj_config) in import_result.object_configs.iter().enumerate() {
                 let mut mod_paths = Vec::new();
                 for (mod_idx, modifier) in obj_config.modifiers.iter().enumerate() {
-                    let mod_stl = output
-                        .join(format!("{stl_name}_obj{}_mod{}.stl", idx + 1, mod_idx + 1));
+                    let mod_stl =
+                        output.join(format!("{stl_name}_obj{}_mod{}.stl", idx + 1, mod_idx + 1));
                     slicecore_fileio::save_mesh(&modifier.mesh, &mod_stl)?;
                     mod_paths.push(mod_stl);
                 }
@@ -267,8 +268,7 @@ pub fn run_plate(cmd: PlateCommands) -> Result<(), anyhow::Error> {
 
                 if let Some(config) = obj_config {
                     if let Some(name) = &config.name {
-                        obj_table
-                            .insert("name".to_string(), toml::Value::String(name.clone()));
+                        obj_table.insert("name".to_string(), toml::Value::String(name.clone()));
                     }
                 }
 
@@ -309,10 +309,7 @@ pub fn run_plate(cmd: PlateCommands) -> Result<(), anyhow::Error> {
                             }
                             mods_array.push(toml::Value::Table(mod_table));
                         }
-                        obj_table.insert(
-                            "modifiers".to_string(),
-                            toml::Value::Array(mods_array),
-                        );
+                        obj_table.insert("modifiers".to_string(), toml::Value::Array(mods_array));
                     }
                 }
 
@@ -360,7 +357,11 @@ pub fn run_plate(cmd: PlateCommands) -> Result<(), anyhow::Error> {
             }
         }
 
-        PlateCommands::To3mf { input, output, json } => {
+        PlateCommands::To3mf {
+            input,
+            output,
+            json,
+        } => {
             if !input.exists() {
                 anyhow::bail!("Input plate config not found: {}", input.display());
             }
@@ -514,10 +515,7 @@ mod tests {
 
     #[test]
     fn plate_init_multiple_models() {
-        let models = vec![
-            PathBuf::from("part_a.stl"),
-            PathBuf::from("part_b.stl"),
-        ];
+        let models = vec![PathBuf::from("part_a.stl"), PathBuf::from("part_b.stl")];
         let template = generate_plate_template(&models, None, None, None);
         assert!(template.contains("part_a.stl"));
         assert!(template.contains("part_b.stl"));
@@ -534,12 +532,8 @@ mod tests {
         let tmp = tempfile::TempDir::new().unwrap();
         let output = tmp.path().join("plate.toml");
 
-        let template = generate_plate_template(
-            &[PathBuf::from("cube.stl")],
-            Some("bambu-x1c"),
-            None,
-            None,
-        );
+        let template =
+            generate_plate_template(&[PathBuf::from("cube.stl")], Some("bambu-x1c"), None, None);
         fs::write(&output, &template).unwrap();
 
         let read_back = fs::read_to_string(&output).unwrap();
@@ -582,12 +576,7 @@ mod tests {
         assert!(stl_path.exists());
 
         // Generate plate.toml
-        let template = generate_plate_template(
-            &[PathBuf::from("test.stl")],
-            None,
-            None,
-            None,
-        );
+        let template = generate_plate_template(&[PathBuf::from("test.stl")], None, None, None);
         let plate_path = extract_dir.join("plate.toml");
         fs::write(&plate_path, &template).unwrap();
         assert!(plate_path.exists());

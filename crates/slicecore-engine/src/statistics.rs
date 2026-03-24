@@ -1400,7 +1400,10 @@ mod tests {
 
         let plate = PlateStatistics::from_object_stats(obj_stats);
 
-        assert_eq!(plate.total_layer_count, 200, "Max layer count from all objects");
+        assert_eq!(
+            plate.total_layer_count, 200,
+            "Max layer count from all objects"
+        );
         assert!(
             (plate.total_filament_used_grams - 36.0).abs() < 0.01,
             "15*2 + 6*1 = 36g, got {}",
@@ -1458,33 +1461,31 @@ mod tests {
         use crate::estimation::PrintTimeEstimate;
         use crate::filament::FilamentUsage;
 
-        let results = vec![
-            ObjectSliceResult {
-                name: "obj1".to_string(),
-                index: 0,
-                result: SliceResult {
-                    gcode: Vec::new(),
-                    layer_count: 100,
-                    estimated_time_seconds: 3600.0,
-                    time_estimate: PrintTimeEstimate {
-                        total_seconds: 3600.0,
-                        move_time_seconds: 2800.0,
-                        travel_time_seconds: 600.0,
-                        retraction_count: 50,
-                    },
-                    filament_usage: FilamentUsage {
-                        length_mm: 5000.0,
-                        length_m: 5.0,
-                        weight_g: 15.0,
-                        cost: 0.38,
-                    },
-                    preview: None,
-                    statistics: None,
-                    travel_opt_stats: None,
+        let results = vec![ObjectSliceResult {
+            name: "obj1".to_string(),
+            index: 0,
+            result: SliceResult {
+                gcode: Vec::new(),
+                layer_count: 100,
+                estimated_time_seconds: 3600.0,
+                time_estimate: PrintTimeEstimate {
+                    total_seconds: 3600.0,
+                    move_time_seconds: 2800.0,
+                    travel_time_seconds: 600.0,
+                    retraction_count: 50,
                 },
-                copies: 1,
+                filament_usage: FilamentUsage {
+                    length_mm: 5000.0,
+                    length_m: 5.0,
+                    weight_g: 15.0,
+                    cost: 0.38,
+                },
+                preview: None,
+                statistics: None,
+                travel_opt_stats: None,
             },
-        ];
+            copies: 1,
+        }];
 
         let plate = PlateStatistics::from_results(&results);
         assert_eq!(plate.objects.len(), 1);

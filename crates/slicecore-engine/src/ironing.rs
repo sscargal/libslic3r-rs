@@ -45,7 +45,11 @@ use crate::toolpath::{FeatureType, ToolpathSegment};
 #[setting(category = "Quality")]
 pub struct IroningConfig {
     /// Enable ironing passes on top surfaces.
-    #[setting(tier = 2, description = "Enable ironing passes on top surfaces", override_safety = "safe")]
+    #[setting(
+        tier = 2,
+        description = "Enable ironing passes on top surfaces",
+        override_safety = "safe"
+    )]
     pub enabled: bool,
     /// Flow rate multiplier for ironing (0.0-1.0). Default 0.1 (10%).
     #[setting(

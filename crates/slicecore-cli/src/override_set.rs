@@ -79,8 +79,8 @@ pub enum OverrideSetCommands {
 /// Returns an error if the home directory cannot be determined or the
 /// directory cannot be created.
 fn override_sets_dir() -> Result<PathBuf, anyhow::Error> {
-    let home = home::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
+    let home =
+        home::home_dir().ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
     let dir = home.join(".slicecore").join("override-sets");
     fs::create_dir_all(&dir)?;
     Ok(dir)
@@ -114,10 +114,7 @@ fn load_set(name: &str) -> Result<toml::map::Map<String, toml::Value>, anyhow::E
 }
 
 /// Save a named override set to disk.
-fn save_set(
-    name: &str,
-    table: &toml::map::Map<String, toml::Value>,
-) -> Result<(), anyhow::Error> {
+fn save_set(name: &str, table: &toml::map::Map<String, toml::Value>) -> Result<(), anyhow::Error> {
     let path = set_path(name)?;
     let content = toml::to_string_pretty(&toml::Value::Table(table.clone()))?;
     fs::write(&path, content)?;
@@ -147,7 +144,10 @@ fn list_sets() -> Result<Vec<String>, anyhow::Error> {
 fn fuzzy_suggest(name: &str, available: &[String]) -> Option<String> {
     let lower = name.to_lowercase();
     // Exact prefix match first
-    if let Some(m) = available.iter().find(|a| a.to_lowercase().starts_with(&lower)) {
+    if let Some(m) = available
+        .iter()
+        .find(|a| a.to_lowercase().starts_with(&lower))
+    {
         return Some(m.clone());
     }
     // Substring match
@@ -241,7 +241,10 @@ pub fn run_override_set(cmd: OverrideSetCommands) -> Result<(), anyhow::Error> {
             let table = load_set(&name)?;
             let fields = flatten_table(&table, "");
             if json {
-                println!("{}", serde_json::to_string_pretty(&toml::Value::Table(table))?);
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&toml::Value::Table(table))?
+                );
             } else {
                 println!("Override set: {name}");
                 println!("{}", "-".repeat(50));
@@ -298,9 +301,7 @@ pub fn run_override_set(cmd: OverrideSetCommands) -> Result<(), anyhow::Error> {
             }
 
             let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
-            let status = std::process::Command::new(&editor)
-                .arg(&path)
-                .status()?;
+            let status = std::process::Command::new(&editor).arg(&path).status()?;
             if !status.success() {
                 anyhow::bail!("Editor exited with non-zero status.");
             }
@@ -383,12 +384,18 @@ pub fn run_override_set(cmd: OverrideSetCommands) -> Result<(), anyhow::Error> {
 
                 for key in &all_keys {
                     match (map_a.get(key), map_b.get(key)) {
-                        (Some(va), None) => only_a.push(serde_json::json!({ "key": key, "value": va })),
-                        (None, Some(vb)) => only_b.push(serde_json::json!({ "key": key, "value": vb })),
+                        (Some(va), None) => {
+                            only_a.push(serde_json::json!({ "key": key, "value": va }))
+                        }
+                        (None, Some(vb)) => {
+                            only_b.push(serde_json::json!({ "key": key, "value": vb }))
+                        }
                         (Some(va), Some(vb)) if va != vb => {
                             different.push(serde_json::json!({ "key": key, "a": va, "b": vb }));
                         }
-                        (Some(v), Some(_)) => same.push(serde_json::json!({ "key": key, "value": v })),
+                        (Some(v), Some(_)) => {
+                            same.push(serde_json::json!({ "key": key, "value": v }))
+                        }
                         (None, None) => {}
                     }
                 }

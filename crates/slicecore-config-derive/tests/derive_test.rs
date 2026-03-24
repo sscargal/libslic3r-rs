@@ -165,7 +165,11 @@ struct TestOverrideSafetyConfig {
     #[setting(tier = 2, description = "Bed temperature", override_safety = "warn")]
     bed_temperature: f64,
 
-    #[setting(tier = 3, description = "Machine bed X size", override_safety = "ignored")]
+    #[setting(
+        tier = 3,
+        description = "Machine bed X size",
+        override_safety = "ignored"
+    )]
     bed_x: f64,
 
     #[setting(tier = 1, description = "Infill density (no explicit safety)")]

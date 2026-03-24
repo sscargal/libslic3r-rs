@@ -250,10 +250,7 @@ mod tests {
     fn is_simple_false_with_default_overrides() {
         let mut plate = PlateConfig::from(PrintConfig::default());
         let mut overrides = toml::map::Map::new();
-        overrides.insert(
-            "infill_density".to_string(),
-            toml::Value::Float(0.5),
-        );
+        overrides.insert("infill_density".to_string(), toml::Value::Float(0.5));
         plate.default_object_overrides = Some(overrides);
         assert!(!plate.is_simple());
     }
@@ -262,10 +259,7 @@ mod tests {
     fn is_simple_false_with_inline_overrides() {
         let mut plate = PlateConfig::from(PrintConfig::default());
         let mut overrides = toml::map::Map::new();
-        overrides.insert(
-            "wall_count".to_string(),
-            toml::Value::Integer(4),
-        );
+        overrides.insert("wall_count".to_string(), toml::Value::Integer(4));
         plate.objects[0].inline_overrides = Some(overrides);
         assert!(!plate.is_simple());
     }

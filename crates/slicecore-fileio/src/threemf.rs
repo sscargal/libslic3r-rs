@@ -108,9 +108,7 @@ fn map_slicer_field(slicer_key: &str) -> Option<(&str, fn(&str) -> Option<toml::
         "fill_density" | "sparse_infill_density" => {
             Some(("infill_density", parse_percent_to_fraction))
         }
-        "fill_pattern" | "sparse_infill_pattern" => {
-            Some(("infill_pattern", parse_string_value))
-        }
+        "fill_pattern" | "sparse_infill_pattern" => Some(("infill_pattern", parse_string_value)),
         "perimeters" | "wall_loops" => Some(("wall_count", parse_int_value)),
         "layer_height" => Some(("layer_height", parse_float_value)),
         "perimeter_speed" => Some(("speeds.perimeter", parse_float_value)),
@@ -126,7 +124,10 @@ fn map_slicer_field(slicer_key: &str) -> Option<(&str, fn(&str) -> Option<toml::
 fn parse_percent_to_fraction(s: &str) -> Option<toml::Value> {
     let trimmed = s.trim();
     if let Some(pct) = trimmed.strip_suffix('%') {
-        pct.trim().parse::<f64>().ok().map(|v| toml::Value::Float(v / 100.0))
+        pct.trim()
+            .parse::<f64>()
+            .ok()
+            .map(|v| toml::Value::Float(v / 100.0))
     } else {
         trimmed.parse::<f64>().ok().map(toml::Value::Float)
     }
@@ -628,9 +629,18 @@ mod tests {
 
         let (overrides, unmapped) = map_fields(&raw);
 
-        assert_eq!(overrides.get("infill_density").unwrap().as_float().unwrap(), 0.5);
-        assert_eq!(overrides.get("wall_count").unwrap().as_integer().unwrap(), 3);
-        assert_eq!(overrides.get("layer_height").unwrap().as_float().unwrap(), 0.2);
+        assert_eq!(
+            overrides.get("infill_density").unwrap().as_float().unwrap(),
+            0.5
+        );
+        assert_eq!(
+            overrides.get("wall_count").unwrap().as_integer().unwrap(),
+            3
+        );
+        assert_eq!(
+            overrides.get("layer_height").unwrap().as_float().unwrap(),
+            0.2
+        );
         assert_eq!(
             overrides.get("support_enabled").unwrap().as_bool().unwrap(),
             true
@@ -648,9 +658,18 @@ mod tests {
 
         let (overrides, unmapped) = map_fields(&raw);
 
-        assert!((overrides.get("infill_density").unwrap().as_float().unwrap() - 0.3).abs() < f64::EPSILON);
-        assert_eq!(overrides.get("wall_count").unwrap().as_integer().unwrap(), 2);
-        assert_eq!(overrides.get("speeds.infill").unwrap().as_float().unwrap(), 100.0);
+        assert!(
+            (overrides.get("infill_density").unwrap().as_float().unwrap() - 0.3).abs()
+                < f64::EPSILON
+        );
+        assert_eq!(
+            overrides.get("wall_count").unwrap().as_integer().unwrap(),
+            2
+        );
+        assert_eq!(
+            overrides.get("speeds.infill").unwrap().as_float().unwrap(),
+            100.0
+        );
         assert_eq!(
             overrides.get("support_enabled").unwrap().as_bool().unwrap(),
             false
@@ -687,11 +706,17 @@ mod tests {
     #[test]
     fn parse_percent_to_fraction_with_suffix() {
         assert_eq!(
-            parse_percent_to_fraction("50%").unwrap().as_float().unwrap(),
+            parse_percent_to_fraction("50%")
+                .unwrap()
+                .as_float()
+                .unwrap(),
             0.5
         );
         assert_eq!(
-            parse_percent_to_fraction("100%").unwrap().as_float().unwrap(),
+            parse_percent_to_fraction("100%")
+                .unwrap()
+                .as_float()
+                .unwrap(),
             1.0
         );
     }
@@ -699,7 +724,10 @@ mod tests {
     #[test]
     fn parse_percent_to_fraction_without_suffix() {
         assert_eq!(
-            parse_percent_to_fraction("0.3").unwrap().as_float().unwrap(),
+            parse_percent_to_fraction("0.3")
+                .unwrap()
+                .as_float()
+                .unwrap(),
             0.3
         );
     }
