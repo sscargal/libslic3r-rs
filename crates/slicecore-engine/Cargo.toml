@@ -34,7 +34,7 @@ boostvoronoi = "0.11.1"
 rayon = { version = "1.11", optional = true }
 rmp-serde = { workspace = true }
 walkdir = { workspace = true }
-sha2 = "0.10"
+sha2 = { workspace = true }
 strsim = "0.11"
 ordered-float = "4"
 
