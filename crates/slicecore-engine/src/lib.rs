@@ -47,6 +47,7 @@ pub mod multimaterial;
 pub mod output;
 mod parallel;
 pub mod perimeter;
+pub mod plate_config;
 pub mod planner;
 pub mod polyhole;
 pub mod postprocess_builtin;
