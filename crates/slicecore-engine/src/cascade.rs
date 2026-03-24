@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use crate::config::PrintConfig;
 use crate::error::EngineError;
-use crate::plate_config::{ObjectConfig, PlateConfig};
+use crate::plate_config::{LayerRangeOverride, ObjectConfig, PlateConfig};
 use crate::profile_compose::{ComposedConfig, FieldSource, ProfileComposer, SourceType};
 
 /// A fully resolved object with its effective [`PrintConfig`] and provenance.
@@ -175,6 +175,85 @@ impl CascadeResolver {
         }
 
         Ok(results)
+    }
+
+    /// Resolves layer-range overrides (cascade layer 9) for a specific Z height.
+    ///
+    /// Takes the base per-object config (layers 1-8 already resolved) and applies
+    /// any matching [`LayerRangeOverride`]s from the [`ObjectConfig`]. Returns the
+    /// original [`Arc`] if no overrides match, or a new [`Arc<PrintConfig>`] with
+    /// applied overrides when they do.
+    ///
+    /// Multiple matching ranges are applied in definition order (last wins for
+    /// conflicting fields, matching the "last-defined wins" rule).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`EngineError`] if profile composition fails after applying overrides.
+    pub fn resolve_for_z(
+        resolved: &ResolvedObject,
+        object_config: &ObjectConfig,
+        z: f64,
+        layer_number: u32,
+    ) -> Result<Arc<PrintConfig>, EngineError> {
+        let matching: Vec<&LayerRangeOverride> = object_config
+            .layer_overrides
+            .iter()
+            .filter(|lr| Self::layer_range_matches(lr, z, layer_number))
+            .collect();
+
+        if matching.is_empty() {
+            return Ok(Arc::clone(&resolved.config));
+        }
+
+        // Serialize the resolved base config to a TOML table
+        let base_value = toml::Value::try_from(&*resolved.config).map_err(|e| {
+            EngineError::ConfigError(format!(
+                "failed to serialize base config for resolve_for_z: {e}"
+            ))
+        })?;
+        let base_table = match base_value {
+            toml::Value::Table(t) => t,
+            _ => {
+                return Err(EngineError::ConfigError(
+                    "base config did not serialize to a table".to_string(),
+                ));
+            }
+        };
+
+        let mut composer = ProfileComposer::new();
+        composer.add_table_layer(SourceType::Default, base_table);
+
+        for (i, lr) in matching.iter().enumerate() {
+            let range_desc = if let Some((z_min, z_max)) = lr.z_range {
+                format!("z:{z_min:.2}-{z_max:.2}")
+            } else if let Some((start, end)) = lr.layer_range {
+                format!("layers:{start}-{end}")
+            } else {
+                format!("range-{i}")
+            };
+            composer.add_table_layer(
+                SourceType::LayerRangeOverride {
+                    object_id: resolved.name.clone(),
+                    range_desc,
+                },
+                lr.overrides.clone(),
+            );
+        }
+
+        let composed = composer.compose()?;
+        Ok(Arc::new(composed.config))
+    }
+
+    /// Checks whether a [`LayerRangeOverride`] matches a given Z height and layer number.
+    fn layer_range_matches(lr: &LayerRangeOverride, z: f64, layer_number: u32) -> bool {
+        if let Some((z_min, z_max)) = lr.z_range {
+            z >= z_min - 1e-6 && z <= z_max + 1e-6
+        } else if let Some((layer_start, layer_end)) = lr.layer_range {
+            layer_number >= layer_start && layer_number <= layer_end
+        } else {
+            false
+        }
     }
 }
 
@@ -467,6 +546,170 @@ mod tests {
             prov.unwrap().source_type,
             SourceType::DefaultObjectOverride,
             "wall_count should come from DefaultObjectOverride (layer 7)"
+        );
+    }
+
+    // ---- resolve_for_z tests ----
+
+    /// Helper: create a `ResolvedObject` from a base composed config.
+    fn resolved_from_base(base: &ComposedConfig) -> ResolvedObject {
+        ResolvedObject {
+            index: 0,
+            name: "test_object".to_string(),
+            config: Arc::new(base.config.clone()),
+            provenance: base.provenance.clone(),
+            copies: 1,
+        }
+    }
+
+    #[test]
+    fn resolve_for_z_no_overrides_returns_same_arc() {
+        let base = base_composed();
+        let resolved = resolved_from_base(&base);
+        let obj_config = ObjectConfig::default(); // no layer_overrides
+
+        let result = CascadeResolver::resolve_for_z(&resolved, &obj_config, 1.0, 5).unwrap();
+        assert!(
+            Arc::ptr_eq(&result, &resolved.config),
+            "should return same Arc when no layer-range overrides match"
+        );
+    }
+
+    #[test]
+    fn resolve_for_z_z_range_match_applies_override() {
+        let base = base_composed();
+        let resolved = resolved_from_base(&base);
+        let original_wall_count = resolved.config.wall_count;
+
+        let mut overrides = toml::map::Map::new();
+        overrides.insert("wall_count".to_string(), toml::Value::Integer(10));
+
+        let mut obj_config = ObjectConfig::default();
+        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
+            z_range: Some((0.5, 2.0)),
+            layer_range: None,
+            overrides,
+        });
+
+        // z=1.0 is within [0.5, 2.0]
+        let result = CascadeResolver::resolve_for_z(&resolved, &obj_config, 1.0, 5).unwrap();
+        assert!(
+            !Arc::ptr_eq(&result, &resolved.config),
+            "should return new Arc when overrides match"
+        );
+        assert_eq!(result.wall_count, 10, "wall_count should be overridden to 10");
+        assert_ne!(original_wall_count, 10, "sanity: base wall_count is not 10");
+    }
+
+    #[test]
+    fn resolve_for_z_z_range_no_match_returns_original() {
+        let base = base_composed();
+        let resolved = resolved_from_base(&base);
+
+        let mut overrides = toml::map::Map::new();
+        overrides.insert("wall_count".to_string(), toml::Value::Integer(10));
+
+        let mut obj_config = ObjectConfig::default();
+        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
+            z_range: Some((5.0, 10.0)),
+            layer_range: None,
+            overrides,
+        });
+
+        // z=1.0 is outside [5.0, 10.0]
+        let result = CascadeResolver::resolve_for_z(&resolved, &obj_config, 1.0, 5).unwrap();
+        assert!(
+            Arc::ptr_eq(&result, &resolved.config),
+            "should return original Arc when z_range does not match"
+        );
+    }
+
+    #[test]
+    fn resolve_for_z_layer_range_match() {
+        let base = base_composed();
+        let resolved = resolved_from_base(&base);
+
+        let mut overrides = toml::map::Map::new();
+        overrides.insert("infill_density".to_string(), toml::Value::Float(0.99));
+
+        let mut obj_config = ObjectConfig::default();
+        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
+            z_range: None,
+            layer_range: Some((3, 7)),
+            overrides,
+        });
+
+        // layer_number=5 is within [3, 7]
+        let result = CascadeResolver::resolve_for_z(&resolved, &obj_config, 1.0, 5).unwrap();
+        assert!(
+            (result.infill_density - 0.99).abs() < f64::EPSILON,
+            "infill_density should be 0.99"
+        );
+    }
+
+    #[test]
+    fn resolve_for_z_multiple_overlapping_last_wins() {
+        let base = base_composed();
+        let resolved = resolved_from_base(&base);
+
+        let mut overrides1 = toml::map::Map::new();
+        overrides1.insert("wall_count".to_string(), toml::Value::Integer(4));
+        overrides1.insert("infill_density".to_string(), toml::Value::Float(0.5));
+
+        let mut overrides2 = toml::map::Map::new();
+        overrides2.insert("wall_count".to_string(), toml::Value::Integer(8));
+
+        let mut obj_config = ObjectConfig::default();
+        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
+            z_range: Some((0.0, 5.0)),
+            layer_range: None,
+            overrides: overrides1,
+        });
+        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
+            z_range: Some((0.0, 3.0)),
+            layer_range: None,
+            overrides: overrides2,
+        });
+
+        let result = CascadeResolver::resolve_for_z(&resolved, &obj_config, 1.0, 5).unwrap();
+        assert_eq!(
+            result.wall_count, 8,
+            "last-defined override should win for wall_count"
+        );
+        assert!(
+            (result.infill_density - 0.5).abs() < f64::EPSILON,
+            "infill_density from first override should persist (no conflict)"
+        );
+    }
+
+    #[test]
+    fn resolve_for_z_boundary_match() {
+        let base = base_composed();
+        let resolved = resolved_from_base(&base);
+
+        let mut overrides = toml::map::Map::new();
+        overrides.insert("wall_count".to_string(), toml::Value::Integer(7));
+
+        let mut obj_config = ObjectConfig::default();
+        obj_config.layer_overrides.push(crate::plate_config::LayerRangeOverride {
+            z_range: Some((1.0, 2.0)),
+            layer_range: None,
+            overrides,
+        });
+
+        // Exactly at z_min boundary
+        let result_min = CascadeResolver::resolve_for_z(&resolved, &obj_config, 1.0, 0).unwrap();
+        assert_eq!(result_min.wall_count, 7, "should match at z_min boundary");
+
+        // Exactly at z_max boundary
+        let result_max = CascadeResolver::resolve_for_z(&resolved, &obj_config, 2.0, 0).unwrap();
+        assert_eq!(result_max.wall_count, 7, "should match at z_max boundary");
+
+        // Just outside z_max
+        let result_outside = CascadeResolver::resolve_for_z(&resolved, &obj_config, 2.001, 0).unwrap();
+        assert!(
+            Arc::ptr_eq(&result_outside, &resolved.config),
+            "should not match outside z_max + epsilon"
         );
     }
 }
