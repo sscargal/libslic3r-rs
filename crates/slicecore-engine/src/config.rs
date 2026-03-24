@@ -196,7 +196,7 @@ pub struct FuzzySkinConfig {
     /// Enable fuzzy skin effect on outer walls.
     /// OrcaSlicer: `fuzzy_skin`. PrusaSlicer: `fuzzy_skin`.
     /// Default: false.
-    #[setting(tier = 3, description = "Enable fuzzy skin textured surface effect")]
+    #[setting(tier = 3, description = "Enable fuzzy skin textured surface effect", override_safety = "safe")]
     pub enabled: bool,
     /// Maximum random displacement amplitude in mm.
     /// OrcaSlicer: `fuzzy_skin_thickness`. PrusaSlicer: `fuzzy_skin_thickness`.
@@ -207,7 +207,8 @@ pub struct FuzzySkinConfig {
         units = "mm",
         min = 0.0,
         max = 1.0,
-        depends_on = "fuzzy_skin.enabled"
+        depends_on = "fuzzy_skin.enabled",
+        override_safety = "safe"
     )]
     pub thickness: f64,
     /// Distance between displacement points along the wall in mm.
@@ -219,7 +220,8 @@ pub struct FuzzySkinConfig {
         units = "mm",
         min = 0.1,
         max = 5.0,
-        depends_on = "fuzzy_skin.enabled"
+        depends_on = "fuzzy_skin.enabled",
+        override_safety = "safe"
     )]
     pub point_distance: f64,
 }
@@ -245,11 +247,11 @@ pub struct BrimSkirtConfig {
     /// Brim adhesion type (none/outer/inner/both).
     /// OrcaSlicer: `brim_type`. PrusaSlicer: `brim_type`.
     /// Default: None.
-    #[setting(tier = 2, description = "Brim placement type")]
+    #[setting(tier = 2, description = "Brim placement type", override_safety = "warn")]
     pub brim_type: BrimType,
     /// Enable brim ears (brim only at sharp corners).
     /// OrcaSlicer: `brim_ears`. Default: false.
-    #[setting(tier = 3, description = "Enable brim only at sharp corners")]
+    #[setting(tier = 3, description = "Enable brim only at sharp corners", override_safety = "warn")]
     pub brim_ears: bool,
     /// Maximum overhang angle for brim ears in degrees.
     /// OrcaSlicer: `brim_ears_max_angle`. Range: 0-180. Default: 125.0.
@@ -259,7 +261,8 @@ pub struct BrimSkirtConfig {
         units = "deg",
         min = 0.0,
         max = 180.0,
-        depends_on = "brim_skirt.brim_ears"
+        depends_on = "brim_skirt.brim_ears",
+        override_safety = "warn"
     )]
     pub brim_ears_max_angle: f64,
     /// Skirt height in layers.
@@ -269,7 +272,8 @@ pub struct BrimSkirtConfig {
         tier = 3,
         description = "Skirt height in layers",
         min = 1.0,
-        max = 100.0
+        max = 100.0,
+        override_safety = "warn"
     )]
     pub skirt_height: u32,
 }
@@ -297,7 +301,8 @@ pub struct InputShapingConfig {
     /// OrcaSlicer: `accel_to_decel_enable`. Default: false.
     #[setting(
         tier = 3,
-        description = "Enable accel-to-decel factor for input shaping"
+        description = "Enable accel-to-decel factor for input shaping",
+        override_safety = "warn"
     )]
     pub accel_to_decel_enable: bool,
     /// Accel-to-decel factor ratio.
@@ -307,7 +312,8 @@ pub struct InputShapingConfig {
         description = "Accel-to-decel factor ratio",
         min = 0.0,
         max = 1.0,
-        depends_on = "input_shaping.accel_to_decel_enable"
+        depends_on = "input_shaping.accel_to_decel_enable",
+        override_safety = "warn"
     )]
     pub accel_to_decel_factor: f64,
 }
@@ -333,12 +339,13 @@ pub struct ToolChangeRetractionConfig {
     #[setting(
         tier = 4,
         description = "Retraction distance when filament is cut during tool change",
-        units = "mm"
+        units = "mm",
+        override_safety = "warn"
     )]
     pub retraction_distance_when_cut: f64,
     /// Enable long retraction when filament is cut.
     /// OrcaSlicer: `long_retractions_when_cut`. Default: false.
-    #[setting(tier = 4, description = "Enable long retraction when filament is cut")]
+    #[setting(tier = 4, description = "Enable long retraction when filament is cut", override_safety = "warn")]
     pub long_retraction_when_cut: bool,
 }
 
@@ -363,12 +370,12 @@ pub struct DimensionalCompensationConfig {
     /// XY hole compensation in mm. Negative values shrink holes for tighter fits.
     /// OrcaSlicer: `xy_hole_compensation`. PrusaSlicer: N/A (uses xy_size_compensation).
     /// Range: -2.0 to 2.0 mm. Default: 0.0 (no compensation).
-    #[setting(tier = 3, description = "XY hole compensation offset", units = "mm", min = -2.0, max = 2.0)]
+    #[setting(tier = 3, description = "XY hole compensation offset", units = "mm", min = -2.0, max = 2.0, override_safety = "safe")]
     pub xy_hole_compensation: f64,
     /// XY contour compensation in mm. Positive values expand outer contours.
     /// OrcaSlicer: `xy_contour_compensation`. PrusaSlicer: `xy_size_compensation`.
     /// Range: -2.0 to 2.0 mm. Default: 0.0 (no compensation).
-    #[setting(tier = 3, description = "XY contour compensation offset", units = "mm", min = -2.0, max = 2.0)]
+    #[setting(tier = 3, description = "XY contour compensation offset", units = "mm", min = -2.0, max = 2.0, override_safety = "safe")]
     pub xy_contour_compensation: f64,
     /// Elephant foot compensation in mm (first layer inward offset).
     /// Migrated from `PrintConfig.elefant_foot_compensation`.
@@ -380,7 +387,8 @@ pub struct DimensionalCompensationConfig {
         description = "First layer inward offset to compensate for elephant foot",
         units = "mm",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub elephant_foot_compensation: f64,
 }
@@ -414,7 +422,8 @@ pub struct LineWidthConfig {
         description = "Outer wall line width",
         units = "mm",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub outer_wall: f64,
     /// Inner wall line width in mm.
@@ -423,7 +432,8 @@ pub struct LineWidthConfig {
         description = "Inner wall line width",
         units = "mm",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub inner_wall: f64,
     /// Sparse infill line width in mm.
@@ -432,7 +442,8 @@ pub struct LineWidthConfig {
         description = "Infill line width",
         units = "mm",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub infill: f64,
     /// Top surface line width in mm.
@@ -441,7 +452,8 @@ pub struct LineWidthConfig {
         description = "Top surface line width",
         units = "mm",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub top_surface: f64,
     /// Initial (first) layer line width in mm.
@@ -450,7 +462,8 @@ pub struct LineWidthConfig {
         description = "Initial layer line width",
         units = "mm",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub initial_layer: f64,
     /// Internal solid infill line width in mm.
@@ -459,7 +472,8 @@ pub struct LineWidthConfig {
         description = "Internal solid infill line width",
         units = "mm",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub internal_solid_infill: f64,
     /// Support structure line width in mm.
@@ -468,7 +482,8 @@ pub struct LineWidthConfig {
         description = "Support structure line width",
         units = "mm",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub support: f64,
 }
@@ -500,19 +515,19 @@ impl Default for LineWidthConfig {
 #[setting(category = "Speed")]
 pub struct SpeedConfig {
     /// Perimeter print speed (mm/s).
-    #[setting(tier = 1, description = "Perimeter print speed", units = "mm/s", min = 1.0, max = 1000.0, affects = ["print_time", "quality"])]
+    #[setting(tier = 1, description = "Perimeter print speed", units = "mm/s", min = 1.0, max = 1000.0, affects = ["print_time", "quality"], override_safety = "safe")]
     pub perimeter: f64,
     /// Infill print speed (mm/s).
-    #[setting(tier = 1, description = "Infill print speed", units = "mm/s", min = 1.0, max = 1000.0, affects = ["print_time"])]
+    #[setting(tier = 1, description = "Infill print speed", units = "mm/s", min = 1.0, max = 1000.0, affects = ["print_time"], override_safety = "safe")]
     pub infill: f64,
     /// Travel (non-extrusion) speed (mm/s).
-    #[setting(tier = 2, description = "Travel movement speed", units = "mm/s", min = 1.0, max = 1000.0, affects = ["print_time"])]
+    #[setting(tier = 2, description = "Travel movement speed", units = "mm/s", min = 1.0, max = 1000.0, affects = ["print_time"], override_safety = "safe")]
     pub travel: f64,
     /// First layer print speed (mm/s).
-    #[setting(tier = 2, description = "First layer print speed", units = "mm/s", min = 1.0, max = 1000.0, affects = ["adhesion", "print_time"])]
+    #[setting(tier = 2, description = "First layer print speed", units = "mm/s", min = 1.0, max = 1000.0, affects = ["adhesion", "print_time"], override_safety = "safe")]
     pub first_layer: f64,
     /// Bridge print speed (mm/s).
-    #[setting(tier = 2, description = "Bridge print speed", units = "mm/s", min = 1.0, max = 1000.0, affects = ["quality", "bridging"])]
+    #[setting(tier = 2, description = "Bridge print speed", units = "mm/s", min = 1.0, max = 1000.0, affects = ["quality", "bridging"], override_safety = "safe")]
     pub bridge: f64,
     /// Inner wall speed (mm/s, 0 = inherit from perimeter_speed).
     #[setting(
@@ -520,7 +535,8 @@ pub struct SpeedConfig {
         description = "Inner wall speed",
         units = "mm/s",
         min = 0.0,
-        max = 1000.0
+        max = 1000.0,
+        override_safety = "safe"
     )]
     pub inner_wall: f64,
     /// Gap fill speed (mm/s, 0 = inherit from perimeter_speed).
@@ -529,11 +545,12 @@ pub struct SpeedConfig {
         description = "Gap fill speed",
         units = "mm/s",
         min = 0.0,
-        max = 1000.0
+        max = 1000.0,
+        override_safety = "safe"
     )]
     pub gap_fill: f64,
     /// Top surface speed (mm/s, 0 = inherit from perimeter_speed).
-    #[setting(tier = 2, description = "Top surface speed", units = "mm/s", min = 0.0, max = 1000.0, affects = ["quality"])]
+    #[setting(tier = 2, description = "Top surface speed", units = "mm/s", min = 0.0, max = 1000.0, affects = ["quality"], override_safety = "safe")]
     pub top_surface: f64,
     /// Internal solid infill speed (mm/s, 0 = inherit).
     #[setting(
@@ -541,7 +558,8 @@ pub struct SpeedConfig {
         description = "Internal solid infill speed",
         units = "mm/s",
         min = 0.0,
-        max = 1000.0
+        max = 1000.0,
+        override_safety = "safe"
     )]
     pub internal_solid_infill: f64,
     /// Initial layer infill speed (mm/s, 0 = inherit).
@@ -550,7 +568,8 @@ pub struct SpeedConfig {
         description = "Initial layer infill speed",
         units = "mm/s",
         min = 0.0,
-        max = 1000.0
+        max = 1000.0,
+        override_safety = "safe"
     )]
     pub initial_layer_infill: f64,
     /// Support structure speed (mm/s, 0 = inherit).
@@ -559,7 +578,8 @@ pub struct SpeedConfig {
         description = "Support structure print speed",
         units = "mm/s",
         min = 0.0,
-        max = 1000.0
+        max = 1000.0,
+        override_safety = "safe"
     )]
     pub support: f64,
     /// Support interface speed (mm/s, 0 = inherit).
@@ -568,7 +588,8 @@ pub struct SpeedConfig {
         description = "Support interface layer speed",
         units = "mm/s",
         min = 0.0,
-        max = 1000.0
+        max = 1000.0,
+        override_safety = "safe"
     )]
     pub support_interface: f64,
     /// Small perimeter speed (mm/s, 0 = inherit from perimeter_speed).
@@ -577,7 +598,8 @@ pub struct SpeedConfig {
         description = "Speed for small perimeter features",
         units = "mm/s",
         min = 0.0,
-        max = 1000.0
+        max = 1000.0,
+        override_safety = "safe"
     )]
     pub small_perimeter: f64,
     /// Solid infill speed (mm/s, 0 = inherit).
@@ -586,7 +608,8 @@ pub struct SpeedConfig {
         description = "Solid infill speed",
         units = "mm/s",
         min = 0.0,
-        max = 1000.0
+        max = 1000.0,
+        override_safety = "safe"
     )]
     pub solid_infill: f64,
     /// Overhang speed for 0-25% overhang (mm/s, 0 = inherit).
@@ -596,7 +619,8 @@ pub struct SpeedConfig {
         units = "mm/s",
         min = 0.0,
         max = 1000.0,
-        depends_on = "speeds.enable_overhang_speed"
+        depends_on = "speeds.enable_overhang_speed",
+        override_safety = "safe"
     )]
     pub overhang_1_4: f64,
     /// Overhang speed for 25-50% overhang (mm/s, 0 = inherit).
@@ -606,7 +630,8 @@ pub struct SpeedConfig {
         units = "mm/s",
         min = 0.0,
         max = 1000.0,
-        depends_on = "speeds.enable_overhang_speed"
+        depends_on = "speeds.enable_overhang_speed",
+        override_safety = "safe"
     )]
     pub overhang_2_4: f64,
     /// Overhang speed for 50-75% overhang (mm/s, 0 = inherit).
@@ -616,7 +641,8 @@ pub struct SpeedConfig {
         units = "mm/s",
         min = 0.0,
         max = 1000.0,
-        depends_on = "speeds.enable_overhang_speed"
+        depends_on = "speeds.enable_overhang_speed",
+        override_safety = "safe"
     )]
     pub overhang_3_4: f64,
     /// Overhang speed for 75-100% overhang (mm/s, 0 = inherit).
@@ -626,7 +652,8 @@ pub struct SpeedConfig {
         units = "mm/s",
         min = 0.0,
         max = 1000.0,
-        depends_on = "speeds.enable_overhang_speed"
+        depends_on = "speeds.enable_overhang_speed",
+        override_safety = "safe"
     )]
     pub overhang_4_4: f64,
     /// Z-axis travel speed (mm/s, 0 = use travel_speed).
@@ -635,7 +662,8 @@ pub struct SpeedConfig {
         description = "Z-axis travel speed",
         units = "mm/s",
         min = 0.0,
-        max = 1000.0
+        max = 1000.0,
+        override_safety = "safe"
     )]
     pub travel_z: f64,
     /// Internal bridge speed (mm/s, 0 = inherit from bridge speed).
@@ -646,12 +674,13 @@ pub struct SpeedConfig {
         description = "Internal bridge speed",
         units = "mm/s",
         min = 0.0,
-        max = 300.0
+        max = 300.0,
+        override_safety = "safe"
     )]
     pub internal_bridge_speed: f64,
     /// Master switch for overhang speed adjustments.
     /// OrcaSlicer: `enable_overhang_speed`. Default: true.
-    #[setting(tier = 3, description = "Enable per-overhang speed adjustments")]
+    #[setting(tier = 3, description = "Enable per-overhang speed adjustments", override_safety = "safe")]
     pub enable_overhang_speed: bool,
 }
 
@@ -694,13 +723,13 @@ impl Default for SpeedConfig {
 #[setting(category = "Cooling")]
 pub struct CoolingConfig {
     /// Fan speed (0-255).
-    #[setting(tier = 2, description = "Part cooling fan speed", min = 0.0, max = 255.0, affects = ["quality", "bridging", "overhangs"])]
+    #[setting(tier = 2, description = "Part cooling fan speed", min = 0.0, max = 255.0, affects = ["quality", "bridging", "overhangs"], override_safety = "warn")]
     pub fan_speed: u8,
     /// Enable fan when layer time falls below this value (seconds).
-    #[setting(tier = 2, description = "Enable fan when layer time falls below this threshold", units = "s", min = 0.0, max = 300.0, affects = ["quality", "bridging"])]
+    #[setting(tier = 2, description = "Enable fan when layer time falls below this threshold", units = "s", min = 0.0, max = 300.0, affects = ["quality", "bridging"], override_safety = "warn")]
     pub fan_below_layer_time: f64,
     /// Number of initial layers with fan disabled.
-    #[setting(tier = 2, description = "Number of initial layers with fan disabled", affects = ["adhesion"])]
+    #[setting(tier = 2, description = "Number of initial layers with fan disabled", affects = ["adhesion"], override_safety = "warn")]
     pub disable_fan_first_layers: u32,
     /// Maximum fan speed (percentage, 0-100).
     #[setting(
@@ -708,7 +737,8 @@ pub struct CoolingConfig {
         description = "Maximum fan speed",
         units = "%",
         min = 0.0,
-        max = 100.0
+        max = 100.0,
+        override_safety = "warn"
     )]
     pub fan_max_speed: f64,
     /// Minimum fan speed (percentage, 0-100).
@@ -717,11 +747,12 @@ pub struct CoolingConfig {
         description = "Minimum fan speed",
         units = "%",
         min = 0.0,
-        max = 100.0
+        max = 100.0,
+        override_safety = "warn"
     )]
     pub fan_min_speed: f64,
     /// Slow down if layer time falls below this value (seconds).
-    #[setting(tier = 3, description = "Slow down if layer time falls below this threshold", units = "s", min = 0.0, max = 300.0, affects = ["quality"])]
+    #[setting(tier = 3, description = "Slow down if layer time falls below this threshold", units = "s", min = 0.0, max = 300.0, affects = ["quality"], override_safety = "warn")]
     pub slow_down_layer_time: f64,
     /// Minimum speed when slowing down for layer cooling (mm/s).
     #[setting(
@@ -729,11 +760,12 @@ pub struct CoolingConfig {
         description = "Minimum speed during layer cooling slowdown",
         units = "mm/s",
         min = 1.0,
-        max = 100.0
+        max = 100.0,
+        override_safety = "warn"
     )]
     pub slow_down_min_speed: f64,
     /// Fan speed for overhang regions (percentage, 0-100).
-    #[setting(tier = 3, description = "Fan speed for overhang regions", units = "%", min = 0.0, max = 100.0, affects = ["overhangs"])]
+    #[setting(tier = 3, description = "Fan speed for overhang regions", units = "%", min = 0.0, max = 100.0, affects = ["overhangs"], override_safety = "warn")]
     pub overhang_fan_speed: f64,
     /// Overhang angle threshold for fan override (degrees).
     #[setting(
@@ -741,14 +773,15 @@ pub struct CoolingConfig {
         description = "Overhang angle threshold for fan override",
         units = "deg",
         min = 0.0,
-        max = 90.0
+        max = 90.0,
+        override_safety = "warn"
     )]
     pub overhang_fan_threshold: f64,
     /// Layer number at which fan reaches full speed (0 = immediate).
-    #[setting(tier = 3, description = "Layer at which fan reaches full speed")]
+    #[setting(tier = 3, description = "Layer at which fan reaches full speed", override_safety = "warn")]
     pub full_fan_speed_layer: u32,
     /// Enable automatic slowdown for layer cooling.
-    #[setting(tier = 3, description = "Enable automatic slowdown for layer cooling")]
+    #[setting(tier = 3, description = "Enable automatic slowdown for layer cooling", override_safety = "warn")]
     pub slow_down_for_layer_cooling: bool,
     /// Auxiliary/additional cooling fan speed as percentage (0-100).
     /// OrcaSlicer: `additional_cooling_fan_speed`. Range: 0-100. Default: 0.0.
@@ -757,12 +790,13 @@ pub struct CoolingConfig {
         description = "Additional cooling fan speed",
         units = "%",
         min = 0.0,
-        max = 100.0
+        max = 100.0,
+        override_safety = "warn"
     )]
     pub additional_cooling_fan_speed: f64,
     /// Enable auxiliary cooling fan.
     /// OrcaSlicer: `auxiliary_fan`. Default: false.
-    #[setting(tier = 3, description = "Enable auxiliary cooling fan")]
+    #[setting(tier = 3, description = "Enable auxiliary cooling fan", override_safety = "warn")]
     pub auxiliary_fan: bool,
 }
 
@@ -796,10 +830,10 @@ impl Default for CoolingConfig {
 #[setting(category = "Retraction")]
 pub struct RetractionConfig {
     /// Retraction distance in mm.
-    #[setting(tier = 2, description = "Retraction distance", units = "mm", min = 0.0, max = 20.0, affects = ["stringing", "oozing"])]
+    #[setting(tier = 2, description = "Retraction distance", units = "mm", min = 0.0, max = 20.0, affects = ["stringing", "oozing"], override_safety = "safe")]
     pub length: f64,
     /// Retraction speed in mm/s.
-    #[setting(tier = 2, description = "Retraction speed", units = "mm/s", min = 1.0, max = 200.0, affects = ["stringing"])]
+    #[setting(tier = 2, description = "Retraction speed", units = "mm/s", min = 1.0, max = 200.0, affects = ["stringing"], override_safety = "safe")]
     pub speed: f64,
     /// Z-hop height during retraction in mm.
     #[setting(
@@ -807,7 +841,8 @@ pub struct RetractionConfig {
         description = "Z-hop height during retraction",
         units = "mm",
         min = 0.0,
-        max = 5.0
+        max = 5.0,
+        override_safety = "safe"
     )]
     pub z_hop: f64,
     /// Minimum travel distance to trigger retraction in mm.
@@ -816,7 +851,8 @@ pub struct RetractionConfig {
         description = "Minimum travel distance to trigger retraction",
         units = "mm",
         min = 0.0,
-        max = 20.0
+        max = 20.0,
+        override_safety = "safe"
     )]
     pub min_travel: f64,
     /// Deretraction (unretract) speed in mm/s (0 = same as retraction speed).
@@ -825,7 +861,8 @@ pub struct RetractionConfig {
         description = "Deretraction speed",
         units = "mm/s",
         min = 0.0,
-        max = 200.0
+        max = 200.0,
+        override_safety = "safe"
     )]
     pub deretraction_speed: f64,
     /// Percentage of retraction to perform before wipe (0-100).
@@ -834,14 +871,15 @@ pub struct RetractionConfig {
         description = "Percentage of retraction before wipe",
         units = "%",
         min = 0.0,
-        max = 100.0
+        max = 100.0,
+        override_safety = "safe"
     )]
     pub retract_before_wipe: f64,
     /// Whether to retract when changing layers.
-    #[setting(tier = 3, description = "Retract when changing layers")]
+    #[setting(tier = 3, description = "Retract when changing layers", override_safety = "safe")]
     pub retract_when_changing_layer: bool,
     /// Enable wipe move during retraction.
-    #[setting(tier = 3, description = "Enable wipe move during retraction")]
+    #[setting(tier = 3, description = "Enable wipe move during retraction", override_safety = "safe")]
     pub wipe: bool,
     /// Wipe distance in mm.
     #[setting(
@@ -850,7 +888,8 @@ pub struct RetractionConfig {
         units = "mm",
         min = 0.0,
         max = 10.0,
-        depends_on = "retraction.wipe"
+        depends_on = "retraction.wipe",
+        override_safety = "safe"
     )]
     pub wipe_distance: f64,
 }
@@ -887,7 +926,8 @@ pub struct MachineConfig {
         description = "Bed X dimension",
         units = "mm",
         min = 1.0,
-        max = 2000.0
+        max = 2000.0,
+        override_safety = "ignored"
     )]
     pub bed_x: f64,
     /// Bed Y dimension in mm.
@@ -896,7 +936,8 @@ pub struct MachineConfig {
         description = "Bed Y dimension",
         units = "mm",
         min = 1.0,
-        max = 2000.0
+        max = 2000.0,
+        override_safety = "ignored"
     )]
     pub bed_y: f64,
     /// Maximum printable height in mm.
@@ -905,108 +946,113 @@ pub struct MachineConfig {
         description = "Maximum printable height",
         units = "mm",
         min = 1.0,
-        max = 2000.0
+        max = 2000.0,
+        override_safety = "ignored"
     )]
     pub printable_height: f64,
     /// Maximum X acceleration (mm/s^2).
-    #[setting(tier = 4, description = "Maximum X acceleration", units = "mm/s^2")]
+    #[setting(tier = 4, description = "Maximum X acceleration", units = "mm/s^2", override_safety = "ignored")]
     pub max_acceleration_x: f64,
     /// Maximum Y acceleration (mm/s^2).
-    #[setting(tier = 4, description = "Maximum Y acceleration", units = "mm/s^2")]
+    #[setting(tier = 4, description = "Maximum Y acceleration", units = "mm/s^2", override_safety = "ignored")]
     pub max_acceleration_y: f64,
     /// Maximum Z acceleration (mm/s^2).
-    #[setting(tier = 4, description = "Maximum Z acceleration", units = "mm/s^2")]
+    #[setting(tier = 4, description = "Maximum Z acceleration", units = "mm/s^2", override_safety = "ignored")]
     pub max_acceleration_z: f64,
     /// Maximum E (extruder) acceleration (mm/s^2).
     #[setting(
         tier = 4,
         description = "Maximum extruder acceleration",
-        units = "mm/s^2"
+        units = "mm/s^2",
+        override_safety = "ignored"
     )]
     pub max_acceleration_e: f64,
     /// Maximum acceleration while extruding (mm/s^2).
     #[setting(
         tier = 4,
         description = "Maximum acceleration while extruding",
-        units = "mm/s^2"
+        units = "mm/s^2",
+        override_safety = "ignored"
     )]
     pub max_acceleration_extruding: f64,
     /// Maximum acceleration while retracting (mm/s^2).
     #[setting(
         tier = 4,
         description = "Maximum acceleration while retracting",
-        units = "mm/s^2"
+        units = "mm/s^2",
+        override_safety = "ignored"
     )]
     pub max_acceleration_retracting: f64,
     /// Maximum acceleration during travel moves (mm/s^2).
     #[setting(
         tier = 4,
         description = "Maximum acceleration during travel moves",
-        units = "mm/s^2"
+        units = "mm/s^2",
+        override_safety = "ignored"
     )]
     pub max_acceleration_travel: f64,
     /// Maximum X speed (mm/s).
-    #[setting(tier = 4, description = "Maximum X axis speed", units = "mm/s")]
+    #[setting(tier = 4, description = "Maximum X axis speed", units = "mm/s", override_safety = "ignored")]
     pub max_speed_x: f64,
     /// Maximum Y speed (mm/s).
-    #[setting(tier = 4, description = "Maximum Y axis speed", units = "mm/s")]
+    #[setting(tier = 4, description = "Maximum Y axis speed", units = "mm/s", override_safety = "ignored")]
     pub max_speed_y: f64,
     /// Maximum Z speed (mm/s).
-    #[setting(tier = 4, description = "Maximum Z axis speed", units = "mm/s")]
+    #[setting(tier = 4, description = "Maximum Z axis speed", units = "mm/s", override_safety = "ignored")]
     pub max_speed_z: f64,
     /// Maximum E (extruder) speed (mm/s).
-    #[setting(tier = 4, description = "Maximum extruder speed", units = "mm/s")]
+    #[setting(tier = 4, description = "Maximum extruder speed", units = "mm/s", override_safety = "ignored")]
     pub max_speed_e: f64,
     /// Nozzle diameters per extruder (mm). Multi-extruder array.
-    #[setting(tier = 2, description = "Nozzle diameter per extruder", units = "mm")]
+    #[setting(tier = 2, description = "Nozzle diameter per extruder", units = "mm", override_safety = "ignored")]
     pub nozzle_diameters: Vec<f64>,
     /// Jerk values for X axis per extruder (mm/s). Multi-extruder array.
-    #[setting(tier = 4, description = "Jerk X per extruder", units = "mm/s")]
+    #[setting(tier = 4, description = "Jerk X per extruder", units = "mm/s", override_safety = "ignored")]
     pub jerk_values_x: Vec<f64>,
     /// Jerk values for Y axis per extruder (mm/s). Multi-extruder array.
-    #[setting(tier = 4, description = "Jerk Y per extruder", units = "mm/s")]
+    #[setting(tier = 4, description = "Jerk Y per extruder", units = "mm/s", override_safety = "ignored")]
     pub jerk_values_y: Vec<f64>,
     /// Jerk values for Z axis per extruder (mm/s). Multi-extruder array.
-    #[setting(tier = 4, description = "Jerk Z per extruder", units = "mm/s")]
+    #[setting(tier = 4, description = "Jerk Z per extruder", units = "mm/s", override_safety = "ignored")]
     pub jerk_values_z: Vec<f64>,
     /// Jerk values for E axis per extruder (mm/s). Multi-extruder array.
-    #[setting(tier = 4, description = "Jerk E per extruder", units = "mm/s")]
+    #[setting(tier = 4, description = "Jerk E per extruder", units = "mm/s", override_safety = "ignored")]
     pub jerk_values_e: Vec<f64>,
     /// Machine start G-code template.
-    #[setting(tier = 3, description = "Machine start G-code template")]
+    #[setting(tier = 3, description = "Machine start G-code template", override_safety = "ignored")]
     pub start_gcode: String,
     /// Verbatim start G-code from upstream profile before variable translation.
     #[serde(default)]
-    #[setting(tier = 4, description = "Upstream verbatim start G-code")]
+    #[setting(tier = 4, description = "Upstream verbatim start G-code", override_safety = "ignored")]
     pub start_gcode_original: String,
     /// Machine end G-code template.
-    #[setting(tier = 3, description = "Machine end G-code template")]
+    #[setting(tier = 3, description = "Machine end G-code template", override_safety = "ignored")]
     pub end_gcode: String,
     /// Verbatim end G-code from upstream profile before variable translation.
     #[serde(default)]
-    #[setting(tier = 4, description = "Upstream verbatim end G-code")]
+    #[setting(tier = 4, description = "Upstream verbatim end G-code", override_safety = "ignored")]
     pub end_gcode_original: String,
     /// G-code inserted at every layer change.
-    #[setting(tier = 3, description = "Layer change G-code template")]
+    #[setting(tier = 3, description = "Layer change G-code template", override_safety = "ignored")]
     pub layer_change_gcode: String,
     /// Verbatim layer change G-code from upstream profile before variable translation.
     #[serde(default)]
-    #[setting(tier = 4, description = "Upstream verbatim layer change G-code")]
+    #[setting(tier = 4, description = "Upstream verbatim layer change G-code", override_safety = "ignored")]
     pub layer_change_gcode_original: String,
     /// Nozzle type descriptor (e.g., "hardened_steel", "brass").
-    #[setting(tier = 3, description = "Nozzle material type")]
+    #[setting(tier = 3, description = "Nozzle material type", override_safety = "ignored")]
     pub nozzle_type: String,
     /// Printer model identifier.
-    #[setting(tier = 3, description = "Printer model identifier")]
+    #[setting(tier = 3, description = "Printer model identifier", override_safety = "ignored")]
     pub printer_model: String,
     /// Bed shape descriptor (serialized polygon or rectangle).
-    #[setting(tier = 4, description = "Serialized bed geometry")]
+    #[setting(tier = 4, description = "Serialized bed geometry", override_safety = "ignored")]
     pub bed_shape: String,
     /// Minimum layer height the printer can handle (mm).
-    #[setting(tier = 4, description = "Minimum supported layer height", units = "mm")]
+    #[setting(tier = 4, description = "Minimum supported layer height", units = "mm", override_safety = "ignored")]
     pub min_layer_height: f64,
     /// Maximum layer height (mm, 0 = auto from nozzle diameter).
-    #[setting(tier = 4, description = "Maximum supported layer height", units = "mm")]
+    #[setting(tier = 4, description = "Maximum supported layer height", units = "mm", override_safety = "ignored")]
     pub max_layer_height: f64,
     /// Number of extruders/toolheads.
     ///
@@ -1015,13 +1061,14 @@ pub struct MachineConfig {
     /// [`effective_extruder_count`](Self::effective_extruder_count) to get
     /// the count that accounts for both this field and
     /// [`nozzle_diameters`](Self::nozzle_diameters) length.
-    #[setting(tier = 3, description = "Number of extruders/toolheads")]
+    #[setting(tier = 3, description = "Number of extruders/toolheads", override_safety = "ignored")]
     pub extruder_count: u32,
     /// Printer power consumption in watts (for cost estimation, 0 = not set).
     #[setting(
         tier = 4,
         description = "Printer power consumption for cost estimation",
-        units = "W"
+        units = "W",
+        override_safety = "ignored"
     )]
     pub watts: f64,
     /// Maximum chamber temperature the printer can reach (degrees C, 0 = no chamber heater).
@@ -1032,47 +1079,48 @@ pub struct MachineConfig {
         description = "Maximum chamber temperature",
         units = "deg_c",
         min = 0.0,
-        max = 120.0
+        max = 120.0,
+        override_safety = "ignored"
     )]
     pub chamber_temperature: f64,
     /// Currently selected bed/build plate type.
     /// OrcaSlicer: `curr_bed_type`. Default: TexturedPEI.
-    #[setting(tier = 2, description = "Current bed/build plate type")]
+    #[setting(tier = 2, description = "Current bed/build plate type", override_safety = "ignored")]
     pub curr_bed_type: BedType,
     /// Enable silent/stealth mode for quieter operation.
     /// OrcaSlicer/PrusaSlicer: `silent_mode`. Default: false.
     #[serde(default)]
-    #[setting(tier = 3, description = "Enable silent/stealth mode")]
+    #[setting(tier = 3, description = "Enable silent/stealth mode", override_safety = "ignored")]
     pub silent_mode: bool,
     /// Nozzle hardness rating in HRC (Rockwell C scale).
     /// OrcaSlicer: `nozzle_hrc`. Default: 0.
     #[serde(default)]
-    #[setting(tier = 4, description = "Nozzle hardness rating (HRC)")]
+    #[setting(tier = 4, description = "Nozzle hardness rating (HRC)", override_safety = "ignored")]
     pub nozzle_hrc: u32,
     /// Write machine limits (M201/M203/M204) to G-code output.
     /// OrcaSlicer: `emit_machine_limits_to_gcode`. Default: false.
     #[serde(default)]
-    #[setting(tier = 4, description = "Emit machine limits to G-code output")]
+    #[setting(tier = 4, description = "Emit machine limits to G-code output", override_safety = "ignored")]
     pub emit_machine_limits_to_gcode: bool,
     /// Custom bed texture image path for UI preview.
     /// OrcaSlicer/PrusaSlicer: `bed_custom_texture`. Default: empty.
     #[serde(default)]
-    #[setting(tier = 4, description = "Custom bed texture image path")]
+    #[setting(tier = 4, description = "Custom bed texture image path", override_safety = "ignored")]
     pub bed_custom_texture: String,
     /// Custom bed 3D model path for UI preview.
     /// OrcaSlicer/PrusaSlicer: `bed_custom_model`. Default: empty.
     #[serde(default)]
-    #[setting(tier = 4, description = "Custom bed 3D model path")]
+    #[setting(tier = 4, description = "Custom bed 3D model path", override_safety = "ignored")]
     pub bed_custom_model: String,
     /// XY offset per extruder in mm [[x, y], ...].
     /// OrcaSlicer/PrusaSlicer: `extruder_offset`. Default: empty.
     #[serde(default)]
-    #[setting(tier = 4, description = "XY offset per extruder")]
+    #[setting(tier = 4, description = "XY offset per extruder", override_safety = "ignored")]
     pub extruder_offset: Vec<[f64; 2]>,
     /// Bambu AMS cooling tube length in mm.
     /// OrcaSlicer/PrusaSlicer: `cooling_tube_length`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 4, description = "AMS cooling tube length", units = "mm")]
+    #[setting(tier = 4, description = "AMS cooling tube length", units = "mm", override_safety = "ignored")]
     pub cooling_tube_length: f64,
     /// Bambu AMS cooling tube retraction distance in mm.
     /// OrcaSlicer/PrusaSlicer: `cooling_tube_retraction`. Default: 0.0.
@@ -1080,7 +1128,8 @@ pub struct MachineConfig {
     #[setting(
         tier = 4,
         description = "AMS cooling tube retraction distance",
-        units = "mm"
+        units = "mm",
+        override_safety = "ignored"
     )]
     pub cooling_tube_retraction: f64,
     /// Bambu AMS parking position retraction distance in mm.
@@ -1089,7 +1138,8 @@ pub struct MachineConfig {
     #[setting(
         tier = 4,
         description = "AMS parking position retraction distance",
-        units = "mm"
+        units = "mm",
+        override_safety = "ignored"
     )]
     pub parking_pos_retraction: f64,
     /// Bambu AMS extra loading move distance in mm.
@@ -1098,18 +1148,19 @@ pub struct MachineConfig {
     #[setting(
         tier = 4,
         description = "AMS extra loading move distance",
-        units = "mm"
+        units = "mm",
+        override_safety = "ignored"
     )]
     pub extra_loading_move: f64,
     /// Retraction length for tool change in mm.
     /// PrusaSlicer: `retract_length_toolchange`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 4, description = "Tool change retraction length", units = "mm")]
+    #[setting(tier = 4, description = "Tool change retraction length", units = "mm", override_safety = "ignored")]
     pub retract_length_toolchange: f64,
     /// Extra length to prime after retraction in mm.
     /// PrusaSlicer: `retract_restart_extra`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 4, description = "Extra prime after retraction", units = "mm")]
+    #[setting(tier = 4, description = "Extra prime after retraction", units = "mm", override_safety = "ignored")]
     pub retract_restart_extra: f64,
     /// Extra length to prime after tool change retraction in mm.
     /// PrusaSlicer: `retract_restart_extra_toolchange`. Default: 0.0.
@@ -1117,18 +1168,19 @@ pub struct MachineConfig {
     #[setting(
         tier = 4,
         description = "Extra prime after tool change retraction",
-        units = "mm"
+        units = "mm",
+        override_safety = "ignored"
     )]
     pub retract_restart_extra_toolchange: f64,
     /// Minimum extruding rate in mm/s.
     /// OrcaSlicer: `machine_min_extruding_rate`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 4, description = "Minimum extrusion speed", units = "mm/s")]
+    #[setting(tier = 4, description = "Minimum extrusion speed", units = "mm/s", override_safety = "ignored")]
     pub min_extruding_rate: f64,
     /// Minimum travel rate in mm/s.
     /// OrcaSlicer: `machine_min_travel_rate`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 4, description = "Minimum travel speed", units = "mm/s")]
+    #[setting(tier = 4, description = "Minimum travel speed", units = "mm/s", override_safety = "ignored")]
     pub min_travel_rate: f64,
 }
 
@@ -1238,13 +1290,13 @@ impl MachineConfig {
 #[setting(category = "Acceleration")]
 pub struct AccelerationConfig {
     /// Print acceleration in mm/s^2.
-    #[setting(tier = 2, description = "Print acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["print_time", "quality"])]
+    #[setting(tier = 2, description = "Print acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["print_time", "quality"], override_safety = "safe")]
     pub print: f64,
     /// Travel acceleration in mm/s^2.
-    #[setting(tier = 2, description = "Travel acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["print_time"])]
+    #[setting(tier = 2, description = "Travel acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["print_time"], override_safety = "safe")]
     pub travel: f64,
     /// Outer wall acceleration (mm/s^2, 0 = use print_acceleration).
-    #[setting(tier = 3, description = "Outer wall acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["quality"])]
+    #[setting(tier = 3, description = "Outer wall acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["quality"], override_safety = "safe")]
     pub outer_wall: f64,
     /// Inner wall acceleration (mm/s^2, 0 = use print_acceleration).
     #[setting(
@@ -1252,11 +1304,12 @@ pub struct AccelerationConfig {
         description = "Inner wall acceleration",
         units = "mm/s^2",
         min = 0.0,
-        max = 50000.0
+        max = 50000.0,
+        override_safety = "safe"
     )]
     pub inner_wall: f64,
     /// Initial layer acceleration (mm/s^2, 0 = use print_acceleration).
-    #[setting(tier = 3, description = "Initial layer acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["adhesion"])]
+    #[setting(tier = 3, description = "Initial layer acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["adhesion"], override_safety = "safe")]
     pub initial_layer: f64,
     /// Initial layer travel acceleration (mm/s^2, 0 = use travel_acceleration).
     #[setting(
@@ -1264,11 +1317,12 @@ pub struct AccelerationConfig {
         description = "Initial layer travel acceleration",
         units = "mm/s^2",
         min = 0.0,
-        max = 50000.0
+        max = 50000.0,
+        override_safety = "safe"
     )]
     pub initial_layer_travel: f64,
     /// Top surface acceleration (mm/s^2, 0 = use print_acceleration).
-    #[setting(tier = 3, description = "Top surface acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["quality"])]
+    #[setting(tier = 3, description = "Top surface acceleration", units = "mm/s^2", min = 0.0, max = 50000.0, affects = ["quality"], override_safety = "safe")]
     pub top_surface: f64,
     /// Sparse infill acceleration (mm/s^2, 0 = use print_acceleration).
     #[setting(
@@ -1276,7 +1330,8 @@ pub struct AccelerationConfig {
         description = "Sparse infill acceleration",
         units = "mm/s^2",
         min = 0.0,
-        max = 50000.0
+        max = 50000.0,
+        override_safety = "safe"
     )]
     pub sparse_infill: f64,
     /// Bridge acceleration (mm/s^2, 0 = use print_acceleration).
@@ -1285,7 +1340,8 @@ pub struct AccelerationConfig {
         description = "Bridge acceleration",
         units = "mm/s^2",
         min = 0.0,
-        max = 50000.0
+        max = 50000.0,
+        override_safety = "safe"
     )]
     pub bridge: f64,
     /// Minimum segment length factor (percentage, 0-100).
@@ -1297,7 +1353,8 @@ pub struct AccelerationConfig {
         description = "Minimum segment length factor for acceleration changes",
         units = "%",
         min = 0.0,
-        max = 100.0
+        max = 100.0,
+        override_safety = "safe"
     )]
     pub min_length_factor: f64,
     /// Internal solid infill acceleration in mm/s^2.
@@ -1307,7 +1364,8 @@ pub struct AccelerationConfig {
         description = "Internal solid infill acceleration",
         units = "mm/s^2",
         min = 0.0,
-        max = 50000.0
+        max = 50000.0,
+        override_safety = "safe"
     )]
     pub internal_solid_infill_acceleration: f64,
     /// Support acceleration in mm/s^2.
@@ -1317,7 +1375,8 @@ pub struct AccelerationConfig {
         description = "Support structure acceleration",
         units = "mm/s^2",
         min = 0.0,
-        max = 50000.0
+        max = 50000.0,
+        override_safety = "safe"
     )]
     pub support_acceleration: f64,
     /// Support interface acceleration in mm/s^2.
@@ -1327,43 +1386,44 @@ pub struct AccelerationConfig {
         description = "Support interface acceleration",
         units = "mm/s^2",
         min = 0.0,
-        max = 50000.0
+        max = 50000.0,
+        override_safety = "safe"
     )]
     pub support_interface_acceleration: f64,
     /// Default jerk value in mm/s (0 = firmware default).
     /// OrcaSlicer: `default_jerk`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 3, description = "Default jerk value", units = "mm/s")]
+    #[setting(tier = 3, description = "Default jerk value", units = "mm/s", override_safety = "safe")]
     pub default_jerk: f64,
     /// Outer wall jerk value in mm/s (0 = use default_jerk).
     /// OrcaSlicer: `outer_wall_jerk`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 3, description = "Outer wall jerk", units = "mm/s")]
+    #[setting(tier = 3, description = "Outer wall jerk", units = "mm/s", override_safety = "safe")]
     pub outer_wall_jerk: f64,
     /// Inner wall jerk value in mm/s (0 = use default_jerk).
     /// OrcaSlicer: `inner_wall_jerk`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 3, description = "Inner wall jerk", units = "mm/s")]
+    #[setting(tier = 3, description = "Inner wall jerk", units = "mm/s", override_safety = "safe")]
     pub inner_wall_jerk: f64,
     /// Top surface jerk value in mm/s (0 = use default_jerk).
     /// OrcaSlicer: `top_surface_jerk`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 3, description = "Top surface jerk", units = "mm/s")]
+    #[setting(tier = 3, description = "Top surface jerk", units = "mm/s", override_safety = "safe")]
     pub top_surface_jerk: f64,
     /// Infill jerk value in mm/s (0 = use default_jerk).
     /// OrcaSlicer: `infill_jerk`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 3, description = "Infill jerk", units = "mm/s")]
+    #[setting(tier = 3, description = "Infill jerk", units = "mm/s", override_safety = "safe")]
     pub infill_jerk: f64,
     /// Travel jerk value in mm/s (0 = use default_jerk).
     /// OrcaSlicer: `travel_jerk`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 3, description = "Travel jerk", units = "mm/s")]
+    #[setting(tier = 3, description = "Travel jerk", units = "mm/s", override_safety = "safe")]
     pub travel_jerk: f64,
     /// Initial layer jerk value in mm/s (0 = use default_jerk).
     /// OrcaSlicer: `initial_layer_jerk`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 3, description = "Initial layer jerk", units = "mm/s")]
+    #[setting(tier = 3, description = "Initial layer jerk", units = "mm/s", override_safety = "safe")]
     pub initial_layer_jerk: f64,
 }
 
@@ -1411,7 +1471,8 @@ pub struct FilamentPropsConfig {
         description = "Filament diameter",
         units = "mm",
         min = 1.0,
-        max = 3.0
+        max = 3.0,
+        override_safety = "warn"
     )]
     pub diameter: f64,
     /// Filament density in g/cm^3 (PLA ~1.24, ABS ~1.04, PETG ~1.27).
@@ -1420,17 +1481,18 @@ pub struct FilamentPropsConfig {
         description = "Filament density",
         units = "g/cm^3",
         min = 0.5,
-        max = 3.0
+        max = 3.0,
+        override_safety = "warn"
     )]
     pub density: f64,
     /// Filament cost per kilogram in currency units (e.g., USD/kg).
-    #[setting(tier = 3, description = "Filament cost per kilogram")]
+    #[setting(tier = 3, description = "Filament cost per kilogram", override_safety = "warn")]
     pub cost_per_kg: f64,
     /// Filament material type (e.g., "PLA", "ABS", "PETG").
-    #[setting(tier = 1, description = "Filament material type", affects = ["temperature", "cooling", "retraction"])]
+    #[setting(tier = 1, description = "Filament material type", affects = ["temperature", "cooling", "retraction"], override_safety = "warn")]
     pub filament_type: String,
     /// Filament vendor/manufacturer name.
-    #[setting(tier = 3, description = "Filament vendor/manufacturer name")]
+    #[setting(tier = 3, description = "Filament vendor/manufacturer name", override_safety = "warn")]
     pub filament_vendor: String,
     /// Maximum volumetric speed (mm^3/s, 0 = unlimited).
     #[setting(
@@ -1438,54 +1500,59 @@ pub struct FilamentPropsConfig {
         description = "Maximum volumetric extrusion speed",
         units = "mm^3/s",
         min = 0.0,
-        max = 100.0
+        max = 100.0,
+        override_safety = "warn"
     )]
     pub max_volumetric_speed: f64,
     /// Low end of recommended nozzle temperature range (degrees C).
     #[setting(
         tier = 3,
         description = "Nozzle temperature range low end",
-        units = "deg_c"
+        units = "deg_c",
+        override_safety = "warn"
     )]
     pub nozzle_temperature_range_low: f64,
     /// High end of recommended nozzle temperature range (degrees C).
     #[setting(
         tier = 3,
         description = "Nozzle temperature range high end",
-        units = "deg_c"
+        units = "deg_c",
+        override_safety = "warn"
     )]
     pub nozzle_temperature_range_high: f64,
     /// Per-extruder nozzle temperatures (degrees C). Multi-extruder array.
-    #[setting(tier = 1, description = "Nozzle temperature per extruder", units = "deg_c", affects = ["adhesion", "quality", "stringing"])]
+    #[setting(tier = 1, description = "Nozzle temperature per extruder", units = "deg_c", affects = ["adhesion", "quality", "stringing"], override_safety = "warn")]
     pub nozzle_temperatures: Vec<f64>,
     /// Per-extruder bed temperatures (degrees C). Multi-extruder array.
-    #[setting(tier = 1, description = "Bed temperature per extruder", units = "deg_c", affects = ["adhesion"])]
+    #[setting(tier = 1, description = "Bed temperature per extruder", units = "deg_c", affects = ["adhesion"], override_safety = "warn")]
     pub bed_temperatures: Vec<f64>,
     /// Per-extruder first layer nozzle temperatures (degrees C). Multi-extruder array.
-    #[setting(tier = 2, description = "First layer nozzle temperature per extruder", units = "deg_c", affects = ["adhesion"])]
+    #[setting(tier = 2, description = "First layer nozzle temperature per extruder", units = "deg_c", affects = ["adhesion"], override_safety = "warn")]
     pub first_layer_nozzle_temperatures: Vec<f64>,
     /// Per-extruder first layer bed temperatures (degrees C). Multi-extruder array.
-    #[setting(tier = 2, description = "First layer bed temperature per extruder", units = "deg_c", affects = ["adhesion"])]
+    #[setting(tier = 2, description = "First layer bed temperature per extruder", units = "deg_c", affects = ["adhesion"], override_safety = "warn")]
     pub first_layer_bed_temperatures: Vec<f64>,
     /// Filament-specific retraction length override (mm, None = use global).
     #[setting(
         tier = 3,
         description = "Filament-specific retraction length override",
-        units = "mm"
+        units = "mm",
+        override_safety = "warn"
     )]
     pub filament_retraction_length: Option<f64>,
     /// Filament-specific retraction speed override (mm/s, None = use global).
     #[setting(
         tier = 3,
         description = "Filament-specific retraction speed override",
-        units = "mm/s"
+        units = "mm/s",
+        override_safety = "warn"
     )]
     pub filament_retraction_speed: Option<f64>,
     /// Filament start G-code (run once when filament loaded).
-    #[setting(tier = 4, description = "Filament-specific startup G-code")]
+    #[setting(tier = 4, description = "Filament-specific startup G-code", override_safety = "warn")]
     pub filament_start_gcode: String,
     /// Filament end G-code (run once when filament unloaded).
-    #[setting(tier = 4, description = "Filament-specific shutdown G-code")]
+    #[setting(tier = 4, description = "Filament-specific shutdown G-code", override_safety = "warn")]
     pub filament_end_gcode: String,
     /// Desired chamber temperature for this filament (degrees C, 0 = not required).
     /// Validated against `MachineConfig.chamber_temperature` (max) during profile merge.
@@ -1495,7 +1562,8 @@ pub struct FilamentPropsConfig {
         description = "Desired chamber temperature for this filament",
         units = "deg_c",
         min = 0.0,
-        max = 80.0
+        max = 80.0,
+        override_safety = "warn"
     )]
     pub chamber_temperature: f64,
     /// Filament shrinkage compensation percentage (100 = no shrink, >100 = expand).
@@ -1506,17 +1574,18 @@ pub struct FilamentPropsConfig {
         description = "Filament shrinkage compensation",
         units = "%",
         min = 90.0,
-        max = 110.0
+        max = 110.0,
+        override_safety = "warn"
     )]
     pub filament_shrink: f64,
     /// Per-filament Z offset additive adjustment (mm). Added to global z_offset.
     /// OrcaSlicer: `z_offset` (in filament profile). PrusaSlicer: N/A.
     /// Range: -2.0 to 2.0. Default: 0.0.
-    #[setting(tier = 3, description = "Per-filament Z offset adjustment", units = "mm", min = -2.0, max = 2.0)]
+    #[setting(tier = 3, description = "Per-filament Z offset adjustment", units = "mm", min = -2.0, max = 2.0, override_safety = "warn")]
     pub z_offset: f64,
     /// Filament color as hex string (e.g., "#FF0000") for preview rendering.
     /// OrcaSlicer: `filament_colour`. Default: "" (no color set).
-    #[setting(tier = 2, description = "Filament color for preview")]
+    #[setting(tier = 2, description = "Filament color for preview", override_safety = "warn")]
     pub filament_colour: String,
     // --- Per-bed-type temperatures (Vec<f64> for multi-extruder) ---
     /// Smooth/hot plate temperatures per extruder (degrees C).
@@ -1524,7 +1593,8 @@ pub struct FilamentPropsConfig {
     #[setting(
         tier = 3,
         description = "Hot plate temperature per extruder",
-        units = "deg_c"
+        units = "deg_c",
+        override_safety = "warn"
     )]
     pub hot_plate_temp: Vec<f64>,
     /// Cool plate temperatures per extruder (degrees C).
@@ -1532,7 +1602,8 @@ pub struct FilamentPropsConfig {
     #[setting(
         tier = 3,
         description = "Cool plate temperature per extruder",
-        units = "deg_c"
+        units = "deg_c",
+        override_safety = "warn"
     )]
     pub cool_plate_temp: Vec<f64>,
     /// Engineering plate temperatures per extruder (degrees C).
@@ -1540,7 +1611,8 @@ pub struct FilamentPropsConfig {
     #[setting(
         tier = 3,
         description = "Engineering plate temperature per extruder",
-        units = "deg_c"
+        units = "deg_c",
+        override_safety = "warn"
     )]
     pub eng_plate_temp: Vec<f64>,
     /// Textured plate temperatures per extruder (degrees C).
@@ -1548,7 +1620,8 @@ pub struct FilamentPropsConfig {
     #[setting(
         tier = 3,
         description = "Textured plate temperature per extruder",
-        units = "deg_c"
+        units = "deg_c",
+        override_safety = "warn"
     )]
     pub textured_plate_temp: Vec<f64>,
     /// Smooth/hot plate first layer temperatures per extruder (degrees C).
@@ -1556,7 +1629,8 @@ pub struct FilamentPropsConfig {
     #[setting(
         tier = 3,
         description = "Hot plate first layer temperature per extruder",
-        units = "deg_c"
+        units = "deg_c",
+        override_safety = "warn"
     )]
     pub hot_plate_temp_initial_layer: Vec<f64>,
     /// Cool plate first layer temperatures per extruder (degrees C).
@@ -1564,7 +1638,8 @@ pub struct FilamentPropsConfig {
     #[setting(
         tier = 3,
         description = "Cool plate first layer temperature per extruder",
-        units = "deg_c"
+        units = "deg_c",
+        override_safety = "warn"
     )]
     pub cool_plate_temp_initial_layer: Vec<f64>,
     /// Engineering plate first layer temperatures per extruder (degrees C).
@@ -1572,7 +1647,8 @@ pub struct FilamentPropsConfig {
     #[setting(
         tier = 3,
         description = "Engineering plate first layer temperature per extruder",
-        units = "deg_c"
+        units = "deg_c",
+        override_safety = "warn"
     )]
     pub eng_plate_temp_initial_layer: Vec<f64>,
     /// Textured plate first layer temperatures per extruder (degrees C).
@@ -1580,7 +1656,8 @@ pub struct FilamentPropsConfig {
     #[setting(
         tier = 3,
         description = "Textured plate first layer temperature per extruder",
-        units = "deg_c"
+        units = "deg_c",
+        override_safety = "warn"
     )]
     pub textured_plate_temp_initial_layer: Vec<f64>,
 }
@@ -1744,27 +1821,29 @@ pub enum TravelOptAlgorithm {
 #[setting(category = "Travel")]
 pub struct TravelOptConfig {
     /// Enable travel move optimization.
-    #[setting(tier = 3, description = "Enable TSP-based travel move optimization")]
+    #[setting(tier = 3, description = "Enable TSP-based travel move optimization", override_safety = "warn")]
     pub enabled: bool,
     /// TSP algorithm selection.
-    #[setting(tier = 4, description = "TSP algorithm for travel optimization")]
+    #[setting(tier = 4, description = "TSP algorithm for travel optimization", override_safety = "warn")]
     pub algorithm: TravelOptAlgorithm,
     /// Maximum 2-opt improvement iterations (0 = no limit until convergence).
     #[setting(
         tier = 4,
         description = "Maximum 2-opt improvement passes",
         min = 0.0,
-        max = 10000.0
+        max = 10000.0,
+        override_safety = "warn"
     )]
     pub max_iterations: u32,
     /// Optimize travel between objects on the same layer.
     #[setting(
         tier = 3,
-        description = "Optimize cross-object travel on multi-object plates"
+        description = "Optimize cross-object travel on multi-object plates",
+        override_safety = "warn"
     )]
     pub optimize_cross_object: bool,
     /// Print ordering strategy for multi-object plates.
-    #[setting(tier = 2, description = "Print ordering strategy")]
+    #[setting(tier = 2, description = "Print ordering strategy", override_safety = "warn")]
     pub print_order: PrintOrder,
 }
 
@@ -1791,61 +1870,62 @@ impl Default for TravelOptConfig {
 pub struct PrintConfig {
     // --- Layer geometry ---
     /// Standard layer height in mm.
-    #[setting(tier = 1, description = "Layer height", units = "mm", min = 0.01, max = 1.0, affects = ["quality", "print_time", "strength"])]
+    #[setting(tier = 1, description = "Layer height", units = "mm", min = 0.01, max = 1.0, affects = ["quality", "print_time", "strength"], override_safety = "safe")]
     pub layer_height: f64,
     /// First layer height in mm (typically thicker for bed adhesion).
-    #[setting(tier = 1, description = "First layer height", units = "mm", min = 0.01, max = 1.0, affects = ["adhesion", "quality"])]
+    #[setting(tier = 1, description = "First layer height", units = "mm", min = 0.01, max = 1.0, affects = ["adhesion", "quality"], override_safety = "safe")]
     pub first_layer_height: f64,
 
     // --- Walls ---
     /// Number of perimeter walls.
-    #[setting(tier = 1, description = "Number of perimeter walls", affects = ["strength", "quality", "print_time"])]
+    #[setting(tier = 1, description = "Number of perimeter walls", affects = ["strength", "quality", "print_time"], override_safety = "safe")]
     pub wall_count: u32,
     /// Order in which walls are printed.
-    #[setting(tier = 2, description = "Wall printing order", affects = ["quality"])]
+    #[setting(tier = 2, description = "Wall printing order", affects = ["quality"], override_safety = "safe")]
     pub wall_order: WallOrder,
     /// Seam placement strategy for perimeter loops.
-    #[setting(tier = 2, description = "Seam placement strategy", affects = ["quality"])]
+    #[setting(tier = 2, description = "Seam placement strategy", affects = ["quality"], override_safety = "safe")]
     pub seam_position: SeamPosition,
 
     // --- Infill ---
     /// Infill pattern to use for sparse infill regions.
-    #[setting(tier = 1, description = "Infill pattern", affects = ["strength", "print_time"])]
+    #[setting(tier = 1, description = "Infill pattern", affects = ["strength", "print_time"], override_safety = "safe")]
     pub infill_pattern: InfillPattern,
     /// Infill density as a fraction (0.0 = hollow, 1.0 = solid).
-    #[setting(tier = 1, description = "Infill density", units = "%", min = 0.0, max = 100.0, affects = ["strength", "weight", "print_time"])]
+    #[setting(tier = 1, description = "Infill density", units = "%", min = 0.0, max = 100.0, affects = ["strength", "weight", "print_time"], override_safety = "safe")]
     pub infill_density: f64,
     /// Number of solid top layers.
-    #[setting(tier = 1, description = "Number of top solid layers", affects = ["quality", "strength"])]
+    #[setting(tier = 1, description = "Number of top solid layers", affects = ["quality", "strength"], override_safety = "safe")]
     pub top_solid_layers: u32,
     /// Number of solid bottom layers.
-    #[setting(tier = 1, description = "Number of bottom solid layers", affects = ["quality", "strength"])]
+    #[setting(tier = 1, description = "Number of bottom solid layers", affects = ["quality", "strength"], override_safety = "safe")]
     pub bottom_solid_layers: u32,
 
     // --- Skirt/Brim ---
     /// Number of skirt loops.
-    #[setting(tier = 2, description = "Number of skirt loops", category = "Adhesion")]
+    #[setting(tier = 2, description = "Number of skirt loops", category = "Adhesion", override_safety = "warn")]
     pub skirt_loops: u32,
     /// Distance of skirt from object in mm.
     #[setting(
         tier = 2,
         description = "Skirt distance from object",
         units = "mm",
-        category = "Adhesion"
+        category = "Adhesion",
+        override_safety = "warn"
     )]
     pub skirt_distance: f64,
     /// Brim width in mm (0.0 = disabled).
-    #[setting(tier = 1, description = "Brim width", units = "mm", min = 0.0, max = 50.0, affects = ["adhesion"], category = "Adhesion")]
+    #[setting(tier = 1, description = "Brim width", units = "mm", min = 0.0, max = 50.0, affects = ["adhesion"], category = "Adhesion", override_safety = "warn")]
     pub brim_width: f64,
 
     // --- Extrusion ---
     /// Extrusion multiplier (flow rate factor).
-    #[setting(tier = 2, description = "Extrusion multiplier (flow rate factor)", min = 0.5, max = 2.0, affects = ["quality"])]
+    #[setting(tier = 2, description = "Extrusion multiplier (flow rate factor)", min = 0.5, max = 2.0, affects = ["quality"], override_safety = "safe")]
     pub extrusion_multiplier: f64,
 
     // --- Adaptive Layer Heights ---
     /// Enable adaptive layer heights based on surface curvature.
-    #[setting(tier = 2, description = "Enable adaptive layer heights", affects = ["quality", "print_time"])]
+    #[setting(tier = 2, description = "Enable adaptive layer heights", affects = ["quality", "print_time"], override_safety = "safe")]
     pub adaptive_layer_height: bool,
     /// Minimum layer height for adaptive layers (mm).
     #[setting(
@@ -1854,7 +1934,8 @@ pub struct PrintConfig {
         units = "mm",
         min = 0.01,
         max = 1.0,
-        depends_on = "adaptive_layer_height"
+        depends_on = "adaptive_layer_height",
+        override_safety = "safe"
     )]
     pub adaptive_min_layer_height: f64,
     /// Maximum layer height for adaptive layers (mm).
@@ -1864,7 +1945,8 @@ pub struct PrintConfig {
         units = "mm",
         min = 0.01,
         max = 1.0,
-        depends_on = "adaptive_layer_height"
+        depends_on = "adaptive_layer_height",
+        override_safety = "safe"
     )]
     pub adaptive_max_layer_height: f64,
     /// Adaptive layer quality (0.0 = speed, 1.0 = quality).
@@ -1873,20 +1955,22 @@ pub struct PrintConfig {
         description = "Adaptive layer quality factor",
         min = 0.0,
         max = 1.0,
-        depends_on = "adaptive_layer_height"
+        depends_on = "adaptive_layer_height",
+        override_safety = "safe"
     )]
     pub adaptive_layer_quality: f64,
 
     // --- Gap Fill ---
     /// Enable gap fill between perimeters.
-    #[setting(tier = 3, description = "Enable gap fill between perimeters")]
+    #[setting(tier = 3, description = "Enable gap fill between perimeters", override_safety = "safe")]
     pub gap_fill_enabled: bool,
     /// Minimum gap width to fill (mm).
     #[setting(
         tier = 3,
         description = "Minimum gap width to fill",
         units = "mm",
-        depends_on = "gap_fill_enabled"
+        depends_on = "gap_fill_enabled",
+        override_safety = "safe"
     )]
     pub gap_fill_min_width: f64,
 
@@ -1894,7 +1978,8 @@ pub struct PrintConfig {
     /// Enable polyhole conversion for circular holes (dimensional accuracy).
     #[setting(
         tier = 3,
-        description = "Enable polyhole conversion for circular holes"
+        description = "Enable polyhole conversion for circular holes",
+        override_safety = "safe"
     )]
     pub polyhole_enabled: bool,
     /// Minimum hole diameter (mm) for polyhole conversion (skip very small holes).
@@ -1902,13 +1987,14 @@ pub struct PrintConfig {
         tier = 3,
         description = "Minimum hole diameter for polyhole conversion",
         units = "mm",
-        depends_on = "polyhole_enabled"
+        depends_on = "polyhole_enabled",
+        override_safety = "safe"
     )]
     pub polyhole_min_diameter: f64,
 
     // --- Arachne Variable-Width Perimeters ---
     /// Enable Arachne variable-width perimeters for thin walls.
-    #[setting(tier = 3, description = "Enable Arachne variable-width perimeters")]
+    #[setting(tier = 3, description = "Enable Arachne variable-width perimeters", override_safety = "safe")]
     pub arachne_enabled: bool,
 
     // --- Scarf Joint Seam ---
@@ -1938,26 +2024,28 @@ pub struct PrintConfig {
 
     // --- G-code Dialect ---
     /// G-code firmware dialect (Marlin, Klipper, RepRapFirmware, Bambu).
-    #[setting(tier = 2, description = "G-code firmware dialect")]
+    #[setting(tier = 2, description = "G-code firmware dialect", override_safety = "ignored")]
     pub gcode_dialect: GcodeDialect,
 
     // --- Arc Fitting ---
     /// Enable arc fitting post-processing (G1 -> G2/G3 conversion).
-    #[setting(tier = 3, description = "Enable arc fitting G2/G3 conversion")]
+    #[setting(tier = 3, description = "Enable arc fitting G2/G3 conversion", override_safety = "safe")]
     pub arc_fitting_enabled: bool,
     /// Maximum deviation (mm) for arc fitting tolerance.
     #[setting(
         tier = 3,
         description = "Arc fitting deviation tolerance",
         units = "mm",
-        depends_on = "arc_fitting_enabled"
+        depends_on = "arc_fitting_enabled",
+        override_safety = "safe"
     )]
     pub arc_fitting_tolerance: f64,
     /// Minimum number of consecutive G1 moves to consider for arc fitting.
     #[setting(
         tier = 4,
         description = "Minimum points for arc detection",
-        depends_on = "arc_fitting_enabled"
+        depends_on = "arc_fitting_enabled",
+        override_safety = "safe"
     )]
     pub arc_fitting_min_points: usize,
 
@@ -1966,14 +2054,16 @@ pub struct PrintConfig {
     #[setting(
         tier = 2,
         description = "Pressure advance value",
-        category = "Calibration"
+        category = "Calibration",
+        override_safety = "warn"
     )]
     pub pressure_advance: f64,
     /// Enable acceleration command emission at feature transitions.
     #[setting(
         tier = 3,
         description = "Enable acceleration commands at feature transitions",
-        category = "Acceleration"
+        category = "Acceleration",
+        override_safety = "warn"
     )]
     pub acceleration_enabled: bool,
 
@@ -1999,7 +2089,7 @@ pub struct PrintConfig {
     /// directory. Each plugin should be in its own subdirectory containing
     /// a `plugin.toml` manifest.
     #[serde(default)]
-    #[setting(tier = 4, description = "Plugin scan directory")]
+    #[setting(tier = 4, description = "Plugin scan directory", override_safety = "ignored")]
     pub plugin_dir: Option<String>,
 
     // --- Sub-config structs (Phase 20) ---
@@ -2039,49 +2129,50 @@ pub struct PrintConfig {
 
     // --- Surface Patterns (Phase 32) ---
     /// Top surface fill pattern. Default: Monotonic.
-    #[setting(tier = 2, description = "Top surface fill pattern", affects = ["quality"])]
+    #[setting(tier = 2, description = "Top surface fill pattern", affects = ["quality"], override_safety = "safe")]
     pub top_surface_pattern: SurfacePattern,
     /// Bottom surface fill pattern. Default: Monotonic.
-    #[setting(tier = 3, description = "Bottom surface fill pattern")]
+    #[setting(tier = 3, description = "Bottom surface fill pattern", override_safety = "safe")]
     pub bottom_surface_pattern: SurfacePattern,
     /// Internal solid layer fill pattern. Default: Monotonic.
-    #[setting(tier = 3, description = "Internal solid layer fill pattern")]
+    #[setting(tier = 3, description = "Internal solid layer fill pattern", override_safety = "safe")]
     pub solid_infill_pattern: SurfacePattern,
 
     // --- Overhangs (Phase 32) ---
     /// Generate extra perimeters on overhangs for better quality.
     /// OrcaSlicer: `extra_perimeters_on_overhangs`. Default: false.
-    #[setting(tier = 3, description = "Generate extra perimeters on overhangs")]
+    #[setting(tier = 3, description = "Generate extra perimeters on overhangs", override_safety = "safe")]
     pub extra_perimeters_on_overhangs: bool,
 
     // --- Bridges (Phase 32) ---
     /// Internal bridge support mode (off/auto/always).
     /// OrcaSlicer: `internal_bridge_support_enabled`. Default: Off.
-    #[setting(tier = 3, description = "Internal bridge support mode")]
+    #[setting(tier = 3, description = "Internal bridge support mode", override_safety = "safe")]
     pub internal_bridge_support: InternalBridgeMode,
 
     // --- Z Offset (Phase 32) ---
     /// Global Z offset in mm. Per-filament z_offset is additive.
     /// OrcaSlicer/PrusaSlicer: `z_offset`. Range: -5.0 to 5.0. Default: 0.0.
-    #[setting(tier = 2, description = "Global Z offset", units = "mm", min = -5.0, max = 5.0)]
+    #[setting(tier = 2, description = "Global Z offset", units = "mm", min = -5.0, max = 5.0, override_safety = "warn")]
     pub z_offset: f64,
 
     // --- Precise Z (Phase 32) ---
     /// Enable precise Z height positioning.
     /// OrcaSlicer: `precise_z_height`. Default: false.
-    #[setting(tier = 4, description = "Enable precise Z height positioning")]
+    #[setting(tier = 4, description = "Enable precise Z height positioning", override_safety = "warn")]
     pub precise_z_height: bool,
 
     // --- Process misc fields (Phase 20) ---
     /// Bridge flow ratio (1.0 = normal flow).
-    #[setting(tier = 3, description = "Bridge flow ratio", min = 0.1, max = 2.0, affects = ["bridging"])]
+    #[setting(tier = 3, description = "Bridge flow ratio", min = 0.1, max = 2.0, affects = ["bridging"], override_safety = "safe")]
     pub bridge_flow: f64,
     /// Infill line direction in degrees.
     #[setting(
         tier = 3,
         description = "Infill line direction angle",
         units = "deg",
-        category = "Infill"
+        category = "Infill",
+        override_safety = "safe"
     )]
     pub infill_direction: f64,
     /// Infill-wall overlap as a fraction (0-1).
@@ -2090,43 +2181,44 @@ pub struct PrintConfig {
         description = "Infill-wall overlap fraction",
         min = 0.0,
         max = 1.0,
-        category = "Infill"
+        category = "Infill",
+        override_safety = "safe"
     )]
     pub infill_wall_overlap: f64,
     /// Enable spiral (vase) mode.
-    #[setting(tier = 2, description = "Enable spiral vase mode")]
+    #[setting(tier = 2, description = "Enable spiral vase mode", override_safety = "safe")]
     pub spiral_mode: bool,
     /// Use only one wall on top surfaces.
-    #[setting(tier = 3, description = "Use only one wall on top surfaces")]
+    #[setting(tier = 3, description = "Use only one wall on top surfaces", override_safety = "safe")]
     pub only_one_wall_top: bool,
     /// G-code resolution in mm.
-    #[setting(tier = 3, description = "G-code point resolution", units = "mm")]
+    #[setting(tier = 3, description = "G-code point resolution", units = "mm", override_safety = "safe")]
     pub resolution: f64,
     /// Number of raft layers (0 = disabled).
-    #[setting(tier = 2, description = "Number of raft layers", category = "Adhesion")]
+    #[setting(tier = 2, description = "Number of raft layers", category = "Adhesion", override_safety = "warn")]
     pub raft_layers: u32,
     /// Enable thin wall detection.
-    #[setting(tier = 3, description = "Enable thin wall detection")]
+    #[setting(tier = 3, description = "Enable thin wall detection", override_safety = "safe")]
     pub detect_thin_wall: bool,
 
     // --- Parallelism ---
     /// Whether to use parallel (rayon) processing for per-layer operations.
     /// When false, layers are processed sequentially (useful for debugging
     /// or determinism verification). Default: true.
-    #[setting(tier = 4, description = "Enable parallel slicing")]
+    #[setting(tier = 4, description = "Enable parallel slicing", override_safety = "ignored")]
     pub parallel_slicing: bool,
 
     /// Number of threads for parallel processing. None = auto-detect
     /// (rayon default: number of logical CPUs). Only effective when
     /// parallel_slicing is true and the `parallel` feature is enabled.
-    #[setting(tier = 4, description = "Number of processing threads")]
+    #[setting(tier = 4, description = "Number of processing threads", override_safety = "ignored")]
     pub thread_count: Option<usize>,
 
     // --- Thumbnail ---
     /// Thumbnail resolution as [width, height] in pixels.
     /// Used when generating thumbnail images for 3MF or G-code embedding.
     #[serde(default = "default_thumbnail_resolution")]
-    #[setting(tier = 4, description = "Thumbnail resolution")]
+    #[setting(tier = 4, description = "Thumbnail resolution", override_safety = "ignored")]
     pub thumbnail_resolution: [u32; 2],
 
     // --- Post-Processing ---
@@ -2156,19 +2248,19 @@ pub struct PrintConfig {
     // --- Precise Outer Wall (Phase 33) ---
     /// Enable precise outer wall positioning for dimensional accuracy.
     /// OrcaSlicer: `precise_outer_wall`. Default: false.
-    #[setting(tier = 3, description = "Enable precise outer wall positioning")]
+    #[setting(tier = 3, description = "Enable precise outer wall positioning", override_safety = "safe")]
     pub precise_outer_wall: bool,
 
     // --- Draft Shield (Phase 33) ---
     /// Enable draft shield (wall around print to block air currents).
     /// OrcaSlicer: `draft_shield`. PrusaSlicer: `draft_shield`. Default: false.
-    #[setting(tier = 3, description = "Enable draft shield to block air currents")]
+    #[setting(tier = 3, description = "Enable draft shield to block air currents", override_safety = "warn")]
     pub draft_shield: bool,
 
     // --- Ooze Prevention (Phase 33) ---
     /// Enable ooze prevention (standby temp reduction for inactive tools).
     /// OrcaSlicer: `ooze_prevention`. PrusaSlicer: `ooze_prevention`. Default: false.
-    #[setting(tier = 3, description = "Enable ooze prevention for multi-tool")]
+    #[setting(tier = 3, description = "Enable ooze prevention for multi-tool", override_safety = "warn")]
     pub ooze_prevention: bool,
 
     // --- Infill Combination (Phase 33) ---
@@ -2179,7 +2271,8 @@ pub struct PrintConfig {
         description = "Combine infill every N layers",
         min = 0.0,
         max = 10.0,
-        category = "Infill"
+        category = "Infill",
+        override_safety = "safe"
     )]
     pub infill_combination: u32,
 
@@ -2192,7 +2285,8 @@ pub struct PrintConfig {
         units = "mm",
         min = 0.0,
         max = 50.0,
-        category = "Infill"
+        category = "Infill",
+        override_safety = "safe"
     )]
     pub infill_anchor_max: f64,
 
@@ -2205,7 +2299,8 @@ pub struct PrintConfig {
         units = "mm",
         min = 0.0,
         max = 1.0,
-        depends_on = "arachne_enabled"
+        depends_on = "arachne_enabled",
+        override_safety = "safe"
     )]
     pub min_bead_width: f64,
     /// Minimum feature size for Arachne detection in mm.
@@ -2216,7 +2311,8 @@ pub struct PrintConfig {
         units = "mm",
         min = 0.0,
         max = 1.0,
-        depends_on = "arachne_enabled"
+        depends_on = "arachne_enabled",
+        override_safety = "safe"
     )]
     pub min_feature_size: f64,
 
@@ -2224,32 +2320,32 @@ pub struct PrintConfig {
     /// Slicing tolerance mode for layer boundary positioning.
     /// OrcaSlicer/PrusaSlicer: `slicing_tolerance`. Default: Middle.
     #[serde(default)]
-    #[setting(tier = 4, description = "Slicing tolerance mode")]
+    #[setting(tier = 4, description = "Slicing tolerance mode", override_safety = "safe")]
     pub slicing_tolerance: SlicingTolerance,
     /// Thumbnail size specs (e.g., ["96x96", "400x300"]).
     /// OrcaSlicer/PrusaSlicer: `thumbnails`. Default: empty.
     #[serde(default)]
-    #[setting(tier = 4, description = "Thumbnail size specifications")]
+    #[setting(tier = 4, description = "Thumbnail size specifications", override_safety = "ignored")]
     pub thumbnails: Vec<String>,
     /// Cumulative compatible printers condition expressions.
     /// OrcaSlicer: `compatible_printers_condition_cummulative`. Default: empty.
     #[serde(default)]
-    #[setting(tier = 4, description = "Compatible printers condition expressions")]
+    #[setting(tier = 4, description = "Compatible printers condition expressions", override_safety = "ignored")]
     pub compatible_printers_condition: Vec<String>,
     /// Profile inheritance grouping identifier.
     /// OrcaSlicer: `inherits_group`. Default: empty.
     #[serde(default)]
-    #[setting(tier = 4, description = "Profile inheritance group identifier")]
+    #[setting(tier = 4, description = "Profile inheritance group identifier", override_safety = "ignored")]
     pub inherits_group: String,
     /// Maximum travel detour length for optimization in mm.
     /// OrcaSlicer: `max_travel_detour_distance`. Default: 0.0.
     #[serde(default)]
-    #[setting(tier = 4, description = "Maximum travel detour length", units = "mm")]
+    #[setting(tier = 4, description = "Maximum travel detour length", units = "mm", override_safety = "safe")]
     pub max_travel_detour_length: f64,
     /// Enable exclude/cancel object support.
     /// OrcaSlicer: `exclude_object`. Default: false.
     #[serde(default)]
-    #[setting(tier = 3, description = "Enable exclude/cancel object support")]
+    #[setting(tier = 3, description = "Enable exclude/cancel object support", override_safety = "warn")]
     pub exclude_object: bool,
     /// Reduce retraction on infill-to-infill travel.
     /// OrcaSlicer: `reduce_infill_retraction`. Default: false.
@@ -2257,7 +2353,8 @@ pub struct PrintConfig {
     #[setting(
         tier = 3,
         description = "Reduce retraction on infill-to-infill travel",
-        category = "Infill"
+        category = "Infill",
+        override_safety = "safe"
     )]
     pub reduce_infill_retraction: bool,
     /// Reduce wall crossing during travel moves.
@@ -2266,7 +2363,8 @@ pub struct PrintConfig {
     #[setting(
         tier = 3,
         description = "Reduce wall crossing during travel moves",
-        category = "Retraction"
+        category = "Retraction",
+        override_safety = "safe"
     )]
     pub reduce_crossing_wall: bool,
 }
@@ -2293,20 +2391,22 @@ fn default_true() -> bool {
 #[setting(category = "PostProcess")]
 pub struct PostProcessConfig {
     /// Master switch for the post-processing pipeline.
-    #[setting(tier = 3, description = "Enable post-processing pipeline")]
+    #[setting(tier = 3, description = "Enable post-processing pipeline", override_safety = "warn")]
     pub enabled: bool,
     /// Layer indices (zero-based) at which to insert a pause command.
     #[setting(
         tier = 3,
         description = "Layer indices at which to pause",
-        depends_on = "post_process.enabled"
+        depends_on = "post_process.enabled",
+        override_safety = "warn"
     )]
     pub pause_at_layers: Vec<usize>,
     /// G-code command to insert for pause (typically "M0" or "M600").
     #[setting(
         tier = 4,
         description = "G-code command for pause insertion",
-        depends_on = "post_process.enabled"
+        depends_on = "post_process.enabled",
+        override_safety = "warn"
     )]
     pub pause_command: String,
     /// Timelapse camera configuration.
@@ -2320,35 +2420,36 @@ pub struct PostProcessConfig {
     pub custom_gcode: Vec<CustomGcodeRule>,
     /// Explicit plugin execution order by name.
     /// When empty, plugins are sorted by priority.
-    #[setting(tier = 4, description = "Plugin execution order")]
+    #[setting(tier = 4, description = "Plugin execution order", override_safety = "ignored")]
     pub plugin_order: Vec<String>,
     /// Post-process script paths (semicolon/newline separated in upstream).
     /// OrcaSlicer/PrusaSlicer: `post_process`. Default: empty.
     #[serde(default)]
-    #[setting(tier = 4, description = "Post-process script paths")]
+    #[setting(tier = 4, description = "Post-process script paths", override_safety = "ignored")]
     pub scripts: Vec<String>,
     /// Label objects in G-code output (Exclude Object support).
     /// OrcaSlicer: `gcode_label_objects`. Default: false.
     #[serde(default)]
     #[setting(
         tier = 3,
-        description = "Label objects in G-code for exclude object support"
+        description = "Label objects in G-code for exclude object support",
+        override_safety = "warn"
     )]
     pub gcode_label_objects: bool,
     /// Include comments in G-code output.
     /// OrcaSlicer: `gcode_comments`. Default: false.
     #[serde(default)]
-    #[setting(tier = 4, description = "Include comments in G-code output")]
+    #[setting(tier = 4, description = "Include comments in G-code output", override_safety = "ignored")]
     pub gcode_comments: bool,
     /// Add line numbers to G-code output.
     /// OrcaSlicer: `gcode_add_line_number`. Default: false.
     #[serde(default)]
-    #[setting(tier = 4, description = "Add line numbers to G-code output")]
+    #[setting(tier = 4, description = "Add line numbers to G-code output", override_safety = "ignored")]
     pub gcode_add_line_number: bool,
     /// Output filename format template.
     /// OrcaSlicer: `filename_format`. Default: empty.
     #[serde(default)]
-    #[setting(tier = 4, description = "Output filename format template")]
+    #[setting(tier = 4, description = "Output filename format template", override_safety = "ignored")]
     pub filename_format: String,
 }
 
@@ -2380,14 +2481,15 @@ impl Default for PostProcessConfig {
 #[setting(category = "Timelapse")]
 pub struct TimelapseConfig {
     /// Enable timelapse camera support.
-    #[setting(tier = 3, description = "Enable timelapse camera support")]
+    #[setting(tier = 3, description = "Enable timelapse camera support", override_safety = "warn")]
     pub enabled: bool,
     /// X position to park at for the snapshot (mm).
     #[setting(
         tier = 3,
         description = "Timelapse park X position",
         units = "mm",
-        depends_on = "post_process.timelapse.enabled"
+        depends_on = "post_process.timelapse.enabled",
+        override_safety = "warn"
     )]
     pub park_x: f64,
     /// Y position to park at for the snapshot (mm).
@@ -2395,7 +2497,8 @@ pub struct TimelapseConfig {
         tier = 3,
         description = "Timelapse park Y position",
         units = "mm",
-        depends_on = "post_process.timelapse.enabled"
+        depends_on = "post_process.timelapse.enabled",
+        override_safety = "warn"
     )]
     pub park_y: f64,
     /// Dwell time at park position for camera capture (ms).
@@ -2403,7 +2506,8 @@ pub struct TimelapseConfig {
         tier = 3,
         description = "Timelapse dwell time at park position",
         units = "ms",
-        depends_on = "post_process.timelapse.enabled"
+        depends_on = "post_process.timelapse.enabled",
+        override_safety = "warn"
     )]
     pub dwell_ms: u32,
     /// Retraction distance before moving to park position (mm).
@@ -2411,7 +2515,8 @@ pub struct TimelapseConfig {
         tier = 4,
         description = "Retraction distance before timelapse park",
         units = "mm",
-        depends_on = "post_process.timelapse.enabled"
+        depends_on = "post_process.timelapse.enabled",
+        override_safety = "warn"
     )]
     pub retract_distance: f64,
     /// Retraction speed (mm/min).
@@ -2419,7 +2524,8 @@ pub struct TimelapseConfig {
         tier = 4,
         description = "Retraction speed before timelapse park",
         units = "mm/min",
-        depends_on = "post_process.timelapse.enabled"
+        depends_on = "post_process.timelapse.enabled",
+        override_safety = "warn"
     )]
     pub retract_speed: f64,
 }
@@ -2512,20 +2618,22 @@ pub struct CustomGcodeRule {
 #[setting(category = "Quality")]
 pub struct ScarfJointConfig {
     /// Enable scarf joint seam.
-    #[setting(tier = 3, description = "Enable scarf joint seam")]
+    #[setting(tier = 3, description = "Enable scarf joint seam", override_safety = "safe")]
     pub enabled: bool,
     /// Apply to contours and/or holes.
     #[setting(
         tier = 3,
         description = "Scarf joint contour/hole selection",
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub scarf_joint_type: ScarfJointType,
     /// Only apply on smooth perimeters (no sharp corners near seam).
     #[setting(
         tier = 3,
         description = "Only apply scarf on smooth perimeters",
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub conditional_scarf: bool,
     /// Speed during scarf region (mm/s, 0 = use wall speed).
@@ -2535,7 +2643,8 @@ pub struct ScarfJointConfig {
         units = "mm/s",
         min = 0.0,
         max = 1000.0,
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub scarf_speed: f64,
     /// Z offset at ramp start as fraction of layer height (0.0-1.0).
@@ -2544,14 +2653,16 @@ pub struct ScarfJointConfig {
         description = "Z offset at ramp start as fraction of layer height",
         min = 0.0,
         max = 1.0,
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub scarf_start_height: f64,
     /// Apply scarf around entire wall (not just seam region).
     #[setting(
         tier = 3,
         description = "Apply scarf around entire wall",
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub scarf_around_entire_wall: bool,
     /// Horizontal length of the scarf ramp in mm.
@@ -2561,14 +2672,16 @@ pub struct ScarfJointConfig {
         units = "mm",
         min = 0.0,
         max = 100.0,
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub scarf_length: f64,
     /// Number of discrete steps in the ramp.
     #[setting(
         tier = 3,
         description = "Number of discrete ramp steps",
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub scarf_steps: u32,
     /// Extrusion flow ratio during scarf (1.0 = normal).
@@ -2577,21 +2690,24 @@ pub struct ScarfJointConfig {
         description = "Scarf extrusion flow ratio",
         min = 0.1,
         max = 2.0,
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub scarf_flow_ratio: f64,
     /// Apply scarf to inner walls (not just outer).
     #[setting(
         tier = 3,
         description = "Apply scarf to inner walls",
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub scarf_inner_walls: bool,
     /// Use role-based wipe speed at seam.
     #[setting(
         tier = 4,
         description = "Use role-based speed for wipe at seam",
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub role_based_wipe_speed: bool,
     /// Wipe speed at seam end (mm/s).
@@ -2601,14 +2717,16 @@ pub struct ScarfJointConfig {
         units = "mm/s",
         min = 0.0,
         max = 1000.0,
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub wipe_speed: f64,
     /// Enable inward wipe at seam close.
     #[setting(
         tier = 3,
         description = "Enable inward wipe at seam close",
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub wipe_on_loop: bool,
     /// Gap between scarf ramp end and next layer start in mm.
@@ -2618,7 +2736,8 @@ pub struct ScarfJointConfig {
         tier = 4,
         description = "Gap between scarf end and next layer",
         units = "mm",
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub seam_gap: f64,
     /// Minimum angle (degrees) at which scarf joint activates.
@@ -2628,7 +2747,8 @@ pub struct ScarfJointConfig {
         tier = 4,
         description = "Minimum angle for scarf activation",
         units = "deg",
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub scarf_angle_threshold: f64,
     /// Overhang percentage threshold at which scarf joint is disabled.
@@ -2637,13 +2757,14 @@ pub struct ScarfJointConfig {
     #[setting(
         tier = 4,
         description = "Overhang threshold to disable scarf",
-        depends_on = "scarf_joint.enabled"
+        depends_on = "scarf_joint.enabled",
+        override_safety = "safe"
     )]
     pub scarf_overhang_threshold: f64,
     /// Override filament-level scarf seam settings with process-level.
     /// OrcaSlicer: `override_filament_scarf_seam_setting`.
     #[serde(default)]
-    #[setting(tier = 4, description = "Override filament-level scarf settings")]
+    #[setting(tier = 4, description = "Override filament-level scarf settings", override_safety = "safe")]
     pub override_filament_setting: bool,
 }
 
@@ -2935,13 +3056,13 @@ impl PrintConfig {
 #[setting(category = "Machine")]
 pub struct ToolConfig {
     /// Nozzle temperature for this tool in degrees Celsius.
-    #[setting(tier = 4, description = "Per-tool nozzle temperature", units = "deg_c")]
+    #[setting(tier = 4, description = "Per-tool nozzle temperature", units = "deg_c", override_safety = "ignored")]
     pub nozzle_temp: f64,
     /// Retraction length for this tool in mm.
-    #[setting(tier = 4, description = "Per-tool retraction length", units = "mm")]
+    #[setting(tier = 4, description = "Per-tool retraction length", units = "mm", override_safety = "ignored")]
     pub retract_length: f64,
     /// Retraction speed for this tool in mm/s.
-    #[setting(tier = 4, description = "Per-tool retraction speed", units = "mm/s")]
+    #[setting(tier = 4, description = "Per-tool retraction speed", units = "mm/s", override_safety = "ignored")]
     pub retract_speed: f64,
 }
 
@@ -2965,13 +3086,14 @@ impl Default for ToolConfig {
 #[setting(category = "MultiMaterial")]
 pub struct MultiMaterialConfig {
     /// Enable multi-material printing.
-    #[setting(tier = 3, description = "Enable multi-material printing")]
+    #[setting(tier = 3, description = "Enable multi-material printing", override_safety = "warn")]
     pub enabled: bool,
     /// Number of tools (extruders) available.
     #[setting(
         tier = 3,
         description = "Number of tools/extruders available",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub tool_count: u8,
     /// Per-tool configuration.
@@ -2982,7 +3104,8 @@ pub struct MultiMaterialConfig {
         tier = 3,
         description = "Purge tower XY position",
         units = "mm",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub purge_tower_position: [f64; 2],
     /// Purge tower width in mm.
@@ -2990,7 +3113,8 @@ pub struct MultiMaterialConfig {
         tier = 3,
         description = "Purge tower width",
         units = "mm",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub purge_tower_width: f64,
     /// Purge volume per tool change in mm^3.
@@ -2998,7 +3122,8 @@ pub struct MultiMaterialConfig {
         tier = 3,
         description = "Purge volume per tool change",
         units = "mm^3",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub purge_volume: f64,
     /// Wipe length across the purge tower in mm.
@@ -3006,7 +3131,8 @@ pub struct MultiMaterialConfig {
         tier = 3,
         description = "Wipe length across purge tower",
         units = "mm",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub wipe_length: f64,
     /// Filament/tool index for wall perimeters (0-based, None = use default).
@@ -3014,7 +3140,8 @@ pub struct MultiMaterialConfig {
     #[setting(
         tier = 3,
         description = "Filament index for wall perimeters",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub wall_filament: Option<usize>,
     /// Filament/tool index for solid infill (0-based, None = use default).
@@ -3022,7 +3149,8 @@ pub struct MultiMaterialConfig {
     #[setting(
         tier = 3,
         description = "Filament index for solid infill",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub solid_infill_filament: Option<usize>,
     /// Filament/tool index for support structures (0-based, None = use default).
@@ -3030,7 +3158,8 @@ pub struct MultiMaterialConfig {
     #[setting(
         tier = 3,
         description = "Filament index for support structures",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub support_filament: Option<usize>,
     /// Filament/tool index for support interface layers (0-based, None = use default).
@@ -3038,7 +3167,8 @@ pub struct MultiMaterialConfig {
     #[setting(
         tier = 3,
         description = "Filament index for support interface layers",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub support_interface_filament: Option<usize>,
     /// Tool change retraction configuration.
@@ -3051,7 +3181,8 @@ pub struct MultiMaterialConfig {
         tier = 4,
         description = "Purge tower rotation angle",
         units = "deg",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub wipe_tower_rotation_angle: f64,
     /// Purge tower bridging flow rate.
@@ -3060,7 +3191,8 @@ pub struct MultiMaterialConfig {
     #[setting(
         tier = 4,
         description = "Purge tower bridging flow rate",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub wipe_tower_bridging: f64,
     /// Cone angle for tapered purge tower (degrees).
@@ -3070,7 +3202,8 @@ pub struct MultiMaterialConfig {
         tier = 4,
         description = "Tapered purge tower cone angle",
         units = "deg",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub wipe_tower_cone_angle: f64,
     /// Skip sparse (empty) purge tower layers.
@@ -3079,7 +3212,8 @@ pub struct MultiMaterialConfig {
     #[setting(
         tier = 4,
         description = "Skip empty purge tower layers",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub wipe_tower_no_sparse_layers: bool,
     /// Single extruder multi-material mode (e.g., MMU2).
@@ -3088,7 +3222,8 @@ pub struct MultiMaterialConfig {
     #[setting(
         tier = 4,
         description = "Single extruder multi-material mode",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub single_extruder_mmu: bool,
     /// Flush/purge excess filament into infill regions.
@@ -3097,7 +3232,8 @@ pub struct MultiMaterialConfig {
     #[setting(
         tier = 3,
         description = "Flush excess filament into infill regions",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub flush_into_infill: bool,
     /// Flush/purge excess filament into printed objects.
@@ -3106,7 +3242,8 @@ pub struct MultiMaterialConfig {
     #[setting(
         tier = 3,
         description = "Flush excess filament into printed objects",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub flush_into_objects: bool,
     /// Flush/purge excess filament into support structures.
@@ -3115,7 +3252,8 @@ pub struct MultiMaterialConfig {
     #[setting(
         tier = 3,
         description = "Flush excess filament into support structures",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub flush_into_support: bool,
     /// Use the prime tower for purging.
@@ -3124,7 +3262,8 @@ pub struct MultiMaterialConfig {
     #[setting(
         tier = 3,
         description = "Use prime tower for purging",
-        depends_on = "multi_material.enabled"
+        depends_on = "multi_material.enabled",
+        override_safety = "warn"
     )]
     pub purge_in_prime_tower: bool,
 }
@@ -3180,7 +3319,7 @@ impl Default for MultiMaterialConfig {
 #[setting(category = "Advanced")]
 pub struct SequentialConfig {
     /// Enable sequential (object-by-object) printing.
-    #[setting(tier = 3, description = "Enable sequential object-by-object printing")]
+    #[setting(tier = 3, description = "Enable sequential object-by-object printing", override_safety = "warn")]
     pub enabled: bool,
     /// Extruder clearance radius in mm (XY distance from nozzle to widest
     /// part of the print head assembly). Used for the cylinder gantry model.
@@ -3188,7 +3327,8 @@ pub struct SequentialConfig {
         tier = 3,
         description = "Extruder clearance radius for collision avoidance",
         units = "mm",
-        depends_on = "sequential.enabled"
+        depends_on = "sequential.enabled",
+        override_safety = "warn"
     )]
     pub extruder_clearance_radius: f64,
     /// Extruder clearance height in mm (height above nozzle tip to the
@@ -3197,7 +3337,8 @@ pub struct SequentialConfig {
         tier = 3,
         description = "Extruder clearance height for collision avoidance",
         units = "mm",
-        depends_on = "sequential.enabled"
+        depends_on = "sequential.enabled",
+        override_safety = "warn"
     )]
     pub extruder_clearance_height: f64,
     /// Width of gantry/carriage in mm (X direction).
@@ -3209,7 +3350,8 @@ pub struct SequentialConfig {
         tier = 4,
         description = "Gantry width for rectangular clearance model",
         units = "mm",
-        depends_on = "sequential.enabled"
+        depends_on = "sequential.enabled",
+        override_safety = "warn"
     )]
     pub gantry_width: f64,
     /// Depth of gantry/carriage in mm (Y direction).
@@ -3219,7 +3361,8 @@ pub struct SequentialConfig {
         tier = 4,
         description = "Gantry depth for rectangular clearance model",
         units = "mm",
-        depends_on = "sequential.enabled"
+        depends_on = "sequential.enabled",
+        override_safety = "warn"
     )]
     pub gantry_depth: f64,
     /// Custom polygon for the extruder clearance zone.
@@ -3257,55 +3400,58 @@ impl Default for SequentialConfig {
 #[setting(category = "Calibration")]
 pub struct PaCalibrationConfig {
     /// Starting PA value.
-    #[setting(tier = 4, description = "Pressure advance start value")]
+    #[setting(tier = 4, description = "Pressure advance start value", override_safety = "ignored")]
     pub pa_start: f64,
     /// Ending PA value.
-    #[setting(tier = 4, description = "Pressure advance end value")]
+    #[setting(tier = 4, description = "Pressure advance end value", override_safety = "ignored")]
     pub pa_end: f64,
     /// PA increment per line.
-    #[setting(tier = 4, description = "Pressure advance step increment")]
+    #[setting(tier = 4, description = "Pressure advance step increment", override_safety = "ignored")]
     pub pa_step: f64,
     /// Slow extrusion speed in mm/s (reveals PA artifacts at transitions).
     #[setting(
         tier = 4,
         description = "Calibration slow extrusion speed",
-        units = "mm/s"
+        units = "mm/s",
+        override_safety = "ignored"
     )]
     pub slow_speed: f64,
     /// Fast extrusion speed in mm/s (reveals PA artifacts at transitions).
     #[setting(
         tier = 4,
         description = "Calibration fast extrusion speed",
-        units = "mm/s"
+        units = "mm/s",
+        override_safety = "ignored"
     )]
     pub fast_speed: f64,
     /// Extrusion line width in mm.
-    #[setting(tier = 4, description = "Calibration line width", units = "mm")]
+    #[setting(tier = 4, description = "Calibration line width", units = "mm", override_safety = "ignored")]
     pub line_width: f64,
     /// Layer height in mm.
-    #[setting(tier = 4, description = "Calibration layer height", units = "mm")]
+    #[setting(tier = 4, description = "Calibration layer height", units = "mm", override_safety = "ignored")]
     pub layer_height: f64,
     /// Bed center X coordinate in mm.
-    #[setting(tier = 4, description = "Calibration bed center X", units = "mm")]
+    #[setting(tier = 4, description = "Calibration bed center X", units = "mm", override_safety = "ignored")]
     pub bed_center_x: f64,
     /// Bed center Y coordinate in mm.
-    #[setting(tier = 4, description = "Calibration bed center Y", units = "mm")]
+    #[setting(tier = 4, description = "Calibration bed center Y", units = "mm", override_safety = "ignored")]
     pub bed_center_y: f64,
     /// Total pattern width in mm.
-    #[setting(tier = 4, description = "Calibration pattern width", units = "mm")]
+    #[setting(tier = 4, description = "Calibration pattern width", units = "mm", override_safety = "ignored")]
     pub pattern_width: f64,
     /// Nozzle temperature in degrees Celsius.
     #[setting(
         tier = 4,
         description = "Calibration nozzle temperature",
-        units = "deg_c"
+        units = "deg_c",
+        override_safety = "ignored"
     )]
     pub nozzle_temp: f64,
     /// Bed temperature in degrees Celsius.
-    #[setting(tier = 4, description = "Calibration bed temperature", units = "deg_c")]
+    #[setting(tier = 4, description = "Calibration bed temperature", units = "deg_c", override_safety = "ignored")]
     pub bed_temp: f64,
     /// Filament diameter in mm.
-    #[setting(tier = 4, description = "Calibration filament diameter", units = "mm")]
+    #[setting(tier = 4, description = "Calibration filament diameter", units = "mm", override_safety = "ignored")]
     pub filament_diameter: f64,
 }
 
@@ -4157,5 +4303,32 @@ first_layer_bed_temperatures = [65.0, 75.0]
     #[test]
     fn print_order_default_is_by_layer() {
         assert_eq!(PrintOrder::default(), PrintOrder::ByLayer);
+    }
+
+    #[test]
+    fn override_safety_completeness() {
+        use slicecore_config_schema::{HasSettingSchema, OverrideSafety};
+        let defs = PrintConfig::setting_definitions("");
+        // Every registered setting should have a valid OverrideSafety (Safe, Warn, or Ignored).
+        // Since the default is Safe, this mainly verifies the registration itself works.
+        let mut safe_count = 0;
+        let mut warn_count = 0;
+        let mut ignored_count = 0;
+        for def in &defs {
+            match def.override_safety {
+                OverrideSafety::Safe => safe_count += 1,
+                OverrideSafety::Warn => warn_count += 1,
+                OverrideSafety::Ignored => ignored_count += 1,
+            }
+        }
+        let total = safe_count + warn_count + ignored_count;
+        assert!(
+            total >= 350,
+            "Expected >= 350 settings with override_safety, got {total} (safe={safe_count}, warn={warn_count}, ignored={ignored_count})"
+        );
+        // Verify we have a mix of all three classifications
+        assert!(safe_count > 0, "No safe settings found");
+        assert!(warn_count > 0, "No warn settings found");
+        assert!(ignored_count > 0, "No ignored settings found");
     }
 }

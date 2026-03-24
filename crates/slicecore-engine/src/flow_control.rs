@@ -34,7 +34,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for outer perimeter walls",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub outer_perimeter: f64,
     /// Flow multiplier for inner perimeter walls.
@@ -42,7 +43,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for inner perimeter walls",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub inner_perimeter: f64,
     /// Flow multiplier for solid infill (top/bottom surfaces).
@@ -50,7 +52,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for solid infill",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub solid_infill: f64,
     /// Flow multiplier for sparse infill.
@@ -58,7 +61,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for sparse infill",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub sparse_infill: f64,
     /// Flow multiplier for support structures.
@@ -66,7 +70,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for support structures",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub support: f64,
     /// Flow multiplier for support interface layers.
@@ -74,7 +79,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for support interface layers",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub support_interface: f64,
     /// Flow multiplier for bridge extrusions.
@@ -82,7 +88,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for bridge extrusions",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub bridge: f64,
     /// Flow multiplier for gap fill extrusions.
@@ -90,7 +97,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for gap fill extrusions",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub gap_fill: f64,
     /// Flow multiplier for skirt outlines.
@@ -98,7 +106,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for skirt outlines",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub skirt: f64,
     /// Flow multiplier for brim adhesion aid.
@@ -106,7 +115,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for brim adhesion",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub brim: f64,
     /// Flow multiplier for variable-width (Arachne) perimeters.
@@ -114,7 +124,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for variable-width perimeters",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub variable_width_perimeter: f64,
     /// Flow multiplier for ironing passes.
@@ -122,7 +133,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for ironing passes",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub ironing: f64,
     /// Flow multiplier for purge tower extrusions.
@@ -130,7 +142,8 @@ pub struct PerFeatureFlow {
         tier = 3,
         description = "Flow multiplier for purge tower extrusions",
         min = 0.0,
-        max = 2.0
+        max = 2.0,
+        override_safety = "safe"
     )]
     pub purge_tower: f64,
 }

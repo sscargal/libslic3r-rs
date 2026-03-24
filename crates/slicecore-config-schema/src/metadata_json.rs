@@ -3,7 +3,7 @@
 use serde_json::Value;
 
 use crate::registry::SettingRegistry;
-use crate::types::{SettingCategory, Tier};
+use crate::types::{OverrideSafety, SettingCategory, Tier};
 
 impl SettingRegistry {
     /// Produces a flat JSON array of all setting definitions.
@@ -21,19 +21,35 @@ impl SettingRegistry {
 
     /// Produces a filtered flat JSON array of setting definitions.
     ///
-    /// Settings are included only if they match both the tier and category
-    /// filters (when provided). Passing `None` for a filter skips that check.
+    /// Settings are included only if they match all provided filters.
+    /// Passing `None` for a filter skips that check.
     #[must_use]
     pub fn to_filtered_metadata_json(
         &self,
         max_tier: Option<Tier>,
         category: Option<SettingCategory>,
     ) -> Value {
+        self.to_filtered_metadata_json_with_safety(max_tier, category, None)
+    }
+
+    /// Produces a filtered flat JSON array of setting definitions with
+    /// optional override safety filter.
+    ///
+    /// Settings are included only if they match all provided filters.
+    /// Passing `None` for any filter skips that check.
+    #[must_use]
+    pub fn to_filtered_metadata_json_with_safety(
+        &self,
+        max_tier: Option<Tier>,
+        category: Option<SettingCategory>,
+        override_safety: Option<OverrideSafety>,
+    ) -> Value {
         Value::Array(
             self.all()
                 .filter(|def| {
                     max_tier.map_or(true, |t| def.tier <= t)
                         && category.map_or(true, |c| def.category == c)
+                        && override_safety.map_or(true, |s| def.override_safety == s)
                 })
                 .map(|def| serde_json::to_value(def).unwrap_or_default())
                 .collect(),

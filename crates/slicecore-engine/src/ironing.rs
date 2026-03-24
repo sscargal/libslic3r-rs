@@ -45,7 +45,7 @@ use crate::toolpath::{FeatureType, ToolpathSegment};
 #[setting(category = "Quality")]
 pub struct IroningConfig {
     /// Enable ironing passes on top surfaces.
-    #[setting(tier = 2, description = "Enable ironing passes on top surfaces")]
+    #[setting(tier = 2, description = "Enable ironing passes on top surfaces", override_safety = "safe")]
     pub enabled: bool,
     /// Flow rate multiplier for ironing (0.0-1.0). Default 0.1 (10%).
     #[setting(
@@ -53,7 +53,8 @@ pub struct IroningConfig {
         description = "Flow rate multiplier for ironing",
         min = 0.0,
         max = 1.0,
-        depends_on = "ironing.enabled"
+        depends_on = "ironing.enabled",
+        override_safety = "safe"
     )]
     pub flow_rate: f64,
     /// Ironing speed in mm/s. Default 15.0.
@@ -63,7 +64,8 @@ pub struct IroningConfig {
         units = "mm/s",
         min = 1.0,
         max = 300.0,
-        depends_on = "ironing.enabled"
+        depends_on = "ironing.enabled",
+        override_safety = "safe"
     )]
     pub speed: f64,
     /// Line spacing for ironing in mm. Default 0.1 (very tight).
@@ -73,7 +75,8 @@ pub struct IroningConfig {
         units = "mm",
         min = 0.01,
         max = 2.0,
-        depends_on = "ironing.enabled"
+        depends_on = "ironing.enabled",
+        override_safety = "safe"
     )]
     pub spacing: f64,
     /// Ironing angle in degrees. Default 45.0 (offset from primary infill).
@@ -83,7 +86,8 @@ pub struct IroningConfig {
         units = "deg",
         min = 0.0,
         max = 360.0,
-        depends_on = "ironing.enabled"
+        depends_on = "ironing.enabled",
+        override_safety = "safe"
     )]
     pub angle: f64,
 }
