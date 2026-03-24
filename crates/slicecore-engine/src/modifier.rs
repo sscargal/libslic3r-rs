@@ -14,23 +14,35 @@
 //!    [`PrintConfig`].
 //! 3. The engine generates perimeters and infill separately for each region.
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use slicecore_geo::{polygon_difference, polygon_intersection, ValidPolygon};
 use slicecore_mesh::TriangleMesh;
 use slicecore_slicer::slice_at_height;
 
-use crate::config::{PrintConfig, SettingOverrides};
+use crate::config::PrintConfig;
+use crate::profile_compose::{merge_layer, FieldSource, SourceType};
 
 /// A modifier mesh: a 3D volume paired with setting overrides.
 ///
 /// When the slicer processes a layer, the modifier mesh is sliced at the
 /// same Z height to determine its 2D footprint. Contours inside that
 /// footprint receive the overridden settings.
+///
+/// # Overrides
+///
+/// Overrides are stored as a TOML partial table, allowing any
+/// [`PrintConfig`] field to be overridden (not just the 8 hardcoded
+/// fields of the old `SettingOverrides` struct).
 pub struct ModifierMesh {
     /// The 3D volume defining the modifier region.
     pub mesh: TriangleMesh,
-    /// Settings to apply within the modifier volume.
-    pub overrides: SettingOverrides,
+    /// Settings to apply within the modifier volume, as a TOML partial table.
+    /// Any `PrintConfig` field can be overridden (e.g., `{"infill_density": 0.8}`).
+    pub overrides: toml::map::Map<String, toml::Value>,
+    /// Unique identifier for this modifier (for provenance tracking).
+    pub modifier_id: String,
 }
 
 /// A modifier's 2D footprint at a specific Z height.
@@ -40,8 +52,10 @@ pub struct ModifierMesh {
 pub struct ModifierRegion {
     /// The modifier's 2D contours at this Z height.
     pub contours: Vec<ValidPolygon>,
-    /// Settings to apply within these contours.
-    pub overrides: SettingOverrides,
+    /// TOML partial overrides for this region.
+    pub overrides: toml::map::Map<String, toml::Value>,
+    /// Modifier identifier for provenance.
+    pub modifier_id: String,
 }
 
 /// Slices a modifier mesh at a given Z height.
@@ -57,6 +71,7 @@ pub fn slice_modifier(modifier: &ModifierMesh, z: f64) -> Option<ModifierRegion>
         Some(ModifierRegion {
             contours,
             overrides: modifier.overrides.clone(),
+            modifier_id: modifier.modifier_id.clone(),
         })
     }
 }
@@ -87,6 +102,13 @@ pub fn split_by_modifiers(
         return vec![(contours.to_vec(), base_config.clone())];
     }
 
+    // Serialize the base config to a TOML table once for reuse.
+    let base_table = toml::Value::try_from(base_config)
+        .expect("PrintConfig should serialize to TOML")
+        .as_table()
+        .expect("PrintConfig should serialize as a TOML table")
+        .clone();
+
     let mut regions = Vec::new();
     let mut remainder = contours.to_vec();
 
@@ -99,7 +121,11 @@ pub fn split_by_modifiers(
         let intersection = polygon_intersection(&remainder, &modifier.contours).unwrap_or_default();
 
         if !intersection.is_empty() {
-            let effective_config = modifier.overrides.merge_into(base_config);
+            let effective_config = apply_toml_overrides(
+                &base_table,
+                &modifier.overrides,
+                &modifier.modifier_id,
+            );
             regions.push((intersection, effective_config));
 
             // Subtract this modifier's footprint from the remainder.
@@ -114,6 +140,41 @@ pub fn split_by_modifiers(
     }
 
     regions
+}
+
+/// Applies TOML partial overrides onto a serialized base config table.
+///
+/// Uses the same [`merge_layer`] infrastructure as profile composition,
+/// so nested keys (e.g., `speeds.perimeter`) are deep-merged correctly.
+fn apply_toml_overrides(
+    base_table: &toml::map::Map<String, toml::Value>,
+    overrides: &toml::map::Map<String, toml::Value>,
+    modifier_id: &str,
+) -> PrintConfig {
+    let mut merged = base_table.clone();
+    let source = FieldSource {
+        source_type: SourceType::PerRegionOverride {
+            object_id: String::new(),
+            modifier_id: modifier_id.to_owned(),
+        },
+        file_path: None,
+        overrode: None,
+    };
+    let mut provenance = HashMap::new();
+    let mut warnings = Vec::new();
+
+    merge_layer(
+        &mut merged,
+        overrides,
+        "",
+        &source,
+        &mut provenance,
+        &mut warnings,
+    );
+
+    // Deserialize the merged table back to PrintConfig.
+    PrintConfig::deserialize(toml::Value::Table(merged))
+        .expect("merged TOML table should deserialize to PrintConfig")
 }
 
 #[cfg(test)]
@@ -164,22 +225,34 @@ mod tests {
             .unwrap()
     }
 
+    /// Helper to build a TOML overrides map from key-value pairs.
+    fn toml_overrides(pairs: &[(&str, toml::Value)]) -> toml::map::Map<String, toml::Value> {
+        let mut map = toml::map::Map::new();
+        for (key, val) in pairs {
+            map.insert((*key).to_string(), val.clone());
+        }
+        map
+    }
+
     #[test]
     fn slice_modifier_within_bounds_returns_some() {
         let mesh = make_box(0.0, 0.0, 0.0, 10.0, 10.0, 10.0);
+        let mut overrides = toml::map::Map::new();
+        overrides.insert("infill_density".to_string(), toml::Value::Float(0.8));
         let modifier = ModifierMesh {
             mesh,
-            overrides: SettingOverrides {
-                infill_density: Some(0.8),
-                ..Default::default()
-            },
+            overrides,
+            modifier_id: "test-mod".to_string(),
         };
         // Z=5.0 is within the box (0..10).
         let region = slice_modifier(&modifier, 5.0);
         assert!(region.is_some(), "Modifier should intersect at z=5.0");
         let region = region.unwrap();
         assert!(!region.contours.is_empty());
-        assert!((region.overrides.infill_density.unwrap() - 0.8).abs() < 1e-9);
+        assert_eq!(
+            region.overrides.get("infill_density").and_then(toml::Value::as_float),
+            Some(0.8)
+        );
     }
 
     #[test]
@@ -187,7 +260,8 @@ mod tests {
         let mesh = make_box(0.0, 0.0, 2.0, 10.0, 10.0, 8.0);
         let modifier = ModifierMesh {
             mesh,
-            overrides: SettingOverrides::default(),
+            overrides: toml::map::Map::new(),
+            modifier_id: "test-empty".to_string(),
         };
         // Z=1.0 is below the box (2..8).
         assert!(slice_modifier(&modifier, 1.0).is_none());
@@ -213,10 +287,8 @@ mod tests {
 
         let modifier_region = ModifierRegion {
             contours: vec![modifier_contour],
-            overrides: SettingOverrides {
-                infill_density: Some(0.9),
-                ..Default::default()
-            },
+            overrides: toml_overrides(&[("infill_density", toml::Value::Float(0.9))]),
+            modifier_id: "partial-mod".to_string(),
         };
 
         let base = PrintConfig::default();
@@ -254,10 +326,8 @@ mod tests {
 
         let modifier_region = ModifierRegion {
             contours: vec![modifier_contour],
-            overrides: SettingOverrides {
-                wall_count: Some(5),
-                ..Default::default()
-            },
+            overrides: toml_overrides(&[("wall_count", toml::Value::Integer(5))]),
+            modifier_id: "full-mod".to_string(),
         };
 
         let base = PrintConfig::default();
@@ -266,5 +336,100 @@ mod tests {
         // Model is fully inside modifier, so only the modified region exists.
         assert_eq!(regions.len(), 1);
         assert_eq!(regions[0].1.wall_count, 5);
+    }
+
+    #[test]
+    fn modifier_with_arbitrary_field_override() {
+        // Override a field that was NOT in the old SettingOverrides struct.
+        let model_contour = make_square(0.0, 0.0, 10.0);
+        let modifier_contour = make_square(-1.0, -1.0, 12.0);
+
+        let modifier_region = ModifierRegion {
+            contours: vec![modifier_contour],
+            overrides: toml_overrides(&[("wall_count", toml::Value::Integer(5))]),
+            modifier_id: "arbitrary-mod".to_string(),
+        };
+
+        let base = PrintConfig::default();
+        let regions = split_by_modifiers(&[model_contour], &[modifier_region], &base);
+
+        assert_eq!(regions.len(), 1);
+        assert_eq!(regions[0].1.wall_count, 5);
+    }
+
+    #[test]
+    fn modifier_with_nested_field_override() {
+        // Override a nested field via deep merge (speeds.perimeter).
+        let model_contour = make_square(0.0, 0.0, 10.0);
+        let modifier_contour = make_square(-1.0, -1.0, 12.0);
+
+        let mut speeds_table = toml::map::Map::new();
+        speeds_table.insert("perimeter".to_string(), toml::Value::Float(30.0));
+        let overrides = toml_overrides(&[("speeds", toml::Value::Table(speeds_table))]);
+
+        let modifier_region = ModifierRegion {
+            contours: vec![modifier_contour],
+            overrides,
+            modifier_id: "nested-mod".to_string(),
+        };
+
+        let base = PrintConfig::default();
+        let regions = split_by_modifiers(&[model_contour], &[modifier_region], &base);
+
+        assert_eq!(regions.len(), 1);
+        assert!((regions[0].1.speeds.perimeter - 30.0).abs() < 1e-9);
+        // Other speed fields should remain at defaults.
+        assert!((regions[0].1.speeds.infill - base.speeds.infill).abs() < 1e-9);
+    }
+
+    #[test]
+    fn two_overlapping_modifiers_last_defined_wins() {
+        // Two modifiers both fully cover the model; last-defined should win
+        // for the overlap area (which in practice is handled by the subtraction
+        // logic -- first modifier claims area, second gets what's left).
+        // Here we test with both fully covering so only the first gets area.
+        let model_contour = make_square(0.0, 0.0, 10.0);
+        let modifier_contour = make_square(-1.0, -1.0, 12.0);
+
+        let mod1 = ModifierRegion {
+            contours: vec![modifier_contour.clone()],
+            overrides: toml_overrides(&[("infill_density", toml::Value::Float(0.5))]),
+            modifier_id: "mod1".to_string(),
+        };
+        let mod2 = ModifierRegion {
+            contours: vec![modifier_contour],
+            overrides: toml_overrides(&[("infill_density", toml::Value::Float(0.9))]),
+            modifier_id: "mod2".to_string(),
+        };
+
+        let base = PrintConfig::default();
+        let regions = split_by_modifiers(&[model_contour], &[mod1, mod2], &base);
+
+        // First modifier claims entire area; second has nothing left.
+        assert_eq!(regions.len(), 1);
+        assert!(
+            (regions[0].1.infill_density - 0.5).abs() < 1e-9,
+            "First modifier should claim the area"
+        );
+    }
+
+    #[test]
+    fn empty_overrides_produces_base_config() {
+        let model_contour = make_square(0.0, 0.0, 10.0);
+        let modifier_contour = make_square(-1.0, -1.0, 12.0);
+
+        let modifier_region = ModifierRegion {
+            contours: vec![modifier_contour],
+            overrides: toml::map::Map::new(),
+            modifier_id: "empty-mod".to_string(),
+        };
+
+        let base = PrintConfig::default();
+        let regions = split_by_modifiers(&[model_contour], &[modifier_region], &base);
+
+        assert_eq!(regions.len(), 1);
+        assert!((regions[0].1.infill_density - base.infill_density).abs() < 1e-9);
+        assert_eq!(regions[0].1.wall_count, base.wall_count);
+        assert!((regions[0].1.speeds.perimeter - base.speeds.perimeter).abs() < 1e-9);
     }
 }

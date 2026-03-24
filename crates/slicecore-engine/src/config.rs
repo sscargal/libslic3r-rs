@@ -3475,60 +3475,6 @@ impl Default for PaCalibrationConfig {
     }
 }
 
-/// Per-region setting overrides for modifier meshes.
-///
-/// Each field is optional: `Some(value)` overrides the corresponding
-/// [`PrintConfig`] field, `None` inherits the base config value.
-/// Use [`merge_into`](SettingOverrides::merge_into) to produce an
-/// effective config for a modifier region.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct SettingOverrides {
-    /// Override infill density (0.0-1.0).
-    pub infill_density: Option<f64>,
-    /// Override infill pattern.
-    pub infill_pattern: Option<InfillPattern>,
-    /// Override number of perimeter walls.
-    pub wall_count: Option<u32>,
-    /// Override perimeter speed (mm/s).
-    pub perimeter_speed: Option<f64>,
-    /// Override infill speed (mm/s).
-    pub infill_speed: Option<f64>,
-    /// Override number of top solid layers.
-    pub top_solid_layers: Option<u32>,
-    /// Override number of bottom solid layers.
-    pub bottom_solid_layers: Option<u32>,
-}
-
-impl SettingOverrides {
-    /// Produces an effective [`PrintConfig`] by cloning `base` and applying
-    /// any `Some()` overrides from this struct.
-    pub fn merge_into(&self, base: &PrintConfig) -> PrintConfig {
-        let mut config = base.clone();
-        if let Some(v) = self.infill_density {
-            config.infill_density = v;
-        }
-        if let Some(ref v) = self.infill_pattern {
-            config.infill_pattern = v.clone();
-        }
-        if let Some(v) = self.wall_count {
-            config.wall_count = v;
-        }
-        if let Some(v) = self.perimeter_speed {
-            config.speeds.perimeter = v;
-        }
-        if let Some(v) = self.infill_speed {
-            config.speeds.infill = v;
-        }
-        if let Some(v) = self.top_solid_layers {
-            config.top_solid_layers = v;
-        }
-        if let Some(v) = self.bottom_solid_layers {
-            config.bottom_solid_layers = v;
-        }
-        config
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -3767,51 +3713,6 @@ custom_gcode_per_z = [[5.0, "M600"]]
         assert_eq!(config.custom_gcode.custom_gcode_per_z.len(), 1);
     }
 
-    #[test]
-    fn setting_overrides_default_all_none() {
-        let overrides = SettingOverrides::default();
-        assert!(overrides.infill_density.is_none());
-        assert!(overrides.infill_pattern.is_none());
-        assert!(overrides.wall_count.is_none());
-        assert!(overrides.perimeter_speed.is_none());
-        assert!(overrides.infill_speed.is_none());
-        assert!(overrides.top_solid_layers.is_none());
-        assert!(overrides.bottom_solid_layers.is_none());
-    }
-
-    #[test]
-    fn setting_overrides_merge_applies_some_fields() {
-        let base = PrintConfig::default();
-        let overrides = SettingOverrides {
-            infill_density: Some(0.8),
-            wall_count: Some(4),
-            perimeter_speed: Some(30.0),
-            ..Default::default()
-        };
-        let merged = overrides.merge_into(&base);
-        // Overridden fields.
-        assert!((merged.infill_density - 0.8).abs() < 1e-9);
-        assert_eq!(merged.wall_count, 4);
-        assert!((merged.speeds.perimeter - 30.0).abs() < 1e-9);
-        // Non-overridden fields preserved.
-        assert!((merged.speeds.infill - base.speeds.infill).abs() < 1e-9);
-        assert_eq!(merged.top_solid_layers, base.top_solid_layers);
-        assert_eq!(merged.bottom_solid_layers, base.bottom_solid_layers);
-        assert!((merged.layer_height - base.layer_height).abs() < 1e-9);
-    }
-
-    #[test]
-    fn setting_overrides_merge_preserves_non_overridden() {
-        let mut base = PrintConfig::default();
-        base.infill_density = 0.3;
-        base.wall_count = 3;
-        base.speeds.perimeter = 50.0;
-        let overrides = SettingOverrides::default(); // all None
-        let merged = overrides.merge_into(&base);
-        assert!((merged.infill_density - 0.3).abs() < 1e-9);
-        assert_eq!(merged.wall_count, 3);
-        assert!((merged.speeds.perimeter - 50.0).abs() < 1e-9);
-    }
 
     #[test]
     fn arc_fitting_defaults() {

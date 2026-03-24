@@ -76,7 +76,7 @@ pub use builtin_profiles::{get_builtin_profile, list_builtin_profiles, BuiltinPr
 pub use calibration::{generate_pa_calibration, generate_pa_calibration_gcode};
 pub use config::{
     MultiMaterialConfig, PaCalibrationConfig, PrintConfig, PrintOrder, ScarfJointConfig,
-    ScarfJointType, SequentialConfig, SettingOverrides, ToolConfig, TravelOptAlgorithm,
+    ScarfJointType, SequentialConfig, ToolConfig, TravelOptAlgorithm,
     TravelOptConfig, WallOrder,
 };
 pub use config_validate::{

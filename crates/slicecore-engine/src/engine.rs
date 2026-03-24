@@ -3493,7 +3493,6 @@ mod tests {
 
     #[test]
     fn test_phase_6_sc3_modifier_mesh() {
-        use crate::config::SettingOverrides;
         use crate::modifier::ModifierMesh;
 
         // Model mesh: 20mm cube at (90, 90, 0) to (110, 110, 20).
@@ -3504,12 +3503,12 @@ mod tests {
         let modifier_mesh = make_box_mesh(95.0, 95.0, 0.0, 105.0, 105.0, 20.0);
 
         // The modifier overrides infill density from 20% (base) to 80%.
+        let mut overrides = toml::map::Map::new();
+        overrides.insert("infill_density".to_string(), toml::Value::Float(0.8));
         let modifiers = vec![ModifierMesh {
             mesh: modifier_mesh,
-            overrides: SettingOverrides {
-                infill_density: Some(0.8),
-                ..Default::default()
-            },
+            overrides,
+            modifier_id: "density-mod".to_string(),
         }];
 
         let base_config = PrintConfig {
