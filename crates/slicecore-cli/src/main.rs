@@ -25,6 +25,8 @@ pub mod cli_output;
 mod csg_command;
 mod csg_info;
 mod diff_profiles_command;
+mod override_set;
+mod plate_cmd;
 mod plugins_command;
 mod profile_command;
 mod profile_wizard;
@@ -168,11 +170,38 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)]
 enum Commands {
     /// Slice an STL file to G-code
     Slice {
-        /// Input STL file path
-        input: PathBuf,
+        /// Input model file(s) (STL, 3MF, OBJ). Multiple files create a multi-object plate.
+        inputs: Vec<PathBuf>,
+
+        /// Plate config file (TOML). Mutually exclusive with positional model files.
+        #[arg(long, conflicts_with_all = ["inputs", "config"])]
+        plate: Option<PathBuf>,
+
+        /// Per-object override (format: <index-or-name>:<source>, repeatable).
+        /// Source auto-detection: key=val -> inline, .toml path -> file, else -> named set.
+        /// Stacking: 1:set-name+key=val
+        #[arg(long = "object")]
+        object_overrides: Vec<String>,
+
+        /// Treat all warnings as errors (exit code 2)
+        #[arg(long)]
+        strict: bool,
+
+        /// Save full plate config to a TOML file
+        #[arg(long, value_name = "FILE")]
+        save_plate: Option<PathBuf>,
+
+        /// Show config for a specific object (1-indexed)
+        #[arg(long, value_name = "INDEX")]
+        show_config_object: Option<usize>,
+
+        /// Show config at a specific Z height (mm), used with --show-config-object
+        #[arg(long, value_name = "MM")]
+        at_z: Option<f64>,
 
         /// Print config file (TOML or JSON, auto-detected; optional -- uses defaults if not provided)
         #[arg(short, long, conflicts_with_all = ["machine", "filament", "process"])]
@@ -666,6 +695,21 @@ enum Commands {
     #[command(subcommand)]
     Profile(profile_command::ProfileCommand),
 
+    /// Manage named override sets (CRUD, diff).
+    ///
+    /// Override sets are reusable partial configs stored in
+    /// ~/.slicecore/override-sets/ as TOML files. Use them in plate.toml
+    /// to apply named setting bundles to objects.
+    #[command(subcommand)]
+    OverrideSet(override_set::OverrideSetCommands),
+
+    /// Manage plate configurations (init, 3MF import/export).
+    ///
+    /// Initialize plate.toml templates, extract objects from 3MF files,
+    /// and package plate configs into 3MF archives.
+    #[command(subcommand)]
+    Plate(plate_cmd::PlateCommands),
+
     /// Post-process an existing G-code file.
     ///
     /// Reads a G-code file, applies configured post-processors (pause-at-layer,
@@ -729,7 +773,13 @@ fn main() {
 
     match cli.command {
         Commands::Slice {
-            input,
+            inputs,
+            plate,
+            object_overrides,
+            strict,
+            save_plate,
+            show_config_object,
+            at_z,
             config,
             machine,
             filament,
@@ -811,8 +861,34 @@ fn main() {
                 (machine, filament, process)
             };
 
+            // Validate mutual exclusion: --plate and positional inputs
+            if plate.is_some() && !inputs.is_empty() {
+                eprintln!(
+                    "error: --plate and positional model file arguments are mutually exclusive"
+                );
+                std::process::exit(2);
+            }
+
+            // Require at least one input source
+            if plate.is_none() && inputs.is_empty() {
+                eprintln!(
+                    "error: provide either model file(s) as positional arguments or --plate <file>"
+                );
+                std::process::exit(2);
+            }
+
+            // For backward compat, derive primary input from first positional arg
+            let primary_input = inputs.first().cloned().unwrap_or_default();
+
             cmd_slice(
-                &input,
+                &primary_input,
+                &inputs,
+                plate.as_deref(),
+                &object_overrides,
+                strict,
+                save_plate.as_deref(),
+                show_config_object,
+                at_z,
                 config.as_deref(),
                 machine.as_deref(),
                 filament.as_deref(),
@@ -1076,6 +1152,20 @@ fn main() {
                 process::exit(1);
             }
         }
+        Commands::OverrideSet(cmd) => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
+            if let Err(e) = override_set::run_override_set(cmd) {
+                output_ctx.error_msg(&format!("{e}"));
+                process::exit(1);
+            }
+        }
+        Commands::Plate(cmd) => {
+            let output_ctx = cli_output::CliOutput::new(global_quiet, false, color_mode);
+            if let Err(e) = plate_cmd::run_plate(cmd) {
+                output_ctx.error_msg(&format!("{e}"));
+                process::exit(1);
+            }
+        }
         Commands::PostProcess {
             input,
             output,
@@ -1106,6 +1196,13 @@ fn main() {
 #[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
 fn cmd_slice(
     input: &PathBuf,
+    all_inputs: &[PathBuf],
+    plate_path: Option<&std::path::Path>,
+    object_overrides_raw: &[String],
+    strict: bool,
+    save_plate_path: Option<&std::path::Path>,
+    show_config_object: Option<usize>,
+    at_z: Option<f64>,
     config_path: Option<&std::path::Path>,
     machine: Option<&str>,
     filament: Option<&str>,
@@ -1137,6 +1234,44 @@ fn cmd_slice(
     no_travel_opt: bool,
     color_mode: cli_output::ColorMode,
 ) {
+    // -----------------------------------------------------------------------
+    // Plate mode: --plate or multi-model or --object overrides
+    // -----------------------------------------------------------------------
+    let is_plate_mode = plate_path.is_some()
+        || all_inputs.len() > 1
+        || !object_overrides_raw.is_empty()
+        || save_plate_path.is_some()
+        || show_config_object.is_some();
+
+    if is_plate_mode {
+        cmd_slice_plate(
+            all_inputs,
+            plate_path,
+            object_overrides_raw,
+            strict,
+            save_plate_path,
+            show_config_object,
+            at_z,
+            machine,
+            filament,
+            process,
+            overrides_file,
+            set_overrides,
+            dry_run,
+            force,
+            no_log,
+            log_file,
+            profiles_dir,
+            output_path,
+            json_output,
+            plugin_dir,
+            quiet,
+            auto_arrange,
+            no_travel_opt,
+            color_mode,
+        );
+        return;
+    }
     // Determine if we're using the new profile-based workflow or legacy --config path.
     let use_profile_workflow = machine.is_some()
         || filament.is_some()
@@ -1625,6 +1760,788 @@ fn cmd_slice(
                 log_path.display()
             ));
         }
+    }
+}
+
+/// Identifier for an object in `--object` flag parsing.
+enum ObjectId {
+    /// 1-indexed numeric position.
+    Index(usize),
+    /// Name-based match.
+    Name(String),
+}
+
+/// A single source for a per-object override.
+enum OverrideSource {
+    /// Inline key=value pair.
+    Inline(String, String),
+    /// Load from a TOML file path.
+    File(PathBuf),
+    /// Named override set (from ~/.slicecore/override-sets/).
+    NamedSet(String),
+}
+
+/// Parse an `--object` flag value like `1:infill_density=0.8` or `vase:high-detail+layer_height=0.1`.
+fn parse_object_override(spec: &str) -> Result<(ObjectId, Vec<OverrideSource>), String> {
+    let (id_part, source_part) = spec
+        .split_once(':')
+        .ok_or_else(|| format!("Invalid --object format '{spec}': expected <id>:<source>"))?;
+
+    let object_id = if let Ok(idx) = id_part.parse::<usize>() {
+        if idx == 0 {
+            return Err("Object index is 1-based; 0 is not valid".to_string());
+        }
+        ObjectId::Index(idx)
+    } else {
+        ObjectId::Name(id_part.to_string())
+    };
+
+    let mut sources = Vec::new();
+    for segment in source_part.split('+') {
+        if segment.is_empty() {
+            continue;
+        }
+        if segment.contains('=') {
+            let (key, val) = segment
+                .split_once('=')
+                .ok_or_else(|| format!("Invalid inline override: '{segment}'"))?;
+            sources.push(OverrideSource::Inline(key.to_string(), val.to_string()));
+        } else if segment.contains('/') || segment.ends_with(".toml") {
+            sources.push(OverrideSource::File(PathBuf::from(segment)));
+        } else {
+            sources.push(OverrideSource::NamedSet(segment.to_string()));
+        }
+    }
+
+    Ok((object_id, sources))
+}
+
+/// Apply parsed override sources to an `ObjectConfig`, resolving named sets and files.
+fn apply_override_sources(
+    obj: &mut slicecore_engine::plate_config::ObjectConfig,
+    sources: &[OverrideSource],
+    errors: &mut Vec<String>,
+) {
+    let inline = obj.inline_overrides.get_or_insert_with(toml::map::Map::new);
+
+    for source in sources {
+        match source {
+            OverrideSource::Inline(key, val) => {
+                let parsed = slicecore_engine::profile_compose::parse_set_value(val);
+                if let Err(e) =
+                    slicecore_engine::profile_compose::set_dotted_key(inline, key, parsed)
+                {
+                    errors.push(format!("Invalid inline override '{key}={val}': {e}"));
+                }
+            }
+            OverrideSource::File(path) => {
+                if !path.exists() {
+                    errors.push(format!("Override file '{}' not found", path.display()));
+                    continue;
+                }
+                match std::fs::read_to_string(path) {
+                    Ok(content) => {
+                        match toml::from_str::<toml::map::Map<String, toml::Value>>(&content) {
+                            Ok(table) => {
+                                for (k, v) in table {
+                                    inline.insert(k, v);
+                                }
+                            }
+                            Err(e) => {
+                                errors.push(format!(
+                                    "Failed to parse override file '{}': {e}",
+                                    path.display()
+                                ));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        errors.push(format!(
+                            "Failed to read override file '{}': {e}",
+                            path.display()
+                        ));
+                    }
+                }
+            }
+            OverrideSource::NamedSet(name) => {
+                // Try to resolve named set from override-sets directory
+                let home = home::home_dir();
+                let set_path = home.map(|h| {
+                    h.join(".slicecore")
+                        .join("override-sets")
+                        .join(format!("{name}.toml"))
+                });
+                match set_path {
+                    Some(p) if p.exists() => match std::fs::read_to_string(&p) {
+                        Ok(content) => {
+                            match toml::from_str::<toml::map::Map<String, toml::Value>>(&content) {
+                                Ok(table) => {
+                                    for (k, v) in table {
+                                        inline.insert(k, v);
+                                    }
+                                }
+                                Err(e) => {
+                                    errors.push(format!(
+                                        "Failed to parse override set '{name}': {e}"
+                                    ));
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            errors.push(format!("Failed to read override set '{name}': {e}"));
+                        }
+                    },
+                    _ => {
+                        errors.push(format!("Override set '{name}' not found"));
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Slice a multi-object plate (--plate, multi-model, or --object mode).
+#[allow(clippy::too_many_arguments, clippy::fn_params_excessive_bools)]
+fn cmd_slice_plate(
+    all_inputs: &[PathBuf],
+    plate_path: Option<&std::path::Path>,
+    object_overrides_raw: &[String],
+    strict: bool,
+    save_plate_path: Option<&std::path::Path>,
+    show_config_object: Option<usize>,
+    at_z: Option<f64>,
+    machine: Option<&str>,
+    filament: Option<&str>,
+    process: Option<&str>,
+    overrides_file: Option<&std::path::Path>,
+    set_overrides: &[String],
+    dry_run: bool,
+    force: bool,
+    no_log: bool,
+    log_file: Option<&std::path::Path>,
+    profiles_dir: Option<&std::path::Path>,
+    output_path: Option<&std::path::Path>,
+    json_output: bool,
+    _plugin_dir: Option<&std::path::Path>,
+    quiet: bool,
+    _auto_arrange: bool,
+    _no_travel_opt: bool,
+    color_mode: cli_output::ColorMode,
+) {
+    use slicecore_engine::plate_config::{MeshSource, ObjectConfig, PlateConfig};
+    use slicecore_engine::profile_compose::ProfileComposer;
+
+    let output = cli_output::CliOutput::new(quiet, json_output, color_mode);
+    let mut errors: Vec<String> = Vec::new();
+    let warnings: Vec<String> = Vec::new();
+
+    // Step 1: Build or load PlateConfig.
+    let mut plate_config = if let Some(pp) = plate_path {
+        // Load from TOML file
+        match std::fs::read_to_string(pp) {
+            Ok(content) => match toml::from_str::<PlateConfig>(&content) {
+                Ok(pc) => pc,
+                Err(e) => {
+                    output.error_msg(&format!(
+                        "Failed to parse plate config '{}': {e}",
+                        pp.display()
+                    ));
+                    process::exit(2);
+                }
+            },
+            Err(e) => {
+                output.error_msg(&format!(
+                    "Failed to read plate config '{}': {e}",
+                    pp.display()
+                ));
+                process::exit(2);
+            }
+        }
+    } else {
+        // Build from positional model files
+        let objects: Vec<ObjectConfig> = all_inputs
+            .iter()
+            .map(|path| ObjectConfig {
+                mesh_source: MeshSource::File(path.clone()),
+                name: path.file_stem().map(|s| s.to_string_lossy().into_owned()),
+                ..ObjectConfig::default()
+            })
+            .collect();
+        PlateConfig {
+            machine_profile: machine.map(String::from),
+            filament_profile: filament.map(String::from),
+            process_profile: process.map(String::from),
+            user_override_file: overrides_file.map(PathBuf::from),
+            cli_set_overrides: set_overrides
+                .iter()
+                .filter_map(|s| {
+                    s.split_once('=')
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                })
+                .collect(),
+            default_object_overrides: None,
+            override_sets: std::collections::HashMap::new(),
+            objects,
+        }
+    };
+
+    // Step 2: Apply --object overrides.
+    for raw in object_overrides_raw {
+        match parse_object_override(raw) {
+            Ok((id, sources)) => {
+                let obj_idx = match &id {
+                    ObjectId::Index(idx) => {
+                        if *idx > plate_config.objects.len() {
+                            errors.push(format!(
+                                "Object index {idx} out of bounds (plate has {} object(s); indices are 1-based)",
+                                plate_config.objects.len()
+                            ));
+                            continue;
+                        }
+                        *idx - 1
+                    }
+                    ObjectId::Name(name) => {
+                        match plate_config
+                            .objects
+                            .iter()
+                            .position(|o| o.name.as_deref() == Some(name.as_str()))
+                        {
+                            Some(i) => i,
+                            None => {
+                                let available: Vec<String> = plate_config
+                                    .objects
+                                    .iter()
+                                    .filter_map(|o| o.name.clone())
+                                    .collect();
+                                errors.push(format!(
+                                    "Object name '{name}' not found. Available: {}",
+                                    if available.is_empty() {
+                                        "(none -- use numeric indices)".to_string()
+                                    } else {
+                                        available.join(", ")
+                                    }
+                                ));
+                                continue;
+                            }
+                        }
+                    }
+                };
+                apply_override_sources(&mut plate_config.objects[obj_idx], &sources, &mut errors);
+            }
+            Err(e) => errors.push(e),
+        }
+    }
+
+    // Step 3: Validate files exist.
+    let mut mesh_paths: Vec<PathBuf> = Vec::new();
+    for (i, obj) in plate_config.objects.iter().enumerate() {
+        match &obj.mesh_source {
+            MeshSource::File(path) => {
+                if !path.exists() {
+                    errors.push(format!(
+                        "Mesh file for object {} ('{}') not found: {}",
+                        i + 1,
+                        obj.name.as_deref().unwrap_or("unnamed"),
+                        path.display()
+                    ));
+                }
+                mesh_paths.push(path.clone());
+            }
+            MeshSource::InMemory => {
+                // For in-memory sources, we need input files from CLI
+                if i < all_inputs.len() {
+                    mesh_paths.push(all_inputs[i].clone());
+                } else {
+                    errors.push(format!(
+                        "Object {} has InMemory mesh source but no input file provided",
+                        i + 1
+                    ));
+                }
+            }
+        }
+    }
+
+    // Step 4: Report collected errors.
+    if !errors.is_empty() {
+        for err in &errors {
+            output.error_msg(err);
+        }
+        process::exit(2);
+    }
+
+    // Step 5: Handle --strict warnings.
+    if strict && !warnings.is_empty() {
+        for w in &warnings {
+            output.error_msg(&format!("(--strict) {w}"));
+        }
+        process::exit(2);
+    }
+    if !force {
+        for w in &warnings {
+            output.warn(w);
+        }
+    }
+
+    // Step 6: Resolve profiles and build base composed config.
+    let step_resolve = output.start_step(1, 4, "Resolve profiles");
+
+    let mut composer = ProfileComposer::new();
+    let resolver = ProfileResolver::new(profiles_dir);
+
+    // Apply profiles from plate config or CLI
+    let effective_machine = plate_config.machine_profile.as_deref().or(machine);
+    let effective_filament = plate_config.filament_profile.as_deref().or(filament);
+    let effective_process = plate_config.process_profile.as_deref().or(process);
+
+    // Helper closure to resolve a profile query and add it to the composer.
+    fn resolve_profile_to_composer(
+        resolver: &ProfileResolver,
+        query: &str,
+        expected_type: &str,
+        source_type: slicecore_engine::profile_compose::SourceType,
+        composer: &mut ProfileComposer,
+        output: &cli_output::CliOutput,
+    ) -> bool {
+        // Check built-in profiles first
+        if let Some(builtin) = slicecore_engine::get_builtin_profile(query) {
+            if builtin.profile_type == expected_type {
+                if let Err(e) = composer.add_toml_layer(
+                    source_type,
+                    &format!("(built-in:{query})"),
+                    builtin.toml_content,
+                ) {
+                    output.error_msg(&format!("Failed to load built-in profile '{query}': {e}"));
+                    return false;
+                }
+                return true;
+            }
+        }
+        // Try resolver
+        match resolver.resolve(query, expected_type) {
+            Ok(resolved) => {
+                let chain = match resolver.resolve_inheritance(&resolved.path) {
+                    Ok(c) if !c.is_empty() => c,
+                    _ => vec![resolved],
+                };
+                for profile in &chain {
+                    match std::fs::read_to_string(&profile.path) {
+                        Ok(content) => {
+                            if let Err(e) = composer.add_toml_layer(
+                                source_type.clone(),
+                                &profile.path.to_string_lossy(),
+                                &content,
+                            ) {
+                                output.error_msg(&format!(
+                                    "Failed to parse profile '{}': {e}",
+                                    profile.path.display()
+                                ));
+                                return false;
+                            }
+                        }
+                        Err(e) => {
+                            output.error_msg(&format!(
+                                "Failed to read profile '{}': {e}",
+                                profile.path.display()
+                            ));
+                            return false;
+                        }
+                    }
+                }
+                true
+            }
+            Err(e) => {
+                output.error_msg(&format!(
+                    "Failed to resolve {expected_type} profile '{query}': {e}"
+                ));
+                false
+            }
+        }
+    }
+
+    if let Some(m) = effective_machine {
+        if !resolve_profile_to_composer(
+            &resolver,
+            m,
+            "machine",
+            slicecore_engine::profile_compose::SourceType::Machine,
+            &mut composer,
+            &output,
+        ) {
+            process::exit(2);
+        }
+    }
+    if let Some(f) = effective_filament {
+        if !resolve_profile_to_composer(
+            &resolver,
+            f,
+            "filament",
+            slicecore_engine::profile_compose::SourceType::Filament,
+            &mut composer,
+            &output,
+        ) {
+            process::exit(2);
+        }
+    }
+    if let Some(p) = effective_process {
+        if !resolve_profile_to_composer(
+            &resolver,
+            p,
+            "process",
+            slicecore_engine::profile_compose::SourceType::Process,
+            &mut composer,
+            &output,
+        ) {
+            process::exit(2);
+        }
+    }
+
+    // Apply CLI --set overrides
+    for kv in set_overrides {
+        if let Some((key, val)) = kv.split_once('=') {
+            let _ = composer.add_set_override(key, val);
+        }
+    }
+
+    let base_composed = match composer.compose() {
+        Ok(c) => c,
+        Err(e) => {
+            output.error_msg(&format!("Profile composition failed: {e}"));
+            process::exit(1);
+        }
+    };
+
+    output.finish_step(&step_resolve, "Resolve profiles");
+
+    // Step 7: --show-config-object support.
+    if let Some(obj_idx) = show_config_object {
+        if obj_idx == 0 || obj_idx > plate_config.objects.len() {
+            output.error_msg(&format!(
+                "Object index {obj_idx} out of bounds (plate has {} object(s); 1-indexed)",
+                plate_config.objects.len()
+            ));
+            process::exit(2);
+        }
+        let engine = match slicecore_engine::Engine::from_plate_config(
+            plate_config.clone(),
+            base_composed,
+        ) {
+            Ok(e) => e,
+            Err(e) => {
+                output.error_msg(&format!("Failed to build engine: {e}"));
+                process::exit(1);
+            }
+        };
+        let resolved_objs = engine.resolved_objects();
+        if let Some(obj) = resolved_objs.get(obj_idx - 1) {
+            let obj_name = plate_config.objects[obj_idx - 1]
+                .name
+                .as_deref()
+                .unwrap_or("unnamed");
+            println!("Config for object {obj_idx} ({obj_name}):");
+            if let Some(z) = at_z {
+                println!("  (at Z = {z:.2} mm)");
+            }
+            // Show the resolved config as TOML (deref Arc to get &PrintConfig)
+            let config_toml = toml::to_string_pretty(obj.config.as_ref()).unwrap_or_default();
+            println!("{config_toml}");
+        }
+        return;
+    }
+
+    // Step 8: --save-plate support.
+    if let Some(save_path) = save_plate_path {
+        match toml::to_string_pretty(&plate_config) {
+            Ok(content) => {
+                if let Err(e) = std::fs::write(save_path, &content) {
+                    output.error_msg(&format!(
+                        "Failed to save plate config to '{}': {e}",
+                        save_path.display()
+                    ));
+                    process::exit(1);
+                }
+                output.info(&format!("Plate config saved to {}", save_path.display()));
+            }
+            Err(e) => {
+                output.error_msg(&format!("Failed to serialize plate config: {e}"));
+                process::exit(1);
+            }
+        }
+        if dry_run {
+            return;
+        }
+    }
+
+    // Step 9: Build engine from plate config.
+    let step_engine = output.start_step(2, 4, "Build engine");
+
+    let engine =
+        match slicecore_engine::Engine::from_plate_config(plate_config.clone(), base_composed) {
+            Ok(e) => e,
+            Err(e) => {
+                output.error_msg(&format!("Failed to build engine from plate config: {e}"));
+                process::exit(1);
+            }
+        };
+
+    output.finish_step(&step_engine, "Build engine");
+
+    if dry_run {
+        output.info("Dry run: engine built successfully, skipping slice.");
+        return;
+    }
+
+    // Step 10: Load meshes.
+    let step_mesh = output.start_step(3, 4, "Load meshes");
+
+    let mut meshes = Vec::new();
+    for path in &mesh_paths {
+        let data = match std::fs::read(path) {
+            Ok(d) => d,
+            Err(e) => {
+                output.error_msg(&format!("Failed to read mesh '{}': {e}", path.display()));
+                process::exit(1);
+            }
+        };
+        let mesh = match slicecore_fileio::load_mesh(&data) {
+            Ok(m) => m,
+            Err(e) => {
+                output.error_msg(&format!("Failed to parse mesh '{}': {e}", path.display()));
+                process::exit(1);
+            }
+        };
+        let verts = mesh.vertices().to_vec();
+        let idxs = mesh.indices().to_vec();
+        let (repaired, report) = match slicecore_mesh::repair(verts, idxs) {
+            Ok(r) => r,
+            Err(e) => {
+                output.error_msg(&format!("Failed to repair mesh '{}': {e}", path.display()));
+                process::exit(1);
+            }
+        };
+        if !report.was_already_clean {
+            output.info(&format!(
+                "Repaired '{}' ({} degenerates removed, {} normals fixed)",
+                path.display(),
+                report.degenerate_removed,
+                report.normals_fixed,
+            ));
+        }
+        meshes.push(repaired);
+    }
+
+    output.finish_step(&step_mesh, "Load meshes");
+
+    // Step 11: Slice the plate.
+    let step_slice = output.start_step(4, 4, "Slice plate");
+
+    // Multi-progress: create per-object progress bars
+    let multi = indicatif::MultiProgress::new();
+    let object_count = meshes.len();
+    let overall_bar = multi.add(indicatif::ProgressBar::new(object_count as u64));
+    overall_bar.set_style(
+        indicatif::ProgressStyle::with_template("{prefix} [{bar:30}] {pos}/{len} objects")
+            .unwrap_or_else(|_| indicatif::ProgressStyle::default_bar()),
+    );
+    overall_bar.set_prefix("Plate");
+
+    let resolved_objs = engine.resolved_objects();
+    let mesh_refs: Vec<&slicecore_mesh::TriangleMesh> = meshes.iter().collect();
+    let plate_result = match engine.slice_plate(&mesh_refs, None) {
+        Ok(r) => r,
+        Err(e) => {
+            output.error_msg(&format!("Plate slicing failed: {e}"));
+            process::exit(1);
+        }
+    };
+
+    for (i, obj_result) in plate_result.objects.iter().enumerate() {
+        overall_bar.inc(1);
+        if !quiet {
+            let obj_num = i + 1;
+            let total_objs = plate_result.objects.len();
+
+            // Per-object log section: config resolution info.
+            let resolved_config = resolved_objs
+                .iter()
+                .find(|r| r.index == obj_result.index)
+                .map(|r| &*r.config)
+                .unwrap_or(&resolved_objs[0].config);
+            let base_cfg: &slicecore_engine::PrintConfig = &resolved_objs[0].config;
+            let diffs = slicecore_engine::compute_override_diffs(base_cfg, resolved_config);
+
+            eprintln!(
+                "[object {obj_num}/{total_objs}] {}: resolving config...",
+                obj_result.name,
+            );
+            if diffs.is_empty() {
+                eprintln!(
+                    "[object {obj_num}/{total_objs}] {}: no overrides",
+                    obj_result.name,
+                );
+            } else {
+                let keys: Vec<&str> = diffs.iter().map(|d| d.key.as_str()).collect();
+                eprintln!(
+                    "[object {obj_num}/{total_objs}] {}: {} overrides from base ({})",
+                    obj_result.name,
+                    diffs.len(),
+                    keys.join(", "),
+                );
+            }
+            let copies_str = if obj_result.copies > 1 {
+                format!(" (x{} copies)", obj_result.copies)
+            } else {
+                String::new()
+            };
+            eprintln!(
+                "[object {obj_num}/{total_objs}] {}: slicing {} layers{copies_str}...",
+                obj_result.name, obj_result.result.layer_count,
+            );
+            let time_display =
+                slicecore_engine::format_time_display(obj_result.result.estimated_time_seconds);
+            eprintln!(
+                "[object {obj_num}/{total_objs}] {}: complete ({}, {:.1}g)",
+                obj_result.name, time_display, obj_result.result.filament_usage.weight_g,
+            );
+        }
+    }
+    overall_bar.finish_and_clear();
+
+    output.finish_step(&step_slice, "Slice plate");
+
+    // Step 12: Write output G-code (interleaved per-object).
+    // Combine G-code from all objects.
+    let mut combined_gcode = Vec::new();
+    for obj_result in &plate_result.objects {
+        combined_gcode.extend_from_slice(&obj_result.result.gcode);
+    }
+
+    let out_path = if let Some(p) = output_path {
+        p.to_path_buf()
+    } else {
+        let first_input = mesh_paths.first().map_or_else(
+            || PathBuf::from("plate_output.gcode"),
+            |p| p.with_extension("gcode"),
+        );
+        first_input
+    };
+
+    if let Err(e) = std::fs::write(&out_path, &combined_gcode) {
+        output.error_msg(&format!(
+            "Failed to write output '{}': {e}",
+            out_path.display()
+        ));
+        process::exit(1);
+    }
+
+    // Summary: compute per-object statistics.
+    let plate_stats = slicecore_engine::PlateStatistics::from_results(&plate_result.objects);
+    let base_config_ref: &slicecore_engine::PrintConfig = &resolved_objs[0].config;
+
+    if json_output {
+        // Build structured JSON output with per-object data, overrides, and provenance.
+        let checksum = if let Some(pc) = engine.plate_config() {
+            slicecore_engine::plate_checksum(pc)
+        } else {
+            String::from("sha256:unknown")
+        };
+        let resolved_configs: Vec<&slicecore_engine::PrintConfig> =
+            resolved_objs.iter().map(|r| &*r.config).collect();
+        let plate_json = slicecore_engine::build_plate_output_json(
+            &checksum,
+            &plate_result.objects,
+            base_config_ref,
+            &resolved_configs,
+        );
+        match slicecore_engine::plate_to_json(&plate_json) {
+            Ok(json_str) => println!("{json_str}"),
+            Err(e) => eprintln!("Failed to serialize plate JSON: {e}"),
+        }
+    } else if !quiet {
+        // Per-object summary table.
+        let total_copies: u32 = plate_stats.objects.iter().map(|o| o.copies).sum();
+        println!(
+            "\n=== Plate Slice Summary ===\nObjects: {} ({} total with copies)\n",
+            plate_stats.objects.len(),
+            total_copies,
+        );
+
+        for obj_stat in &plate_stats.objects {
+            let time_display =
+                slicecore_engine::format_time_display(obj_stat.estimated_time_seconds);
+            let filament_m = obj_stat.filament_used_mm / 1000.0;
+
+            // Compute override diffs for display.
+            let resolved_config = resolved_objs
+                .iter()
+                .find(|r| r.index == obj_stat.object_index)
+                .map(|r| &*r.config)
+                .unwrap_or(base_config_ref);
+            let diffs = slicecore_engine::compute_override_diffs(base_config_ref, resolved_config);
+
+            print!(
+                "  Object {}: {} ({} cop{})\n    Layers: {} | Time: {} | Filament: {:.1}g ({:.1}m)",
+                obj_stat.object_index + 1,
+                obj_stat.object_name,
+                obj_stat.copies,
+                if obj_stat.copies == 1 { "y" } else { "ies" },
+                obj_stat.layer_count,
+                time_display,
+                obj_stat.filament_used_grams,
+                filament_m,
+            );
+
+            if let Some(cost) = obj_stat.filament_cost {
+                print!(" | Cost: ${cost:.2}");
+            }
+            println!();
+
+            if diffs.is_empty() {
+                println!("    Overrides: none");
+            } else {
+                let keys: Vec<String> = diffs
+                    .iter()
+                    .map(|d| format!("{}={}", d.key, d.override_value))
+                    .collect();
+                println!("    Overrides: {}", keys.join(", "));
+            }
+            println!();
+        }
+
+        let total_time_display =
+            slicecore_engine::format_time_display(plate_stats.total_estimated_time_seconds);
+        let total_filament_m = plate_stats.total_filament_used_mm / 1000.0;
+        print!(
+            "Total: {} layers | Time: {} | Filament: {:.1}g ({:.1}m)",
+            plate_stats.total_layer_count,
+            total_time_display,
+            plate_stats.total_filament_used_grams,
+            total_filament_m,
+        );
+        if let Some(cost) = plate_stats.total_filament_cost {
+            print!(" | Cost: ${cost:.2}");
+        }
+        println!(" -> {}", out_path.display());
+    }
+
+    // Log file
+    if !no_log {
+        let log_path = if let Some(lf) = log_file {
+            lf.to_path_buf()
+        } else {
+            out_path.with_extension("log")
+        };
+        let mut log_content = format!(
+            "SliceCore Plate Slice Log\nOutput: {}\nObjects: {}\n",
+            out_path.display(),
+            plate_result.objects.len(),
+        );
+        for obj in &plate_result.objects {
+            log_content.push_str(&format!(
+                "  {}: {} layers, est. {:.1}s\n",
+                obj.name, obj.result.layer_count, obj.result.estimated_time_seconds,
+            ));
+        }
+        let _ = std::fs::write(&log_path, &log_content);
     }
 }
 

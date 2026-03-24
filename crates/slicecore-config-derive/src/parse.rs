@@ -33,6 +33,8 @@ pub struct SettingAttrs {
     pub flatten: bool,
     /// Custom prefix for flattened fields.
     pub prefix: Option<String>,
+    /// Override safety classification (`"safe"`, `"warn"`, or `"ignored"`).
+    pub override_safety: Option<String>,
 }
 
 impl SettingAttrs {
@@ -102,6 +104,16 @@ impl SettingAttrs {
                     let value = meta.value()?;
                     let lit: syn::LitStr = value.parse()?;
                     result.prefix = Some(lit.value());
+                } else if meta.path.is_ident("override_safety") {
+                    let value = meta.value()?;
+                    let lit: syn::LitStr = value.parse()?;
+                    let val = lit.value();
+                    if !["safe", "warn", "ignored"].contains(&val.as_str()) {
+                        return Err(meta.error(format!(
+                            "override_safety must be \"safe\", \"warn\", or \"ignored\", got \"{val}\""
+                        )));
+                    }
+                    result.override_safety = Some(val);
                 } else {
                     return Err(meta.error(format_args!(
                         "unknown setting attribute `{}`",

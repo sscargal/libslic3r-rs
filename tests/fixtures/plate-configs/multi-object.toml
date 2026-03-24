@@ -1,0 +1,42 @@
+# Multi-object plate config with overrides for E2E testing.
+# Exercises the full cascade: default overrides, named override sets,
+# inline overrides, and the precedence rules between them.
+
+[default_object_overrides]
+infill_density = 0.3
+
+[override_sets.high_detail]
+layer_height = 0.1
+wall_count = 4
+infill_density = 0.5
+
+[override_sets.fast_draft]
+layer_height = 0.3
+wall_count = 2
+infill_density = 0.15
+
+# Object 1: uses high_detail set + inline override on infill_density.
+# Expected: layer_height=0.1, wall_count=4, infill_density=0.8 (inline wins).
+[[objects]]
+mesh_source = "InMemory"
+name = "Detailed Part"
+override_set = "high_detail"
+copies = 1
+
+[objects.inline_overrides]
+infill_density = 0.8
+
+# Object 2: uses fast_draft set, no inline overrides.
+# Expected: layer_height=0.3, wall_count=2, infill_density=0.15.
+[[objects]]
+mesh_source = "InMemory"
+name = "Draft Part"
+override_set = "fast_draft"
+copies = 2
+
+# Object 3: no override set, no inline overrides.
+# Expected: only default_object_overrides apply, so infill_density=0.3.
+[[objects]]
+mesh_source = "InMemory"
+name = "Default Part"
+copies = 1

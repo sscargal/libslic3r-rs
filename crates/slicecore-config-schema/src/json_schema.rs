@@ -182,7 +182,8 @@ impl SettingRegistry {
 mod tests {
     use super::*;
     use crate::types::{
-        Constraint, EnumVariant, SettingCategory, SettingDefinition, SettingKey, Tier, ValueType,
+        Constraint, EnumVariant, OverrideSafety, SettingCategory, SettingDefinition, SettingKey,
+        Tier, ValueType,
     };
 
     fn make_def(key: &str, vt: ValueType) -> SettingDefinition {
@@ -201,6 +202,7 @@ mod tests {
             tags: vec!["speed".to_owned()],
             since_version: "0.1.0".to_owned(),
             deprecated: None,
+            override_safety: OverrideSafety::default(),
         }
     }
 

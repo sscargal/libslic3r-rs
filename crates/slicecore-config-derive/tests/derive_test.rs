@@ -1,4 +1,6 @@
-use slicecore_config_schema::{Constraint, HasSettingSchema, SettingCategory, Tier, ValueType};
+use slicecore_config_schema::{
+    Constraint, HasSettingSchema, OverrideSafety, SettingCategory, Tier, ValueType,
+};
 
 // Test enum
 #[allow(dead_code)]
@@ -151,4 +153,53 @@ fn test_display_name_auto() {
     let defs = TestSpeedConfig::setting_definitions("");
     let gap_fill = defs.iter().find(|d| d.key.0 == "gap_fill").unwrap();
     assert_eq!(gap_fill.display_name, "Gap Fill");
+}
+
+// Test struct with override_safety attributes
+#[allow(dead_code)]
+#[derive(slicecore_config_derive::SettingSchema)]
+struct TestOverrideSafetyConfig {
+    #[setting(tier = 1, description = "Layer height", override_safety = "safe")]
+    layer_height: f64,
+
+    #[setting(tier = 2, description = "Bed temperature", override_safety = "warn")]
+    bed_temperature: f64,
+
+    #[setting(
+        tier = 3,
+        description = "Machine bed X size",
+        override_safety = "ignored"
+    )]
+    bed_x: f64,
+
+    #[setting(tier = 1, description = "Infill density (no explicit safety)")]
+    infill_density: f64,
+}
+
+#[test]
+fn test_override_safety_explicit_safe() {
+    let defs = TestOverrideSafetyConfig::setting_definitions("");
+    let lh = defs.iter().find(|d| d.key.0 == "layer_height").unwrap();
+    assert_eq!(lh.override_safety, OverrideSafety::Safe);
+}
+
+#[test]
+fn test_override_safety_warn() {
+    let defs = TestOverrideSafetyConfig::setting_definitions("");
+    let bt = defs.iter().find(|d| d.key.0 == "bed_temperature").unwrap();
+    assert_eq!(bt.override_safety, OverrideSafety::Warn);
+}
+
+#[test]
+fn test_override_safety_ignored() {
+    let defs = TestOverrideSafetyConfig::setting_definitions("");
+    let bx = defs.iter().find(|d| d.key.0 == "bed_x").unwrap();
+    assert_eq!(bx.override_safety, OverrideSafety::Ignored);
+}
+
+#[test]
+fn test_override_safety_default_is_safe() {
+    let defs = TestOverrideSafetyConfig::setting_definitions("");
+    let id = defs.iter().find(|d| d.key.0 == "infill_density").unwrap();
+    assert_eq!(id.override_safety, OverrideSafety::Safe);
 }

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 44-03-PLAN.md
-last_updated: "2026-03-23T22:38:23.522Z"
-last_activity: "2026-03-23 - Completed 44-03: Profile set CLI commands and slice integration"
+status: executing
+stopped_at: Completed 45-11-PLAN.md
+last_updated: "2026-03-24T19:46:17.555Z"
+last_activity: "2026-03-24 - Completed 45-09: Serialization output with per-object statistics"
 progress:
   total_phases: 51
-  completed_phases: 44
-  total_plans: 178
-  completed_plans: 178
-  percent: 100
+  completed_phases: 45
+  total_plans: 189
+  completed_plans: 189
+  percent: 99
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 44 of 51 (Search and filter profiles by printer and filament compatibility)
-Plan: 3 of 3 in current phase
-Status: Phase Complete
-Last activity: 2026-03-23 - Completed quick task 260323-wwu: Fix profile set/get QA test failures
+Phase: 45 of 51 (Global and per-object settings override system)
+Plan: 9 of 10 in current phase
+Status: In Progress
+Last activity: 2026-03-24 - Completed 45-09: Serialization output with per-object statistics
 
-Progress: [██████████] 100% (178/178 overall)
+Progress: [██████████] 99% (187/188 overall)
 
 ## Performance Metrics
 
@@ -156,6 +156,16 @@ Progress: [██████████] 100% (178/178 overall)
 | Phase 43 P03 | 7 | 2 tasks | 4 files |
 | Phase 44 P01 | 7min | 2 tasks | 3 files |
 | Phase 44 P03 | 17min | 2 tasks | 4 files |
+| Phase 45 P01 | 7min | 2 tasks | 11 files |
+| Phase 45 P02 | 8min | 3 tasks | 11 files |
+| Phase 45 P03 | 4min | 2 tasks | 4 files |
+| Phase 45 P04 | 4 | 1 tasks | 4 files |
+| Phase 45 P05 | 8 | 2 tasks | 3 files |
+| Phase 45 P06 | 5min | 2 tasks | 3 files |
+| Phase 45 P07 | 10 | 1 tasks | 4 files |
+| Phase 45 P09 | 44 | 2 tasks | 6 files |
+| Phase 45 P10 | 17 | 2 tasks | 7 files |
+| Phase 45 P11 | 5min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -164,6 +174,8 @@ Progress: [██████████] 100% (178/178 overall)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [45-02]: 374 config fields classified: 190 safe, 106 warn, 78 ignored for per-object/per-region override safety
+- [45-02]: Override safety CLI filter via --override-safety flag, new to_filtered_metadata_json_with_safety preserves backward compat
 - [42-02]: Profile alias commands (list/show/search) use ProfileResolver directly rather than delegating to main.rs private functions
 - [30-05]: Used indicatif with hidden ProgressBar for non-TTY fallback, deprecated find_profiles_dir in favor of ProfileResolver
 - [Roadmap]: Integer coordinates (i64 Coord, COORD_SCALE) must be locked in Phase 1 before any algorithms
@@ -685,6 +697,18 @@ Recent decisions affecting current work:
 - [Phase 44]: Replaced individual vendor/material/profile_type args on List with flattened CliProfileFilters (--profile-type becomes --type)
 - [Phase 44]: Renamed Set to Setting to free 'set' subcommand for profile set management
 - [Phase 44]: Used --profile-set flag (not --set) to avoid Clap collision with existing --set config override
+- [Phase 45]: PlateConfig takes PrintConfig for compat but does not store it -- profiles resolved via cascade
+- [Phase 45]: OverrideSafety defaults to Safe so existing settings work without annotation
+- [Phase 45]: Layers 9-10 deferred to slicing integration; cascade resolves layers 7-8 only
+- [Phase 45]: Objects with no overrides share Arc<PrintConfig> for memory efficiency
+- [Phase 45]: Used PerRegionOverride SourceType for modifier provenance tracking in merge_layer
+- [Phase 45]: Engine.config uses Arc<PrintConfig> for zero-copy shared ownership across resolved objects
+- [Phase 45]: Override sets stored as TOML in ~/.slicecore/override-sets/ using home crate
+- [Phase 45]: Plate mode triggered by --plate, multi-model inputs, --object, --save-plate, or --show-config-object
+- [Phase 45-08]: 3MF per-object settings stored in Metadata/model_settings.config with dual-namespace (slicecore: + PrusaSlicer-compat)
+- [Phase 45]: Override diffs computed via JSON flatten+compare; total layers use max() across objects
+- [Phase 45]: Programmatic PlateConfig construction for E2E tests over TOML fixture parsing
+- [Phase 45]: Used toml::Value builder for plate.toml per-object overrides instead of template function
 
 ### Roadmap Evolution
 
@@ -744,6 +768,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-23T22:25:35.427Z
-Stopped at: Completed 44-03-PLAN.md
+Last session: 2026-03-24T19:41:44.931Z
+Stopped at: Completed 45-11-PLAN.md
 Resume file: None

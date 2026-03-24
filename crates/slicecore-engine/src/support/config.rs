@@ -229,7 +229,8 @@ pub struct BridgeConfig {
         units = "mm/s",
         min = 1.0,
         max = 300.0,
-        depends_on = "support.bridge_detection"
+        depends_on = "support.bridge_detection",
+        override_safety = "safe"
     )]
     pub speed: f64,
     /// Fan speed during bridging (0-255, 255 = 100%).
@@ -247,7 +248,8 @@ pub struct BridgeConfig {
         description = "Flow rate ratio during bridging",
         min = 0.0,
         max = 2.0,
-        depends_on = "support.bridge_detection"
+        depends_on = "support.bridge_detection",
+        override_safety = "safe"
     )]
     pub flow_ratio: f64,
     /// Acceleration during bridging in mm/s^2.
@@ -257,7 +259,8 @@ pub struct BridgeConfig {
         units = "mm/s^2",
         min = 0.0,
         max = 20000.0,
-        depends_on = "support.bridge_detection"
+        depends_on = "support.bridge_detection",
+        override_safety = "safe"
     )]
     pub acceleration: f64,
     /// Line width ratio relative to standard extrusion width.
@@ -266,7 +269,8 @@ pub struct BridgeConfig {
         description = "Bridge line width ratio relative to standard width",
         min = 0.1,
         max = 3.0,
-        depends_on = "support.bridge_detection"
+        depends_on = "support.bridge_detection",
+        override_safety = "safe"
     )]
     pub line_width_ratio: f64,
     /// Bridge angle in degrees (0 = auto-detect).
@@ -287,7 +291,8 @@ pub struct BridgeConfig {
         description = "Bridge density as a fraction",
         min = 0.0,
         max = 1.0,
-        depends_on = "support.bridge_detection"
+        depends_on = "support.bridge_detection",
+        override_safety = "safe"
     )]
     pub density: f64,
     /// Use thick bridges for stronger bridging.
@@ -295,7 +300,8 @@ pub struct BridgeConfig {
     #[setting(
         tier = 3,
         description = "Use thick bridges for stronger bridging",
-        depends_on = "support.bridge_detection"
+        depends_on = "support.bridge_detection",
+        override_safety = "safe"
     )]
     pub thick_bridges: bool,
     /// Disable support under bridge areas.
@@ -303,7 +309,8 @@ pub struct BridgeConfig {
     #[setting(
         tier = 3,
         description = "Disable support under bridge areas",
-        depends_on = "support.bridge_detection"
+        depends_on = "support.bridge_detection",
+        override_safety = "safe"
     )]
     pub no_support: bool,
 }
@@ -336,14 +343,16 @@ pub struct TreeSupportConfig {
     #[setting(
         tier = 3,
         description = "Branch growth style",
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub branch_style: TreeBranchStyle,
     /// Trunk diameter taper method.
     #[setting(
         tier = 3,
         description = "Trunk diameter taper method",
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub taper_method: TaperMethod,
     /// Maximum branching angle in degrees.
@@ -353,7 +362,8 @@ pub struct TreeSupportConfig {
         units = "deg",
         min = 0.0,
         max = 90.0,
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub branch_angle: f64,
     /// Minimum branch divergence angle in degrees.
@@ -363,7 +373,8 @@ pub struct TreeSupportConfig {
         units = "deg",
         min = 0.0,
         max = 90.0,
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub min_branch_angle: f64,
     /// Maximum trunk diameter in mm.
@@ -373,7 +384,8 @@ pub struct TreeSupportConfig {
         units = "mm",
         min = 0.1,
         max = 50.0,
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub max_trunk_diameter: f64,
     /// Branch merge distance as a factor of trunk diameter.
@@ -382,7 +394,8 @@ pub struct TreeSupportConfig {
         description = "Branch merge distance factor",
         min = 0.1,
         max = 20.0,
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub merge_distance_factor: f64,
     /// Tip diameter at contact points in mm.
@@ -392,7 +405,8 @@ pub struct TreeSupportConfig {
         units = "mm",
         min = 0.1,
         max = 5.0,
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub tip_diameter: f64,
     /// Distance between tree branches in mm.
@@ -403,7 +417,8 @@ pub struct TreeSupportConfig {
         units = "mm",
         min = 0.1,
         max = 50.0,
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub branch_distance: f64,
     /// Angle at which branch diameter increases (degrees).
@@ -414,7 +429,8 @@ pub struct TreeSupportConfig {
         units = "deg",
         min = 0.0,
         max = 45.0,
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub branch_diameter_angle: f64,
     /// Number of walls around tree support branches.
@@ -424,7 +440,8 @@ pub struct TreeSupportConfig {
         description = "Number of walls around tree support branches",
         min = 0.0,
         max = 10.0,
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub wall_count: u32,
     /// Auto-generate brim around tree support base.
@@ -432,7 +449,8 @@ pub struct TreeSupportConfig {
     #[setting(
         tier = 3,
         description = "Auto-generate brim around tree support base",
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub auto_brim: bool,
     /// Brim width around tree support base in mm.
@@ -443,7 +461,8 @@ pub struct TreeSupportConfig {
         units = "mm",
         min = 0.0,
         max = 20.0,
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub brim_width: f64,
     /// Enable adaptive layer height for tree support.
@@ -451,7 +470,8 @@ pub struct TreeSupportConfig {
     #[setting(
         tier = 3,
         description = "Enable adaptive layer height for tree support",
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub adaptive_layer_height: bool,
     /// Slow branch angle in degrees (for gradual angle changes).
@@ -462,7 +482,8 @@ pub struct TreeSupportConfig {
         units = "deg",
         min = 0.0,
         max = 90.0,
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub angle_slow: f64,
     /// Top contact rate for tree support branches.
@@ -472,7 +493,8 @@ pub struct TreeSupportConfig {
         description = "Top contact rate for tree support branches",
         min = 0.0,
         max = 1.0,
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub top_rate: f64,
     /// Fill tree support interior with infill.
@@ -480,7 +502,8 @@ pub struct TreeSupportConfig {
     #[setting(
         tier = 3,
         description = "Fill tree support interior with infill",
-        depends_on = "support.support_type"
+        depends_on = "support.support_type",
+        override_safety = "safe"
     )]
     pub with_infill: bool,
 }
@@ -527,13 +550,18 @@ impl Default for TreeSupportConfig {
 #[setting(category = "Support")]
 pub struct SupportConfig {
     /// Enable support generation.
-    #[setting(tier = 1, description = "Enable support structures")]
+    #[setting(
+        tier = 1,
+        description = "Enable support structures",
+        override_safety = "safe"
+    )]
     pub enabled: bool,
     /// Support type selection strategy.
     #[setting(
         tier = 2,
         description = "Type of support structure to generate",
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub support_type: SupportType,
     /// Overhang angle threshold in degrees (surfaces steeper than this
@@ -544,7 +572,8 @@ pub struct SupportConfig {
         units = "deg",
         min = 0.0,
         max = 90.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub overhang_angle: f64,
     /// Minimum support region area in mm^2 (regions smaller than this
@@ -555,7 +584,8 @@ pub struct SupportConfig {
         units = "mm^2",
         min = 0.0,
         max = 100.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub min_support_area: f64,
     /// Support body density as a fraction (0.0 - 1.0).
@@ -564,14 +594,16 @@ pub struct SupportConfig {
         description = "Support body density",
         min = 0.0,
         max = 1.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub support_density: f64,
     /// Fill pattern for support body layers.
     #[setting(
         tier = 3,
         description = "Fill pattern for support body layers",
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub support_pattern: SupportPattern,
     /// Number of dense interface layers at top/bottom of support.
@@ -580,7 +612,8 @@ pub struct SupportConfig {
         description = "Number of dense interface layers",
         min = 0.0,
         max = 20.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub interface_layers: u32,
     /// Interface layer density as a fraction (0.0 - 1.0).
@@ -589,14 +622,16 @@ pub struct SupportConfig {
         description = "Interface layer density",
         min = 0.0,
         max = 1.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub interface_density: f64,
     /// Fill pattern for interface layers.
     #[setting(
         tier = 3,
         description = "Fill pattern for support interface layers",
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub interface_pattern: InterfacePattern,
     /// Z-axis gap between support top and model bottom in mm.
@@ -606,7 +641,8 @@ pub struct SupportConfig {
         units = "mm",
         min = 0.0,
         max = 2.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub z_gap: f64,
     /// XY-axis gap between support and model walls in mm.
@@ -616,21 +652,24 @@ pub struct SupportConfig {
         units = "mm",
         min = 0.0,
         max = 5.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub xy_gap: f64,
     /// Only generate support touching the build plate (no support-on-model).
     #[setting(
         tier = 2,
         description = "Only generate support touching the build plate",
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub build_plate_only: bool,
     /// Enable bridge detection for unsupported horizontal spans.
     #[setting(
         tier = 3,
         description = "Enable bridge detection for unsupported spans",
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub bridge_detection: bool,
     /// Bridge extrusion configuration.
@@ -643,14 +682,16 @@ pub struct SupportConfig {
     #[setting(
         tier = 2,
         description = "Quality preset for support parameters",
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub quality_preset: Option<QualityPreset>,
     /// Strategy for resolving conflicting configuration values.
     #[setting(
         tier = 3,
         description = "Strategy for resolving conflicting support settings",
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub conflict_resolution: ConflictResolution,
     /// Number of dense interface layers at the bottom of support (support floor).
@@ -671,7 +712,8 @@ pub struct SupportConfig {
         units = "mm",
         min = 0.0,
         max = 10.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub expansion: f64,
     /// Number of raft layers below the model.
@@ -681,7 +723,8 @@ pub struct SupportConfig {
         description = "Number of raft layers below the model",
         min = 0.0,
         max = 20.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub raft_layers: u32,
     /// Raft first layer expansion in mm.
@@ -692,7 +735,8 @@ pub struct SupportConfig {
         units = "mm",
         min = 0.0,
         max = 20.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub raft_expansion: f64,
     /// Only generate support for critical overhang regions.
@@ -700,7 +744,8 @@ pub struct SupportConfig {
     #[setting(
         tier = 3,
         description = "Only generate support for critical overhang regions",
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub critical_regions_only: bool,
     /// Remove small overhang areas from support generation.
@@ -708,7 +753,8 @@ pub struct SupportConfig {
     #[setting(
         tier = 3,
         description = "Remove small overhang areas from support generation",
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub remove_small_overhang: bool,
     /// Flow ratio for support extrusion (0.0 - 2.0).
@@ -718,7 +764,8 @@ pub struct SupportConfig {
         description = "Flow ratio for support extrusion",
         min = 0.0,
         max = 2.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub flow_ratio: f64,
     /// Flow ratio for support interface extrusion (0.0 - 2.0).
@@ -728,7 +775,8 @@ pub struct SupportConfig {
         description = "Flow ratio for support interface extrusion",
         min = 0.0,
         max = 2.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub interface_flow_ratio: f64,
     /// Synchronize support layers with object layers.
@@ -736,7 +784,8 @@ pub struct SupportConfig {
     #[setting(
         tier = 3,
         description = "Synchronize support layers with object layers",
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub synchronize_layers: bool,
     /// Minimum number of layers to enforce support generation.
@@ -746,7 +795,8 @@ pub struct SupportConfig {
         description = "Minimum layers to enforce support generation",
         min = 0.0,
         max = 1000.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub enforce_layers: u32,
     /// Closing radius for support area generation in mm.
@@ -757,7 +807,8 @@ pub struct SupportConfig {
         units = "mm",
         min = 0.0,
         max = 20.0,
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub closing_radius: f64,
     /// Bottom Z gap distance in mm (gap between support floor and model).
@@ -766,7 +817,8 @@ pub struct SupportConfig {
         tier = 3,
         description = "Bottom Z gap between support floor and model",
         units = "mm",
-        depends_on = "support.enabled"
+        depends_on = "support.enabled",
+        override_safety = "safe"
     )]
     pub bottom_z_gap: Option<f64>,
 }

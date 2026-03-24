@@ -14,7 +14,7 @@ pub mod validate;
 
 pub use registry::SettingRegistry;
 pub use types::{
-    Constraint, EnumVariant, HasSettingSchema, SettingCategory, SettingDefinition, SettingKey,
-    Tier, ValueType,
+    Constraint, EnumVariant, HasSettingSchema, OverrideSafety, SettingCategory, SettingDefinition,
+    SettingKey, Tier, ValueType,
 };
 pub use validate::{ValidationIssue, ValidationSeverity};

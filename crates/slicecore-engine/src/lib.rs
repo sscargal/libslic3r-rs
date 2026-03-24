@@ -24,6 +24,7 @@ pub mod arachne;
 pub mod builtin_profiles;
 pub mod calibrate;
 pub mod calibration;
+pub mod cascade;
 pub mod config;
 pub mod config_validate;
 pub mod cost_model;
@@ -48,6 +49,7 @@ pub mod output;
 mod parallel;
 pub mod perimeter;
 pub mod planner;
+pub mod plate_config;
 pub mod polyhole;
 pub mod postprocess_builtin;
 pub mod preview;
@@ -66,6 +68,7 @@ pub mod support;
 pub mod surface;
 pub mod toolpath;
 pub mod travel_optimizer;
+pub mod z_schedule;
 
 // Re-export primary types at crate root.
 pub use arachne::{generate_arachne_perimeters, ArachnePerimeter, ArachneResult};
@@ -73,14 +76,13 @@ pub use builtin_profiles::{get_builtin_profile, list_builtin_profiles, BuiltinPr
 pub use calibration::{generate_pa_calibration, generate_pa_calibration_gcode};
 pub use config::{
     MultiMaterialConfig, PaCalibrationConfig, PrintConfig, PrintOrder, ScarfJointConfig,
-    ScarfJointType, SequentialConfig, SettingOverrides, ToolConfig, TravelOptAlgorithm,
-    TravelOptConfig, WallOrder,
+    ScarfJointType, SequentialConfig, ToolConfig, TravelOptAlgorithm, TravelOptConfig, WallOrder,
 };
 pub use config_validate::{
     resolve_template_variables, validate_config, ValidationIssue, ValidationSeverity,
 };
 pub use custom_gcode::{substitute_placeholders, CustomGcodeHooks};
-pub use engine::{CancellationToken, Engine, SliceResult};
+pub use engine::{CancellationToken, Engine, ObjectSliceResult, PlateSliceResult, SliceResult};
 pub use error::EngineError;
 pub use estimation::{estimate_print_time, trapezoid_time, PrintTimeEstimate};
 pub use event::{CallbackSubscriber, EventBus, EventSubscriber, SliceEvent};
@@ -93,7 +95,10 @@ pub use gcode_analysis::{
     parse_gcode_file, ComparisonDelta, ComparisonResult, FeatureDelta, FeatureFormat,
     FeatureMetrics, GcodeAnalysis, HeaderMetadata, LayerMetrics, SlicerType, SpeedStats,
 };
-pub use gcode_gen::{generate_full_gcode, generate_layer_gcode};
+pub use gcode_gen::{
+    compute_override_diffs, generate_full_gcode, generate_layer_gcode, generate_plate_header,
+    plate_checksum, reproduce_command, OverrideDiffEntry,
+};
 pub use infill::{
     alternate_infill_angle, generate_infill, generate_rectilinear_infill, InfillLine,
     InfillPattern, LayerInfill,
@@ -104,7 +109,10 @@ pub use multimaterial::{
     assign_tools_per_region, generate_purge_tower_layer, generate_tool_change, PurgeTowerLayer,
     ToolChangeSequence,
 };
-pub use output::{to_json, to_msgpack, SliceMetadata};
+pub use output::{
+    build_plate_output_json, plate_to_json, to_json, to_msgpack, ObjectOutputJson, ObjectStatsJson,
+    OverrideDiffJson, PlateOutputJson, PlateTotalsJson, SliceMetadata,
+};
 pub use perimeter::{generate_perimeters, ContourPerimeters, PerimeterShell};
 pub use planner::{
     generate_brim, generate_skirt, plan_fan, plan_retraction, plan_temperatures, RetractionMove,
@@ -125,8 +133,9 @@ pub use scarf::apply_scarf_joint;
 pub use seam::{select_seam_point, SeamPosition};
 pub use sequential::{detect_collision, order_objects, plan_sequential_print, ObjectBounds};
 pub use statistics::{
-    compute_statistics, FeatureStatistics, GcodeMetrics, PrintStatistics, StatisticsSummary,
-    StatsSortOrder, TimePrecision, TravelOptStats,
+    compute_statistics, format_time_display, FeatureStatistics, GcodeMetrics, ObjectStatistics,
+    PlateStatistics, PrintStatistics, StatisticsSummary, StatsSortOrder, TimePrecision,
+    TravelOptStats,
 };
 pub use support::config::SupportConfig;
 pub use support::{SupportRegion, SupportResult};

@@ -186,7 +186,7 @@ impl SettingRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::ValueType;
+    use crate::types::{OverrideSafety, ValueType};
 
     /// Helper to create a minimal setting definition for testing.
     fn make_def(key: &str, tier: Tier, category: SettingCategory) -> SettingDefinition {
@@ -205,6 +205,7 @@ mod tests {
             tags: Vec::new(),
             since_version: "0.1.0".to_owned(),
             deprecated: None,
+            override_safety: OverrideSafety::default(),
         }
     }
 

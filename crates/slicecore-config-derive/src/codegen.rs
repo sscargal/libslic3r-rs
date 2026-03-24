@@ -124,6 +124,8 @@ fn generate_struct_impl(
             None => quote! { ::std::option::Option::None },
         };
 
+        let override_safety = override_safety_tokens(field_attrs.override_safety.as_deref());
+
         // Build constraints
         let mut constraint_exprs = Vec::new();
         if let (Some(min), Some(max)) = (field_attrs.min, field_attrs.max) {
@@ -176,6 +178,7 @@ fn generate_struct_impl(
                     tags: ::std::vec![#(#tag_exprs),*],
                     since_version: #since_version.to_string(),
                     deprecated: #deprecated,
+                    override_safety: #override_safety,
                 });
             }
         });
@@ -232,6 +235,7 @@ fn generate_enum_impl(_name: &syn::Ident, data: &syn::DataEnum) -> syn::Result<T
             tags: ::std::vec::Vec::new(),
             since_version: "0.1.0".to_string(),
             deprecated: ::std::option::Option::None,
+            override_safety: ::slicecore_config_schema::OverrideSafety::default(),
         }]
     })
 }
@@ -350,6 +354,16 @@ fn camel_to_snake_case(s: &str) -> String {
         }
     }
     result
+}
+
+/// Converts an optional override_safety string to the corresponding `OverrideSafety` variant tokens.
+fn override_safety_tokens(safety: Option<&str>) -> TokenStream {
+    match safety {
+        Some("warn") => quote! { ::slicecore_config_schema::OverrideSafety::Warn },
+        Some("ignored") => quote! { ::slicecore_config_schema::OverrideSafety::Ignored },
+        // "safe" or None both default to Safe
+        _ => quote! { ::slicecore_config_schema::OverrideSafety::Safe },
+    }
 }
 
 /// Converts `CamelCase` to spaced words (e.g., `InnerFirst` -> `Inner First`).

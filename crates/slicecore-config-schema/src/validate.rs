@@ -155,7 +155,9 @@ fn is_dependency_unmet(dep_val: &serde_json::Value, condition: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{SettingCategory, SettingDefinition, SettingKey, Tier, ValueType};
+    use crate::types::{
+        OverrideSafety, SettingCategory, SettingDefinition, SettingKey, Tier, ValueType,
+    };
     use serde_json::json;
 
     fn make_def(key: &str) -> SettingDefinition {
@@ -174,6 +176,7 @@ mod tests {
             tags: Vec::new(),
             since_version: "0.1.0".to_owned(),
             deprecated: None,
+            override_safety: OverrideSafety::default(),
         }
     }
 

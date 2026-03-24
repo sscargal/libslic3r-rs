@@ -64,7 +64,7 @@ impl SettingRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{SettingCategory, SettingKey, Tier, ValueType};
+    use crate::types::{OverrideSafety, SettingCategory, SettingKey, Tier, ValueType};
 
     fn make_def(key: &str, display: &str, desc: &str, tags: Vec<&str>) -> SettingDefinition {
         SettingDefinition {
@@ -82,6 +82,7 @@ mod tests {
             tags: tags.into_iter().map(String::from).collect(),
             since_version: "0.1.0".to_owned(),
             deprecated: None,
+            override_safety: OverrideSafety::default(),
         }
     }
 

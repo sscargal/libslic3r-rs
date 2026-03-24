@@ -4,7 +4,7 @@
 //! and full-text search across setting definitions.
 
 use clap::Args;
-use slicecore_config_schema::{SettingCategory, Tier};
+use slicecore_config_schema::{OverrideSafety, SettingCategory, Tier};
 use slicecore_engine::setting_registry;
 
 /// Arguments for the `schema` subcommand.
@@ -27,6 +27,31 @@ pub struct SchemaArgs {
     /// Full-text search across key, display name, description, and tags.
     #[arg(long)]
     search: Option<String>,
+
+    /// Filter by override safety level: safe, warn, ignored.
+    #[arg(long)]
+    override_safety: Option<SafetyFilter>,
+}
+
+/// Override safety filter matching the `OverrideSafety` enum.
+#[derive(Clone, clap::ValueEnum)]
+enum SafetyFilter {
+    /// Safe to override per-object/per-region.
+    Safe,
+    /// Nonsensical per-region but allowed (warns).
+    Warn,
+    /// Machine property, silently ignored as override.
+    Ignored,
+}
+
+impl SafetyFilter {
+    fn to_override_safety(&self) -> OverrideSafety {
+        match self {
+            Self::Safe => OverrideSafety::Safe,
+            Self::Warn => OverrideSafety::Warn,
+            Self::Ignored => OverrideSafety::Ignored,
+        }
+    }
 }
 
 /// Output format for the schema command.
@@ -128,7 +153,11 @@ pub fn run_schema_command(args: &SchemaArgs) -> Result<(), Box<dyn std::error::E
                 }
                 None => None,
             };
-            let metadata = registry.to_filtered_metadata_json(tier, category);
+            let safety = args
+                .override_safety
+                .as_ref()
+                .map(SafetyFilter::to_override_safety);
+            let metadata = registry.to_filtered_metadata_json_with_safety(tier, category, safety);
             println!("{}", serde_json::to_string_pretty(&metadata)?);
         }
     }
