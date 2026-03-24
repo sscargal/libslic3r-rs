@@ -255,6 +255,7 @@ pub enum JobStatus {
     /// The job completed successfully.
     Success,
     /// The job failed.
+    #[allow(dead_code)] // Used by external tooling and future failure-path wiring
     Failed,
 }
 
@@ -374,6 +375,7 @@ impl Manifest {
 
     /// Transition this manifest to the `Failed` state.
     #[must_use]
+    #[allow(dead_code)] // Part of the manifest lifecycle API; wired in future failure-path work
     pub fn into_failed(mut self, error: String) -> Self {
         self.status = JobStatus::Failed;
         self.completed = Some(Utc::now().to_rfc3339());

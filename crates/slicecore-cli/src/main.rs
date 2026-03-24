@@ -21,8 +21,6 @@
 
 mod analysis_display;
 mod calibrate;
-// TODO(phase-46-02): Remove allow(dead_code) once job_dir is wired into cmd_slice.
-#[allow(dead_code)]
 mod job_dir;
 pub mod cli_output;
 mod csg_command;
@@ -249,6 +247,17 @@ enum Commands {
         /// Override safety validation errors
         #[arg(long)]
         force: bool,
+
+        /// Job output directory (creates structured output with all artifacts).
+        /// Use "auto" to generate a UUID-named directory.
+        #[arg(long, value_name = "PATH_OR_AUTO",
+              conflicts_with_all = ["output", "log_file", "save_config"])]
+        job_dir: Option<String>,
+
+        /// Base directory for auto-generated job dirs (default: CWD).
+        /// Only used with --job-dir auto.
+        #[arg(long, value_name = "DIR")]
+        job_base: Option<PathBuf>,
 
         /// Suppress log file creation
         #[arg(long)]
@@ -794,6 +803,8 @@ fn main() {
             show_config,
             unsafe_defaults,
             force,
+            job_dir,
+            job_base,
             no_log,
             log_file,
             profiles_dir,
@@ -883,46 +894,184 @@ fn main() {
             // For backward compat, derive primary input from first positional arg
             let primary_input = inputs.first().cloned().unwrap_or_default();
 
-            cmd_slice(
-                &primary_input,
-                &inputs,
-                plate.as_deref(),
-                &object_overrides,
-                strict,
-                save_plate.as_deref(),
-                show_config_object,
-                at_z,
-                config.as_deref(),
-                machine.as_deref(),
-                filament.as_deref(),
-                process.as_deref(),
-                overrides.as_deref(),
-                &set_overrides,
-                dry_run,
-                save_config.as_deref(),
-                show_config,
-                unsafe_defaults,
-                force,
-                no_log,
-                log_file.as_deref(),
-                profiles_dir.as_deref(),
-                output.as_deref(),
-                json,
-                msgpack,
-                global_plugin_dir.as_deref(),
-                &stats_format,
-                global_quiet,
-                stats_file.as_deref(),
-                json_no_stats,
-                &time_precision,
-                &sort_stats,
-                thumbnails,
-                &thumbnail_format,
-                thumbnail_quality,
-                auto_arrange,
-                no_travel_opt,
-                color_mode,
-            );
+            // --job-dir orchestration: set up job directory and override output paths.
+            if let Some(ref job_dir_val) = job_dir {
+                use crate::job_dir::{JobDir, Manifest};
+
+                let is_plate_mode = plate.is_some()
+                    || inputs.len() > 1
+                    || !object_overrides.is_empty()
+                    || save_plate.is_some()
+                    || show_config_object.is_some();
+
+                let job = if job_dir_val == "auto" {
+                    let base = JobDir::resolve_base(job_base.as_deref());
+                    match JobDir::create_auto(base, force) {
+                        Ok(j) => j,
+                        Err(e) => {
+                            eprintln!("Error: {e}");
+                            process::exit(1);
+                        }
+                    }
+                } else {
+                    match JobDir::create(PathBuf::from(job_dir_val), force) {
+                        Ok(j) => j,
+                        Err(e) => {
+                            eprintln!("Error: {e}");
+                            process::exit(1);
+                        }
+                    }
+                };
+
+                // Write initial "running" manifest.
+                let manifest = Manifest::new_running(inputs.clone());
+                if let Err(e) = job.write_manifest(&manifest) {
+                    eprintln!("Error writing manifest: {e}");
+                    process::exit(1);
+                }
+
+                // Override output paths to route into the job directory.
+                let job_output = if is_plate_mode {
+                    job.plate_gcode_path()
+                } else {
+                    let input_filename = primary_input
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("output.stl");
+                    job.gcode_path(input_filename)
+                };
+                let job_log = job.log_path();
+                let job_save_config = job.config_path();
+
+                let slice_start = std::time::Instant::now();
+
+                // Call cmd_slice with overridden paths; force quiet=true so only
+                // the job directory path appears on stdout.
+                cmd_slice(
+                    &primary_input,
+                    &inputs,
+                    plate.as_deref(),
+                    &object_overrides,
+                    strict,
+                    save_plate.as_deref(),
+                    show_config_object,
+                    at_z,
+                    config.as_deref(),
+                    machine.as_deref(),
+                    filament.as_deref(),
+                    process.as_deref(),
+                    overrides.as_deref(),
+                    &set_overrides,
+                    dry_run,
+                    Some(job_save_config.as_path()),
+                    show_config,
+                    unsafe_defaults,
+                    force,
+                    false, // no_log = false (always log)
+                    Some(job_log.as_path()),
+                    profiles_dir.as_deref(),
+                    Some(job_output.as_path()),
+                    json,
+                    msgpack,
+                    global_plugin_dir.as_deref(),
+                    &stats_format,
+                    true, // quiet = true (suppress stdout output)
+                    stats_file.as_deref(),
+                    json_no_stats,
+                    &time_precision,
+                    &sort_stats,
+                    true, // thumbnails = true (always generate)
+                    &thumbnail_format,
+                    thumbnail_quality,
+                    auto_arrange,
+                    no_travel_opt,
+                    color_mode,
+                );
+
+                // If we reach here, cmd_slice succeeded (it calls process::exit on failure).
+                let duration_ms = slice_start.elapsed().as_millis() as u64;
+
+                // Compute checksums of output artifacts.
+                let gcode_checksum = JobDir::file_checksum(&job_output).ok();
+                let config_checksum = JobDir::file_checksum(&job_save_config).ok();
+                let thumb_path = job.thumbnail_path();
+                let thumbnail_checksum = if thumb_path.exists() {
+                    JobDir::file_checksum(&thumb_path).ok()
+                } else {
+                    None
+                };
+
+                let checksums = job_dir::ArtifactChecksums {
+                    gcode: gcode_checksum,
+                    config: config_checksum,
+                    thumbnail: thumbnail_checksum,
+                };
+
+                // Build print statistics from the output G-code (approximate from file).
+                // For a proper implementation we'd pass stats from cmd_slice,
+                // but since cmd_slice doesn't return values, we leave stats as None
+                // and populate what we can.
+                let gcode_output_name = job_output
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("output.gcode")
+                    .to_string();
+
+                let final_manifest = manifest.into_success(
+                    gcode_output_name,
+                    Some(checksums),
+                    None, // stats populated by cmd_slice are not returned; v1 limitation
+                    duration_ms,
+                );
+                if let Err(e) = job.write_manifest(&final_manifest) {
+                    eprintln!("Warning: Failed to write final manifest: {e}");
+                }
+
+                // Print only the job directory path to stdout.
+                println!("{}", job.path().display());
+            } else {
+                // Normal (non-job-dir) path.
+                cmd_slice(
+                    &primary_input,
+                    &inputs,
+                    plate.as_deref(),
+                    &object_overrides,
+                    strict,
+                    save_plate.as_deref(),
+                    show_config_object,
+                    at_z,
+                    config.as_deref(),
+                    machine.as_deref(),
+                    filament.as_deref(),
+                    process.as_deref(),
+                    overrides.as_deref(),
+                    &set_overrides,
+                    dry_run,
+                    save_config.as_deref(),
+                    show_config,
+                    unsafe_defaults,
+                    force,
+                    no_log,
+                    log_file.as_deref(),
+                    profiles_dir.as_deref(),
+                    output.as_deref(),
+                    json,
+                    msgpack,
+                    global_plugin_dir.as_deref(),
+                    &stats_format,
+                    global_quiet,
+                    stats_file.as_deref(),
+                    json_no_stats,
+                    &time_precision,
+                    &sort_stats,
+                    thumbnails,
+                    &thumbnail_format,
+                    thumbnail_quality,
+                    auto_arrange,
+                    no_travel_opt,
+                    color_mode,
+                );
+            }
         }
         Commands::Validate { input } => cmd_validate(&input),
         Commands::Analyze { input } => cmd_analyze(&input),
