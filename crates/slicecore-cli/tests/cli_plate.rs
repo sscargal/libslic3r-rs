@@ -196,7 +196,7 @@ fn test_multiple_models_create_plate() {
         "Expected multi-model slice to succeed. stderr: {stderr}"
     );
     assert!(
-        stdout.contains("2 object") || stderr.contains("2 object") || stdout.contains("object"),
+        stdout.contains("Objects: 2") || stderr.contains("object 1/") || stderr.contains("object 2/"),
         "Expected output to mention multiple objects. stdout: {stdout}, stderr: {stderr}"
     );
 }

@@ -2357,6 +2357,7 @@ fn cmd_slice_plate(
     );
     overall_bar.set_prefix("Plate");
 
+    let resolved_objs = engine.resolved_objects();
     let mesh_refs: Vec<&slicecore_mesh::TriangleMesh> = meshes.iter().collect();
     let plate_result = match engine.slice_plate(&mesh_refs, None) {
         Ok(r) => r,
@@ -2366,15 +2367,56 @@ fn cmd_slice_plate(
         }
     };
 
-    for obj_result in &plate_result.objects {
+    for (i, obj_result) in plate_result.objects.iter().enumerate() {
         overall_bar.inc(1);
         if !quiet {
-            output.info(&format!(
-                "  Object '{}': {} layers, est. {:.1}s",
+            let obj_num = i + 1;
+            let total_objs = plate_result.objects.len();
+
+            // Per-object log section: config resolution info.
+            let resolved_config = resolved_objs
+                .iter()
+                .find(|r| r.index == obj_result.index)
+                .map(|r| &*r.config)
+                .unwrap_or(&resolved_objs[0].config);
+            let base_cfg: &slicecore_engine::PrintConfig = &resolved_objs[0].config;
+            let diffs = slicecore_engine::compute_override_diffs(base_cfg, resolved_config);
+
+            eprintln!(
+                "[object {obj_num}/{total_objs}] {}: resolving config...",
+                obj_result.name,
+            );
+            if diffs.is_empty() {
+                eprintln!(
+                    "[object {obj_num}/{total_objs}] {}: no overrides",
+                    obj_result.name,
+                );
+            } else {
+                let keys: Vec<&str> = diffs.iter().map(|d| d.key.as_str()).collect();
+                eprintln!(
+                    "[object {obj_num}/{total_objs}] {}: {} overrides from base ({})",
+                    obj_result.name,
+                    diffs.len(),
+                    keys.join(", "),
+                );
+            }
+            let copies_str = if obj_result.copies > 1 {
+                format!(" (x{} copies)", obj_result.copies)
+            } else {
+                String::new()
+            };
+            eprintln!(
+                "[object {obj_num}/{total_objs}] {}: slicing {} layers{copies_str}...",
                 obj_result.name,
                 obj_result.result.layer_count,
-                obj_result.result.estimated_time_seconds,
-            ));
+            );
+            let time_display = slicecore_engine::format_time_display(obj_result.result.estimated_time_seconds);
+            eprintln!(
+                "[object {obj_num}/{total_objs}] {}: complete ({}, {:.1}g)",
+                obj_result.name,
+                time_display,
+                obj_result.result.filament_usage.weight_g,
+            );
         }
     }
     overall_bar.finish_and_clear();
@@ -2406,36 +2448,91 @@ fn cmd_slice_plate(
         process::exit(1);
     }
 
-    // Summary
-    let total_layers: usize = plate_result.objects.iter().map(|o| o.result.layer_count).sum();
-    let total_time: f64 = plate_result
-        .objects
-        .iter()
-        .map(|o| o.result.estimated_time_seconds)
-        .sum();
+    // Summary: compute per-object statistics.
+    let plate_stats = slicecore_engine::PlateStatistics::from_results(&plate_result.objects);
+    let base_config_ref: &slicecore_engine::PrintConfig = &resolved_objs[0].config;
 
     if json_output {
-        let json_obj = serde_json::json!({
-            "output": out_path.display().to_string(),
-            "objects": plate_result.objects.iter().map(|o| {
-                serde_json::json!({
-                    "name": o.name,
-                    "layers": o.result.layer_count,
-                    "estimated_time_seconds": o.result.estimated_time_seconds,
-                })
-            }).collect::<Vec<_>>(),
-            "total_layers": total_layers,
-            "total_estimated_time_seconds": total_time,
-        });
-        println!("{}", serde_json::to_string_pretty(&json_obj).unwrap_or_default());
-    } else if !quiet {
-        println!(
-            "\nPlate sliced: {} object(s), {} total layers, est. {:.1} min -> {}",
-            plate_result.objects.len(),
-            total_layers,
-            total_time / 60.0,
-            out_path.display(),
+        // Build structured JSON output with per-object data, overrides, and provenance.
+        let checksum = if let Some(pc) = engine.plate_config() {
+            slicecore_engine::plate_checksum(pc)
+        } else {
+            String::from("sha256:unknown")
+        };
+        let resolved_configs: Vec<&slicecore_engine::PrintConfig> =
+            resolved_objs.iter().map(|r| &*r.config).collect();
+        let plate_json = slicecore_engine::build_plate_output_json(
+            &checksum,
+            &plate_result.objects,
+            base_config_ref,
+            &resolved_configs,
         );
+        match slicecore_engine::plate_to_json(&plate_json) {
+            Ok(json_str) => println!("{json_str}"),
+            Err(e) => eprintln!("Failed to serialize plate JSON: {e}"),
+        }
+    } else if !quiet {
+        // Per-object summary table.
+        let total_copies: u32 = plate_stats.objects.iter().map(|o| o.copies).sum();
+        println!(
+            "\n=== Plate Slice Summary ===\nObjects: {} ({} total with copies)\n",
+            plate_stats.objects.len(),
+            total_copies,
+        );
+
+        for obj_stat in &plate_stats.objects {
+            let time_display = slicecore_engine::format_time_display(obj_stat.estimated_time_seconds);
+            let filament_m = obj_stat.filament_used_mm / 1000.0;
+
+            // Compute override diffs for display.
+            let resolved_config = resolved_objs
+                .iter()
+                .find(|r| r.index == obj_stat.object_index)
+                .map(|r| &*r.config)
+                .unwrap_or(base_config_ref);
+            let diffs = slicecore_engine::compute_override_diffs(base_config_ref, resolved_config);
+
+            print!(
+                "  Object {}: {} ({} cop{})\n    Layers: {} | Time: {} | Filament: {:.1}g ({:.1}m)",
+                obj_stat.object_index + 1,
+                obj_stat.object_name,
+                obj_stat.copies,
+                if obj_stat.copies == 1 { "y" } else { "ies" },
+                obj_stat.layer_count,
+                time_display,
+                obj_stat.filament_used_grams,
+                filament_m,
+            );
+
+            if let Some(cost) = obj_stat.filament_cost {
+                print!(" | Cost: ${cost:.2}");
+            }
+            println!();
+
+            if diffs.is_empty() {
+                println!("    Overrides: none");
+            } else {
+                let keys: Vec<String> = diffs.iter().map(|d| {
+                    format!("{}={}", d.key, d.override_value)
+                }).collect();
+                println!("    Overrides: {}", keys.join(", "));
+            }
+            println!();
+        }
+
+        let total_time_display = slicecore_engine::format_time_display(plate_stats.total_estimated_time_seconds);
+        let total_filament_m = plate_stats.total_filament_used_mm / 1000.0;
+        print!(
+            "Total: {} layers | Time: {} | Filament: {:.1}g ({:.1}m)",
+            plate_stats.total_layer_count,
+            total_time_display,
+            plate_stats.total_filament_used_grams,
+            total_filament_m,
+        );
+        if let Some(cost) = plate_stats.total_filament_cost {
+            print!(" | Cost: ${cost:.2}");
+        }
+        println!(" -> {}", out_path.display());
     }
 
     // Log file

@@ -586,6 +586,146 @@ pub fn compute_statistics(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Per-object and plate-level statistics
+// ---------------------------------------------------------------------------
+
+/// Statistics for a single object in a plate.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObjectStatistics {
+    /// Object index in the plate (0-based).
+    pub object_index: usize,
+    /// Object name.
+    pub object_name: String,
+    /// Number of copies on the plate.
+    pub copies: u32,
+    /// Number of layers.
+    pub layer_count: usize,
+    /// Filament used per single copy in mm.
+    pub filament_used_mm: f64,
+    /// Filament used per single copy in grams.
+    pub filament_used_grams: f64,
+    /// Filament cost per single copy (currency units).
+    pub filament_cost: Option<f64>,
+    /// Estimated time per single copy in seconds.
+    pub estimated_time_seconds: f64,
+}
+
+/// Aggregated statistics for an entire plate of objects.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlateStatistics {
+    /// Per-object statistics.
+    pub objects: Vec<ObjectStatistics>,
+    /// Total layers (max across objects, since Z heights are shared).
+    pub total_layer_count: usize,
+    /// Total filament in mm (accounting for copies).
+    pub total_filament_used_mm: f64,
+    /// Total filament in grams (accounting for copies).
+    pub total_filament_used_grams: f64,
+    /// Total filament cost (accounting for copies).
+    pub total_filament_cost: Option<f64>,
+    /// Total estimated time in seconds (accounting for copies).
+    pub total_estimated_time_seconds: f64,
+}
+
+impl PlateStatistics {
+    /// Aggregates per-object statistics from slice results.
+    ///
+    /// Copies are accounted for: filament and time are multiplied by copy count.
+    /// The total layer count is the max across all objects (since they share the
+    /// Z axis and print layer-by-layer).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use slicecore_engine::statistics::{ObjectStatistics, PlateStatistics};
+    ///
+    /// let obj_stats = vec![
+    ///     ObjectStatistics {
+    ///         object_index: 0,
+    ///         object_name: "part_a".to_string(),
+    ///         copies: 2,
+    ///         layer_count: 100,
+    ///         filament_used_mm: 5000.0,
+    ///         filament_used_grams: 15.0,
+    ///         filament_cost: Some(0.38),
+    ///         estimated_time_seconds: 1800.0,
+    ///     },
+    /// ];
+    /// let plate = PlateStatistics::from_object_stats(obj_stats);
+    /// assert_eq!(plate.total_layer_count, 100);
+    /// assert!((plate.total_filament_used_grams - 30.0).abs() < 0.01);
+    /// assert!((plate.total_estimated_time_seconds - 3600.0).abs() < 0.01);
+    /// ```
+    #[must_use]
+    pub fn from_object_stats(objects: Vec<ObjectStatistics>) -> Self {
+        let mut total_layer_count = 0_usize;
+        let mut total_filament_mm = 0.0_f64;
+        let mut total_filament_g = 0.0_f64;
+        let mut total_cost = 0.0_f64;
+        let mut has_cost = false;
+        let mut total_time = 0.0_f64;
+
+        for obj in &objects {
+            let copies_f64 = f64::from(obj.copies);
+            if obj.layer_count > total_layer_count {
+                total_layer_count = obj.layer_count;
+            }
+            total_filament_mm += obj.filament_used_mm * copies_f64;
+            total_filament_g += obj.filament_used_grams * copies_f64;
+            total_time += obj.estimated_time_seconds * copies_f64;
+            if let Some(cost) = obj.filament_cost {
+                has_cost = true;
+                total_cost += cost * copies_f64;
+            }
+        }
+
+        Self {
+            objects,
+            total_layer_count,
+            total_filament_used_mm: total_filament_mm,
+            total_filament_used_grams: total_filament_g,
+            total_filament_cost: if has_cost { Some(total_cost) } else { None },
+            total_estimated_time_seconds: total_time,
+        }
+    }
+
+    /// Creates a [`PlateStatistics`] from [`ObjectSliceResult`] entries.
+    ///
+    /// Extracts per-object statistics from each slice result and aggregates.
+    #[must_use]
+    pub fn from_results(results: &[crate::engine::ObjectSliceResult]) -> Self {
+        let obj_stats: Vec<ObjectStatistics> = results
+            .iter()
+            .map(|obj| ObjectStatistics {
+                object_index: obj.index,
+                object_name: obj.name.clone(),
+                copies: obj.copies,
+                layer_count: obj.result.layer_count,
+                filament_used_mm: obj.result.filament_usage.length_mm,
+                filament_used_grams: obj.result.filament_usage.weight_g,
+                filament_cost: Some(obj.result.filament_usage.cost),
+                estimated_time_seconds: obj.result.estimated_time_seconds,
+            })
+            .collect();
+
+        Self::from_object_stats(obj_stats)
+    }
+}
+
+/// Formats a time in seconds as `Xh Ym Zs` or `Ym Zs` for display.
+pub fn format_time_display(seconds: f64) -> String {
+    let total_secs = seconds as u64;
+    let hours = total_secs / 3600;
+    let mins = (total_secs % 3600) / 60;
+    let secs = total_secs % 60;
+    if hours > 0 {
+        format!("{hours}:{mins:02}:{secs:02}")
+    } else {
+        format!("{mins}:{secs:02}")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1231,6 +1371,132 @@ mod tests {
             stats.summary.total_segments, 2,
             "Should have 2 total segments"
         );
+    }
+
+    #[test]
+    fn plate_statistics_from_object_stats_aggregates_correctly() {
+        let obj_stats = vec![
+            ObjectStatistics {
+                object_index: 0,
+                object_name: "part_a".to_string(),
+                copies: 2,
+                layer_count: 200,
+                filament_used_mm: 5000.0,
+                filament_used_grams: 15.0,
+                filament_cost: Some(0.38),
+                estimated_time_seconds: 1800.0,
+            },
+            ObjectStatistics {
+                object_index: 1,
+                object_name: "part_b".to_string(),
+                copies: 1,
+                layer_count: 100,
+                filament_used_mm: 2000.0,
+                filament_used_grams: 6.0,
+                filament_cost: Some(0.15),
+                estimated_time_seconds: 900.0,
+            },
+        ];
+
+        let plate = PlateStatistics::from_object_stats(obj_stats);
+
+        assert_eq!(plate.total_layer_count, 200, "Max layer count from all objects");
+        assert!(
+            (plate.total_filament_used_grams - 36.0).abs() < 0.01,
+            "15*2 + 6*1 = 36g, got {}",
+            plate.total_filament_used_grams
+        );
+        assert!(
+            (plate.total_filament_used_mm - 12000.0).abs() < 0.01,
+            "5000*2 + 2000*1 = 12000mm"
+        );
+        assert!(
+            (plate.total_estimated_time_seconds - 4500.0).abs() < 0.01,
+            "1800*2 + 900*1 = 4500s"
+        );
+        let cost = plate.total_filament_cost.unwrap();
+        assert!(
+            (cost - 0.91).abs() < 0.01,
+            "0.38*2 + 0.15*1 = 0.91, got {}",
+            cost
+        );
+    }
+
+    #[test]
+    fn plate_statistics_copies_multiplied_in_totals() {
+        let obj_stats = vec![ObjectStatistics {
+            object_index: 0,
+            object_name: "bracket".to_string(),
+            copies: 3,
+            layer_count: 50,
+            filament_used_mm: 1000.0,
+            filament_used_grams: 3.0,
+            filament_cost: Some(0.10),
+            estimated_time_seconds: 600.0,
+        }];
+
+        let plate = PlateStatistics::from_object_stats(obj_stats);
+
+        assert_eq!(plate.total_layer_count, 50);
+        assert!(
+            (plate.total_filament_used_mm - 3000.0).abs() < 0.01,
+            "1000 * 3 = 3000"
+        );
+        assert!(
+            (plate.total_filament_used_grams - 9.0).abs() < 0.01,
+            "3 * 3 = 9"
+        );
+        assert!(
+            (plate.total_estimated_time_seconds - 1800.0).abs() < 0.01,
+            "600 * 3 = 1800"
+        );
+    }
+
+    #[test]
+    fn plate_statistics_from_results_works() {
+        use crate::engine::{ObjectSliceResult, SliceResult};
+        use crate::estimation::PrintTimeEstimate;
+        use crate::filament::FilamentUsage;
+
+        let results = vec![
+            ObjectSliceResult {
+                name: "obj1".to_string(),
+                index: 0,
+                result: SliceResult {
+                    gcode: Vec::new(),
+                    layer_count: 100,
+                    estimated_time_seconds: 3600.0,
+                    time_estimate: PrintTimeEstimate {
+                        total_seconds: 3600.0,
+                        move_time_seconds: 2800.0,
+                        travel_time_seconds: 600.0,
+                        retraction_count: 50,
+                    },
+                    filament_usage: FilamentUsage {
+                        length_mm: 5000.0,
+                        length_m: 5.0,
+                        weight_g: 15.0,
+                        cost: 0.38,
+                    },
+                    preview: None,
+                    statistics: None,
+                    travel_opt_stats: None,
+                },
+                copies: 1,
+            },
+        ];
+
+        let plate = PlateStatistics::from_results(&results);
+        assert_eq!(plate.objects.len(), 1);
+        assert_eq!(plate.objects[0].object_name, "obj1");
+        assert_eq!(plate.total_layer_count, 100);
+    }
+
+    #[test]
+    fn format_time_display_works() {
+        assert_eq!(format_time_display(3661.0), "1:01:01");
+        assert_eq!(format_time_display(125.0), "2:05");
+        assert_eq!(format_time_display(59.0), "0:59");
     }
 
     #[test]
