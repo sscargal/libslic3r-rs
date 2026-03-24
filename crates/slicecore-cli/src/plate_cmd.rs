@@ -382,9 +382,9 @@ pub fn run_plate(cmd: PlateCommands) -> Result<(), anyhow::Error> {
                 anyhow::bail!("No objects found in plate config.");
             }
 
-            // Load the first model (multi-object 3MF packaging would need
-            // multi-mesh support in the export API; for now we merge into one).
+            // Load all model meshes and build per-object configs
             let mut all_meshes = Vec::new();
+            let mut obj_configs = Vec::new();
             for obj in &objects {
                 let model_path_str = obj
                     .get("model")
@@ -397,13 +397,58 @@ pub fn run_plate(cmd: PlateCommands) -> Result<(), anyhow::Error> {
                 let data = fs::read(&model_path)?;
                 let mesh = slicecore_fileio::load_mesh(&data)?;
                 all_meshes.push(mesh);
+
+                let name = obj.get("name").and_then(|v| v.as_str()).map(String::from);
+
+                // Extract inline overrides
+                let overrides = obj
+                    .get("overrides")
+                    .and_then(|v| v.as_table())
+                    .cloned()
+                    .unwrap_or_default();
+
+                // Extract modifier meshes
+                let mut modifiers = Vec::new();
+                if let Some(mods) = obj.get("modifiers").and_then(|v| v.as_array()) {
+                    for modifier_val in mods {
+                        let mod_overrides = modifier_val
+                            .get("overrides")
+                            .and_then(|v| v.as_table())
+                            .cloned()
+                            .unwrap_or_default();
+
+                        // For STL-referenced modifiers, load the mesh
+                        if let Some(model_path_str) =
+                            modifier_val.get("model").and_then(|v| v.as_str())
+                        {
+                            let mod_path = base_dir.join(model_path_str);
+                            let mod_data = fs::read(&mod_path)?;
+                            let mod_mesh = slicecore_fileio::load_mesh(&mod_data)?;
+                            modifiers.push(slicecore_fileio::ThreeMfModifier {
+                                mesh: mod_mesh,
+                                overrides: mod_overrides,
+                                unmapped: HashMap::new(),
+                            });
+                        }
+                        // For geometric primitives (shape = "box" etc.), skip mesh --
+                        // 3MF export only supports mesh-based modifiers
+                    }
+                }
+
+                obj_configs.push(slicecore_fileio::ThreeMfObjectConfig {
+                    name,
+                    overrides,
+                    unmapped: HashMap::new(),
+                    transform: None,
+                    modifiers,
+                });
             }
 
-            // For now, export the first mesh as 3MF (multi-mesh would require
-            // extending the export API).
-            if let Some(mesh) = all_meshes.first() {
-                slicecore_fileio::save_mesh(mesh, &output)?;
-            }
+            // Export all objects with per-object configs into 3MF
+            let mesh_refs: Vec<&slicecore_mesh::TriangleMesh> = all_meshes.iter().collect();
+            let output_file = fs::File::create(&output)?;
+            let writer = std::io::BufWriter::new(output_file);
+            slicecore_fileio::export_plate_to_3mf(&mesh_refs, &obj_configs, writer)?;
 
             if json {
                 println!(
@@ -411,13 +456,13 @@ pub fn run_plate(cmd: PlateCommands) -> Result<(), anyhow::Error> {
                     serde_json::to_string_pretty(&serde_json::json!({
                         "input": input.display().to_string(),
                         "output": output.display().to_string(),
-                        "objects_packaged": objects.len(),
+                        "objects_packaged": all_meshes.len(),
                     }))?
                 );
             } else {
                 println!(
                     "Packaged {} object(s) into: {}",
-                    objects.len(),
+                    all_meshes.len(),
                     output.display()
                 );
             }
@@ -507,6 +552,7 @@ mod tests {
         // Create a minimal 3MF file using the threemf test infrastructure
         use slicecore_math::Point3;
         use slicecore_mesh::TriangleMesh;
+        use std::collections::HashMap;
 
         let tmp = tempfile::TempDir::new().unwrap();
 
@@ -524,13 +570,15 @@ mod tests {
         let input_3mf = tmp.path().join("test.3mf");
         slicecore_fileio::save_mesh(&mesh, &input_3mf).unwrap();
 
-        // Extract with from-3mf
+        // Extract with from-3mf using parse_with_config
         let extract_dir = tmp.path().join("extracted");
         fs::create_dir_all(&extract_dir).unwrap();
         let data = fs::read(&input_3mf).unwrap();
-        let extracted_mesh = slicecore_fileio::threemf::parse(&data).unwrap();
+        let import_result = slicecore_fileio::threemf::parse_with_config(&data).unwrap();
+        assert!(!import_result.meshes.is_empty());
+
         let stl_path = extract_dir.join("test.stl");
-        slicecore_fileio::save_mesh(&extracted_mesh, &stl_path).unwrap();
+        slicecore_fileio::save_mesh(&import_result.meshes[0], &stl_path).unwrap();
         assert!(stl_path.exists());
 
         // Generate plate.toml
@@ -544,17 +592,27 @@ mod tests {
         fs::write(&plate_path, &template).unwrap();
         assert!(plate_path.exists());
 
-        // Re-package with to-3mf
+        // Re-package with to-3mf using export_plate_to_3mf
         let output_3mf = tmp.path().join("output.3mf");
         let stl_data = fs::read(&stl_path).unwrap();
         let reloaded = slicecore_fileio::load_mesh(&stl_data).unwrap();
-        slicecore_fileio::save_mesh(&reloaded, &output_3mf).unwrap();
+        let mesh_refs: Vec<&TriangleMesh> = vec![&reloaded];
+        let obj_config = slicecore_fileio::ThreeMfObjectConfig {
+            name: Some("test".to_string()),
+            overrides: toml::map::Map::new(),
+            unmapped: HashMap::new(),
+            transform: None,
+            modifiers: Vec::new(),
+        };
+        let output_file = fs::File::create(&output_3mf).unwrap();
+        let writer = std::io::BufWriter::new(output_file);
+        slicecore_fileio::export_plate_to_3mf(&mesh_refs, &[obj_config], writer).unwrap();
         assert!(output_3mf.exists());
 
         // Verify the round-tripped 3MF can be re-parsed
         let final_data = fs::read(&output_3mf).unwrap();
-        let final_mesh = slicecore_fileio::threemf::parse(&final_data).unwrap();
-        assert_eq!(final_mesh.vertex_count(), 4);
-        assert_eq!(final_mesh.triangle_count(), 4);
+        let final_result = slicecore_fileio::threemf::parse_with_config(&final_data).unwrap();
+        assert_eq!(final_result.meshes[0].vertex_count(), 4);
+        assert_eq!(final_result.meshes[0].triangle_count(), 4);
     }
 }
