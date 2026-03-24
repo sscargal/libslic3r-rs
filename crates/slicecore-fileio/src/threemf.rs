@@ -103,7 +103,9 @@ impl std::fmt::Display for ThreeMfImportSummary {
 /// | `top_solid_layers` | `top_solid_layers` |
 /// | `bottom_solid_layers` | `bottom_solid_layers` |
 /// | `support_material` / `enable_support` | `support_enabled` |
-fn map_slicer_field(slicer_key: &str) -> Option<(&str, fn(&str) -> Option<toml::Value>)> {
+type FieldMapping = (&'static str, fn(&str) -> Option<toml::Value>);
+
+fn map_slicer_field(slicer_key: &str) -> Option<FieldMapping> {
     match slicer_key {
         "fill_density" | "sparse_infill_density" => {
             Some(("infill_density", parse_percent_to_fraction))
