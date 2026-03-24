@@ -62,3 +62,7 @@ required-features = ["parallel"]
 [[bench]]
 name = "travel_benchmark"
 harness = false
+
+[[bench]]
+name = "cascade_bench"
+harness = false
