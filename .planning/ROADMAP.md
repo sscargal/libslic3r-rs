@@ -331,7 +331,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 42. Clone and Customize Profiles | 2/2 | Complete    | 2026-03-20 |
 | 43. Enable/Disable Printer and Filament Profiles | 3/3 | Complete    | 2026-03-21 |
 | 44. Search and Filter Profiles by Compatibility | 3/3 | Complete    | 2026-03-23 |
-| 45. Global and Per-Object Settings Override System | 4/10 | In Progress|  |
+| 45. Global and Per-Object Settings Override System | 5/10 | In Progress|  |
 | 46. Job Output Directories | 0/0 | ○ Pending | - |
 | 47. Variable Layer Height Algorithms | 0/0 | ○ Pending | - |
 | 48. Selective Adaptive Z-Hop Control | 0/0 | ○ Pending | - |
@@ -818,7 +818,7 @@ Plans:
 **Goal:** Implement a layered settings override system (global → per-object → per-region) with proper cascading, validation, and serialization, enabling users to customize specific objects on multi-object plates with different infill, layer height, or other parameters.
 **Requirements**: [ADV-03]
 **Depends on:** Phase 44
-**Plans:** 4/10 plans executed
+**Plans:** 5/10 plans executed
 
 Plans:
 - [ ] 45-01-PLAN.md — Core data model: PlateConfig, ObjectConfig, FieldSource extension, OverrideSafety enum
