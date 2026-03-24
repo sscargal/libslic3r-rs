@@ -820,7 +820,7 @@ impl Engine {
         for (obj, mesh) in self.resolved_objects.iter().zip(meshes.iter()) {
             let object_config = plate.and_then(|p| p.objects.get(obj.index));
             let has_layer_overrides =
-                object_config.map_or(false, |oc| !oc.layer_overrides.is_empty());
+                object_config.is_some_and(|oc| !oc.layer_overrides.is_empty());
 
             if has_layer_overrides {
                 // Object has layer-range overrides -- pre-compute distinct configs

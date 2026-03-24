@@ -151,7 +151,7 @@ impl Default for ObjectConfig {
 /// Contains base profile layers, default object overrides, named override sets,
 /// and per-object configurations. Single-object plates are backward compatible
 /// via [`PlateConfig::single_object`] and [`From<PrintConfig>`].
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PlateConfig {
     /// Machine/printer profile name or path.
@@ -170,21 +170,6 @@ pub struct PlateConfig {
     pub override_sets: HashMap<String, toml::map::Map<String, toml::Value>>,
     /// Per-object configurations.
     pub objects: Vec<ObjectConfig>,
-}
-
-impl Default for PlateConfig {
-    fn default() -> Self {
-        Self {
-            machine_profile: None,
-            filament_profile: None,
-            process_profile: None,
-            user_override_file: None,
-            cli_set_overrides: Vec::new(),
-            default_object_overrides: None,
-            override_sets: HashMap::new(),
-            objects: Vec::new(),
-        }
-    }
 }
 
 impl PlateConfig {
