@@ -114,7 +114,7 @@ fn generate_plate_template(
         for model in models {
             let model_str = model.display();
             let name_hint = model.file_stem().and_then(|s| s.to_str()).unwrap_or("Part");
-            out.push_str(&format!("\n[[objects]]\n"));
+            out.push_str("\n[[objects]]\n");
             out.push_str(&format!("model = \"{model_str}\"\n"));
             out.push_str(&format!("name = \"{name_hint}\"\n"));
             out.push_str("# override_set = \"example\"\n");
