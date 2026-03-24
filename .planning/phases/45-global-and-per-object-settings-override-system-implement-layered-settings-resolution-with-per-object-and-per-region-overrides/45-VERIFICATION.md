@@ -1,30 +1,16 @@
 ---
 phase: 45-global-and-per-object-settings-override-system
-verified: 2026-03-24T18:23:31Z
-status: gaps_found
-score: 26/30 must-haves verified
-re_verification: false
-gaps:
-  - truth: "slicecore plate from-3mf extracts objects + modifiers + plate.toml"
-    status: partial
-    reason: "plate_cmd.rs uses threemf::parse() which returns only the merged mesh — it does not call parse_with_config() and therefore does not extract per-object settings or modifier overrides into the generated plate.toml"
-    artifacts:
-      - path: "crates/slicecore-cli/src/plate_cmd.rs"
-        issue: "Line 204 calls slicecore_fileio::threemf::parse(&data) instead of parse_with_config — generated plate.toml has no [default_object_overrides] or [[objects.modifiers]] from the 3MF"
-    missing:
-      - "Call parse_with_config() instead of parse() in the From3mf handler"
-      - "Map ThreeMfObjectConfig.overrides to ObjectConfig.inline_overrides in generated plate.toml"
-      - "Emit [[objects.modifiers]] entries from ThreeMfModifier data in the generated plate.toml"
-  - truth: "slicecore plate to-3mf packages plate config into 3MF"
-    status: partial
-    reason: "plate_cmd.rs uses save_mesh() on only the first object mesh — it does not call export_plate_to_3mf() which supports per-object overrides and multi-object 3MF output. A code comment explicitly notes 'multi-mesh would require extending the export API'"
-    artifacts:
-      - path: "crates/slicecore-cli/src/plate_cmd.rs"
-        issue: "Lines 288-289 call slicecore_fileio::save_mesh(mesh, &output) using only all_meshes.first() — per-object overrides from plate.toml are never written into the 3MF, and only the first object's mesh is exported"
-    missing:
-      - "Parse the PlateConfig from plate.toml to extract per-object override data"
-      - "Build Vec<ThreeMfObjectConfig> from the plate's ObjectConfig.inline_overrides and modifiers"
-      - "Call export_plate_to_3mf() with the collected meshes and ThreeMfObjectConfig list"
+verified: 2026-03-24T20:15:00Z
+status: passed
+score: 30/30 must-haves verified
+re_verification:
+  previous_status: gaps_found
+  previous_score: 26/30
+  gaps_closed:
+    - "slicecore plate from-3mf extracts objects + modifiers + plate.toml"
+    - "slicecore plate to-3mf packages plate config into 3MF"
+  gaps_remaining: []
+  regressions: []
 human_verification:
   - test: "Run slicecore schema --override-safety warn and verify output contains only warn-classified fields"
     expected: "Only fields classified as Warn in OVERRIDE_SAFETY_MAP.md appear — bed_temperature, fan_speed, skirt/brim/raft fields, etc."
@@ -40,9 +26,20 @@ human_verification:
 # Phase 45: Global and Per-Object Settings Override System Verification Report
 
 **Phase Goal:** Implement a layered settings override system (global -> per-object -> per-region) with proper cascading, validation, and serialization, enabling users to customize specific objects on multi-object plates with different infill, layer height, or other parameters.
-**Verified:** 2026-03-24T18:23:31Z
-**Status:** gaps_found
-**Re-verification:** No — initial verification
+**Verified:** 2026-03-24T20:15:00Z
+**Status:** passed
+**Re-verification:** Yes — after gap closure (Plan 45-11)
+
+## Re-Verification Summary
+
+Two gaps identified in the initial verification (2026-03-24T18:23:31Z) were addressed by Plan 45-11 via commits `aaf6cb5` and `f4aad80`.
+
+| Gap | Previous Status | Current Status |
+|-----|-----------------|----------------|
+| `plate from-3mf` calls `parse_with_config()` and emits per-object plate.toml | PARTIAL | VERIFIED |
+| `plate to-3mf` calls `export_plate_to_3mf()` with all objects and overrides | PARTIAL | VERIFIED |
+
+No regressions found. All 28 previously-passing truths remain verified. Zero workspace test failures.
 
 ## Goal Achievement
 
@@ -73,15 +70,15 @@ human_verification:
 | 21 | Layer-range overrides (cascade layer 9) are resolved at slicing time via resolve_for_z | VERIFIED | cascade.rs line 193 — `pub fn resolve_for_z` applied at slicing time |
 | 22 | slicecore override-set list/show/create/edit/delete/rename/diff all work | VERIFIED | override_set.rs 568 lines — full CRUD commands, wired to main.rs line 1150 |
 | 23 | slicecore plate init generates commented plate.toml template | VERIFIED | plate_cmd.rs generates complete template with profiles, override_sets, objects sections |
-| 24 | slicecore plate from-3mf extracts objects + modifiers + plate.toml | PARTIAL | Uses parse() not parse_with_config() — mesh extracted but per-object settings and modifiers are NOT populated in generated plate.toml |
-| 25 | slicecore plate to-3mf packages plate config into 3MF | PARTIAL | Uses save_mesh() on first object only — per-object overrides from plate.toml are NOT written to 3MF output |
+| 24 | slicecore plate from-3mf extracts objects + modifiers + plate.toml | VERIFIED | plate_cmd.rs line 205 calls `parse_with_config(&data)`, iterates `import_result.object_configs`, emits `[objects.overrides]` and `[[objects.modifiers]]` sections; `plate_from3mf_to3mf_roundtrip` test passes |
+| 25 | slicecore plate to-3mf packages plate config into 3MF | VERIFIED | plate_cmd.rs line 451 calls `export_plate_to_3mf(&mesh_refs, &obj_configs, writer)`; builds `Vec<ThreeMfObjectConfig>` with per-object overrides and modifier meshes; all objects exported (not just first); roundtrip test passes |
 | 26 | --plate flag loads and slices a plate.toml config | VERIFIED | main.rs lines 863-881 — mutual exclusion enforced, plate path passed to slice workflow |
 | 27 | 3MF import extracts per-object settings from OrcaSlicer/PrusaSlicer 3MF files | VERIFIED | threemf.rs parse_with_config() — field mapping, unmapped preservation, import summary |
 | 28 | 3MF export writes per-object overrides into 3MF | VERIFIED | export.rs export_plate_to_3mf() with dual-namespace metadata — function exists and works |
 | 29 | G-code header includes per-object sections with override diffs and reproduce command | VERIFIED | gcode_gen.rs generate_plate_header() + plate_checksum() + compute_override_diffs() |
 | 30 | Plate-level E2E integration test loads plate config, resolves overrides, slices, verifies G-code | VERIFIED | tests/plate_e2e.rs — 6 tests pass including regression, multi-object, z-schedule, invalid set |
 
-**Score:** 28/30 truths verified (2 partial)
+**Score:** 30/30 truths verified
 
 ### Required Artifacts
 
@@ -98,7 +95,7 @@ human_verification:
 | `crates/slicecore-config-derive/src/codegen.rs` | Generated override_safety in HasSettingSchema | VERIFIED | 379 lines; code generation at lines 127 and 181 |
 | `designDocs/OVERRIDE_SAFETY_MAP.md` | All field classifications, min 100 lines | VERIFIED | 408 lines |
 | `crates/slicecore-cli/src/override_set.rs` | Override set CRUD CLI commands | VERIFIED | 568 lines; exports run_override_set |
-| `crates/slicecore-cli/src/plate_cmd.rs` | Plate init/from-3mf/to-3mf commands | PARTIAL | 444 lines; init works; from-3mf and to-3mf missing per-object data |
+| `crates/slicecore-cli/src/plate_cmd.rs` | Plate init/from-3mf/to-3mf commands | VERIFIED | 619 lines; from-3mf calls parse_with_config (line 205); to-3mf calls export_plate_to_3mf (line 451); per-object overrides and modifiers wired throughout |
 | `crates/slicecore-fileio/src/threemf.rs` | 3MF import with per-object settings extraction | VERIFIED | 749 lines; parse_with_config() with ThreeMfObjectConfig |
 | `crates/slicecore-fileio/src/export.rs` | 3MF export with per-object overrides | VERIFIED | 706 lines; export_plate_to_3mf() with dual-namespace metadata |
 | `crates/slicecore-engine/src/gcode_gen.rs` | G-code header with per-object sections | VERIFIED | generate_plate_header + compute_override_diffs + plate_checksum |
@@ -123,27 +120,25 @@ human_verification:
 | `main.rs` | `engine.rs` | `from_plate_config` | VERIFIED | main.rs lines 2230, 2280 — calls Engine::from_plate_config |
 | `main.rs` | `plate_config.rs` | `PlateConfig` | VERIFIED | main.rs imports and parses PlateConfig |
 | `override_set.rs` | `profile_compose.rs` | `validate_set_key` | VERIFIED | override_set.rs line 13 imports validate_set_key |
-| `plate_cmd.rs` | `plate_config.rs` | `PlateConfig` | NOT WIRED | plate_cmd.rs does not import or use PlateConfig — uses raw toml::Value for to-3mf; uses only parse() for from-3mf |
-| `threemf.rs` | `plate_config.rs` | `ObjectConfig` | NOT WIRED | fileio crate does not depend on slicecore-engine; ThreeMfObjectConfig is the bridge type but conversion to ObjectConfig is not done in plate_cmd.rs |
+| `plate_cmd.rs` | `threemf::parse_with_config` | `parse_with_config()` | VERIFIED | plate_cmd.rs line 205: `slicecore_fileio::threemf::parse_with_config(&data)` — old `parse(&data)` call removed |
+| `plate_cmd.rs` | `export::export_plate_to_3mf` | `export_plate_to_3mf()` | VERIFIED | plate_cmd.rs line 451: `slicecore_fileio::export_plate_to_3mf(&mesh_refs, &obj_configs, writer)` — builds full ThreeMfObjectConfig list from plate.toml |
 | `gcode_gen.rs` | `engine.rs` | `PlateSliceResult` | VERIFIED | gcode_gen.rs line 25 imports PlateSliceResult |
 
 ### Requirements Coverage
 
 | Requirement | Source Plans | Description | Status | Evidence |
 |-------------|-------------|-------------|--------|---------|
-| ADV-03 | 45-01 through 45-10 | Modifier meshes (region-specific setting overrides) | SATISFIED (with gap) | Full cascade system implemented: PlateConfig, ObjectConfig, CascadeResolver, per-region overrides via ModifierConfig with TOML overrides, Z-schedule, engine integration, CLI commands, 3MF I/O, G-code output. Two CLI commands (plate from-3mf, plate to-3mf) do not fully utilize the per-object infrastructure when bridging from/to 3MF. Core requirement fulfilled; 3MF CLI bridge is partial. |
-
-Note: REQUIREMENTS.md tracking table shows `ADV-03 | Phase 6 | Complete` — this entry reflects the original Phase 6 modifier mesh implementation. Phase 45 significantly extends that foundation with the full layered override system. The requirement checkbox `[x] ADV-03` reflects the combined implementation.
+| ADV-03 | 45-01 through 45-11 | Modifier meshes (region-specific setting overrides) | SATISFIED | Full cascade system implemented: PlateConfig, ObjectConfig, CascadeResolver, per-region overrides via ModifierConfig with TOML overrides, Z-schedule, engine integration, CLI commands (override-set CRUD, plate init/from-3mf/to-3mf), full 3MF I/O with per-object settings, G-code output with per-object sections. All truths verified at 30/30. |
 
 ### Anti-Patterns Found
 
+No blockers or warnings remain.
+
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `crates/slicecore-cli/src/plate_cmd.rs` | 269-270 | Comment: "multi-mesh would require extending the export API" | Warning | to-3mf command is documented as incomplete |
-| `crates/slicecore-cli/src/plate_cmd.rs` | 204 | Uses `parse()` not `parse_with_config()` in from-3mf | Blocker | Per-object settings never extracted from imported 3MF |
-| `crates/slicecore-cli/src/plate_cmd.rs` | 288 | Uses `save_mesh()` + `all_meshes.first()` not `export_plate_to_3mf()` | Blocker | Per-object overrides never written to 3MF output |
+| None | — | — | — | — |
 
-No TODO/FIXME/unimplemented!() calls found in any engine, cascade, z_schedule, gcode_gen, statistics, modifier, or profile_compose files.
+Previous blockers (comment "multi-mesh would require extending the export API", `threemf::parse(&data)` in from-3mf, `save_mesh(mesh, &output)` in to-3mf) have all been removed. No TODO/FIXME/unimplemented!() calls exist in any engine, cascade, z_schedule, gcode_gen, statistics, modifier, profile_compose, or plate_cmd files.
 
 ### Human Verification Required
 
@@ -167,17 +162,18 @@ No TODO/FIXME/unimplemented!() calls found in any engine, cascade, z_schedule, g
 
 ### Gaps Summary
 
-Two gaps share the same root cause: `crates/slicecore-cli/src/plate_cmd.rs` implements the `plate from-3mf` and `plate to-3mf` subcommands as thin wrappers around the raw mesh I/O functions (`parse()` and `save_mesh()`) rather than the per-object-aware functions (`parse_with_config()` and `export_plate_to_3mf()`) that were implemented in Plan 08.
+No gaps remain. All 30 truths are verified.
 
-The consequence:
-- `plate from-3mf input.3mf -o output/` extracts the mesh geometry but produces a generic plate.toml template with no per-object settings, overrides, or modifier entries from the original 3MF
-- `plate to-3mf plate.toml -o output.3mf` exports only the first object's mesh without any of the override metadata from plate.toml
+Plan 45-11 closed both previously-identified wiring gaps in `plate_cmd.rs`:
 
-This is a wiring gap, not a missing implementation gap. The `parse_with_config()` and `export_plate_to_3mf()` functions both exist, are tested, and are re-exported from `slicecore-fileio`. The fix requires updating `plate_cmd.rs` to call these functions and perform the ThreeMfObjectConfig <-> ObjectConfig conversion at the CLI boundary.
+1. `plate from-3mf` now calls `slicecore_fileio::threemf::parse_with_config(&data)` (line 205), iterates `import_result.object_configs` for per-object settings, exports modifier meshes as separate STL files, and serializes `[objects.overrides]` and `[[objects.modifiers]]` sections into the generated plate.toml using a programmatic `toml::Value` table builder.
 
-All other phase-45 functionality is fully implemented and all 1,304+ workspace lib tests pass with 0 failures.
+2. `plate to-3mf` now builds a `Vec<ThreeMfObjectConfig>` from plate.toml data (per-object inline overrides and modifier mesh references), then calls `slicecore_fileio::export_plate_to_3mf(&mesh_refs, &obj_configs, writer)` (line 451) to package all objects with their override metadata into the 3MF. The comment "multi-mesh would require extending the export API" and the single-object `save_mesh(mesh, &output)` fallback are removed.
+
+The `plate_from3mf_to3mf_roundtrip` test was updated to exercise `parse_with_config` and `export_plate_to_3mf` code paths and passes. All workspace lib tests pass with 0 failures.
 
 ---
 
-_Verified: 2026-03-24T18:23:31Z_
+_Verified: 2026-03-24T20:15:00Z_
 _Verifier: Claude (gsd-verifier)_
+_Re-verification: Yes — initial verification was 2026-03-24T18:23:31Z (gaps_found, 26/30); gaps closed by Plan 45-11_
