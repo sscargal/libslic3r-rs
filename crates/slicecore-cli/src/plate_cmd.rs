@@ -4,6 +4,7 @@
 //! initializing plate configuration templates, extracting objects from 3MF
 //! files, and packaging plate configs into 3MF files.
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
@@ -201,46 +202,161 @@ pub fn run_plate(cmd: PlateCommands) -> Result<(), anyhow::Error> {
             fs::create_dir_all(&output)?;
 
             let data = fs::read(&input)?;
-            let mesh = slicecore_fileio::threemf::parse(&data)?;
+            let import_result = slicecore_fileio::threemf::parse_with_config(&data)?;
 
-            // Export the merged mesh as a single STL
             let stl_name = input
                 .file_stem()
                 .and_then(|s| s.to_str())
                 .unwrap_or("object");
-            let stl_path = output.join(format!("{stl_name}.stl"));
-            slicecore_fileio::save_mesh(&mesh, &stl_path)?;
 
-            // Generate a plate.toml referencing the extracted STL
-            let template = generate_plate_template(
-                &[PathBuf::from(format!("{stl_name}.stl"))],
-                None,
-                None,
-                None,
-            );
+            // Export each object mesh as a separate STL file
+            let mut stl_paths = Vec::new();
+            for (idx, mesh) in import_result.meshes.iter().enumerate() {
+                let obj_config = import_result.object_configs.get(idx);
+                let obj_name = obj_config
+                    .and_then(|c| c.name.as_deref())
+                    .unwrap_or(stl_name);
+                let suffix = if import_result.meshes.len() > 1 {
+                    format!("{obj_name}_{}", idx + 1)
+                } else {
+                    obj_name.to_string()
+                };
+                let stl_path = output.join(format!("{suffix}.stl"));
+                slicecore_fileio::save_mesh(mesh, &stl_path)?;
+                stl_paths.push((stl_path, obj_config));
+            }
+
+            // Export modifier meshes as separate STL files for each object
+            let mut modifier_stl_paths: Vec<Vec<PathBuf>> = Vec::new();
+            for (idx, obj_config) in import_result.object_configs.iter().enumerate() {
+                let mut mod_paths = Vec::new();
+                for (mod_idx, modifier) in obj_config.modifiers.iter().enumerate() {
+                    let mod_stl = output
+                        .join(format!("{stl_name}_obj{}_mod{}.stl", idx + 1, mod_idx + 1));
+                    slicecore_fileio::save_mesh(&modifier.mesh, &mod_stl)?;
+                    mod_paths.push(mod_stl);
+                }
+                modifier_stl_paths.push(mod_paths);
+            }
+
+            // Build plate.toml with per-object overrides and modifiers
+            let mut plate_toml = String::new();
+            plate_toml.push_str("# SliceCore Plate Configuration\n");
+            plate_toml.push_str("# Extracted from 3MF file\n\n");
+            plate_toml.push_str("[profiles]\n");
+            plate_toml.push_str("# machine = \"printer-name\"\n");
+            plate_toml.push_str("# filament = \"filament-name\"\n");
+            plate_toml.push_str("# process = \"quality-preset\"\n\n");
+            plate_toml.push_str("# [default_overrides]\n");
+            plate_toml.push_str("# Settings applied to ALL objects (cascade layer 7)\n\n");
+
+            // Build objects array as toml::Value for pretty serialization
+            let mut objects_array = Vec::new();
+            for (idx, (stl_path, obj_config)) in stl_paths.iter().enumerate() {
+                let mut obj_table = toml::map::Map::new();
+
+                // Model path (relative filename only)
+                let stl_filename = stl_path
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("object.stl");
+                obj_table.insert(
+                    "model".to_string(),
+                    toml::Value::String(stl_filename.to_string()),
+                );
+
+                if let Some(config) = obj_config {
+                    if let Some(name) = &config.name {
+                        obj_table
+                            .insert("name".to_string(), toml::Value::String(name.clone()));
+                    }
+                }
+
+                obj_table.insert("copies".to_string(), toml::Value::Integer(1));
+
+                // Per-object overrides
+                if let Some(config) = obj_config {
+                    if !config.overrides.is_empty() {
+                        obj_table.insert(
+                            "overrides".to_string(),
+                            toml::Value::Table(config.overrides.clone()),
+                        );
+                    }
+                }
+
+                // Modifiers
+                let mod_paths = modifier_stl_paths.get(idx).cloned().unwrap_or_default();
+                if let Some(config) = obj_config {
+                    if !config.modifiers.is_empty() {
+                        let mut mods_array = Vec::new();
+                        for (mod_idx, modifier) in config.modifiers.iter().enumerate() {
+                            let mut mod_table = toml::map::Map::new();
+                            if let Some(mod_stl_path) = mod_paths.get(mod_idx) {
+                                let mod_filename = mod_stl_path
+                                    .file_name()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or("modifier.stl");
+                                mod_table.insert(
+                                    "model".to_string(),
+                                    toml::Value::String(mod_filename.to_string()),
+                                );
+                            }
+                            if !modifier.overrides.is_empty() {
+                                mod_table.insert(
+                                    "overrides".to_string(),
+                                    toml::Value::Table(modifier.overrides.clone()),
+                                );
+                            }
+                            mods_array.push(toml::Value::Table(mod_table));
+                        }
+                        obj_table.insert(
+                            "modifiers".to_string(),
+                            toml::Value::Array(mods_array),
+                        );
+                    }
+                }
+
+                objects_array.push(toml::Value::Table(obj_table));
+            }
+
+            // Serialize the objects portion
+            let mut wrapper = toml::map::Map::new();
+            wrapper.insert("objects".to_string(), toml::Value::Array(objects_array));
+            let objects_toml =
+                toml::to_string_pretty(&toml::Value::Table(wrapper)).unwrap_or_default();
+            plate_toml.push_str(&objects_toml);
+
             let plate_path = output.join("plate.toml");
-            fs::write(&plate_path, &template)?;
+            fs::write(&plate_path, &plate_toml)?;
 
+            // Print import summary
+            let summary = &import_result.summary;
             if json {
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&serde_json::json!({
                         "input": input.display().to_string(),
                         "output_dir": output.display().to_string(),
-                        "objects_extracted": 1,
-                        "stl_files": [stl_path.display().to_string()],
+                        "objects_extracted": import_result.meshes.len(),
+                        "stl_files": stl_paths.iter().map(|(p, _)| p.display().to_string()).collect::<Vec<_>>(),
                         "plate_config": plate_path.display().to_string(),
+                        "overrides_imported": summary.overrides_imported,
+                        "unmapped_fields": summary.unmapped_fields.len(),
                     }))?
                 );
             } else {
                 eprintln!("Extracted from: {}", input.display());
-                eprintln!("  Mesh: {}", stl_path.display());
+                eprintln!("  Objects: {}", import_result.meshes.len());
+                for (stl_path, _) in &stl_paths {
+                    eprintln!("  Mesh: {}", stl_path.display());
+                }
                 eprintln!("  Plate config: {}", plate_path.display());
-                eprintln!(
-                    "  Vertices: {}, Triangles: {}",
-                    mesh.vertex_count(),
-                    mesh.triangle_count()
-                );
+                if !summary.unmapped_fields.is_empty() {
+                    eprintln!(
+                        "  Unmapped fields: {} (preserved as metadata)",
+                        summary.unmapped_fields.len()
+                    );
+                }
             }
         }
 
