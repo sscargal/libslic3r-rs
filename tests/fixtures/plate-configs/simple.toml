@@ -1,0 +1,8 @@
+# Simple single-object plate config for regression testing.
+# Verifies backward compatibility: a PlateConfig wrapping a single object
+# with no overrides should produce identical output to direct PrintConfig usage.
+
+[[objects]]
+mesh_source = "InMemory"
+name = "Test Cube"
+copies = 1

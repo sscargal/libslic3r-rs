@@ -1,0 +1,4 @@
+# Fast-draft override set: thick layers, thin walls, low infill.
+layer_height = 0.3
+wall_count = 2
+infill_density = 0.15

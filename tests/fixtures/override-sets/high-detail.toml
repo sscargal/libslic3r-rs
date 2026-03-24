@@ -1,0 +1,4 @@
+# High-detail override set: fine layers, thick walls, moderate infill.
+layer_height = 0.1
+wall_count = 4
+infill_density = 0.5
