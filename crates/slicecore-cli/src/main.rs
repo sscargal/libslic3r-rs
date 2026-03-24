@@ -21,6 +21,7 @@
 
 mod analysis_display;
 mod calibrate;
+mod job_dir;
 pub mod cli_output;
 mod csg_command;
 mod csg_info;
