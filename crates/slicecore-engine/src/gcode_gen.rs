@@ -23,7 +23,8 @@ use slicecore_gcode_io::{format_acceleration, format_pressure_advance, GcodeComm
 use crate::config::PrintConfig;
 use crate::custom_gcode::substitute_placeholders;
 use crate::engine::PlateSliceResult;
-use crate::planner::{plan_bridge_fan, plan_fan, plan_retraction, plan_temperatures};
+use crate::config::ZHopType;
+use crate::planner::{plan_bridge_fan, plan_fan, plan_retraction, plan_temperatures, plan_z_hop, ZHopDecision};
 use crate::plate_config::{MeshSource, PlateConfig};
 use crate::toolpath::{FeatureType, LayerToolpath};
 
@@ -105,6 +106,9 @@ pub fn generate_layer_gcode(
     // Track the last feature type to insert comments on transitions.
     let mut last_feature: Option<FeatureType> = None;
 
+    // Track the last extrusion feature for z-hop surface gating.
+    let mut last_extrusion_feature: Option<FeatureType> = None;
+
     // Track current Z to emit Z changes for scarf joint per-segment Z.
     let mut current_z = toolpath.z;
 
@@ -154,49 +158,60 @@ pub fn generate_layer_gcode(
                         *retracted = true;
                     }
 
-                    // Z-hop handled by plan_z_hop() -- see Task 2 refactor.
-                    if config.z_hop.height > 0.0 {
+                    // Z-hop: use plan_z_hop() with departure surface context.
+                    let departure = last_extrusion_feature.unwrap_or(FeatureType::Travel);
+                    let z_hop_decision = plan_z_hop(
+                        departure,
+                        seg.length(),
+                        seg.z,
+                        toolpath.layer_height,
+                        &config.z_hop,
+                    );
+
+                    if let Some(ref zhop) = z_hop_decision {
+                        emit_z_hop_up(&mut cmds, seg.start.x, seg.start.y, seg.z, zhop);
+                    }
+
+                    // Emit rapid move to travel destination.
+                    cmds.push(GcodeCommand::RapidMove {
+                        x: Some(seg.end.x),
+                        y: Some(seg.end.y),
+                        z: None,
+                        f: Some(seg.feedrate),
+                    });
+
+                    // Z-hop down (always Normal descent).
+                    if let Some(ref zhop) = z_hop_decision {
                         cmds.push(GcodeCommand::RapidMove {
                             x: None,
                             y: None,
-                            z: Some(seg.z + config.z_hop.height),
-                            f: None,
+                            z: Some(seg.z),
+                            f: zhop.speed.map(|s| s * 60.0),
                         });
                     }
-                }
 
-                // Emit rapid move to travel destination.
-                cmds.push(GcodeCommand::RapidMove {
-                    x: Some(seg.end.x),
-                    y: Some(seg.end.y),
-                    z: None,
-                    f: Some(seg.feedrate),
-                });
-
-                // If Z-hop was applied, move back down.
-                if retraction.is_some() && config.z_hop.height > 0.0 {
-                    cmds.push(GcodeCommand::RapidMove {
-                        x: None,
-                        y: None,
-                        z: Some(seg.z),
-                        f: None,
+                    // Unretract after travel.
+                    cmds.push(GcodeCommand::Unretract {
+                        distance: ret.retract_length,
+                        feedrate: retract_feedrate,
                     });
-                }
-
-                // Unretract after travel if retracted.
-                if *retracted {
-                    if let Some(ret) = &retraction {
-                        cmds.push(GcodeCommand::Unretract {
-                            distance: ret.retract_length,
-                            feedrate: retract_feedrate,
-                        });
-                        *retracted = false;
-                    }
+                    *retracted = false;
+                } else {
+                    // No retraction needed -- just rapid move.
+                    cmds.push(GcodeCommand::RapidMove {
+                        x: Some(seg.end.x),
+                        y: Some(seg.end.y),
+                        z: None,
+                        f: Some(seg.feedrate),
+                    });
                 }
             }
 
             // Extrusion features: perimeter, infill, skirt, brim.
             _ => {
+                // Track departure feature for z-hop surface gating.
+                last_extrusion_feature = Some(seg.feature);
+
                 // If retracted from a previous travel, unretract first.
                 if *retracted {
                     cmds.push(GcodeCommand::Unretract {
@@ -298,6 +313,106 @@ fn feature_label(feature: FeatureType) -> &'static str {
         FeatureType::Bridge => "Bridge",
         FeatureType::Ironing => "Ironing",
         FeatureType::PurgeTower => "Purge tower",
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Z-hop emission helpers
+// ---------------------------------------------------------------------------
+
+/// Emits G0 commands for z-hop lift based on hop type.
+fn emit_z_hop_up(
+    cmds: &mut Vec<GcodeCommand>,
+    start_x: f64,
+    start_y: f64,
+    z_base: f64,
+    decision: &ZHopDecision,
+) {
+    let feedrate = decision.speed.map(|s| s * 60.0);
+    let z_target = z_base + decision.height;
+
+    match decision.hop_type {
+        ZHopType::Normal => {
+            cmds.push(GcodeCommand::RapidMove {
+                x: None,
+                y: None,
+                z: Some(z_target),
+                f: feedrate,
+            });
+        }
+        ZHopType::Slope => {
+            emit_slope_segments(cmds, start_x, start_y, z_base, decision.height, decision.travel_angle, feedrate);
+        }
+        ZHopType::Spiral => {
+            emit_spiral_segments(cmds, start_x, start_y, z_base, decision.height, feedrate);
+        }
+        ZHopType::Auto => {
+            // Auto should be resolved by plan_z_hop() to Normal or Spiral.
+            // Fallback to Normal if somehow unresolved.
+            cmds.push(GcodeCommand::RapidMove {
+                x: None,
+                y: None,
+                z: Some(z_target),
+                f: feedrate,
+            });
+        }
+    }
+}
+
+/// Emits diagonal G0 segments approximating a slope lift.
+/// Generates 6 segments with linearly interpolated X, Y, Z.
+fn emit_slope_segments(
+    cmds: &mut Vec<GcodeCommand>,
+    start_x: f64,
+    start_y: f64,
+    z_base: f64,
+    z_hop: f64,
+    travel_angle_deg: f64,
+    feedrate: Option<f64>,
+) {
+    let segments = 6;
+    let angle_rad = travel_angle_deg.to_radians();
+    // Horizontal distance = z_hop / tan(angle)
+    // At 90 degrees, tan -> infinity, horizontal_dist -> 0 (degrades to Normal)
+    let horizontal_dist = if angle_rad.tan().abs() > 1e6 {
+        0.0
+    } else {
+        z_hop / angle_rad.tan()
+    };
+
+    for i in 1..=segments {
+        let t = i as f64 / segments as f64;
+        cmds.push(GcodeCommand::RapidMove {
+            x: Some(start_x + horizontal_dist * t),
+            y: Some(start_y),
+            z: Some(z_base + z_hop * t),
+            f: feedrate,
+        });
+    }
+}
+
+/// Emits helical G0 segments approximating a spiral lift.
+/// Generates 6 segments rotating around center while ascending.
+fn emit_spiral_segments(
+    cmds: &mut Vec<GcodeCommand>,
+    center_x: f64,
+    center_y: f64,
+    z_base: f64,
+    z_hop: f64,
+    feedrate: Option<f64>,
+) {
+    let segments = 6;
+    let radius = 1.0_f64.min(z_hop * 2.0); // Small radius, 1mm max
+
+    for i in 1..=segments {
+        let t = i as f64 / segments as f64;
+        let angle = t * std::f64::consts::TAU; // Full rotation
+        cmds.push(GcodeCommand::RapidMove {
+            x: Some(center_x + radius * angle.cos()),
+            y: Some(center_y + radius * angle.sin()),
+            z: Some(z_base + z_hop * t),
+            f: feedrate,
+        });
     }
 }
 
@@ -706,6 +821,7 @@ mod tests {
         let layer = travel_and_extrusion_layer(5.0);
         let mut config = PrintConfig::default();
         config.z_hop.height = 0.4;
+        config.z_hop.surface_enforce = crate::config::SurfaceEnforce::AllSurfaces;
         let mut retracted = false;
 
         let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
@@ -1409,5 +1525,179 @@ mod tests {
         assert!(plate_json.objects[0].overrides.contains_key("layer_height"));
         // Totals should account for copies
         assert!((plate_json.totals.filament_grams - 25.0).abs() < 0.01);
+    }
+
+    // --- Z-hop motion type tests ---
+
+    use crate::config::{SurfaceEnforce, ZHopType};
+    use crate::planner::ZHopDecision;
+
+    #[test]
+    fn test_z_hop_normal_emits_single_rapid_z() {
+        let decision = ZHopDecision {
+            height: 0.4,
+            hop_type: ZHopType::Normal,
+            speed: None,
+            travel_angle: 45.0,
+        };
+        let mut cmds = Vec::new();
+        emit_z_hop_up(&mut cmds, 10.0, 5.0, 0.4, &decision);
+        assert_eq!(cmds.len(), 1, "Normal z-hop should emit exactly 1 G0 move");
+        match &cmds[0] {
+            GcodeCommand::RapidMove { x: None, y: None, z: Some(z), f: None } => {
+                assert!((z - 0.8).abs() < 1e-9, "Z should be 0.4 + 0.4 = 0.8");
+            }
+            other => panic!("Expected RapidMove with Z only, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_z_hop_slope_emits_6_segments() {
+        let decision = ZHopDecision {
+            height: 0.4,
+            hop_type: ZHopType::Slope,
+            speed: None,
+            travel_angle: 45.0,
+        };
+        let mut cmds = Vec::new();
+        emit_z_hop_up(&mut cmds, 10.0, 5.0, 0.4, &decision);
+        assert_eq!(cmds.len(), 6, "Slope z-hop should emit 6 G0 segments");
+        // Each segment should have X, Y, and Z values
+        for cmd in &cmds {
+            match cmd {
+                GcodeCommand::RapidMove { x: Some(_), y: Some(_), z: Some(_), .. } => {}
+                other => panic!("Slope segment should have X/Y/Z, got {:?}", other),
+            }
+        }
+        // Last segment Z should be at target
+        if let GcodeCommand::RapidMove { z: Some(z), .. } = &cmds[5] {
+            assert!((z - 0.8).abs() < 1e-9, "Final Z should be 0.4 + 0.4 = 0.8");
+        }
+    }
+
+    #[test]
+    fn test_z_hop_spiral_emits_6_segments() {
+        let decision = ZHopDecision {
+            height: 0.4,
+            hop_type: ZHopType::Spiral,
+            speed: None,
+            travel_angle: 45.0,
+        };
+        let mut cmds = Vec::new();
+        emit_z_hop_up(&mut cmds, 10.0, 5.0, 0.4, &decision);
+        assert_eq!(cmds.len(), 6, "Spiral z-hop should emit 6 G0 segments");
+        // Each should have X, Y, Z
+        for cmd in &cmds {
+            match cmd {
+                GcodeCommand::RapidMove { x: Some(_), y: Some(_), z: Some(_), .. } => {}
+                other => panic!("Spiral segment should have X/Y/Z, got {:?}", other),
+            }
+        }
+        // Last segment should complete full rotation (cos(TAU) = 1, sin(TAU) ~ 0)
+        if let GcodeCommand::RapidMove { x: Some(x), y: Some(y), z: Some(z), .. } = &cmds[5] {
+            let radius = 1.0_f64.min(0.4 * 2.0);
+            assert!((x - (10.0 + radius)).abs() < 1e-9, "X should return to center+radius after full rotation");
+            assert!(y.abs() - 5.0 < 1e-6, "Y should be near center after full rotation");
+            assert!((z - 0.8).abs() < 1e-9, "Final Z should be 0.8");
+        }
+    }
+
+    #[test]
+    fn test_z_hop_surface_gated_skips_non_top() {
+        // Create layer with OuterPerimeter -> Travel (departure is OuterPerimeter)
+        let layer = travel_and_extrusion_layer(5.0);
+        let mut config = PrintConfig::default();
+        config.z_hop.height = 0.4;
+        // Default surface_enforce is TopSolidAndIroning, so OuterPerimeter departure should NOT z-hop
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
+
+        // Count Z-only rapid moves (should only have the initial layer Z, no z-hop)
+        let z_only_rapids: Vec<_> = cmds
+            .iter()
+            .filter(|c| matches!(c, GcodeCommand::RapidMove { x: None, y: None, z: Some(_), .. }))
+            .collect();
+        // Should have 1 initial layer Z move, but NO z-hop up/down
+        assert!(
+            z_only_rapids.len() <= 1,
+            "Surface-gated z-hop should skip non-top surfaces, got {} Z-only rapids",
+            z_only_rapids.len()
+        );
+    }
+
+    #[test]
+    fn test_z_hop_surface_gated_activates_on_top() {
+        // Create layer with TopSolidInfill -> Travel
+        let layer = LayerToolpath {
+            layer_index: 1,
+            z: 0.4,
+            layer_height: 0.2,
+            segments: vec![
+                ToolpathSegment {
+                    start: Point2::new(0.0, 0.0),
+                    end: Point2::new(5.0, 0.0),
+                    feature: FeatureType::TopSolidInfill,
+                    e_value: 0.25,
+                    feedrate: 2700.0,
+                    z: 0.4,
+                    extrusion_width: None,
+                },
+                ToolpathSegment {
+                    start: Point2::new(5.0, 0.0),
+                    end: Point2::new(10.0, 0.0),
+                    feature: FeatureType::Travel,
+                    e_value: 0.0,
+                    feedrate: 9000.0,
+                    z: 0.4,
+                    extrusion_width: None,
+                },
+                ToolpathSegment {
+                    start: Point2::new(10.0, 0.0),
+                    end: Point2::new(15.0, 0.0),
+                    feature: FeatureType::TopSolidInfill,
+                    e_value: 0.25,
+                    feedrate: 2700.0,
+                    z: 0.4,
+                    extrusion_width: None,
+                },
+            ],
+        };
+        let mut config = PrintConfig::default();
+        config.z_hop.height = 0.4;
+        // Default TopSolidAndIroning -- should activate on TopSolidInfill departure
+        let mut retracted = false;
+
+        let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
+
+        // Should have z-hop up and down
+        let z_only_rapids: Vec<_> = cmds
+            .iter()
+            .filter(|c| matches!(c, GcodeCommand::RapidMove { x: None, y: None, z: Some(_), .. }))
+            .collect();
+        assert!(
+            z_only_rapids.len() >= 3,
+            "Surface-gated z-hop should activate on TopSolidInfill, got {} Z-only rapids",
+            z_only_rapids.len()
+        );
+    }
+
+    #[test]
+    fn test_z_hop_speed_uses_dedicated_speed() {
+        let decision = ZHopDecision {
+            height: 0.4,
+            hop_type: ZHopType::Normal,
+            speed: Some(15.0),
+            travel_angle: 45.0,
+        };
+        let mut cmds = Vec::new();
+        emit_z_hop_up(&mut cmds, 10.0, 5.0, 0.4, &decision);
+        assert_eq!(cmds.len(), 1);
+        match &cmds[0] {
+            GcodeCommand::RapidMove { f: Some(f), .. } => {
+                assert!((f - 900.0).abs() < 1e-9, "Feedrate should be 15*60=900 mm/min, got {f}");
+            }
+            other => panic!("Expected RapidMove with feedrate, got {:?}", other),
+        }
     }
 }
