@@ -17,6 +17,7 @@
 
 pub mod features;
 pub mod objectives;
+pub mod smooth;
 
 /// Normalized objective weights (always sum to 1.0).
 ///
