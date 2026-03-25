@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 Phase: 46 of 51 (Job output directories for isolated slice execution)
 Plan: 3 of 3 in current phase (COMPLETE)
 Status: Phase Complete
-Last activity: 2026-03-25 - Completed 46-03: Gap closure for manifest PrintStats population
+Last activity: 2026-03-25 - Captured todo: Show in-progress commands in QA test script
 
 Progress: [██████████] 100% (192/192 overall)
 
@@ -746,7 +746,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-27 pending — /gsd:check-todos to review
+36 pending — /gsd:check-todos to review
 
 ### Blockers/Concerns
 
