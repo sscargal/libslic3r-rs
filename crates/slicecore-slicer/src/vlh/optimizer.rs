@@ -161,6 +161,26 @@ fn find_sample_index(z_samples: &[ZSample], z: f64) -> usize {
     z_samples.partition_point(|s| s.z < z)
 }
 
+/// Dynamic programming optimizer for globally optimal layer height sequences.
+///
+/// Discretizes the height space into `NUM_CANDIDATES` linearly-spaced values
+/// and finds the minimum-cost path through the lattice using standard DP.
+/// Transitions between adjacent layers are constrained to a maximum height
+/// ratio of 1.5x.
+///
+/// # Complexity
+///
+/// - Time: `O(num_z_levels * NUM_CANDIDATES^2)` = `O(n * 225)`
+/// - Memory: `O(num_z_levels * NUM_CANDIDATES * 2)` for cost + predecessor tables
+///
+/// # Returns
+///
+/// Vector of `(z_position, layer_height)` pairs with monotonically increasing Z.
+#[must_use]
+pub fn optimize_dp(_z_samples: &[ZSample], _config: &VlhConfig) -> Vec<(f64, f64)> {
+    todo!("implement DP optimizer")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -418,6 +438,176 @@ mod tests {
             let config = test_config();
             let result = optimize_greedy(&[], &config);
             assert!(result.is_empty(), "Empty input should produce empty output");
+        }
+    }
+
+    mod dp {
+        use super::*;
+
+        #[test]
+        fn quality_only_close_to_or_better_than_greedy() {
+            let config = test_config(); // quality-only weights
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let greedy = optimize_greedy(&samples, &config);
+            let dp = optimize_dp(&samples, &config);
+
+            assert!(!dp.is_empty(), "DP should produce output");
+
+            // DP should have similar or better quality (thinner equator layers)
+            let dp_equator: Vec<f64> = dp
+                .iter()
+                .filter(|&&(z, _)| z > 3.5 && z < 6.5)
+                .map(|&(_, h)| h)
+                .collect();
+            let greedy_equator: Vec<f64> = greedy
+                .iter()
+                .filter(|&&(z, _)| z > 3.5 && z < 6.5)
+                .map(|&(_, h)| h)
+                .collect();
+
+            if !dp_equator.is_empty() && !greedy_equator.is_empty() {
+                let avg_dp: f64 =
+                    dp_equator.iter().sum::<f64>() / dp_equator.len() as f64;
+                let avg_greedy: f64 =
+                    greedy_equator.iter().sum::<f64>() / greedy_equator.len() as f64;
+                // DP should be within 50% of greedy (it optimizes globally)
+                assert!(
+                    avg_dp <= avg_greedy * 1.5,
+                    "DP equator avg ({avg_dp:.4}) should be close to greedy ({avg_greedy:.4})"
+                );
+            }
+        }
+
+        #[test]
+        fn respects_min_max_bounds() {
+            let config = test_config();
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let result = optimize_dp(&samples, &config);
+
+            let nozzle_limit = config.nozzle_diameter * 0.75;
+            let effective_max = config.max_height.min(nozzle_limit);
+            for &(z, h) in &result {
+                assert!(
+                    h >= config.min_height - 1e-9,
+                    "DP height {h:.6} at z={z:.3} below min {}",
+                    config.min_height
+                );
+                assert!(
+                    h <= effective_max + 1e-9,
+                    "DP height {h:.6} at z={z:.3} above effective max {effective_max}"
+                );
+            }
+        }
+
+        #[test]
+        fn preserves_first_layer_height() {
+            let config = test_config();
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let result = optimize_dp(&samples, &config);
+
+            assert!(!result.is_empty(), "DP should produce output");
+            assert!(
+                (result[0].1 - config.first_layer_height).abs() < 1e-9,
+                "DP first layer height should be {}, got {}",
+                config.first_layer_height,
+                result[0].1
+            );
+        }
+
+        #[test]
+        fn z_values_monotonically_increasing() {
+            let config = test_config();
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let result = optimize_dp(&samples, &config);
+
+            for i in 1..result.len() {
+                assert!(
+                    result[i].0 > result[i - 1].0,
+                    "DP Z[{}]={} should be > Z[{}]={}",
+                    i,
+                    result[i].0,
+                    i - 1,
+                    result[i - 1].0
+                );
+            }
+        }
+
+        #[test]
+        fn is_deterministic() {
+            let config = test_config();
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let first = optimize_dp(&samples, &config);
+
+            for run in 0..50 {
+                let again = optimize_dp(&samples, &config);
+                assert_eq!(
+                    first.len(),
+                    again.len(),
+                    "DP run {run}: length mismatch {} vs {}",
+                    first.len(),
+                    again.len()
+                );
+                for (i, (a, b)) in first.iter().zip(again.iter()).enumerate() {
+                    assert!(
+                        (a.0 - b.0).abs() < 1e-15 && (a.1 - b.1).abs() < 1e-15,
+                        "DP run {run}, layer {i}: ({},{}) vs ({},{})",
+                        a.0, a.1, b.0, b.1
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn performance_500_layers_15_candidates() {
+            let mut config = test_config();
+            config.min_height = 0.05;
+            config.max_height = 0.3;
+            // 500 layers * 0.1mm avg = 50mm total height, sampled at 0.01
+            let samples = sphere_z_samples(50.0, 0.01, 0.05, 0.3);
+            let start = std::time::Instant::now();
+            let result = optimize_dp(&samples, &config);
+            let elapsed = start.elapsed();
+            assert!(
+                elapsed.as_secs() < 5,
+                "DP on ~500-layer model took {elapsed:?}, should be < 5s"
+            );
+            assert!(!result.is_empty(), "DP should produce output for large model");
+        }
+
+        #[test]
+        fn max_adjacent_height_ratio_constraint() {
+            let config = test_config();
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let result = optimize_dp(&samples, &config);
+
+            for i in 1..result.len() {
+                let ratio = result[i].1 / result[i - 1].1;
+                assert!(
+                    ratio <= 1.55 && ratio >= 1.0 / 1.55,
+                    "DP adjacent ratio {ratio:.3} at layers {}/{} (h={:.4}/{:.4}) exceeds 1.5x",
+                    i - 1,
+                    i,
+                    result[i - 1].1,
+                    result[i].1
+                );
+            }
+        }
+
+        #[test]
+        fn small_input_3_layers() {
+            let config = test_config();
+            // Just enough samples for ~3 layers
+            let samples = sphere_z_samples(0.5, 0.01, 0.05, 0.3);
+            let result = optimize_dp(&samples, &config);
+
+            assert!(
+                !result.is_empty(),
+                "DP should produce output for small input"
+            );
+            // All heights should be valid
+            for &(_, h) in &result {
+                assert!(h >= config.min_height - 1e-9, "Height {h} below min");
+            }
         }
     }
 }
