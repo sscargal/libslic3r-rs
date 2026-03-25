@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 48 context gathered
-last_updated: "2026-03-25T22:20:24.020Z"
-last_activity: "2026-03-25 - Completed 47-04: VLH pipeline integration"
+status: executing
+stopped_at: Completed 48-01-PLAN.md
+last_updated: "2026-03-25T23:04:09.122Z"
+last_activity: "2026-03-25 - Completed 48-01: Z-hop config types and TopSolidInfill"
 progress:
   total_phases: 51
   completed_phases: 47
-  total_plans: 197
-  completed_plans: 197
+  total_plans: 200
+  completed_plans: 198
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 47 of 51 (Variable layer height algorithms)
-Plan: 4 of 4 in current phase
-Status: Phase Complete
-Last activity: 2026-03-25 - Completed 47-04: VLH pipeline integration
+Phase: 48 of 51 (Selective adaptive z-hop control)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-25 - Completed 48-01: Z-hop config types and TopSolidInfill
 
-Progress: [██████████] 100% (196/196 overall)
+Progress: [██████████] 100% (198/200 overall)
 
 ## Performance Metrics
 
@@ -172,6 +172,7 @@ Progress: [██████████] 100% (196/196 overall)
 | Phase 47 P01 | 4 | 2 tasks | 4 files |
 | Phase 47 P02 | 6min | 2 tasks | 3 files |
 | Phase 47 P05 | 4min | 2 tasks | 1 files |
+| Phase 48 P01 | 8min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -723,6 +724,7 @@ Recent decisions affecting current work:
 - [Phase 47]: Overhang detection from mesh normals directly, deferring hole/bridge/thin-wall to Plan 04 contour integration
 - [Phase 47]: Kept old adaptive.rs implementation intact for backward compatibility rather than wrapping through VLH pipeline
 - [Phase 47]: Smoothing params 0.3/1 for VLH wrapper compatibility with old adaptive tests
+- [Phase 48]: ZHopConfig placed on PrintConfig (not RetractionConfig) with serde alias for backward compat
 
 ### Roadmap Evolution
 
@@ -782,6 +784,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-25T22:20:24.015Z
-Stopped at: Phase 48 context gathered
-Resume file: .planning/phases/48-selective-adaptive-z-hop-control/48-CONTEXT.md
+Last session: 2026-03-25T23:04:05.323Z
+Stopped at: Completed 48-01-PLAN.md
+Resume file: None

@@ -77,7 +77,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 
 - [ ] **GCODE-01**: Marlin dialect G-code output
 - [ ] **GCODE-02**: Klipper dialect G-code output
-- [ ] **GCODE-03**: RepRapFirmware dialect G-code output
+- [x] **GCODE-03**: RepRapFirmware dialect G-code output
 - [ ] **GCODE-04**: Bambu dialect G-code output
 - [x] **GCODE-05**: Speed planning (per-feature speed control)
 - [ ] **GCODE-06**: Acceleration and jerk control
@@ -235,7 +235,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | SUPP-07 | Phase 5 | Pending |
 | SUPP-08 | Phase 5 | Pending |
 | GCODE-02 | Phase 6 | Pending |
-| GCODE-03 | Phase 6 | Pending |
+| GCODE-03 | Phase 6 | Complete |
 | GCODE-04 | Phase 6 | Pending |
 | GCODE-06 | Phase 6 | Pending |
 | GCODE-11 | Phase 6 | Pending |
