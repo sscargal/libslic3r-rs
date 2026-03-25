@@ -850,12 +850,16 @@ Plans:
 
 ### Phase 47: Variable layer height algorithms — implement multi-objective VLH optimization with curvature, feature-aware heights, and Laplacian smoothing
 
-**Goal:** Extend variable layer height beyond basic curvature analysis with multi-objective optimization (quality + speed + strength), feature-aware height selection, perceptual surface quality models, Laplacian smoothing for transition continuity, and time-budgeted optimization.
+**Goal:** Multi-objective VLH optimization with four objectives (quality, speed, strength, material), feature-aware height selection (overhangs, bridges, thin walls, holes), Laplacian smoothing for transition continuity, greedy and DP optimizers, and per-layer diagnostic events.
 **Requirements**: [SLICE-05]
 **Depends on:** Phase 46
-**Plans:** 0 plans
+**Plans:** 4 plans
 
 Plans:
+- [ ] 47-01-PLAN.md -- VLH module types, PrintConfig fields, and objective scoring functions
+- [ ] 47-02-PLAN.md -- Feature map pre-pass and Laplacian smoothing
+- [ ] 47-03-PLAN.md -- Greedy and DP optimizers
+- [ ] 47-04-PLAN.md -- Public API integration, adaptive.rs wrapper refactor, diagnostics
 
 ### Phase 48: Selective adaptive z-hop control for top surfaces — implement surface-type-based z-hop with distance gating and height-proportional lift
 
