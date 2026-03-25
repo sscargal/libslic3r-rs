@@ -177,6 +177,7 @@ impl PerFeatureFlow {
             FeatureType::OuterPerimeter => self.outer_perimeter,
             FeatureType::InnerPerimeter => self.inner_perimeter,
             FeatureType::SolidInfill => self.solid_infill,
+            FeatureType::TopSolidInfill => self.solid_infill,
             FeatureType::SparseInfill => self.sparse_infill,
             FeatureType::Support => self.support,
             FeatureType::SupportInterface => self.support_interface,

@@ -288,6 +288,7 @@ fn feature_label(feature: FeatureType) -> &'static str {
         FeatureType::OuterPerimeter => "Outer perimeter",
         FeatureType::InnerPerimeter => "Inner perimeter",
         FeatureType::SolidInfill => "Solid infill",
+        FeatureType::TopSolidInfill => "Top solid infill",
         FeatureType::SparseInfill => "Sparse infill",
         FeatureType::Skirt => "Skirt",
         FeatureType::Brim => "Brim",

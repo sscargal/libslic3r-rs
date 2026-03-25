@@ -515,9 +515,14 @@ fn process_single_layer(
         }
     }
 
+    let is_top_for_infill = layer_idx
+        >= layers
+            .len()
+            .saturating_sub(config.top_solid_layers as usize);
     let infill = LayerInfill {
         lines: all_infill_lines,
         is_solid: infill_is_solid,
+        is_top: is_top_for_infill && infill_is_solid,
     };
 
     // 2d. Gap fill.
@@ -1674,9 +1679,14 @@ impl Engine {
                     }
                 }
 
+                let is_top_for_infill = layer_idx
+                    >= layers
+                        .len()
+                        .saturating_sub(self.config.top_solid_layers as usize);
                 let infill = LayerInfill {
                     lines: all_infill_lines,
                     is_solid: infill_is_solid,
+                    is_top: is_top_for_infill && infill_is_solid,
                 };
 
                 let gap_fills = if self.config.gap_fill_enabled && !perimeters.is_empty() {
@@ -2416,9 +2426,14 @@ impl Engine {
                     }
                 }
 
+                let is_top_for_infill = layer_idx
+                    >= layers
+                        .len()
+                        .saturating_sub(region_config.top_solid_layers as usize);
                 let infill = LayerInfill {
                     lines: all_infill_lines,
                     is_solid: infill_is_solid,
+                    is_top: is_top_for_infill && infill_is_solid,
                 };
 
                 // Gap fill.
@@ -4377,11 +4392,11 @@ mod tests {
             "statistics.features should not be empty"
         );
 
-        // Should have 14 real features + 3 virtual (retract, unretract, wipe) = 17.
+        // Should have 15 real features + 3 virtual (retract, unretract, wipe) = 18.
         assert_eq!(
             stats.features.len(),
-            17,
-            "Should have 17 features (14 real + 3 virtual), got {}",
+            18,
+            "Should have 18 features (15 real + 3 virtual), got {}",
             stats.features.len()
         );
 

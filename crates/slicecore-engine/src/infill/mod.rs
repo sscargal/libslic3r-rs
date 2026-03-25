@@ -49,6 +49,8 @@ pub struct LayerInfill {
     pub lines: Vec<InfillLine>,
     /// True if this is a solid infill region (top/bottom).
     pub is_solid: bool,
+    /// True if this is a top solid infill region (for z-hop surface gating).
+    pub is_top: bool,
 }
 
 /// Infill pattern selection.

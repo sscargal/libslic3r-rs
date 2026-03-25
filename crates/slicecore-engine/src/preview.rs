@@ -125,6 +125,7 @@ pub fn generate_preview(
                     current_perim_polyline.push(end);
                 }
                 FeatureType::SolidInfill
+                | FeatureType::TopSolidInfill
                 | FeatureType::SparseInfill
                 | FeatureType::Support
                 | FeatureType::SupportInterface
@@ -192,6 +193,7 @@ fn feature_type_label(feature: FeatureType) -> String {
         FeatureType::OuterPerimeter => "outer_perimeter".to_string(),
         FeatureType::InnerPerimeter => "inner_perimeter".to_string(),
         FeatureType::SolidInfill => "solid_infill".to_string(),
+        FeatureType::TopSolidInfill => "top_solid_infill".to_string(),
         FeatureType::SparseInfill => "sparse_infill".to_string(),
         FeatureType::Skirt => "skirt".to_string(),
         FeatureType::Brim => "brim".to_string(),
