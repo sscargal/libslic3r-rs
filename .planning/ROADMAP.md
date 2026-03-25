@@ -853,13 +853,14 @@ Plans:
 **Goal:** Multi-objective VLH optimization with four objectives (quality, speed, strength, material), feature-aware height selection (overhangs, bridges, thin walls, holes), Laplacian smoothing for transition continuity, greedy and DP optimizers, and per-layer diagnostic events.
 **Requirements**: [SLICE-05]
 **Depends on:** Phase 46
-**Plans:** 4/4 plans executed (COMPLETE)
+**Plans:** 5 plans (4 complete + 1 gap closure)
 
 Plans:
 - [x] 47-01-PLAN.md -- VLH module types, PrintConfig fields, and objective scoring functions
 - [x] 47-02-PLAN.md -- Feature map pre-pass and Laplacian smoothing
 - [x] 47-03-PLAN.md -- Greedy and DP optimizers
 - [x] 47-04-PLAN.md -- Public API integration, adaptive.rs wrapper refactor, diagnostics
+- [ ] 47-05-PLAN.md -- Gap closure: refactor adaptive.rs as VLH wrapper (verification gap)
 
 ### Phase 48: Selective adaptive z-hop control for top surfaces — implement surface-type-based z-hop with distance gating and height-proportional lift
 
