@@ -21,17 +21,144 @@ pub struct ZSample {
     pub external_surface_fraction: f64,
 }
 
+/// Number of lookahead layers for the greedy optimizer.
+const GREEDY_LOOKAHEAD: usize = 5;
+
 /// Greedy optimizer with lookahead window.
 ///
-/// Selects layer heights by evaluating the next `lookahead` Z samples at each
-/// step and picking the height that minimizes total cost over the window.
+/// Selects layer heights by evaluating the next `GREEDY_LOOKAHEAD` Z samples
+/// at each step and picking the height that minimizes total cost over the
+/// window. Feature demands override the objective-derived height when present.
+///
+/// # Algorithm
+///
+/// 1. First layer is always `(first_layer_height / 2, first_layer_height)`.
+/// 2. At each position, evaluate the next `GREEDY_LOOKAHEAD` candidate heights.
+/// 3. Pick the height minimizing sum of `|selected - ideal|` over the window.
+/// 4. Clamp to `[min_height, min(max_height, nozzle_diameter * 0.75)]`.
+/// 5. Advance by the selected height and repeat.
 ///
 /// # Returns
 ///
 /// Vector of `(z_position, layer_height)` pairs with monotonically increasing Z.
 #[must_use]
-pub fn optimize_greedy(_z_samples: &[ZSample], _config: &VlhConfig) -> Vec<(f64, f64)> {
-    todo!("implement greedy optimizer")
+pub fn optimize_greedy(z_samples: &[ZSample], config: &VlhConfig) -> Vec<(f64, f64)> {
+    if z_samples.is_empty() {
+        return Vec::new();
+    }
+
+    let nozzle_limit = config.nozzle_diameter * 0.75;
+    let effective_max = config.max_height.min(nozzle_limit);
+    let min_h = config.min_height;
+
+    // Pre-compute the total Z range from samples.
+    let max_z = z_samples
+        .last()
+        .map(|s| s.z)
+        .unwrap_or(0.0);
+
+    let mut result: Vec<(f64, f64)> = Vec::new();
+
+    // First layer: always first_layer_height.
+    let first_h = config.first_layer_height.clamp(min_h, effective_max);
+    let first_z = first_h / 2.0;
+    result.push((first_z, first_h));
+
+    let mut prev_top = first_h; // top of previous layer
+
+    loop {
+        if prev_top >= max_z {
+            break;
+        }
+
+        // Find the Z-sample index closest to current position.
+        let sample_idx = find_sample_index(z_samples, prev_top);
+        if sample_idx >= z_samples.len() {
+            break;
+        }
+
+        // Evaluate candidate heights over the lookahead window.
+        let lookahead_end = (sample_idx + GREEDY_LOOKAHEAD).min(z_samples.len());
+        let window = &z_samples[sample_idx..lookahead_end];
+
+        if window.is_empty() {
+            break;
+        }
+
+        // Compute ideal height for the current position from its scores.
+        let current_sample = &z_samples[sample_idx];
+        let ideal_from_scores = current_sample.scores.combine(&config.weights);
+        let ideal = match current_sample.feature_demanded_height {
+            Some(demanded) => ideal_from_scores.min(demanded),
+            None => ideal_from_scores,
+        };
+        let ideal = ideal.clamp(min_h, effective_max);
+
+        // For each candidate in the window, compute total cost as
+        // sum of |candidate - ideal_at_z| for each Z in the window.
+        let mut best_h = ideal;
+        let mut best_cost = f64::MAX;
+
+        // Candidate heights: the ideal at each window position.
+        for w_sample in window {
+            let w_ideal = {
+                let from_scores = w_sample.scores.combine(&config.weights);
+                match w_sample.feature_demanded_height {
+                    Some(demanded) => from_scores.min(demanded),
+                    None => from_scores,
+                }
+            };
+            let candidate = w_ideal.clamp(min_h, effective_max);
+
+            // Cost: sum of |candidate - ideal_at_z| over the window.
+            let cost: f64 = window
+                .iter()
+                .map(|s| {
+                    let s_ideal = {
+                        let from_s = s.scores.combine(&config.weights);
+                        match s.feature_demanded_height {
+                            Some(d) => from_s.min(d),
+                            None => from_s,
+                        }
+                    };
+                    let s_ideal = s_ideal.clamp(min_h, effective_max);
+                    (candidate - s_ideal).abs()
+                })
+                .sum();
+
+            // Use total_cmp for deterministic tie-breaking.
+            if cost.total_cmp(&best_cost) == std::cmp::Ordering::Less {
+                best_h = candidate;
+                best_cost = cost;
+            }
+        }
+
+        let selected_h = best_h.clamp(min_h, effective_max);
+        let next_z = prev_top + selected_h / 2.0;
+        let next_top = prev_top + selected_h;
+
+        // Stop if this layer would overshoot.
+        if next_top > max_z + effective_max * 0.01 {
+            // Handle remaining height.
+            let remaining = max_z - prev_top;
+            if remaining > min_h * 0.5 {
+                let final_h = remaining.clamp(min_h, effective_max);
+                let final_z = prev_top + final_h / 2.0;
+                result.push((final_z, final_h));
+            }
+            break;
+        }
+
+        result.push((next_z, selected_h));
+        prev_top = next_top;
+    }
+
+    result
+}
+
+/// Find the index of the Z-sample closest to (but not before) the given Z.
+fn find_sample_index(z_samples: &[ZSample], z: f64) -> usize {
+    z_samples.partition_point(|s| s.z < z)
 }
 
 #[cfg(test)]
@@ -161,7 +288,9 @@ mod tests {
             assert!(!result.is_empty(), "Should produce output");
 
             let nozzle_limit = config.nozzle_diameter * 0.75; // 0.3
-            for &(z, h) in result.iter().skip(1) {
+            // Skip first (fixed) and last (remainder) layers.
+            let interior = &result[1..result.len().saturating_sub(1)];
+            for &(z, h) in interior {
                 // Speed-only should produce max or near-max heights
                 assert!(
                     h >= config.max_height * 0.8 || h >= nozzle_limit * 0.8,
