@@ -867,9 +867,12 @@ Plans:
 **Goal:** Replace global z-hop with intelligent surface-type-based z-hop that activates only on top solids and ironing surfaces, with layer-position-based rules, height-proportional lift, and distance-gated activation to eliminate unnecessary stringing on interior layers.
 **Requirements**: [GCODE-03]
 **Depends on:** Phase 47
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
+- [ ] 48-01-PLAN.md -- ZHopConfig types, TopSolidInfill FeatureType, exhaustive match updates
+- [ ] 48-02-PLAN.md -- Z-hop planning function and G-code emission refactor (Normal/Slope/Spiral/Auto)
+- [ ] 48-03-PLAN.md -- Profile import z-hop field mappings (JSON + INI)
 
 ### Phase 49: Hybrid sequential printing — first N layers all objects together, then switch to by-object sequential printing
 
