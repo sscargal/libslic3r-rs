@@ -154,12 +154,12 @@ pub fn generate_layer_gcode(
                         *retracted = true;
                     }
 
-                    // Z-hop if configured.
-                    if ret.z_hop > 0.0 {
+                    // Z-hop handled by plan_z_hop() -- see Task 2 refactor.
+                    if config.z_hop.height > 0.0 {
                         cmds.push(GcodeCommand::RapidMove {
                             x: None,
                             y: None,
-                            z: Some(seg.z + ret.z_hop),
+                            z: Some(seg.z + config.z_hop.height),
                             f: None,
                         });
                     }
@@ -174,15 +174,13 @@ pub fn generate_layer_gcode(
                 });
 
                 // If Z-hop was applied, move back down.
-                if let Some(ret) = &retraction {
-                    if ret.z_hop > 0.0 {
-                        cmds.push(GcodeCommand::RapidMove {
-                            x: None,
-                            y: None,
-                            z: Some(seg.z),
-                            f: None,
-                        });
-                    }
+                if retraction.is_some() && config.z_hop.height > 0.0 {
+                    cmds.push(GcodeCommand::RapidMove {
+                        x: None,
+                        y: None,
+                        z: Some(seg.z),
+                        f: None,
+                    });
                 }
 
                 // Unretract after travel if retracted.
