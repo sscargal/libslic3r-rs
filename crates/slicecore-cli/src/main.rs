@@ -182,7 +182,7 @@ enum Commands {
         #[arg(long, conflicts_with_all = ["inputs", "config"])]
         plate: Option<PathBuf>,
 
-        /// Per-object override (format: <index-or-name>:<source>, repeatable).
+        /// Per-object override (format: `<index-or-name>:<source>`, repeatable).
         /// Source auto-detection: key=val -> inline, .toml path -> file, else -> named set.
         /// Stacking: 1:set-name+key=val
         #[arg(long = "object")]

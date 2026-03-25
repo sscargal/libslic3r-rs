@@ -12,7 +12,7 @@
 //!
 //! [`parse_with_config`] extracts per-object settings from
 //! PrusaSlicer/OrcaSlicer 3MF files. Known slicer fields are mapped to
-//! SliceCore field names via [`map_slicer_field`]; unmapped fields are
+//! SliceCore field names via `map_slicer_field`; unmapped fields are
 //! preserved in [`ThreeMfObjectConfig::unmapped`] for round-tripping.
 
 use std::collections::HashMap;
