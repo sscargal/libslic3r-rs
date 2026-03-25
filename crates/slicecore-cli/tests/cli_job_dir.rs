@@ -323,10 +323,7 @@ fn test_job_dir_manifest_contents() {
     let manifest: serde_json::Value = serde_json::from_str(&manifest_str).unwrap();
 
     assert_eq!(manifest["schema_version"], 1, "schema_version should be 1");
-    assert_eq!(
-        manifest["status"], "success",
-        "status should be 'success'"
-    );
+    assert_eq!(manifest["status"], "success", "status should be 'success'");
     assert!(
         manifest["checksums"].is_object(),
         "checksums should be an object"

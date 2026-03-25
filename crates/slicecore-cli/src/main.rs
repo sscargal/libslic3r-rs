@@ -21,11 +21,11 @@
 
 mod analysis_display;
 mod calibrate;
-mod job_dir;
 pub mod cli_output;
 mod csg_command;
 mod csg_info;
 mod diff_profiles_command;
+mod job_dir;
 mod override_set;
 mod plate_cmd;
 mod plugins_command;
