@@ -36,7 +36,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 - [ ] **SLICE-02**: Adaptive layer heights based on surface curvature
 - [ ] **SLICE-03**: Contour extraction from mesh cross-sections
 - [ ] **SLICE-04**: Generate slicing preview data (layer-by-layer visualization)
-- [ ] **SLICE-05**: Deterministic output (same input + config = identical G-code)
+- [x] **SLICE-05**: Deterministic output (same input + config = identical G-code)
 
 ### Perimeters (PERIM)
 
@@ -200,7 +200,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | MESH-08 | Phase 2 | Pending |
 | SLICE-01 | Phase 3 | Pending |
 | SLICE-03 | Phase 3 | Pending |
-| SLICE-05 | Phase 3 | Pending |
+| SLICE-05 | Phase 3 | Complete |
 | PERIM-01 | Phase 3 | Pending |
 | PERIM-03 | Phase 3 | Pending |
 | INFILL-01 | Phase 3 | Pending |
