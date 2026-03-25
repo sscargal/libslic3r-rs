@@ -871,6 +871,100 @@ impl Default for CoolingConfig {
     }
 }
 
+/// Z-hop motion type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ZHopType {
+    /// Vertical lift (standard G0 Z move).
+    Normal,
+    /// Diagonal lift (short G0 segments with X/Y + Z movement).
+    Slope,
+    /// Helical approximation lift (short G0 segments spiraling upward).
+    Spiral,
+    /// Automatic: Spiral on top/ironing surfaces, Normal elsewhere.
+    Auto,
+}
+
+/// Z-hop height calculation mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ZHopHeightMode {
+    /// Fixed height in mm.
+    Fixed,
+    /// Proportional to layer height (multiplier * layer_height).
+    Proportional,
+}
+
+/// Which surfaces enforce z-hop activation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SurfaceEnforce {
+    /// Z-hop on all travel moves (no surface filtering).
+    AllSurfaces,
+    /// Z-hop only when departing from top solid infill or ironing.
+    TopSolidAndIroning,
+}
+
+/// Z-hop configuration (surface-gated adaptive z-hop).
+#[derive(Debug, Clone, Serialize, Deserialize, SettingSchema)]
+#[serde(default)]
+#[setting(category = "Z-Hop")]
+pub struct ZHopConfig {
+    /// Z-hop height in mm. 0.0 = disabled.
+    #[serde(alias = "z_hop")]
+    #[setting(tier = 2, description = "Z-hop height", units = "mm", min = 0.0, max = 5.0, override_safety = "safe")]
+    pub height: f64,
+    /// Z-hop motion type.
+    #[setting(tier = 3, description = "Z-hop motion type", override_safety = "safe")]
+    pub hop_type: ZHopType,
+    /// Height calculation mode.
+    #[setting(tier = 3, description = "Z-hop height mode", override_safety = "safe")]
+    pub height_mode: ZHopHeightMode,
+    /// Multiplier for proportional height mode (1.0-3.0x layer height).
+    #[setting(tier = 3, description = "Proportional height multiplier", min = 1.0, max = 3.0, depends_on = "z_hop.height_mode", override_safety = "safe")]
+    pub proportional_multiplier: f64,
+    /// Minimum z-hop height clamp in mm.
+    #[setting(tier = 3, description = "Minimum z-hop height", units = "mm", min = 0.0, max = 5.0, override_safety = "safe")]
+    pub min_height: f64,
+    /// Maximum z-hop height clamp in mm.
+    #[setting(tier = 3, description = "Maximum z-hop height", units = "mm", min = 0.0, max = 10.0, override_safety = "safe")]
+    pub max_height: f64,
+    /// Which surfaces trigger z-hop.
+    #[setting(tier = 3, description = "Surface enforcement for z-hop", override_safety = "safe")]
+    pub surface_enforce: SurfaceEnforce,
+    /// Travel angle for Slope/Spiral in degrees (90 = vertical = Normal).
+    #[setting(tier = 3, description = "Travel angle for slope/spiral", units = "deg", min = 10.0, max = 90.0, override_safety = "safe")]
+    pub travel_angle: f64,
+    /// Dedicated z-hop speed in mm/s. 0.0 = use travel speed.
+    #[setting(tier = 3, description = "Z-hop speed", units = "mm/s", min = 0.0, max = 200.0, override_safety = "safe")]
+    pub speed: f64,
+    /// Minimum travel distance to trigger z-hop in mm.
+    #[setting(tier = 3, description = "Minimum travel for z-hop", units = "mm", min = 0.0, max = 20.0, override_safety = "safe")]
+    pub min_travel: f64,
+    /// Z-hop only above this Z height in mm. 0.0 = no filter.
+    #[setting(tier = 3, description = "Z-hop above threshold", units = "mm", min = 0.0, override_safety = "safe")]
+    pub above: f64,
+    /// Z-hop only below this Z height in mm. 0.0 = no filter (unlimited).
+    #[setting(tier = 3, description = "Z-hop below threshold", units = "mm", min = 0.0, override_safety = "safe")]
+    pub below: f64,
+}
+
+impl Default for ZHopConfig {
+    fn default() -> Self {
+        Self {
+            height: 0.0,
+            hop_type: ZHopType::Normal,
+            height_mode: ZHopHeightMode::Fixed,
+            proportional_multiplier: 1.5,
+            min_height: 0.1,
+            max_height: 2.0,
+            surface_enforce: SurfaceEnforce::TopSolidAndIroning,
+            travel_angle: 45.0,
+            speed: 0.0,
+            min_travel: 2.0,
+            above: 0.0,
+            below: 0.0,
+        }
+    }
+}
+
 /// Retraction configuration.
 ///
 /// The flat `retract_length`, `retract_speed`, `retract_z_hop`, and
@@ -886,16 +980,6 @@ pub struct RetractionConfig {
     /// Retraction speed in mm/s.
     #[setting(tier = 2, description = "Retraction speed", units = "mm/s", min = 1.0, max = 200.0, affects = ["stringing"], override_safety = "safe")]
     pub speed: f64,
-    /// Z-hop height during retraction in mm.
-    #[setting(
-        tier = 2,
-        description = "Z-hop height during retraction",
-        units = "mm",
-        min = 0.0,
-        max = 5.0,
-        override_safety = "safe"
-    )]
-    pub z_hop: f64,
     /// Minimum travel distance to trigger retraction in mm.
     #[setting(
         tier = 2,
@@ -958,7 +1042,6 @@ impl Default for RetractionConfig {
         Self {
             length: 0.8,
             speed: 45.0,
-            z_hop: 0.0,
             min_travel: 1.5,
             deretraction_speed: 0.0,
             retract_before_wipe: 0.0,
@@ -2472,9 +2555,13 @@ pub struct PrintConfig {
     /// Cooling and fan configuration (includes fan_speed, fan_below_layer_time, disable_fan_first_layers).
     #[setting(flatten)]
     pub cooling: CoolingConfig,
-    /// Retraction configuration (includes length, speed, z_hop, min_travel).
+    /// Retraction configuration (includes length, speed, min_travel).
     #[setting(flatten)]
     pub retraction: RetractionConfig,
+    /// Z-hop configuration (surface-gated adaptive z-hop).
+    #[serde(default)]
+    #[setting(flatten)]
+    pub z_hop: ZHopConfig,
     /// Machine/printer hardware configuration (includes bed_x, bed_y, nozzle_diameters, jerk).
     #[setting(flatten)]
     pub machine: MachineConfig,
@@ -3417,6 +3504,7 @@ impl Default for PrintConfig {
             speeds: SpeedConfig::default(),
             cooling: CoolingConfig::default(),
             retraction: RetractionConfig::default(),
+            z_hop: ZHopConfig::default(),
             machine: MachineConfig::default(),
             accel: AccelerationConfig::default(),
             filament: FilamentPropsConfig::default(),
@@ -4082,7 +4170,7 @@ mod tests {
         assert!((config.speeds.first_layer - 20.0).abs() < 1e-9);
         assert!((config.retraction.length - 0.8).abs() < 1e-9);
         assert!((config.retraction.speed - 45.0).abs() < 1e-9);
-        assert!((config.retraction.z_hop - 0.0).abs() < 1e-9);
+        assert!((config.z_hop.height - 0.0).abs() < 1e-9);
         assert!((config.retraction.min_travel - 1.5).abs() < 1e-9);
         assert!((config.filament.nozzle_temp() - 200.0).abs() < 1e-9);
         assert!((config.filament.bed_temp() - 60.0).abs() < 1e-9);
@@ -4463,7 +4551,7 @@ polyhole_min_diameter = 0.5
         // RetractionConfig (including migrated fields)
         assert!((config.retraction.length - 0.8).abs() < 1e-9);
         assert!((config.retraction.speed - 45.0).abs() < 1e-9);
-        assert!((config.retraction.z_hop - 0.0).abs() < 1e-9);
+        assert!((config.z_hop.height - 0.0).abs() < 1e-9);
         assert!((config.retraction.min_travel - 1.5).abs() < 1e-9);
         assert!((config.retraction.deretraction_speed - 0.0).abs() < 1e-9);
         assert!((config.retraction.retract_before_wipe - 0.0).abs() < 1e-9);

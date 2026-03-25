@@ -959,7 +959,7 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         }
         "retract_lift" => {
             let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.retraction.z_hop)
+            parse_and_set_f64(first, &mut config.z_hop.height)
         }
         "retract_before_travel" => {
             let first = first_comma_value(value);

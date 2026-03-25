@@ -549,7 +549,7 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "nozzle_diameter" => Some("machine.nozzle_diameters"),
         "retraction_length" => Some("retraction.length"),
         "retraction_speed" => Some("retraction.speed"),
-        "z_hop" => Some("retraction.z_hop"),
+        "z_hop" => Some("z_hop.height"),
         "retraction_minimum_travel" => Some("retraction.min_travel"),
         "gcode_flavor" => Some("gcode_dialect"),
         "machine_max_jerk_x" => Some("machine.jerk_values_x"),
@@ -1166,7 +1166,7 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         // Note: nozzle_diameter and jerk array fields are handled by apply_array_field_mapping.
         "retraction_length" => parse_and_set_f64(value, &mut config.retraction.length),
         "retraction_speed" => parse_and_set_f64(value, &mut config.retraction.speed),
-        "z_hop" => parse_and_set_f64(value, &mut config.retraction.z_hop),
+        "z_hop" => parse_and_set_f64(value, &mut config.z_hop.height),
         "retraction_minimum_travel" => parse_and_set_f64(value, &mut config.retraction.min_travel),
         "gcode_flavor" => {
             if let Some(dialect) = map_gcode_dialect(value) {

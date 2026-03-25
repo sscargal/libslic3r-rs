@@ -416,9 +416,9 @@ fn test_x1c_profiles_have_comprehensive_settings() {
         merged.retraction.speed
     );
     assert!(
-        merged.retraction.z_hop > 0.0,
-        "retraction.z_hop should be > 0 (X1C = 0.4), got {}",
-        merged.retraction.z_hop
+        merged.z_hop.height > 0.0,
+        "z_hop.height should be > 0 (X1C = 0.4), got {}",
+        merged.z_hop.height
     );
 
     // Filament temperatures
@@ -537,7 +537,7 @@ fn test_sc2_critical_machine_fields() {
     // RetractionConfig (machine-adjacent)
     let _ = config.retraction.length;
     let _ = config.retraction.speed;
-    let _ = config.retraction.z_hop;
+    let _ = config.z_hop.height;
     let _ = config.retraction.min_travel;
     let _ = config.retraction.deretraction_speed;
     let _ = config.retraction.wipe;

@@ -38,7 +38,7 @@ pub fn plan_retraction(travel_distance: f64, config: &PrintConfig) -> Option<Ret
         Some(RetractionMove {
             retract_length: config.retraction.length,
             retract_speed: config.retraction.speed,
-            z_hop: config.retraction.z_hop,
+            z_hop: config.z_hop.height,
         })
     } else {
         None
@@ -381,7 +381,7 @@ mod tests {
         config.retraction.min_travel = 1.5;
         config.retraction.length = 0.8;
         config.retraction.speed = 45.0;
-        config.retraction.z_hop = 0.2;
+        config.z_hop.height = 0.2;
 
         let retract = plan_retraction(2.0, &config).unwrap();
         assert!((retract.retract_length - 0.8).abs() < 1e-9);

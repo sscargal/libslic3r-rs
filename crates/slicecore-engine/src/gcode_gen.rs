@@ -706,7 +706,7 @@ mod tests {
     fn z_hop_during_retraction() {
         let layer = travel_and_extrusion_layer(5.0);
         let mut config = PrintConfig::default();
-        config.retraction.z_hop = 0.4;
+        config.z_hop.height = 0.4;
         let mut retracted = false;
 
         let cmds = generate_layer_gcode(&layer, &config, &mut retracted, 10);
