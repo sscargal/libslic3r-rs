@@ -83,29 +83,70 @@ cyan()   { _color $'\033[36m' "$1"; }
 bold()   { _color $'\033[1m'  "$1"; }
 
 # ---------------------------------------------------------------------------
-# Result reporters
+# Progress & result reporters
 # ---------------------------------------------------------------------------
+
+# Format elapsed seconds as human-readable duration
+_fmt_duration() {
+    local ms="$1"
+    if [[ $ms -lt 1000 ]]; then
+        printf '%dms' "$ms"
+    elif [[ $ms -lt 60000 ]]; then
+        printf '%.1fs' "$(echo "scale=1; $ms / 1000" | bc)"
+    else
+        local secs=$((ms / 1000))
+        printf '%dm%02ds' $((secs / 60)) $((secs % 60))
+    fi
+}
+
+# Show in-progress indicator (overwritten by result)
+_show_running() {
+    if $NO_COLOR; then
+        printf '  [RUN ] %s' "$1"
+    else
+        printf '  [\033[33m RUN \033[0m] %s' "$1"
+    fi
+}
+
+# Clear in-progress line and print final result
+_clear_running() {
+    printf '\r\033[2K'
+}
+
 pass() {
+    local duration="${2:-}"
+    local timing=""
+    [[ -n "$duration" ]] && timing=" ($(_fmt_duration "$duration"))"
     PASS_COUNT=$((PASS_COUNT + 1))
-    printf '  [%s] %s\n' "$(green "PASS")" "$1"
+    printf '  [%s] %s%s\n' "$(green "PASS")" "$1" "$timing"
 }
 
 fail() {
+    local detail="${2:-}"
+    local duration="${3:-}"
+    local timing=""
+    [[ -n "$duration" ]] && timing=" ($(_fmt_duration "$duration"))"
     FAIL_COUNT=$((FAIL_COUNT + 1))
-    printf '  [%s] %s\n' "$(red "FAIL")" "$1"
-    if [[ -n "${2:-}" ]]; then
-        printf '         %s\n' "$2"
+    printf '  [%s] %s%s\n' "$(red "FAIL")" "$1" "$timing"
+    if [[ -n "$detail" ]]; then
+        printf '         %s\n' "$detail"
     fi
 }
 
 warn() {
+    local duration="${2:-}"
+    local timing=""
+    [[ -n "$duration" ]] && timing=" ($(_fmt_duration "$duration"))"
     WARN_COUNT=$((WARN_COUNT + 1))
-    printf '  [%s] %s\n' "$(yellow "WARN")" "$1"
+    printf '  [%s] %s%s\n' "$(yellow "WARN")" "$1" "$timing"
 }
 
 info() {
+    local duration="${2:-}"
+    local timing=""
+    [[ -n "$duration" ]] && timing=" ($(_fmt_duration "$duration"))"
     INFO_COUNT=$((INFO_COUNT + 1))
-    printf '  [%s] %s\n' "$(cyan "INFO")" "$1"
+    printf '  [%s] %s%s\n' "$(cyan "INFO")" "$1" "$timing"
 }
 
 # ---------------------------------------------------------------------------
@@ -117,14 +158,18 @@ info() {
 run_test() {
     local desc="$1"; shift
     local output exit_code
+    _show_running "$desc"
+    local start_ms=$(($(date +%s%N) / 1000000))
     output=$("$@" 2>&1) && exit_code=0 || exit_code=$?
+    local elapsed_ms=$(( ($(date +%s%N) / 1000000) - start_ms ))
+    _clear_running
     if [[ $exit_code -eq 0 ]]; then
-        pass "$desc"
+        pass "$desc" "$elapsed_ms"
         if $VERBOSE; then
             printf '%s\n' "$output" | sed 's/^/         /'
         fi
     else
-        fail "$desc" "exit code $exit_code"
+        fail "$desc" "exit code $exit_code" "$elapsed_ms"
         printf '%s\n' "$output" | tail -10 | sed 's/^/         /'
     fi
     return 0
@@ -135,11 +180,15 @@ run_test() {
 run_test_expect_fail() {
     local desc="$1"; shift
     local output exit_code
+    _show_running "$desc"
+    local start_ms=$(($(date +%s%N) / 1000000))
     output=$("$@" 2>&1) && exit_code=0 || exit_code=$?
+    local elapsed_ms=$(( ($(date +%s%N) / 1000000) - start_ms ))
+    _clear_running
     if [[ $exit_code -ne 0 ]]; then
-        pass "$desc (expected failure, got exit $exit_code)"
+        pass "$desc (expected failure, got exit $exit_code)" "$elapsed_ms"
     else
-        fail "$desc" "expected non-zero exit, got 0"
+        fail "$desc" "expected non-zero exit, got 0" "$elapsed_ms"
         if $VERBOSE; then
             printf '%s\n' "$output" | tail -5 | sed 's/^/         /'
         fi
@@ -156,19 +205,23 @@ run_test_json() {
     local stdout_file stderr_file exit_code
     stdout_file="$TMPDIR_QA/_json_stdout.tmp"
     stderr_file="$TMPDIR_QA/_json_stderr.tmp"
+    _show_running "$desc"
+    local start_ms=$(($(date +%s%N) / 1000000))
     "$@" >"$stdout_file" 2>"$stderr_file" && exit_code=0 || exit_code=$?
+    local elapsed_ms=$(( ($(date +%s%N) / 1000000) - start_ms ))
+    _clear_running
     if [[ $exit_code -ne 0 ]]; then
-        fail "$desc" "exit code $exit_code"
+        fail "$desc" "exit code $exit_code" "$elapsed_ms"
         cat "$stderr_file" 2>/dev/null | tail -5 | sed 's/^/         /'
         return 0
     fi
     if is_json_valid < "$stdout_file"; then
-        pass "$desc"
+        pass "$desc" "$elapsed_ms"
         if $VERBOSE; then
             head -5 "$stdout_file" | sed 's/^/         /'
         fi
     else
-        fail "$desc" "output is not valid JSON"
+        fail "$desc" "output is not valid JSON" "$elapsed_ms"
         head -5 "$stdout_file" | sed 's/^/         /'
     fi
     return 0
@@ -180,16 +233,20 @@ run_test_output_contains() {
     local desc="$1"; shift
     local substring="$1"; shift
     local output exit_code
+    _show_running "$desc"
+    local start_ms=$(($(date +%s%N) / 1000000))
     output=$("$@" 2>&1) && exit_code=0 || exit_code=$?
+    local elapsed_ms=$(( ($(date +%s%N) / 1000000) - start_ms ))
+    _clear_running
     if [[ $exit_code -ne 0 ]]; then
-        fail "$desc" "exit code $exit_code"
+        fail "$desc" "exit code $exit_code" "$elapsed_ms"
         printf '%s\n' "$output" | tail -5 | sed 's/^/         /'
         return 0
     fi
     if echo "$output" | grep -qi "$substring"; then
-        pass "$desc"
+        pass "$desc" "$elapsed_ms"
     else
-        fail "$desc" "output does not contain '$substring'"
+        fail "$desc" "output does not contain '$substring'" "$elapsed_ms"
         printf '%s\n' "$output" | head -10 | sed 's/^/         /'
     fi
     return 0
@@ -202,7 +259,7 @@ run_test_file_exists() {
     if [[ -f "$filepath" && -s "$filepath" ]]; then
         pass "$desc"
     else
-        fail "$desc" "file missing or empty: $filepath"
+        fail "$desc" "file missing or empty: $filepath" ""
     fi
     return 0
 }
