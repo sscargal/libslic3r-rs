@@ -333,7 +333,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 44. Search and Filter Profiles by Compatibility | 3/3 | Complete    | 2026-03-23 |
 | 45. Global and Per-Object Settings Override System | 11/11 | Complete    | 2026-03-24 |
 | 46. Job Output Directories | 3/3 | Complete    | 2026-03-25 |
-| 47. Variable Layer Height Algorithms | 3/4 | In Progress|  |
+| 47. Variable Layer Height Algorithms | 5/5 | Complete   | 2026-03-25 |
 | 48. Selective Adaptive Z-Hop Control | 0/0 | ○ Pending | - |
 | 49. Hybrid Sequential Printing | 0/0 | ○ Pending | - |
 | 50. 3MF Project Output with Embedded G-code | 0/0 | ○ Pending | - |
@@ -853,7 +853,7 @@ Plans:
 **Goal:** Multi-objective VLH optimization with four objectives (quality, speed, strength, material), feature-aware height selection (overhangs, bridges, thin walls, holes), Laplacian smoothing for transition continuity, greedy and DP optimizers, and per-layer diagnostic events.
 **Requirements**: [SLICE-05]
 **Depends on:** Phase 46
-**Plans:** 5 plans (4 complete + 1 gap closure)
+**Plans:** 5/5 plans complete
 
 Plans:
 - [x] 47-01-PLAN.md -- VLH module types, PrintConfig fields, and objective scoring functions
