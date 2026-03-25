@@ -8,6 +8,10 @@
 //!
 //! The feature map is built once from mesh triangle normals, then queried
 //! efficiently via binary search during layer height optimization.
+//!
+//! Currently implements overhang detection from mesh normals. Hole, thin-wall,
+//! and bridge detection require sliced contour data and will be integrated in
+//! Plan 04.
 
 use super::{FeatureDetection, FeatureType, VlhConfig};
 use slicecore_mesh::TriangleMesh;
@@ -20,6 +24,26 @@ use slicecore_mesh::TriangleMesh;
 #[derive(Debug, Clone)]
 pub struct FeatureMap {
     detections: Vec<FeatureDetection>,
+}
+
+impl FeatureMap {
+    /// Returns a reference to the underlying detections (for testing/diagnostics).
+    #[must_use]
+    pub fn detections(&self) -> &[FeatureDetection] {
+        &self.detections
+    }
+
+    /// Returns the number of detected features.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.detections.len()
+    }
+
+    /// Returns true if no features were detected.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.detections.is_empty()
+    }
 }
 
 /// Build a feature map from mesh geometry.
@@ -38,8 +62,95 @@ pub struct FeatureMap {
 /// A [`FeatureMap`] with detections sorted by `z_min` for efficient lookup.
 #[must_use]
 pub fn build_feature_map(mesh: &TriangleMesh, config: &VlhConfig) -> FeatureMap {
-    let _ = (mesh, config);
-    todo!()
+    let mut detections = Vec::new();
+
+    // Overhang detection from triangle normals.
+    detect_overhangs(mesh, config, &mut detections);
+
+    // TODO: Hole detection requires sliced contour data (Plan 04).
+    // TODO: Thin wall detection requires sliced contour data (Plan 04).
+    // TODO: Bridge detection requires sliced contour data (Plan 04).
+
+    // Apply feature margin extension.
+    let margin_mm = config.feature_margin_layers as f64 * config.min_height;
+    for d in &mut detections {
+        d.z_min -= margin_mm;
+        d.z_max += margin_mm;
+    }
+
+    // Sort by z_min using total_cmp for determinism (NaN-safe).
+    detections.sort_by(|a, b| a.z_min.total_cmp(&b.z_min));
+
+    FeatureMap { detections }
+}
+
+/// Detect overhang features from mesh triangle normals.
+///
+/// For each triangle, computes the surface angle from horizontal. Triangles
+/// with angles in `[overhang_angle_min, overhang_angle_max]` are recorded
+/// as overhang features. The demanded height is scaled by angle sensitivity
+/// and the overhang weight.
+fn detect_overhangs(
+    mesh: &TriangleMesh,
+    config: &VlhConfig,
+    detections: &mut Vec<FeatureDetection>,
+) {
+    let vertices = mesh.vertices();
+    let indices = mesh.indices();
+    let normals = mesh.normals();
+
+    let angle_min_rad = config.overhang_angle_min.to_radians();
+    let angle_max_rad = config.overhang_angle_max.to_radians();
+
+    for (tri_idx, tri) in indices.iter().enumerate() {
+        let normal = &normals[tri_idx];
+
+        // Surface angle from horizontal = acos(|normal.z|).
+        // A horizontal surface has angle = 0 deg, vertical = 90 deg.
+        let abs_nz = normal.z.abs().clamp(0.0, 1.0);
+        let angle_rad = abs_nz.acos();
+
+        // Only consider triangles in the overhang angle range.
+        if angle_rad < angle_min_rad || angle_rad > angle_max_rad {
+            continue;
+        }
+
+        // Skip if overhang weight is zero.
+        if config.feature_overhang_weight < 1e-12 {
+            continue;
+        }
+
+        let angle_deg = angle_rad.to_degrees();
+
+        // Compute sensitivity: 0.0 at angle_min, 1.0 at angle_max.
+        let angle_range = config.overhang_angle_max - config.overhang_angle_min;
+        let sensitivity = if angle_range > 1e-12 {
+            ((angle_deg - config.overhang_angle_min) / angle_range).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
+
+        // Demanded height: thinner layers for more severe overhangs.
+        let demanded_height = config.min_height
+            + (config.max_height - config.min_height) * (1.0 - sensitivity);
+        let demanded_height = demanded_height * config.feature_overhang_weight;
+        // Clamp to valid range.
+        let demanded_height = demanded_height.clamp(config.min_height, config.max_height);
+
+        // Triangle Z range.
+        let z0 = vertices[tri[0] as usize].z;
+        let z1 = vertices[tri[1] as usize].z;
+        let z2 = vertices[tri[2] as usize].z;
+        let z_min = z0.min(z1).min(z2);
+        let z_max = z0.max(z1).max(z2);
+
+        detections.push(FeatureDetection {
+            feature_type: FeatureType::Overhang { angle_deg },
+            z_min,
+            z_max,
+            demanded_height,
+        });
+    }
 }
 
 /// Query the aggregate stress factor at a given Z position.
@@ -47,10 +158,33 @@ pub fn build_feature_map(mesh: &TriangleMesh, config: &VlhConfig) -> FeatureMap 
 /// Returns the maximum stress contribution from all features overlapping
 /// the given Z, clamped to `[0.0, 1.0]`. Returns `0.0` if no features
 /// overlap.
+///
+/// Stress factor is computed as `1.0 - (demanded_height - min) / (max - min)`
+/// where min/max are the global height bounds. Higher stress = more demanding.
 #[must_use]
 pub fn query_stress_factor(feature_map: &FeatureMap, z: f64) -> f64 {
-    let _ = (feature_map, z);
-    todo!()
+    let mut max_stress = 0.0_f64;
+
+    for d in overlapping_features(feature_map, z) {
+        // Stress is computed per feature type. Higher stress = more demanding.
+        let stress = match &d.feature_type {
+            FeatureType::Overhang { angle_deg } => {
+                // Stress scales with angle severity.
+                (*angle_deg / 90.0).clamp(0.0, 1.0)
+            }
+            FeatureType::Bridge => 1.0,
+            FeatureType::ThinWall { width_mm } => {
+                (1.0 - width_mm / 2.0).clamp(0.0, 1.0)
+            }
+            FeatureType::Hole { diameter_mm } => {
+                (1.0 - diameter_mm / 10.0).clamp(0.0, 1.0)
+            }
+        };
+
+        max_stress = max_stress.max(stress);
+    }
+
+    max_stress.clamp(0.0, 1.0)
 }
 
 /// Query the demanded layer height at a given Z position.
@@ -60,8 +194,42 @@ pub fn query_stress_factor(feature_map: &FeatureMap, z: f64) -> f64 {
 /// overlap.
 #[must_use]
 pub fn query_feature_demanded_height(feature_map: &FeatureMap, z: f64) -> Option<f64> {
-    let _ = (feature_map, z);
-    todo!()
+    let mut min_demanded: Option<f64> = None;
+
+    for d in overlapping_features(feature_map, z) {
+        min_demanded = Some(match min_demanded {
+            Some(current) => current.min(d.demanded_height),
+            None => d.demanded_height,
+        });
+    }
+
+    min_demanded
+}
+
+/// Find all features whose Z range overlaps the given Z value.
+///
+/// Uses binary search on the sorted `z_min` values to find a starting
+/// point, then scans forward through potentially overlapping detections.
+fn overlapping_features(feature_map: &FeatureMap, z: f64) -> Vec<&FeatureDetection> {
+    let detections = &feature_map.detections;
+    if detections.is_empty() {
+        return Vec::new();
+    }
+
+    let mut result = Vec::new();
+
+    // Binary search: find the first detection whose z_min > z.
+    // All detections before that point *might* overlap z (if their z_max >= z).
+    let upper = detections.partition_point(|d| d.z_min <= z);
+
+    // Check all detections from the start up to `upper` whose z_max >= z.
+    for d in &detections[..upper] {
+        if d.z_max >= z {
+            result.push(d);
+        }
+    }
+
+    result
 }
 
 #[cfg(test)]
@@ -97,10 +265,10 @@ mod tests {
     /// Creates a mesh with steep overhangs (45-degree angled surfaces).
     /// A truncated cone shape: wider at top, narrower at bottom.
     fn overhang_mesh() -> TriangleMesh {
-        // Create a simple shape with angled surfaces.
-        // 4 triangles forming an inverted pyramid frustum with ~45 degree walls.
         let half = 0.5_f64;
-        let top_half = 1.0_f64;
+        // top_half chosen so side face normal angle from horizontal is ~50 degrees
+        // (within the default [40, 60] overhang range).
+        let top_half = 1.34_f64;
         let h = 1.0_f64;
         let vertices = vec![
             // Bottom square (z=0)
@@ -181,11 +349,7 @@ mod tests {
         config.feature_margin_layers = 3;
         let fmap = build_feature_map(&mesh, &config);
         let margin_mm = config.feature_margin_layers as f64 * config.min_height;
-        // All detections should have z_min reduced and z_max increased by margin.
-        // Since the mesh goes from z=0 to z=1, with margin the z_min could be negative.
         for d in &fmap.detections {
-            // The original mesh triangles span z=0..1, so after margin extension
-            // z_min should be <= 0.0 (extended below mesh) for detections near bottom.
             assert!(
                 d.z_max >= d.z_min,
                 "z_max ({}) should be >= z_min ({})",
@@ -193,14 +357,12 @@ mod tests {
                 d.z_min,
             );
         }
-        // Verify that the margin is actually applied by checking the total span
-        // is larger than the mesh height.
         if !fmap.detections.is_empty() {
             let min_z = fmap.detections.iter().map(|d| d.z_min).fold(f64::INFINITY, f64::min);
             let max_z = fmap.detections.iter().map(|d| d.z_max).fold(f64::NEG_INFINITY, f64::max);
             let span = max_z - min_z;
             assert!(
-                span > 0.5, // Mesh is 1.0 tall, margin adds ~0.15 each side
+                span > 0.5,
                 "Feature span ({span}) should be extended by margin ({margin_mm})"
             );
         }
@@ -210,7 +372,6 @@ mod tests {
     fn query_stress_factor_no_features_returns_zero() {
         let mesh = vertical_box();
         let mut config = test_config();
-        // Vertical walls have 90-degree angle from horizontal. Set thresholds so they're not overhangs.
         config.overhang_angle_min = 40.0;
         config.overhang_angle_max = 60.0;
         let fmap = build_feature_map(&mesh, &config);
@@ -226,7 +387,6 @@ mod tests {
         let mesh = overhang_mesh();
         let config = test_config();
         let fmap = build_feature_map(&mesh, &config);
-        // Query at z=0.5 which is in the middle of the overhang mesh
         let stress = query_stress_factor(&fmap, 0.5);
         assert!(
             stress > 0.0,
@@ -250,7 +410,6 @@ mod tests {
 
     #[test]
     fn query_feature_demanded_height_hole_returns_min_height() {
-        // Manually construct a FeatureMap with a Hole detection.
         let fmap = FeatureMap {
             detections: vec![FeatureDetection {
                 feature_type: FeatureType::Hole { diameter_mm: 3.0 },
