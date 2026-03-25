@@ -29,6 +29,7 @@ pub mod adaptive;
 pub mod contour;
 pub mod layer;
 pub mod resolve;
+pub mod vlh;
 
 // Re-export primary types and functions at crate root.
 pub use adaptive::compute_adaptive_layer_heights;

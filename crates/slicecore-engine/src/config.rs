@@ -22,6 +22,25 @@ use crate::ironing::IroningConfig;
 use crate::seam::SeamPosition;
 use crate::support::config::SupportConfig;
 
+/// VLH optimizer mode for multi-objective layer height optimization.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, SettingSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VlhOptimizerMode {
+    /// Greedy per-layer optimization (fast, good for most cases).
+    #[default]
+    #[setting(
+        display = "Greedy",
+        description = "Greedy per-layer optimization"
+    )]
+    Greedy,
+    /// Dynamic programming for globally optimal height sequences.
+    #[setting(
+        display = "Dynamic Programming",
+        description = "Dynamic programming for globally optimal heights"
+    )]
+    DynamicProgramming,
+}
+
 /// Controls the order in which perimeter walls are printed.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, SettingSchema)]
 #[serde(rename_all = "snake_case")]
@@ -2235,6 +2254,62 @@ pub struct PrintConfig {
     )]
     pub adaptive_layer_quality: f64,
 
+    // --- Multi-Objective VLH ---
+    /// Enable multi-objective variable layer height optimization.
+    #[setting(tier = 2, description = "Enable multi-objective VLH", affects = ["quality", "print_time"], override_safety = "safe")]
+    pub vlh_enabled: bool,
+    /// VLH quality weight (higher = thinner layers on curves).
+    #[setting(tier = 2, description = "VLH quality weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_quality_weight: f64,
+    /// VLH speed weight (higher = thicker layers everywhere).
+    #[setting(tier = 2, description = "VLH speed weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_speed_weight: f64,
+    /// VLH strength weight (higher = thinner layers near stress features).
+    #[setting(tier = 2, description = "VLH strength weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_strength_weight: f64,
+    /// VLH material saving weight (higher = thicker layers).
+    #[setting(tier = 2, description = "VLH material weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_material_weight: f64,
+    /// VLH optimizer mode (greedy or dynamic programming).
+    #[setting(tier = 3, description = "VLH optimizer mode", depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_optimizer_mode: VlhOptimizerMode,
+    /// VLH Laplacian smoothing strength (0.0 = none, 1.0 = maximum).
+    #[setting(tier = 3, description = "VLH smoothing strength", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_smoothing_strength: f64,
+    /// VLH smoothing iterations.
+    #[setting(tier = 3, description = "VLH smoothing iterations", min = 0, max = 20, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_smoothing_iterations: u32,
+    /// Enable VLH per-layer diagnostic output.
+    #[setting(tier = 4, description = "Enable VLH diagnostics", depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_diagnostics: bool,
+    /// VLH overhang feature weight.
+    #[setting(tier = 3, description = "VLH overhang feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_feature_overhang_weight: f64,
+    /// VLH bridge feature weight.
+    #[setting(tier = 3, description = "VLH bridge feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_feature_bridge_weight: f64,
+    /// VLH thin wall feature weight.
+    #[setting(tier = 3, description = "VLH thin wall feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_feature_thin_wall_weight: f64,
+    /// VLH hole feature weight.
+    #[setting(tier = 3, description = "VLH hole feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_feature_hole_weight: f64,
+    /// Minimum overhang angle for VLH feature detection (degrees).
+    #[setting(tier = 3, description = "VLH overhang angle minimum", units = "deg", min = 0.0, max = 90.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_overhang_angle_min: f64,
+    /// Maximum overhang angle for VLH feature detection (degrees).
+    #[setting(tier = 3, description = "VLH overhang angle maximum", units = "deg", min = 0.0, max = 90.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_overhang_angle_max: f64,
+    /// Thin wall detection threshold (mm).
+    #[setting(tier = 3, description = "VLH thin wall threshold", units = "mm", min = 0.1, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_thin_wall_threshold: f64,
+    /// Feature influence margin in layers.
+    #[setting(tier = 3, description = "VLH feature margin layers", min = 0, max = 10, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_feature_margin_layers: u32,
+    /// Enable stochastic VLH optimization.
+    #[setting(tier = 4, description = "Enable stochastic VLH", depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_stochastic: bool,
+
     // --- Gap Fill ---
     /// Enable gap fill between perimeters.
     #[setting(
@@ -3287,6 +3362,25 @@ impl Default for PrintConfig {
             adaptive_max_layer_height: 0.3,
             adaptive_layer_quality: 0.5,
 
+            vlh_enabled: false,
+            vlh_quality_weight: 1.0,
+            vlh_speed_weight: 0.0,
+            vlh_strength_weight: 0.0,
+            vlh_material_weight: 0.0,
+            vlh_optimizer_mode: VlhOptimizerMode::Greedy,
+            vlh_smoothing_strength: 0.5,
+            vlh_smoothing_iterations: 3,
+            vlh_diagnostics: false,
+            vlh_feature_overhang_weight: 1.0,
+            vlh_feature_bridge_weight: 1.0,
+            vlh_feature_thin_wall_weight: 1.0,
+            vlh_feature_hole_weight: 1.0,
+            vlh_overhang_angle_min: 40.0,
+            vlh_overhang_angle_max: 60.0,
+            vlh_thin_wall_threshold: 0.8,
+            vlh_feature_margin_layers: 2,
+            vlh_stochastic: false,
+
             gap_fill_enabled: true,
             gap_fill_min_width: 0.1,
 
@@ -4088,6 +4182,56 @@ adaptive_layer_quality = 0.8
         assert!((config.adaptive_min_layer_height - 0.04).abs() < 1e-9);
         assert!((config.adaptive_max_layer_height - 0.25).abs() < 1e-9);
         assert!((config.adaptive_layer_quality - 0.8).abs() < 1e-9);
+    }
+
+    #[test]
+    fn vlh_defaults() {
+        let config = PrintConfig::default();
+        assert!(!config.vlh_enabled);
+        assert!((config.vlh_quality_weight - 1.0).abs() < 1e-9);
+        assert!((config.vlh_speed_weight - 0.0).abs() < 1e-9);
+        assert!((config.vlh_strength_weight - 0.0).abs() < 1e-9);
+        assert!((config.vlh_material_weight - 0.0).abs() < 1e-9);
+        assert_eq!(config.vlh_optimizer_mode, VlhOptimizerMode::Greedy);
+        assert!((config.vlh_smoothing_strength - 0.5).abs() < 1e-9);
+        assert_eq!(config.vlh_smoothing_iterations, 3);
+        assert!(!config.vlh_diagnostics);
+        assert!((config.vlh_feature_overhang_weight - 1.0).abs() < 1e-9);
+        assert!((config.vlh_feature_bridge_weight - 1.0).abs() < 1e-9);
+        assert!((config.vlh_feature_thin_wall_weight - 1.0).abs() < 1e-9);
+        assert!((config.vlh_feature_hole_weight - 1.0).abs() < 1e-9);
+        assert!((config.vlh_overhang_angle_min - 40.0).abs() < 1e-9);
+        assert!((config.vlh_overhang_angle_max - 60.0).abs() < 1e-9);
+        assert!((config.vlh_thin_wall_threshold - 0.8).abs() < 1e-9);
+        assert_eq!(config.vlh_feature_margin_layers, 2);
+        assert!(!config.vlh_stochastic);
+    }
+
+    #[test]
+    fn vlh_fields_from_toml() {
+        let toml = r#"
+vlh_enabled = true
+vlh_quality_weight = 0.8
+vlh_speed_weight = 0.2
+vlh_strength_weight = 0.5
+vlh_material_weight = 0.3
+vlh_optimizer_mode = "dynamic_programming"
+vlh_smoothing_strength = 0.7
+vlh_smoothing_iterations = 5
+vlh_diagnostics = true
+vlh_stochastic = true
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert!(config.vlh_enabled);
+        assert!((config.vlh_quality_weight - 0.8).abs() < 1e-9);
+        assert!((config.vlh_speed_weight - 0.2).abs() < 1e-9);
+        assert!((config.vlh_strength_weight - 0.5).abs() < 1e-9);
+        assert!((config.vlh_material_weight - 0.3).abs() < 1e-9);
+        assert_eq!(config.vlh_optimizer_mode, VlhOptimizerMode::DynamicProgramming);
+        assert!((config.vlh_smoothing_strength - 0.7).abs() < 1e-9);
+        assert_eq!(config.vlh_smoothing_iterations, 5);
+        assert!(config.vlh_diagnostics);
+        assert!(config.vlh_stochastic);
     }
 
     #[test]
