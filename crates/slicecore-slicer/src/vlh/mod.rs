@@ -713,6 +713,61 @@ mod tests {
     }
 
     #[test]
+    fn vlh_deterministic_greedy_10_runs() {
+        let mesh = unit_sphere();
+        let config = test_vlh_config();
+        let baseline = compute_vlh_heights(&mesh, &config);
+        for run in 0..10 {
+            let result = compute_vlh_heights(&mesh, &config);
+            assert_eq!(
+                baseline.heights.len(),
+                result.heights.len(),
+                "Run {run}: length mismatch"
+            );
+            for (i, (a, b)) in baseline.heights.iter().zip(&result.heights).enumerate() {
+                assert!(
+                    (a.0 - b.0).abs() < 1e-15,
+                    "Run {run}, layer {i}: Z mismatch {:.15} vs {:.15}",
+                    a.0,
+                    b.0
+                );
+                assert!(
+                    (a.1 - b.1).abs() < 1e-15,
+                    "Run {run}, layer {i}: Height mismatch {:.15} vs {:.15}",
+                    a.1,
+                    b.1
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn vlh_deterministic_dp_10_runs() {
+        let mesh = unit_sphere();
+        let mut config = test_vlh_config();
+        config.optimizer_mode = OptimizerMode::DynamicProgramming;
+        let baseline = compute_vlh_heights(&mesh, &config);
+        for run in 0..10 {
+            let result = compute_vlh_heights(&mesh, &config);
+            assert_eq!(
+                baseline.heights.len(),
+                result.heights.len(),
+                "DP run {run}: length mismatch"
+            );
+            for (i, (a, b)) in baseline.heights.iter().zip(&result.heights).enumerate() {
+                assert!(
+                    (a.0 - b.0).abs() < 1e-15,
+                    "DP run {run}, layer {i}: Z mismatch",
+                );
+                assert!(
+                    (a.1 - b.1).abs() < 1e-15,
+                    "DP run {run}, layer {i}: Height mismatch",
+                );
+            }
+        }
+    }
+
+    #[test]
     fn vlh_output_heights_within_bounds() {
         let mesh = unit_sphere();
         let config = test_vlh_config();

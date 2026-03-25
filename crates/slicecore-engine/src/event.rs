@@ -93,6 +93,28 @@ pub enum SliceEvent {
         time_seconds: f64,
     },
 
+    /// VLH per-layer diagnostic data. Emitted when vlh_diagnostics is enabled.
+    VlhDiagnostic {
+        /// Layer index.
+        layer: usize,
+        /// Z height in mm.
+        z: f64,
+        /// Final computed layer height in mm.
+        height: f64,
+        /// Quality objective score (desired height from quality alone).
+        quality_score: f64,
+        /// Speed objective score.
+        speed_score: f64,
+        /// Strength objective score.
+        strength_score: f64,
+        /// Material objective score.
+        material_score: f64,
+        /// Which objective or feature most influenced the final height.
+        dominant_factor: String,
+        /// Feature types detected at this Z (e.g., "overhang:52.3deg", "hole:3.2mm").
+        features: Vec<String>,
+    },
+
     /// Rich progress update emitted during per-layer processing.
     ///
     /// Contains both overall pipeline progress and per-stage progress,
