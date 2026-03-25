@@ -690,7 +690,7 @@ impl PlateStatistics {
         }
     }
 
-    /// Creates a [`PlateStatistics`] from [`ObjectSliceResult`] entries.
+    /// Creates a [`PlateStatistics`] from [`crate::engine::ObjectSliceResult`] entries.
     ///
     /// Extracts per-object statistics from each slice result and aggregates.
     #[must_use]

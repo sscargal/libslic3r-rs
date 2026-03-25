@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 45-11-PLAN.md
-last_updated: "2026-03-24T19:46:17.555Z"
-last_activity: "2026-03-24 - Completed 45-09: Serialization output with per-object statistics"
+status: completed
+stopped_at: Completed 46-03-PLAN.md
+last_updated: "2026-03-25T00:23:50.820Z"
+last_activity: "2026-03-25 - Completed 46-03: Gap closure for manifest PrintStats population"
 progress:
   total_phases: 51
-  completed_phases: 45
-  total_plans: 189
-  completed_plans: 189
-  percent: 99
+  completed_phases: 46
+  total_plans: 192
+  completed_plans: 192
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 45 of 51 (Global and per-object settings override system)
-Plan: 9 of 10 in current phase
-Status: In Progress
-Last activity: 2026-03-24 - Completed 45-09: Serialization output with per-object statistics
+Phase: 46 of 51 (Job output directories for isolated slice execution)
+Plan: 3 of 3 in current phase (COMPLETE)
+Status: Phase Complete
+Last activity: 2026-03-25 - Captured todo: Show in-progress commands in QA test script
 
-Progress: [██████████] 99% (187/188 overall)
+Progress: [██████████] 100% (192/192 overall)
 
 ## Performance Metrics
 
@@ -166,6 +166,9 @@ Progress: [██████████] 99% (187/188 overall)
 | Phase 45 P09 | 44 | 2 tasks | 6 files |
 | Phase 45 P10 | 17 | 2 tasks | 7 files |
 | Phase 45 P11 | 5min | 2 tasks | 1 files |
+| Phase 46 P01 | 5min | 2 tasks | 5 files |
+| Phase 46 P02 | 4 | 2 tasks | 3 files |
+| Phase 46 P03 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -709,6 +712,9 @@ Recent decisions affecting current work:
 - [Phase 45]: Override diffs computed via JSON flatten+compare; total layers use max() across objects
 - [Phase 45]: Programmatic PlateConfig construction for E2E tests over TOML fixture parsing
 - [Phase 45]: Used toml::Value builder for plate.toml per-object overrides instead of template function
+- [Phase 46]: Promoted sha2 to workspace dependency for shared use by engine and CLI crates
+- [Phase 46]: Job-dir orchestration in Commands::Slice match arm, not in cmd_slice signature
+- [Phase 46]: cmd_slice returns Option<PrintStats> for cross-concern data flow to job-dir manifest
 
 ### Roadmap Evolution
 
@@ -740,7 +746,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-27 pending — /gsd:check-todos to review
+36 pending — /gsd:check-todos to review
 
 ### Blockers/Concerns
 
@@ -768,6 +774,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-24T19:41:44.931Z
-Stopped at: Completed 45-11-PLAN.md
+Last session: 2026-03-25T00:20:02.072Z
+Stopped at: Completed 46-03-PLAN.md
 Resume file: None

@@ -31,6 +31,10 @@ console = "0.15"
 dialoguer = "0.12"
 indicatif = "0.17"
 anyhow = { workspace = true }
+thiserror = { workspace = true }
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = { workspace = true }
 home = "0.5"
 
 [dev-dependencies]

@@ -332,7 +332,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 43. Enable/Disable Printer and Filament Profiles | 3/3 | Complete    | 2026-03-21 |
 | 44. Search and Filter Profiles by Compatibility | 3/3 | Complete    | 2026-03-23 |
 | 45. Global and Per-Object Settings Override System | 11/11 | Complete    | 2026-03-24 |
-| 46. Job Output Directories | 0/0 | ○ Pending | - |
+| 46. Job Output Directories | 3/3 | Complete    | 2026-03-25 |
 | 47. Variable Layer Height Algorithms | 0/0 | ○ Pending | - |
 | 48. Selective Adaptive Z-Hop Control | 0/0 | ○ Pending | - |
 | 49. Hybrid Sequential Printing | 0/0 | ○ Pending | - |
@@ -432,7 +432,7 @@ Plans:
   4. CLI flags control statistics format (--stats-format), quiet mode (--quiet), file output (--stats-file), time precision (--time-precision), sort order (--sort-stats)
   5. When --json is used for slice output, statistics are included by default (--json-no-stats to exclude)
   6. All features appear in output even when unused (zero values), and support features have separate subtotals
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 
 Plans:
 - [ ] 19-01-PLAN.md -- Engine statistics module (PrintStatistics types, per-feature computation, G-code metrics extraction, pipeline integration)
@@ -489,7 +489,7 @@ Plans:
   3. The WASM cfg gate is removed -- 3MF parsing is available on all targets including wasm32-unknown-unknown and wasm32-wasip2
   4. No references to old lib3mf crate remain in any source file
   5. WASM compilation of slicecore-fileio succeeds, proving the migration unlocked WASM 3MF support
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 
 Plans:
 - [ ] 22-01-PLAN.md -- Swap lib3mf to lib3mf-core, rewrite threemf.rs parser + tests, remove WASM cfg gates from lib.rs
@@ -507,7 +507,7 @@ Plans:
   4. SliceEvent::Progress emitted after each layer with overall_percent (10-90%), stage_percent (0-100%), ETA via rolling average over last 20 layers, elapsed_seconds, and layers_per_second
   5. WASM compilation works: timing gracefully disabled (elapsed_seconds=0.0, eta_seconds=None on wasm32)
   6. Integration tests verify cancellation (pre-flight and mid-flight), progress event accuracy, and ETA estimation
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 
 Plans:
 - [ ] 23-01-PLAN.md -- Core types (CancellationToken, EngineError::Cancelled, SliceEvent::Progress) and method signature changes with call site updates
@@ -523,7 +523,7 @@ Plans:
   3. ExportFormat is auto-detected from file extension (.stl, .3mf, .obj)
   4. lib3mf-core upgraded from 0.3 to 0.4 with no regressions in existing 3MF import
   5. CLI `slicecore convert input.ext output.ext` converts between mesh formats
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 
 Plans:
 - [ ] 24-01-PLAN.md -- lib3mf-core 0.4 upgrade, lib3mf-converters dep, export module (save_mesh, ExportFormat, round-trip tests)
@@ -724,7 +724,7 @@ Plans:
 **Goal:** Integrate existing criterion benchmarks into CI with two-tier regression detection (5% warn / 15% block), per-PR comparison comments via criterion-compare-action, historical tracking on gh-pages dashboard via github-action-benchmark, peak memory tracking via /usr/bin/time, bench-ok label override, and developer documentation
 **Requirements**: BENCH-CI, BENCH-COMPARE, BENCH-HISTORY, BENCH-MEMORY, BENCH-SKIP, BENCH-DOCS
 **Depends on:** Phase 36
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 
 Plans:
 - [ ] 37-01-PLAN.md -- CI workflow (changes filter + bench job) and memory tracking script
@@ -736,7 +736,7 @@ Plans:
 **Goal:** Implement diff-profiles CLI subcommand comparing two PrintConfig instances with category-grouped table/JSON output, SettingRegistry metadata enrichment, and filtering by category/tier
 **Requirements**: TBD
 **Depends on:** Phase 37
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 
 Plans:
 - [ ] 38-01-PLAN.md -- Core diff engine module (profile_diff.rs) with types, flatten, comparison, and registry enrichment
@@ -747,7 +747,7 @@ Plans:
 **Goal:** Add JPEG encoding alongside PNG in the render crate, with CLI --format/--quality flags, auto-detection from file extension, and proper 3MF/G-code embedding behavior
 **Requirements**: JPEG-01, JPEG-02, JPEG-03, JPEG-04, JPEG-05, JPEG-06
 **Depends on:** Phase 38
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 
 Plans:
 - [ ] 39-01-PLAN.md -- Render crate image crate migration, ImageFormat enum, JPEG encoding, field renames across workspace
@@ -783,7 +783,7 @@ Plans:
 **Goal:** Enable users to create custom profiles by cloning existing presets via `slicecore profile clone <source> <new-name>`, with subsequent editing via `slicecore profile set` and schema-based validation.
 **Requirements**: [API-02]
 **Depends on:** Phase 41
-**Plans:** 2/2 plans complete
+**Plans:** 3 plans (2 complete + 1 gap closure)
 
 Plans:
 - [ ] 42-01-PLAN.md — ProfileCommand enum, clone command, name validation, main.rs wiring
@@ -838,9 +838,15 @@ Plans:
 **Goal:** Implement job directory concept with structured output (G-code, logs, config snapshot, thumbnail, manifest) via `--job-dir` flag, enabling isolated artifact management for parallel slicing, batch workflows, and future daemon/farm/SaaS features.
 **Requirements**: [API-02]
 **Depends on:** Phase 45
-**Plans:** 0 plans
+**Plans:** 3/3 plans complete
 
 Plans:
+- [ ] 46-01-PLAN.md -- JobDir module with struct, manifest, locking, artifact paths, and unit tests
+- [ ] 46-02-PLAN.md -- CLI integration (--job-dir, --job-base flags) with cmd_slice wiring and integration tests
+- [ ] 46-03-PLAN.md -- Gap closure: populate PrintStats in job-dir manifest
+
+
+
 
 ### Phase 47: Variable layer height algorithms — implement multi-objective VLH optimization with curvature, feature-aware heights, and Laplacian smoothing
 
