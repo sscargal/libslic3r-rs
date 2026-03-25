@@ -144,7 +144,7 @@ pub fn compute_adaptive_layer_heights(
 ///
 /// Returns `(z, curvature)` pairs where higher curvature means thinner layers
 /// are desirable.
-fn sample_curvature_profile(mesh: &TriangleMesh, sample_step: f64) -> Vec<(f64, f64)> {
+pub(crate) fn sample_curvature_profile(mesh: &TriangleMesh, sample_step: f64) -> Vec<(f64, f64)> {
     let aabb = mesh.aabb();
     let mesh_max_z = aabb.max.z;
     let mesh_min_z = aabb.min.z;
