@@ -20,21 +20,70 @@ pub fn laplacian_smooth(
     lambda: f64,
     iterations: usize,
 ) {
-    let _ = (heights, pinned, lambda, iterations);
-    todo!()
+    let len = heights.len();
+    if len < 3 {
+        return;
+    }
+
+    let lambda = lambda.clamp(0.0, 1.0);
+    if lambda < 1e-15 {
+        return;
+    }
+
+    for _ in 0..iterations {
+        // Snapshot current heights for the iteration.
+        let snapshot: Vec<f64> = heights.iter().map(|h| h.1).collect();
+
+        for i in 1..len - 1 {
+            if pinned.get(i).copied().unwrap_or(false) {
+                continue;
+            }
+            let avg = (snapshot[i - 1] + snapshot[i + 1]) / 2.0;
+            heights[i].1 = snapshot[i] + lambda * (avg - snapshot[i]);
+        }
+    }
 }
 
 /// Forward-backward ratio clamping (safety net after Laplacian smoothing).
 ///
 /// Ensures no adjacent layers differ by more than `max_ratio` (default 1.5 = 50%).
+/// This is the same algorithm as `smooth_heights` in `adaptive.rs`, extracted
+/// for reuse.
 pub fn ratio_clamp(heights: &mut [(f64, f64)], max_ratio: f64) {
-    let _ = (heights, max_ratio);
-    todo!()
+    if heights.len() < 2 {
+        return;
+    }
+
+    // Forward pass: clamp each height relative to the previous.
+    for i in 1..heights.len() {
+        let prev_h = heights[i - 1].1;
+        let max_h = prev_h * max_ratio;
+        let min_h = prev_h / max_ratio;
+        heights[i].1 = heights[i].1.clamp(min_h, max_h);
+    }
+
+    // Backward pass: clamp each height relative to the next.
+    for i in (0..heights.len() - 1).rev() {
+        let next_h = heights[i + 1].1;
+        let max_h = next_h * max_ratio;
+        let min_h = next_h / max_ratio;
+        heights[i].1 = heights[i].1.clamp(min_h, max_h);
+    }
 }
 
 /// Full smoothing pipeline: Laplacian first, then ratio clamp as safety net.
 ///
 /// Recomputes Z positions after smoothing to maintain consistent layer stacking.
+///
+/// # Arguments
+///
+/// * `heights` - Mutable `(z, height)` pairs
+/// * `pinned` - Boolean slice, `true` = anchor point
+/// * `lambda` - Smoothing strength `[0.0, 1.0]`
+/// * `iterations` - Number of Laplacian passes
+/// * `max_ratio` - Maximum adjacent height ratio (e.g., 1.5 = 50%)
+/// * `min_height` - Minimum allowed layer height
+/// * `max_height` - Maximum allowed layer height
 pub fn smooth_vlh_heights(
     heights: &mut [(f64, f64)],
     pinned: &[bool],
@@ -44,8 +93,36 @@ pub fn smooth_vlh_heights(
     min_height: f64,
     max_height: f64,
 ) {
-    let _ = (heights, pinned, lambda, iterations, max_ratio, min_height, max_height);
-    todo!()
+    if heights.len() < 2 {
+        return;
+    }
+
+    // Step 1: Laplacian smoothing.
+    laplacian_smooth(heights, pinned, lambda, iterations);
+
+    // Step 2: Ratio clamping safety net.
+    ratio_clamp(heights, max_ratio);
+
+    // Step 3: Clamp all non-first heights to valid range.
+    for entry in heights.iter_mut().skip(1) {
+        entry.1 = entry.1.clamp(min_height, max_height);
+    }
+
+    // Step 4: Recompute Z positions for consistent stacking.
+    recompute_z_positions(heights);
+}
+
+/// Recomputes Z positions after smoothing to maintain consistent layer stacking.
+///
+/// Each layer's Z center = previous layer's top + current layer's height / 2.
+fn recompute_z_positions(heights: &mut [(f64, f64)]) {
+    if heights.len() < 2 {
+        return;
+    }
+    for i in 1..heights.len() {
+        let prev_top = heights[i - 1].0 + heights[i - 1].1 / 2.0;
+        heights[i].0 = prev_top + heights[i].1 / 2.0;
+    }
 }
 
 #[cfg(test)]
@@ -110,9 +187,8 @@ mod tests {
             (0.65, 0.05),
         ];
         let pinned = vec![false, false, false, false, false];
-        let original_mean: f64 = heights.iter().map(|h| h.1).sum::<f64>() / heights.len() as f64;
         laplacian_smooth(&mut heights, &pinned, 0.5, 5);
-        // Boundary elements are not moved, so not all heights can converge to mean.
+        // Boundary elements are not moved.
         let first = heights[0].1;
         let last = heights[heights.len() - 1].1;
         assert!(
@@ -177,13 +253,7 @@ mod tests {
             (0.3, 0.1),
             (0.4, 0.3),
         ];
-        let first_h = heights[0].1;
         ratio_clamp(&mut heights, 1.5);
-        // First layer may be affected by backward pass, but should stay reasonable.
-        // The important thing is the ratio enforcement.
-        // Actually, per spec, first layer height is preserved by the combined pipeline.
-        // ratio_clamp itself does forward-backward passes that may adjust first layer.
-        // We just check ratios are enforced.
         for i in 1..heights.len() {
             let ratio = heights[i].1 / heights[i - 1].1;
             assert!(
