@@ -208,7 +208,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | INFILL-12 | Phase 3 | Pending |
 | GCODE-01 | Phase 3 | Pending |
 | GCODE-05 | Phase 3 | Complete |
-| GCODE-07 | Phase 3 | Pending |
+| GCODE-07 | Phase 48 | Partial (z-hop subsystem) |
 | GCODE-08 | Phase 3 | Pending |
 | GCODE-09 | Phase 3 | Pending |
 | GCODE-10 | Phase 3 | Pending |
