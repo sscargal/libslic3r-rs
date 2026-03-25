@@ -1,0 +1,294 @@
+//! VLH optimizer implementations: greedy with lookahead and dynamic programming.
+//!
+//! Both optimizers select per-Z layer heights by minimizing a weighted
+//! multi-objective cost function. The greedy optimizer uses a sliding lookahead
+//! window; the DP optimizer finds the globally optimal height sequence through
+//! a discrete candidate lattice.
+//!
+//! All computation is serial and deterministic (SLICE-05 compliant). No
+//! floating-point non-determinism from parallel reduction or random
+//! tie-breaking.
+
+use super::{ObjectiveScores, VlhConfig, VlhWeights};
+
+/// Per-Z sample with pre-computed objective scores and feature demands.
+#[derive(Debug, Clone)]
+pub struct ZSample {
+    pub z: f64,
+    pub scores: ObjectiveScores,
+    pub feature_demanded_height: Option<f64>,
+    pub stress_factor: f64,
+    pub external_surface_fraction: f64,
+}
+
+/// Greedy optimizer with lookahead window.
+///
+/// Selects layer heights by evaluating the next `lookahead` Z samples at each
+/// step and picking the height that minimizes total cost over the window.
+///
+/// # Returns
+///
+/// Vector of `(z_position, layer_height)` pairs with monotonically increasing Z.
+#[must_use]
+pub fn optimize_greedy(_z_samples: &[ZSample], _config: &VlhConfig) -> Vec<(f64, f64)> {
+    todo!("implement greedy optimizer")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::OptimizerMode;
+
+    /// Helper: create a VlhConfig with sensible defaults for testing.
+    fn test_config() -> VlhConfig {
+        VlhConfig {
+            min_height: 0.05,
+            max_height: 0.3,
+            first_layer_height: 0.2,
+            weights: VlhWeights::new(1.0, 0.0, 0.0, 0.0),
+            optimizer_mode: OptimizerMode::Greedy,
+            smoothing_strength: 0.5,
+            smoothing_iterations: 3,
+            diagnostics: false,
+            stochastic: false,
+            feature_overhang_weight: 1.0,
+            feature_bridge_weight: 1.0,
+            feature_thin_wall_weight: 1.0,
+            feature_hole_weight: 1.0,
+            overhang_angle_min: 40.0,
+            overhang_angle_max: 60.0,
+            thin_wall_threshold: 0.8,
+            feature_margin_layers: 2,
+            nozzle_diameter: 0.4,
+        }
+    }
+
+    /// Generate Z samples simulating a sphere-like curvature profile.
+    /// High curvature at the "equator" (middle Z), low at poles.
+    fn sphere_z_samples(total_height: f64, step: f64, min_h: f64, max_h: f64) -> Vec<ZSample> {
+        let mut samples = Vec::new();
+        let mid = total_height / 2.0;
+        let mut z = 0.0;
+        while z <= total_height {
+            // Curvature peaks at midpoint.
+            let dist_from_mid = ((z - mid) / mid).abs().clamp(0.0, 1.0);
+            let curvature = 1.0 - dist_from_mid; // 1.0 at mid, 0.0 at poles
+            let external = 1.0;
+            let quality_h = max_h - (max_h - min_h) * curvature;
+            let scores = ObjectiveScores {
+                quality_height: quality_h,
+                speed_height: max_h,
+                strength_height: max_h,
+                material_height: max_h,
+            };
+            samples.push(ZSample {
+                z,
+                scores,
+                feature_demanded_height: None,
+                stress_factor: 0.0,
+                external_surface_fraction: external,
+            });
+            z += step;
+        }
+        samples
+    }
+
+    /// Generate flat Z samples (no curvature variation).
+    fn flat_z_samples(total_height: f64, step: f64, max_h: f64) -> Vec<ZSample> {
+        let mut samples = Vec::new();
+        let mut z = 0.0;
+        while z <= total_height {
+            let scores = ObjectiveScores {
+                quality_height: max_h,
+                speed_height: max_h,
+                strength_height: max_h,
+                material_height: max_h,
+            };
+            samples.push(ZSample {
+                z,
+                scores,
+                feature_demanded_height: None,
+                stress_factor: 0.0,
+                external_surface_fraction: 1.0,
+            });
+            z += step;
+        }
+        samples
+    }
+
+    mod greedy {
+        use super::*;
+
+        #[test]
+        fn quality_only_high_curvature_produces_thin_layers() {
+            let config = test_config(); // quality-only weights
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let result = optimize_greedy(&samples, &config);
+
+            assert!(!result.is_empty(), "Should produce output");
+
+            // Layers near the equator (z ~ 5.0) should be thinner than near poles
+            let equator_layers: Vec<f64> = result
+                .iter()
+                .filter(|&&(z, _)| z > 3.5 && z < 6.5)
+                .map(|&(_, h)| h)
+                .collect();
+            let pole_layers: Vec<f64> = result
+                .iter()
+                .filter(|&&(z, _)| z < 1.5 || z > 8.5)
+                .map(|&(_, h)| h)
+                .collect();
+
+            if !equator_layers.is_empty() && !pole_layers.is_empty() {
+                let avg_eq: f64 =
+                    equator_layers.iter().sum::<f64>() / equator_layers.len() as f64;
+                let avg_pole: f64 =
+                    pole_layers.iter().sum::<f64>() / pole_layers.len() as f64;
+                assert!(
+                    avg_eq < avg_pole,
+                    "Equator avg ({avg_eq:.4}) should be < pole avg ({avg_pole:.4})"
+                );
+            }
+        }
+
+        #[test]
+        fn speed_only_produces_near_max_height() {
+            let mut config = test_config();
+            config.weights = VlhWeights::new(0.0, 1.0, 0.0, 0.0);
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let result = optimize_greedy(&samples, &config);
+
+            assert!(!result.is_empty(), "Should produce output");
+
+            let nozzle_limit = config.nozzle_diameter * 0.75; // 0.3
+            for &(z, h) in result.iter().skip(1) {
+                // Speed-only should produce max or near-max heights
+                assert!(
+                    h >= config.max_height * 0.8 || h >= nozzle_limit * 0.8,
+                    "Speed-only at z={z:.3} should be near max, got {h:.4}"
+                );
+            }
+        }
+
+        #[test]
+        fn respects_min_max_bounds() {
+            let config = test_config();
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let result = optimize_greedy(&samples, &config);
+
+            let nozzle_limit = config.nozzle_diameter * 0.75;
+            let effective_max = config.max_height.min(nozzle_limit);
+            for &(z, h) in &result {
+                assert!(
+                    h >= config.min_height - 1e-9,
+                    "Height {h:.6} at z={z:.3} below min {}",
+                    config.min_height
+                );
+                assert!(
+                    h <= effective_max + 1e-9,
+                    "Height {h:.6} at z={z:.3} above effective max {effective_max}"
+                );
+            }
+        }
+
+        #[test]
+        fn preserves_first_layer_height() {
+            let config = test_config();
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let result = optimize_greedy(&samples, &config);
+
+            assert!(!result.is_empty(), "Should produce output");
+            assert!(
+                (result[0].1 - config.first_layer_height).abs() < 1e-9,
+                "First layer height should be {}, got {}",
+                config.first_layer_height,
+                result[0].1
+            );
+            assert!(
+                (result[0].0 - config.first_layer_height / 2.0).abs() < 1e-9,
+                "First layer Z should be {}, got {}",
+                config.first_layer_height / 2.0,
+                result[0].0
+            );
+        }
+
+        #[test]
+        fn z_values_monotonically_increasing() {
+            let config = test_config();
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let result = optimize_greedy(&samples, &config);
+
+            for i in 1..result.len() {
+                assert!(
+                    result[i].0 > result[i - 1].0,
+                    "Z[{}]={} should be > Z[{}]={}",
+                    i,
+                    result[i].0,
+                    i - 1,
+                    result[i - 1].0
+                );
+            }
+        }
+
+        #[test]
+        fn is_deterministic() {
+            let config = test_config();
+            let samples = sphere_z_samples(10.0, 0.01, 0.05, 0.3);
+            let first = optimize_greedy(&samples, &config);
+
+            for run in 0..100 {
+                let again = optimize_greedy(&samples, &config);
+                assert_eq!(
+                    first.len(),
+                    again.len(),
+                    "Run {run}: length mismatch {} vs {}",
+                    first.len(),
+                    again.len()
+                );
+                for (i, (a, b)) in first.iter().zip(again.iter()).enumerate() {
+                    assert!(
+                        (a.0 - b.0).abs() < 1e-15 && (a.1 - b.1).abs() < 1e-15,
+                        "Run {run}, layer {i}: ({},{}) vs ({},{})",
+                        a.0, a.1, b.0, b.1
+                    );
+                }
+            }
+        }
+
+        #[test]
+        fn respects_feature_demands() {
+            let config = test_config();
+            // Create samples where a feature demands thin height in a region.
+            let mut samples = flat_z_samples(5.0, 0.01, 0.3);
+            // Demand 0.08mm height in the 2.0-3.0 range
+            for s in &mut samples {
+                if s.z >= 2.0 && s.z <= 3.0 {
+                    s.feature_demanded_height = Some(0.08);
+                }
+            }
+            let result = optimize_greedy(&samples, &config);
+
+            // Layers in the demanded region should be thinner
+            let demanded_layers: Vec<f64> = result
+                .iter()
+                .filter(|&&(z, _)| z > 2.0 && z < 3.0)
+                .map(|&(_, h)| h)
+                .collect();
+            if !demanded_layers.is_empty() {
+                let avg: f64 =
+                    demanded_layers.iter().sum::<f64>() / demanded_layers.len() as f64;
+                assert!(
+                    avg <= 0.12,
+                    "Feature-demanded region avg height ({avg:.4}) should be <= 0.12"
+                );
+            }
+        }
+
+        #[test]
+        fn empty_input_returns_empty() {
+            let config = test_config();
+            let result = optimize_greedy(&[], &config);
+            assert!(result.is_empty(), "Empty input should produce empty output");
+        }
+    }
+}
