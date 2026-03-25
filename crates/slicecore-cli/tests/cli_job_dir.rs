@@ -347,6 +347,31 @@ fn test_job_dir_manifest_contents() {
         manifest["duration_ms"].is_number(),
         "duration_ms should be a number"
     );
+
+    // Statistics must be populated (gap closure for Plan 02 acceptance criteria).
+    assert!(
+        manifest["statistics"].is_object(),
+        "statistics should be an object, got: {:?}",
+        manifest["statistics"]
+    );
+    let stats = &manifest["statistics"];
+    assert!(
+        stats["layer_count"].as_u64().unwrap_or(0) > 0,
+        "statistics.layer_count should be > 0, got: {:?}",
+        stats["layer_count"]
+    );
+    assert!(
+        stats["estimated_time_seconds"].as_f64().unwrap_or(0.0) > 0.0,
+        "statistics.estimated_time_seconds should be > 0"
+    );
+    assert!(
+        stats["filament_length_mm"].as_f64().is_some(),
+        "statistics.filament_length_mm should be a number"
+    );
+    assert!(
+        stats["line_count"].as_u64().unwrap_or(0) > 0,
+        "statistics.line_count should be > 0"
+    );
 }
 
 #[test]
