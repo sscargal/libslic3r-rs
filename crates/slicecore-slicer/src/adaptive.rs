@@ -478,4 +478,66 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn wrapper_delegates_to_vlh_system() {
+        // Verify that compute_adaptive_layer_heights produces results identical
+        // to a direct compute_vlh_heights call with equivalent config.
+        use crate::vlh::{compute_vlh_heights, OptimizerMode, VlhConfig, VlhWeights};
+
+        let mesh = unit_sphere();
+        let min_h = 0.1;
+        let max_h = 0.3;
+        let quality = 0.8;
+        let first_layer = 0.2;
+
+        let wrapper_result =
+            compute_adaptive_layer_heights(&mesh, min_h, max_h, quality, first_layer);
+
+        let config = VlhConfig {
+            min_height: min_h,
+            max_height: max_h,
+            first_layer_height: first_layer,
+            weights: VlhWeights::new(quality.max(0.01), 1.0 - quality.clamp(0.0, 1.0), 0.0, 0.0),
+            optimizer_mode: OptimizerMode::Greedy,
+            smoothing_strength: 0.3,
+            smoothing_iterations: 1,
+            diagnostics: false,
+            stochastic: false,
+            feature_overhang_weight: 0.0,
+            feature_bridge_weight: 0.0,
+            feature_thin_wall_weight: 0.0,
+            feature_hole_weight: 0.0,
+            overhang_angle_min: 45.0,
+            overhang_angle_max: 60.0,
+            thin_wall_threshold: 0.8,
+            feature_margin_layers: 2,
+            nozzle_diameter: 0.4,
+        };
+        let vlh_result = compute_vlh_heights(&mesh, &config);
+
+        assert_eq!(
+            wrapper_result.len(),
+            vlh_result.heights.len(),
+            "Wrapper and direct VLH call should produce same number of layers"
+        );
+        for (i, (w, v)) in wrapper_result
+            .iter()
+            .zip(vlh_result.heights.iter())
+            .enumerate()
+        {
+            assert!(
+                (w.0 - v.0).abs() < 1e-10,
+                "Layer {i} Z mismatch: wrapper={}, vlh={}",
+                w.0,
+                v.0
+            );
+            assert!(
+                (w.1 - v.1).abs() < 1e-10,
+                "Layer {i} height mismatch: wrapper={}, vlh={}",
+                w.1,
+                v.1
+            );
+        }
+    }
 }
