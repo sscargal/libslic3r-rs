@@ -15,6 +15,7 @@
 //! - **Config** ([`VlhConfig`]): All parameters extracted from `PrintConfig`.
 //! - **Result** ([`VlhResult`]): Final `(z, height)` pairs plus diagnostics.
 
+pub mod features;
 pub mod objectives;
 
 /// Normalized objective weights (always sum to 1.0).
