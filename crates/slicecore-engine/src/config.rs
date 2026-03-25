@@ -4867,3 +4867,82 @@ first_layer_bed_temperatures = [65.0, 75.0]
         assert!(ignored_count > 0, "No ignored settings found");
     }
 }
+
+#[cfg(test)]
+mod z_hop_config_tests {
+    use super::*;
+
+    #[test]
+    fn test_zhop_config_defaults() {
+        let cfg = ZHopConfig::default();
+        assert!((cfg.height - 0.0).abs() < 1e-9);
+        assert_eq!(cfg.hop_type, ZHopType::Normal);
+        assert_eq!(cfg.height_mode, ZHopHeightMode::Fixed);
+        assert!((cfg.proportional_multiplier - 1.5).abs() < 1e-9);
+        assert!((cfg.min_height - 0.1).abs() < 1e-9);
+        assert!((cfg.max_height - 2.0).abs() < 1e-9);
+        assert_eq!(cfg.surface_enforce, SurfaceEnforce::TopSolidAndIroning);
+        assert!((cfg.travel_angle - 45.0).abs() < 1e-9);
+        assert!((cfg.speed - 0.0).abs() < 1e-9);
+        assert!((cfg.min_travel - 2.0).abs() < 1e-9);
+        assert!((cfg.above - 0.0).abs() < 1e-9);
+        assert!((cfg.below - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_zhop_type_serde_roundtrip() {
+        for variant in &[ZHopType::Normal, ZHopType::Slope, ZHopType::Spiral, ZHopType::Auto] {
+            let json = serde_json::to_string(variant).unwrap();
+            let back: ZHopType = serde_json::from_str(&json).unwrap();
+            assert_eq!(*variant, back);
+        }
+    }
+
+    #[test]
+    fn test_zhop_height_mode_serde_roundtrip() {
+        for variant in &[ZHopHeightMode::Fixed, ZHopHeightMode::Proportional] {
+            let json = serde_json::to_string(variant).unwrap();
+            let back: ZHopHeightMode = serde_json::from_str(&json).unwrap();
+            assert_eq!(*variant, back);
+        }
+    }
+
+    #[test]
+    fn test_zhop_config_json_deserialization() {
+        let json = r#"{
+            "height": 0.4,
+            "hop_type": "Slope",
+            "height_mode": "Proportional",
+            "proportional_multiplier": 2.0,
+            "min_height": 0.05,
+            "max_height": 3.0,
+            "surface_enforce": "AllSurfaces",
+            "travel_angle": 60.0,
+            "speed": 100.0,
+            "min_travel": 5.0,
+            "above": 1.0,
+            "below": 10.0
+        }"#;
+        let cfg: ZHopConfig = serde_json::from_str(json).unwrap();
+        assert!((cfg.height - 0.4).abs() < 1e-9);
+        assert_eq!(cfg.hop_type, ZHopType::Slope);
+        assert_eq!(cfg.height_mode, ZHopHeightMode::Proportional);
+        assert!((cfg.proportional_multiplier - 2.0).abs() < 1e-9);
+        assert!((cfg.min_height - 0.05).abs() < 1e-9);
+        assert!((cfg.max_height - 3.0).abs() < 1e-9);
+        assert_eq!(cfg.surface_enforce, SurfaceEnforce::AllSurfaces);
+        assert!((cfg.travel_angle - 60.0).abs() < 1e-9);
+        assert!((cfg.speed - 100.0).abs() < 1e-9);
+        assert!((cfg.min_travel - 5.0).abs() < 1e-9);
+        assert!((cfg.above - 1.0).abs() < 1e-9);
+        assert!((cfg.below - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_zhop_alias_backward_compat() {
+        // Old format: {"z_hop": 0.4} should map via alias to height field
+        let json = r#"{"z_hop": 0.4}"#;
+        let cfg: ZHopConfig = serde_json::from_str(json).unwrap();
+        assert!((cfg.height - 0.4).abs() < 1e-9);
+    }
+}
