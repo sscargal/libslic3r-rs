@@ -332,7 +332,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 43. Enable/Disable Printer and Filament Profiles | 3/3 | Complete    | 2026-03-21 |
 | 44. Search and Filter Profiles by Compatibility | 3/3 | Complete    | 2026-03-23 |
 | 45. Global and Per-Object Settings Override System | 11/11 | Complete    | 2026-03-24 |
-| 46. Job Output Directories | 2/2 | Complete   | 2026-03-24 |
+| 46. Job Output Directories | 3/3 | Complete   | 2026-03-25 |
 | 47. Variable Layer Height Algorithms | 0/0 | ○ Pending | - |
 | 48. Selective Adaptive Z-Hop Control | 0/0 | ○ Pending | - |
 | 49. Hybrid Sequential Printing | 0/0 | ○ Pending | - |
@@ -838,7 +838,7 @@ Plans:
 **Goal:** Implement job directory concept with structured output (G-code, logs, config snapshot, thumbnail, manifest) via `--job-dir` flag, enabling isolated artifact management for parallel slicing, batch workflows, and future daemon/farm/SaaS features.
 **Requirements**: [API-02]
 **Depends on:** Phase 45
-**Plans:** 3 plans (2 complete + 1 gap closure)
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 46-01-PLAN.md -- JobDir module with struct, manifest, locking, artifact paths, and unit tests
