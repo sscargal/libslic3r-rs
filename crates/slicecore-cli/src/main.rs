@@ -947,7 +947,7 @@ fn main() {
 
                 // Call cmd_slice with overridden paths; force quiet=true so only
                 // the job directory path appears on stdout.
-                cmd_slice(
+                let slice_stats = cmd_slice(
                     &primary_input,
                     &inputs,
                     plate.as_deref(),
@@ -1007,10 +1007,6 @@ fn main() {
                     thumbnail: thumbnail_checksum,
                 };
 
-                // Build print statistics from the output G-code (approximate from file).
-                // For a proper implementation we'd pass stats from cmd_slice,
-                // but since cmd_slice doesn't return values, we leave stats as None
-                // and populate what we can.
                 let gcode_output_name = job_output
                     .file_name()
                     .and_then(|n| n.to_str())
@@ -1020,7 +1016,7 @@ fn main() {
                 let final_manifest = manifest.into_success(
                     gcode_output_name,
                     Some(checksums),
-                    None, // stats populated by cmd_slice are not returned; v1 limitation
+                    slice_stats,
                     duration_ms,
                 );
                 if let Err(e) = job.write_manifest(&final_manifest) {
@@ -1031,7 +1027,7 @@ fn main() {
                 println!("{}", job.path().display());
             } else {
                 // Normal (non-job-dir) path.
-                cmd_slice(
+                let _ = cmd_slice(
                     &primary_input,
                     &inputs,
                     plate.as_deref(),
@@ -1385,7 +1381,7 @@ fn cmd_slice(
     auto_arrange: bool,
     no_travel_opt: bool,
     color_mode: cli_output::ColorMode,
-) {
+) -> Option<crate::job_dir::PrintStats> {
     // -----------------------------------------------------------------------
     // Plate mode: --plate or multi-model or --object overrides
     // -----------------------------------------------------------------------
@@ -1422,7 +1418,7 @@ fn cmd_slice(
             no_travel_opt,
             color_mode,
         );
-        return;
+        return None;
     }
     // Determine if we're using the new profile-based workflow or legacy --config path.
     let use_profile_workflow = machine.is_some()
@@ -1913,6 +1909,17 @@ fn cmd_slice(
             ));
         }
     }
+
+    // Return stats for job-dir manifest population.
+    let line_count = gcode_output.iter().filter(|&&b| b == b'\n').count();
+    Some(crate::job_dir::PrintStats {
+        filament_length_mm: result.filament_usage.length_mm,
+        filament_weight_g: result.filament_usage.weight_g,
+        filament_cost: result.filament_usage.cost,
+        estimated_time_seconds: result.estimated_time_seconds,
+        layer_count: result.layer_count,
+        line_count,
+    })
 }
 
 /// Identifier for an object in `--object` flag parsing.
