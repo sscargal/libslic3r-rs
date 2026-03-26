@@ -22,8 +22,8 @@ use md5::{Digest, Md5};
 
 use crate::error::FileIOError;
 use crate::project_config::{
-    build_filament_settings_config, build_machine_settings_config,
-    build_process_settings_config, build_project_metadata_config,
+    build_filament_settings_config, build_machine_settings_config, build_process_settings_config,
+    build_project_metadata_config,
 };
 use crate::threemf::ThreeMfObjectConfig;
 use slicecore_mesh::TriangleMesh;
@@ -446,10 +446,9 @@ pub fn export_project_to_3mf<W: Write + Seek>(
 
         // Thumbnail (if provided)
         if let Some(Some(png_bytes)) = project_options.thumbnails_per_plate.get(i) {
-            model.attachments.insert(
-                format!("Metadata/plate_{plate_num}.png"),
-                png_bytes.clone(),
-            );
+            model
+                .attachments
+                .insert(format!("Metadata/plate_{plate_num}.png"), png_bytes.clone());
         }
 
         // Plate metadata JSON
@@ -493,10 +492,9 @@ pub fn export_project_to_3mf<W: Write + Seek>(
     if let Some(ref ams) = project_options.ams_mapping {
         let json = serde_json::to_string_pretty(ams)
             .map_err(|e| FileIOError::WriteError(e.to_string()))?;
-        model.attachments.insert(
-            "Metadata/ams_mapping.json".to_string(),
-            json.into_bytes(),
-        );
+        model
+            .attachments
+            .insert("Metadata/ams_mapping.json".to_string(), json.into_bytes());
     }
 
     model
@@ -1055,14 +1053,11 @@ mod tests {
         let mut opts = minimal_project_options();
         opts.gcode_per_plate = vec![gcode1.clone(), gcode2.clone()];
         opts.thumbnails_per_plate = vec![None, None];
-        opts.plate_metadata = vec![
-            opts.plate_metadata[0].clone(),
-            {
-                let mut p2 = opts.plate_metadata[0].clone();
-                p2.plate_index = 2;
-                p2
-            },
-        ];
+        opts.plate_metadata = vec![opts.plate_metadata[0].clone(), {
+            let mut p2 = opts.plate_metadata[0].clone();
+            p2.plate_index = 2;
+            p2
+        }];
 
         let mut buf = Cursor::new(Vec::new());
         export_project_to_3mf(&[&mesh], &configs, &opts, &mut buf).unwrap();

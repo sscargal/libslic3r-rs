@@ -64,8 +64,7 @@ pub struct AmsSlot {
 /// </config>
 /// ```
 fn build_settings_xml(settings: &[(String, String)]) -> String {
-    let mut xml =
-        String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config>\n  <plate>\n");
+    let mut xml = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<config>\n  <plate>\n");
 
     for (key, value) in settings {
         xml.push_str(&format!(
@@ -104,24 +103,15 @@ pub fn build_machine_settings_config(settings: &[(String, String)]) -> String {
 pub fn build_project_metadata_config(meta: &ProjectMetadata) -> String {
     let mut entries: Vec<(String, String)> = Vec::new();
 
-    entries.push((
-        "BambuStudio:3mfVersion".to_string(),
-        "1".to_string(),
-    ));
+    entries.push(("BambuStudio:3mfVersion".to_string(), "1".to_string()));
     entries.push((
         "SliceCore:Version".to_string(),
         meta.slicecore_version.clone(),
     ));
-    entries.push((
-        "SliceCore:CreatedAt".to_string(),
-        meta.created_at.clone(),
-    ));
+    entries.push(("SliceCore:CreatedAt".to_string(), meta.created_at.clone()));
 
     for (filename, hash) in &meta.source_hashes {
-        entries.push((
-            format!("SliceCore:SourceHash:{filename}"),
-            hash.clone(),
-        ));
+        entries.push((format!("SliceCore:SourceHash:{filename}"), hash.clone()));
     }
 
     if let Some(ref cmd) = meta.reproduce_command {
@@ -149,10 +139,7 @@ pub fn build_project_metadata_config(meta: &ProjectMetadata) -> String {
     }
 
     for (role, name) in &meta.profile_names {
-        entries.push((
-            format!("SliceCore:Profile:{role}"),
-            name.clone(),
-        ));
+        entries.push((format!("SliceCore:Profile:{role}"), name.clone()));
     }
 
     build_settings_xml(&entries)

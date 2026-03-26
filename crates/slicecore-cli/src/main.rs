@@ -2027,11 +2027,7 @@ fn cmd_slice(
         let file = match std::fs::File::create(&out_path) {
             Ok(f) => f,
             Err(e) => {
-                output.error_msg(&format!(
-                    "Failed to create '{}': {}",
-                    out_path.display(),
-                    e
-                ));
+                output.error_msg(&format!("Failed to create '{}': {}", out_path.display(), e));
                 process::exit(1);
             }
         };
@@ -2976,22 +2972,20 @@ fn cmd_slice_plate(
         };
 
         let mesh_refs: Vec<&slicecore_mesh::TriangleMesh> = meshes.iter().collect();
-        let object_configs: Vec<ThreeMfObjectConfig> =
-            mesh_refs.iter().map(|_| ThreeMfObjectConfig::default()).collect();
+        let object_configs: Vec<ThreeMfObjectConfig> = mesh_refs
+            .iter()
+            .map(|_| ThreeMfObjectConfig::default())
+            .collect();
 
         let file = match std::fs::File::create(&out_path) {
             Ok(f) => f,
             Err(e) => {
-                output.error_msg(&format!(
-                    "Failed to create '{}': {e}",
-                    out_path.display()
-                ));
+                output.error_msg(&format!("Failed to create '{}': {e}", out_path.display()));
                 process::exit(1);
             }
         };
         let writer = std::io::BufWriter::new(file);
-        if let Err(e) =
-            export_project_to_3mf(&mesh_refs, &object_configs, &project_options, writer)
+        if let Err(e) = export_project_to_3mf(&mesh_refs, &object_configs, &project_options, writer)
         {
             output.error_msg(&format!(
                 "Failed to write 3MF project '{}': {e}",
@@ -5084,21 +5078,13 @@ fn build_process_settings_from_config(config: &PrintConfig) -> Vec<(String, Stri
         ),
         (
             "support_material".to_string(),
-            if config.support.enabled {
-                "1"
-            } else {
-                "0"
-            }
-            .to_string(),
+            if config.support.enabled { "1" } else { "0" }.to_string(),
         ),
         (
             "perimeter_speed".to_string(),
             config.speeds.perimeter.to_string(),
         ),
-        (
-            "infill_speed".to_string(),
-            config.speeds.infill.to_string(),
-        ),
+        ("infill_speed".to_string(), config.speeds.infill.to_string()),
     ]
 }
 
@@ -5200,10 +5186,7 @@ mod project_output_tests {
             .extension()
             .and_then(|e| e.to_str())
             .is_some_and(|e| e.eq_ignore_ascii_case("3mf"));
-        assert!(
-            !is_project,
-            ".gcode extension should NOT be project output"
-        );
+        assert!(!is_project, ".gcode extension should NOT be project output");
     }
 
     #[test]
