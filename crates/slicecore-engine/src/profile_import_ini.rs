@@ -299,6 +299,8 @@ pub fn prusaslicer_key_to_config_field(key: &str) -> Option<&'static str> {
         // Sequential/gantry clearance fields.
         "extruder_clearance_radius" => Some("sequential.extruder_clearance_radius"),
         "extruder_clearance_height" => Some("sequential.extruder_clearance_height"),
+        // PrusaSlicer: complete_objects = 1 -> sequential.enabled = true
+        "complete_objects" => Some("sequential.enabled"),
 
         // Acceleration sub-config fields.
         "external_perimeter_acceleration" => Some("accel.outer_wall"),
@@ -816,6 +818,10 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         }
         "extruder_clearance_height" => {
             parse_and_set_f64(value, &mut config.sequential.extruder_clearance_height)
+        }
+        "complete_objects" => {
+            config.sequential.enabled = value == "1" || value.eq_ignore_ascii_case("true");
+            true
         }
 
         // =====================================================================

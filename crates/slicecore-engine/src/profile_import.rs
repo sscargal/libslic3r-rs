@@ -780,6 +780,8 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         // --- Straggler fields ---
         "ironing_angle" => Some("ironing.angle"),
         "print_sequence" => Some("sequential.enabled"),
+        // PrusaSlicer: complete_objects = 1 -> sequential.enabled = true
+        "complete_objects" => Some("sequential.enabled"),
 
         // --- Jerk fields ---
         "default_jerk" => Some("accel.default_jerk"),
@@ -1967,6 +1969,10 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         "ironing_angle" => parse_and_set_f64(value, &mut config.ironing.angle),
         "print_sequence" => {
             config.sequential.enabled = value.eq_ignore_ascii_case("by object");
+            true
+        }
+        "complete_objects" => {
+            config.sequential.enabled = value == "1" || value.eq_ignore_ascii_case("true");
             true
         }
 
@@ -3329,5 +3335,44 @@ mod tests {
         assert!((config.z_hop.travel_angle - 60.0).abs() < 1e-9);
         assert!((config.z_hop.above - 0.3).abs() < 1e-9);
         assert!((config.z_hop.below - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn import_complete_objects_maps_to_sequential_enabled() {
+        let mut config = PrintConfig::default();
+        apply_field_mapping(&mut config, "complete_objects", "1");
+        assert!(
+            config.sequential.enabled,
+            "complete_objects=1 should set sequential.enabled=true"
+        );
+        // Hybrid fields should NOT be set by import.
+        assert!(
+            !config.sequential.hybrid_enabled,
+            "hybrid_enabled must remain false after profile import"
+        );
+    }
+
+    #[test]
+    fn import_print_sequence_by_object_maps_to_sequential_enabled() {
+        let mut config = PrintConfig::default();
+        apply_field_mapping(&mut config, "print_sequence", "by object");
+        assert!(
+            config.sequential.enabled,
+            "print_sequence='by object' should set sequential.enabled=true"
+        );
+        assert!(
+            !config.sequential.hybrid_enabled,
+            "hybrid_enabled must remain false after profile import"
+        );
+    }
+
+    #[test]
+    fn import_print_sequence_by_layer_keeps_sequential_disabled() {
+        let mut config = PrintConfig::default();
+        apply_field_mapping(&mut config, "print_sequence", "by layer");
+        assert!(
+            !config.sequential.enabled,
+            "print_sequence='by layer' should keep sequential.enabled=false"
+        );
     }
 }
