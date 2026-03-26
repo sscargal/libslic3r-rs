@@ -25,7 +25,7 @@ serde_json = { workspace = true }
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 abi_stable = { workspace = true }
 wasmtime = { version = "43", features = ["component-model", "cranelift"], optional = true }
-wasmtime-wasi = { version = "41", optional = true }
+wasmtime-wasi = { version = "43", optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
