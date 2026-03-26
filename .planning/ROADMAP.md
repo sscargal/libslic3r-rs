@@ -891,9 +891,11 @@ Plans:
 **Goal:** Enable saving complete slice sessions in 3MF project format containing model geometry, print settings metadata, thumbnail images, and embedded G-code, with Bambu/OrcaSlicer compatibility for direct-to-printer workflows.
 **Requirements**: [MESH-03]
 **Depends on:** Phase 49
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 Plans:
+- [ ] 50-01-PLAN.md -- Core 3MF project export types and functions (ProjectExportOptions, XML config builders, PlateMetadata, export_project_to_3mf)
+- [ ] 50-02-PLAN.md -- CLI integration with .3mf auto-detection, dual output, and job dir support
 
 ### Phase 51: Comprehensive documentation suite for users and developers — build mdBook-based docs with install guide, user guide, API reference, and developer guide
 
