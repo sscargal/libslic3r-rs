@@ -28,10 +28,7 @@ use crate::support::config::SupportConfig;
 pub enum VlhOptimizerMode {
     /// Greedy per-layer optimization (fast, good for most cases).
     #[default]
-    #[setting(
-        display = "Greedy",
-        description = "Greedy per-layer optimization"
-    )]
+    #[setting(display = "Greedy", description = "Greedy per-layer optimization")]
     Greedy,
     /// Dynamic programming for globally optimal height sequences.
     #[setting(
@@ -909,7 +906,14 @@ pub enum SurfaceEnforce {
 pub struct ZHopConfig {
     /// Z-hop height in mm. 0.0 = disabled.
     #[serde(alias = "z_hop")]
-    #[setting(tier = 2, description = "Z-hop height", units = "mm", min = 0.0, max = 5.0, override_safety = "safe")]
+    #[setting(
+        tier = 2,
+        description = "Z-hop height",
+        units = "mm",
+        min = 0.0,
+        max = 5.0,
+        override_safety = "safe"
+    )]
     pub height: f64,
     /// Z-hop motion type.
     #[setting(tier = 3, description = "Z-hop motion type", override_safety = "safe")]
@@ -918,31 +922,89 @@ pub struct ZHopConfig {
     #[setting(tier = 3, description = "Z-hop height mode", override_safety = "safe")]
     pub height_mode: ZHopHeightMode,
     /// Multiplier for proportional height mode (1.0-3.0x layer height).
-    #[setting(tier = 3, description = "Proportional height multiplier", min = 1.0, max = 3.0, depends_on = "z_hop.height_mode", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "Proportional height multiplier",
+        min = 1.0,
+        max = 3.0,
+        depends_on = "z_hop.height_mode",
+        override_safety = "safe"
+    )]
     pub proportional_multiplier: f64,
     /// Minimum z-hop height clamp in mm.
-    #[setting(tier = 3, description = "Minimum z-hop height", units = "mm", min = 0.0, max = 5.0, override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "Minimum z-hop height",
+        units = "mm",
+        min = 0.0,
+        max = 5.0,
+        override_safety = "safe"
+    )]
     pub min_height: f64,
     /// Maximum z-hop height clamp in mm.
-    #[setting(tier = 3, description = "Maximum z-hop height", units = "mm", min = 0.0, max = 10.0, override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "Maximum z-hop height",
+        units = "mm",
+        min = 0.0,
+        max = 10.0,
+        override_safety = "safe"
+    )]
     pub max_height: f64,
     /// Which surfaces trigger z-hop.
-    #[setting(tier = 3, description = "Surface enforcement for z-hop", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "Surface enforcement for z-hop",
+        override_safety = "safe"
+    )]
     pub surface_enforce: SurfaceEnforce,
     /// Travel angle for Slope/Spiral in degrees (90 = vertical = Normal).
-    #[setting(tier = 3, description = "Travel angle for slope/spiral", units = "deg", min = 10.0, max = 90.0, override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "Travel angle for slope/spiral",
+        units = "deg",
+        min = 10.0,
+        max = 90.0,
+        override_safety = "safe"
+    )]
     pub travel_angle: f64,
     /// Dedicated z-hop speed in mm/s. 0.0 = use travel speed.
-    #[setting(tier = 3, description = "Z-hop speed", units = "mm/s", min = 0.0, max = 200.0, override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "Z-hop speed",
+        units = "mm/s",
+        min = 0.0,
+        max = 200.0,
+        override_safety = "safe"
+    )]
     pub speed: f64,
     /// Minimum travel distance to trigger z-hop in mm.
-    #[setting(tier = 3, description = "Minimum travel for z-hop", units = "mm", min = 0.0, max = 20.0, override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "Minimum travel for z-hop",
+        units = "mm",
+        min = 0.0,
+        max = 20.0,
+        override_safety = "safe"
+    )]
     pub min_travel: f64,
     /// Z-hop only above this Z height in mm. 0.0 = no filter.
-    #[setting(tier = 3, description = "Z-hop above threshold", units = "mm", min = 0.0, override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "Z-hop above threshold",
+        units = "mm",
+        min = 0.0,
+        override_safety = "safe"
+    )]
     pub above: f64,
     /// Z-hop only below this Z height in mm. 0.0 = no filter (unlimited).
-    #[setting(tier = 3, description = "Z-hop below threshold", units = "mm", min = 0.0, override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "Z-hop below threshold",
+        units = "mm",
+        min = 0.0,
+        override_safety = "safe"
+    )]
     pub below: f64,
 }
 
@@ -2342,55 +2404,171 @@ pub struct PrintConfig {
     #[setting(tier = 2, description = "Enable multi-objective VLH", affects = ["quality", "print_time"], override_safety = "safe")]
     pub vlh_enabled: bool,
     /// VLH quality weight (higher = thinner layers on curves).
-    #[setting(tier = 2, description = "VLH quality weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 2,
+        description = "VLH quality weight",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_quality_weight: f64,
     /// VLH speed weight (higher = thicker layers everywhere).
-    #[setting(tier = 2, description = "VLH speed weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 2,
+        description = "VLH speed weight",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_speed_weight: f64,
     /// VLH strength weight (higher = thinner layers near stress features).
-    #[setting(tier = 2, description = "VLH strength weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 2,
+        description = "VLH strength weight",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_strength_weight: f64,
     /// VLH material saving weight (higher = thicker layers).
-    #[setting(tier = 2, description = "VLH material weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 2,
+        description = "VLH material weight",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_material_weight: f64,
     /// VLH optimizer mode (greedy or dynamic programming).
-    #[setting(tier = 3, description = "VLH optimizer mode", depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "VLH optimizer mode",
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_optimizer_mode: VlhOptimizerMode,
     /// VLH Laplacian smoothing strength (0.0 = none, 1.0 = maximum).
-    #[setting(tier = 3, description = "VLH smoothing strength", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "VLH smoothing strength",
+        min = 0.0,
+        max = 1.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_smoothing_strength: f64,
     /// VLH smoothing iterations.
-    #[setting(tier = 3, description = "VLH smoothing iterations", min = 0, max = 20, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "VLH smoothing iterations",
+        min = 0,
+        max = 20,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_smoothing_iterations: u32,
     /// Enable VLH per-layer diagnostic output.
-    #[setting(tier = 4, description = "Enable VLH diagnostics", depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 4,
+        description = "Enable VLH diagnostics",
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_diagnostics: bool,
     /// VLH overhang feature weight.
-    #[setting(tier = 3, description = "VLH overhang feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "VLH overhang feature weight",
+        min = 0.0,
+        max = 5.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_feature_overhang_weight: f64,
     /// VLH bridge feature weight.
-    #[setting(tier = 3, description = "VLH bridge feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "VLH bridge feature weight",
+        min = 0.0,
+        max = 5.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_feature_bridge_weight: f64,
     /// VLH thin wall feature weight.
-    #[setting(tier = 3, description = "VLH thin wall feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "VLH thin wall feature weight",
+        min = 0.0,
+        max = 5.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_feature_thin_wall_weight: f64,
     /// VLH hole feature weight.
-    #[setting(tier = 3, description = "VLH hole feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "VLH hole feature weight",
+        min = 0.0,
+        max = 5.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_feature_hole_weight: f64,
     /// Minimum overhang angle for VLH feature detection (degrees).
-    #[setting(tier = 3, description = "VLH overhang angle minimum", units = "deg", min = 0.0, max = 90.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "VLH overhang angle minimum",
+        units = "deg",
+        min = 0.0,
+        max = 90.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_overhang_angle_min: f64,
     /// Maximum overhang angle for VLH feature detection (degrees).
-    #[setting(tier = 3, description = "VLH overhang angle maximum", units = "deg", min = 0.0, max = 90.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "VLH overhang angle maximum",
+        units = "deg",
+        min = 0.0,
+        max = 90.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_overhang_angle_max: f64,
     /// Thin wall detection threshold (mm).
-    #[setting(tier = 3, description = "VLH thin wall threshold", units = "mm", min = 0.1, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "VLH thin wall threshold",
+        units = "mm",
+        min = 0.1,
+        max = 5.0,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_thin_wall_threshold: f64,
     /// Feature influence margin in layers.
-    #[setting(tier = 3, description = "VLH feature margin layers", min = 0, max = 10, depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 3,
+        description = "VLH feature margin layers",
+        min = 0,
+        max = 10,
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_feature_margin_layers: u32,
     /// Enable stochastic VLH optimization.
-    #[setting(tier = 4, description = "Enable stochastic VLH", depends_on = "vlh_enabled", override_safety = "safe")]
+    #[setting(
+        tier = 4,
+        description = "Enable stochastic VLH",
+        depends_on = "vlh_enabled",
+        override_safety = "safe"
+    )]
     pub vlh_stochastic: bool,
 
     // --- Gap Fill ---
@@ -3998,6 +4176,43 @@ pub struct SequentialConfig {
     /// takes priority over both the rectangular and cylinder models.
     #[setting(skip)]
     pub extruder_clearance_polygon: Vec<(f64, f64)>,
+    /// Enable hybrid sequential mode (shared first layers + per-object sequential).
+    ///
+    /// When enabled, the first `transition_layers` layers are printed with all
+    /// objects together (normal by-layer ordering), then switches to sequential
+    /// per-object printing. Requires `sequential.enabled = true`.
+    #[setting(
+        tier = 3,
+        description = "Enable hybrid sequential mode",
+        depends_on = "sequential.enabled",
+        override_safety = "warn"
+    )]
+    pub hybrid_enabled: bool,
+    /// Number of shared layers before switching to sequential printing.
+    ///
+    /// Layers 0 through `transition_layers - 1` are printed with all objects
+    /// together. Sequential per-object printing starts at layer `transition_layers`.
+    /// Only used when `hybrid_enabled` is true.
+    #[setting(
+        tier = 3,
+        description = "Number of shared first layers in hybrid mode",
+        depends_on = "sequential.enabled",
+        override_safety = "warn"
+    )]
+    pub transition_layers: u32,
+    /// Z height threshold for hybrid transition (only if `transition_layers` is 0).
+    ///
+    /// When `transition_layers` is 0 and this value is > 0.0, the transition
+    /// occurs at the first layer at or above this Z height. If both are 0,
+    /// defaults to 5 layers.
+    #[setting(
+        tier = 3,
+        description = "Z height threshold for hybrid transition",
+        units = "mm",
+        depends_on = "sequential.enabled",
+        override_safety = "warn"
+    )]
+    pub transition_height: f64,
 }
 
 impl Default for SequentialConfig {
@@ -4009,6 +4224,9 @@ impl Default for SequentialConfig {
             gantry_width: 0.0,
             gantry_depth: 0.0,
             extruder_clearance_polygon: Vec::new(),
+            hybrid_enabled: false,
+            transition_layers: 5,
+            transition_height: 0.0,
         }
     }
 }
@@ -4315,7 +4533,10 @@ vlh_stochastic = true
         assert!((config.vlh_speed_weight - 0.2).abs() < 1e-9);
         assert!((config.vlh_strength_weight - 0.5).abs() < 1e-9);
         assert!((config.vlh_material_weight - 0.3).abs() < 1e-9);
-        assert_eq!(config.vlh_optimizer_mode, VlhOptimizerMode::DynamicProgramming);
+        assert_eq!(
+            config.vlh_optimizer_mode,
+            VlhOptimizerMode::DynamicProgramming
+        );
         assert!((config.vlh_smoothing_strength - 0.7).abs() < 1e-9);
         assert_eq!(config.vlh_smoothing_iterations, 5);
         assert!(config.vlh_diagnostics);
@@ -4979,7 +5200,12 @@ mod z_hop_config_tests {
 
     #[test]
     fn test_zhop_type_serde_roundtrip() {
-        for variant in &[ZHopType::Normal, ZHopType::Slope, ZHopType::Spiral, ZHopType::Auto] {
+        for variant in &[
+            ZHopType::Normal,
+            ZHopType::Slope,
+            ZHopType::Spiral,
+            ZHopType::Auto,
+        ] {
             let json = serde_json::to_string(variant).unwrap();
             let back: ZHopType = serde_json::from_str(&json).unwrap();
             assert_eq!(*variant, back);

@@ -9,9 +9,9 @@
 //! floating-point non-determinism from parallel reduction or random
 //! tie-breaking.
 
-use super::{ObjectiveScores, VlhConfig};
 #[cfg(test)]
 use super::VlhWeights;
+use super::{ObjectiveScores, VlhConfig};
 
 /// Per-Z sample with pre-computed objective scores and feature demands.
 #[derive(Debug, Clone)]
@@ -54,10 +54,7 @@ pub fn optimize_greedy(z_samples: &[ZSample], config: &VlhConfig) -> Vec<(f64, f
     let min_h = config.min_height;
 
     // Pre-compute the total Z range from samples.
-    let max_z = z_samples
-        .last()
-        .map(|s| s.z)
-        .unwrap_or(0.0);
+    let max_z = z_samples.last().map(|s| s.z).unwrap_or(0.0);
 
     let mut result: Vec<(f64, f64)> = Vec::new();
 
@@ -202,8 +199,8 @@ pub fn optimize_dp(z_samples: &[ZSample], config: &VlhConfig) -> Vec<(f64, f64)>
     {
         // First layer.
         let first_h = config.first_layer_height.clamp(min_h, effective_max);
-        let first_idx = find_sample_index(z_samples, first_h / 2.0)
-            .min(z_samples.len().saturating_sub(1));
+        let first_idx =
+            find_sample_index(z_samples, first_h / 2.0).min(z_samples.len().saturating_sub(1));
         z_levels.push(first_idx);
         let mut prev_top = first_h;
 
@@ -214,8 +211,7 @@ pub fn optimize_dp(z_samples: &[ZSample], config: &VlhConfig) -> Vec<(f64, f64)>
                 break;
             }
             let next_z = prev_top + median_h;
-            let idx = find_sample_index(z_samples, next_z)
-                .min(z_samples.len().saturating_sub(1));
+            let idx = find_sample_index(z_samples, next_z).min(z_samples.len().saturating_sub(1));
             // Avoid duplicates.
             if z_levels.last().copied() == Some(idx) {
                 // Try next index.
@@ -239,9 +235,7 @@ pub fn optimize_dp(z_samples: &[ZSample], config: &VlhConfig) -> Vec<(f64, f64)>
 
     // Step 2: Discretize candidate heights.
     let candidates: Vec<f64> = (0..NUM_CANDIDATES)
-        .map(|i| {
-            min_h + (effective_max - min_h) * i as f64 / (NUM_CANDIDATES - 1).max(1) as f64
-        })
+        .map(|i| min_h + (effective_max - min_h) * i as f64 / (NUM_CANDIDATES - 1).max(1) as f64)
         .collect();
 
     // Step 3: Build DP table.
@@ -285,7 +279,7 @@ pub fn optimize_dp(z_samples: &[ZSample], config: &VlhConfig) -> Vec<(f64, f64)>
 
                 // Transition constraint: ratio must be within MAX_ADJACENT_RATIO.
                 let ratio = candidate / prev_h;
-                if ratio > MAX_ADJACENT_RATIO || ratio < 1.0 / MAX_ADJACENT_RATIO {
+                if !(1.0 / MAX_ADJACENT_RATIO..=MAX_ADJACENT_RATIO).contains(&ratio) {
                     continue; // forbidden transition
                 }
 
@@ -345,8 +339,8 @@ pub fn optimize_dp(z_samples: &[ZSample], config: &VlhConfig) -> Vec<(f64, f64)>
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::OptimizerMode;
+    use super::*;
 
     /// Helper: create a VlhConfig with sensible defaults for testing.
     fn test_config() -> VlhConfig {
@@ -449,10 +443,8 @@ mod tests {
                 .collect();
 
             if !equator_layers.is_empty() && !pole_layers.is_empty() {
-                let avg_eq: f64 =
-                    equator_layers.iter().sum::<f64>() / equator_layers.len() as f64;
-                let avg_pole: f64 =
-                    pole_layers.iter().sum::<f64>() / pole_layers.len() as f64;
+                let avg_eq: f64 = equator_layers.iter().sum::<f64>() / equator_layers.len() as f64;
+                let avg_pole: f64 = pole_layers.iter().sum::<f64>() / pole_layers.len() as f64;
                 assert!(
                     avg_eq < avg_pole,
                     "Equator avg ({avg_eq:.4}) should be < pole avg ({avg_pole:.4})"
@@ -470,7 +462,7 @@ mod tests {
             assert!(!result.is_empty(), "Should produce output");
 
             let nozzle_limit = config.nozzle_diameter * 0.75; // 0.3
-            // Skip first (fixed) and last (remainder) layers.
+                                                              // Skip first (fixed) and last (remainder) layers.
             let interior = &result[1..result.len().saturating_sub(1)];
             for &(z, h) in interior {
                 // Speed-only should produce max or near-max heights
@@ -560,7 +552,10 @@ mod tests {
                     assert!(
                         (a.0 - b.0).abs() < 1e-15 && (a.1 - b.1).abs() < 1e-15,
                         "Run {run}, layer {i}: ({},{}) vs ({},{})",
-                        a.0, a.1, b.0, b.1
+                        a.0,
+                        a.1,
+                        b.0,
+                        b.1
                     );
                 }
             }
@@ -586,8 +581,7 @@ mod tests {
                 .map(|&(_, h)| h)
                 .collect();
             if !demanded_layers.is_empty() {
-                let avg: f64 =
-                    demanded_layers.iter().sum::<f64>() / demanded_layers.len() as f64;
+                let avg: f64 = demanded_layers.iter().sum::<f64>() / demanded_layers.len() as f64;
                 assert!(
                     avg <= 0.12,
                     "Feature-demanded region avg height ({avg:.4}) should be <= 0.12"
@@ -628,8 +622,7 @@ mod tests {
                 .collect();
 
             if !dp_equator.is_empty() && !greedy_equator.is_empty() {
-                let avg_dp: f64 =
-                    dp_equator.iter().sum::<f64>() / dp_equator.len() as f64;
+                let avg_dp: f64 = dp_equator.iter().sum::<f64>() / dp_equator.len() as f64;
                 let avg_greedy: f64 =
                     greedy_equator.iter().sum::<f64>() / greedy_equator.len() as f64;
                 // DP optimizes globally so may trade local height for smoother
@@ -714,7 +707,10 @@ mod tests {
                     assert!(
                         (a.0 - b.0).abs() < 1e-15 && (a.1 - b.1).abs() < 1e-15,
                         "DP run {run}, layer {i}: ({},{}) vs ({},{})",
-                        a.0, a.1, b.0, b.1
+                        a.0,
+                        a.1,
+                        b.0,
+                        b.1
                     );
                 }
             }
@@ -734,7 +730,10 @@ mod tests {
                 elapsed.as_secs() < 5,
                 "DP on ~500-layer model took {elapsed:?}, should be < 5s"
             );
-            assert!(!result.is_empty(), "DP should produce output for large model");
+            assert!(
+                !result.is_empty(),
+                "DP should produce output for large model"
+            );
         }
 
         #[test]

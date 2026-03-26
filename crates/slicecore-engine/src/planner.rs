@@ -757,7 +757,10 @@ mod tests {
         cfg.max_height = 2.0;
         // 3.0 * 1.0 = 3.0, clamped to max 2.0
         let decision = plan_z_hop(FeatureType::TopSolidInfill, 5.0, 1.0, 1.0, &cfg).unwrap();
-        assert!((decision.height - 2.0).abs() < 1e-9, "clamped to max_height");
+        assert!(
+            (decision.height - 2.0).abs() < 1e-9,
+            "clamped to max_height"
+        );
     }
 
     #[test]
@@ -768,7 +771,10 @@ mod tests {
         cfg.min_height = 0.1;
         // 1.0 * 0.05 = 0.05, clamped to min 0.1
         let decision = plan_z_hop(FeatureType::TopSolidInfill, 5.0, 1.0, 0.05, &cfg).unwrap();
-        assert!((decision.height - 0.1).abs() < 1e-9, "clamped to min_height");
+        assert!(
+            (decision.height - 0.1).abs() < 1e-9,
+            "clamped to min_height"
+        );
     }
 
     #[test]

@@ -131,8 +131,8 @@ fn detect_overhangs(
         };
 
         // Demanded height: thinner layers for more severe overhangs.
-        let demanded_height = config.min_height
-            + (config.max_height - config.min_height) * (1.0 - sensitivity);
+        let demanded_height =
+            config.min_height + (config.max_height - config.min_height) * (1.0 - sensitivity);
         let demanded_height = demanded_height * config.feature_overhang_weight;
         // Clamp to valid range.
         let demanded_height = demanded_height.clamp(config.min_height, config.max_height);
@@ -173,12 +173,8 @@ pub fn query_stress_factor(feature_map: &FeatureMap, z: f64) -> f64 {
                 (*angle_deg / 90.0).clamp(0.0, 1.0)
             }
             FeatureType::Bridge => 1.0,
-            FeatureType::ThinWall { width_mm } => {
-                (1.0 - width_mm / 2.0).clamp(0.0, 1.0)
-            }
-            FeatureType::Hole { diameter_mm } => {
-                (1.0 - diameter_mm / 10.0).clamp(0.0, 1.0)
-            }
+            FeatureType::ThinWall { width_mm } => (1.0 - width_mm / 2.0).clamp(0.0, 1.0),
+            FeatureType::Hole { diameter_mm } => (1.0 - diameter_mm / 10.0).clamp(0.0, 1.0),
         };
 
         max_stress = max_stress.max(stress);
@@ -234,9 +230,9 @@ fn overlapping_features(feature_map: &FeatureMap, z: f64) -> Vec<&FeatureDetecti
 
 #[cfg(test)]
 mod tests {
+    use super::super::VlhWeights;
     use super::*;
     use slicecore_math::Point3;
-    use super::super::VlhWeights;
 
     /// Helper: create a VlhConfig with sensible defaults for testing.
     fn test_config() -> VlhConfig {
@@ -336,10 +332,14 @@ mod tests {
         let mesh = overhang_mesh();
         let config = test_config();
         let fmap = build_feature_map(&mesh, &config);
-        let has_overhang = fmap.detections.iter().any(|d| {
-            matches!(d.feature_type, FeatureType::Overhang { .. })
-        });
-        assert!(has_overhang, "Should detect overhang features on angled mesh");
+        let has_overhang = fmap
+            .detections
+            .iter()
+            .any(|d| matches!(d.feature_type, FeatureType::Overhang { .. }));
+        assert!(
+            has_overhang,
+            "Should detect overhang features on angled mesh"
+        );
     }
 
     #[test]
@@ -358,8 +358,16 @@ mod tests {
             );
         }
         if !fmap.detections.is_empty() {
-            let min_z = fmap.detections.iter().map(|d| d.z_min).fold(f64::INFINITY, f64::min);
-            let max_z = fmap.detections.iter().map(|d| d.z_max).fold(f64::NEG_INFINITY, f64::max);
+            let min_z = fmap
+                .detections
+                .iter()
+                .map(|d| d.z_min)
+                .fold(f64::INFINITY, f64::min);
+            let max_z = fmap
+                .detections
+                .iter()
+                .map(|d| d.z_max)
+                .fold(f64::NEG_INFINITY, f64::max);
             let span = max_z - min_z;
             assert!(
                 span > 0.5,

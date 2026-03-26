@@ -46,6 +46,36 @@ impl ObjectBounds {
     }
 }
 
+/// Pre-computed plan for hybrid sequential printing.
+///
+/// Captures the transition point, object ordering, and metadata needed
+/// for both G-code generation and dry-run preview.
+#[derive(Debug, Clone)]
+pub struct HybridPlan {
+    /// Number of shared layers (printed by-layer for all objects).
+    /// Shared layers are indices 0..shared_layer_count (exclusive).
+    pub shared_layer_count: u32,
+    /// Z height at which transition occurs (top of last shared layer).
+    pub transition_z: f64,
+    /// Ordered object indices for sequential phase (shortest-first).
+    pub object_order: Vec<usize>,
+    /// Safe Z height for travel between objects.
+    pub safe_z: f64,
+    /// Object metadata for markers and progress reporting.
+    pub objects: Vec<HybridObjectInfo>,
+}
+
+/// Metadata for a single object in hybrid sequential mode.
+#[derive(Debug, Clone)]
+pub struct HybridObjectInfo {
+    /// Index of this object (matches connected component index).
+    pub index: usize,
+    /// Human-readable name (from 3MF metadata or fallback).
+    pub name: String,
+    /// Bounding box of the object.
+    pub bounds: ObjectBounds,
+}
+
 /// Detects whether two objects would collide in sequential printing.
 ///
 /// Collision checking considers the extruder clearance envelope:
@@ -201,6 +231,104 @@ pub fn plan_sequential_print(
     let safe_z = clearance_height + 5.0; // 5mm margin above clearance
 
     Ok(ordered.iter().map(|&idx| (idx, safe_z)).collect())
+}
+
+/// Determines the transition layer index for hybrid mode.
+///
+/// - If `transition_layers > 0`, uses that directly.
+/// - If `transition_layers == 0` and `transition_height > 0.0`, finds the
+///   first layer index whose Z height is >= `transition_height`.
+/// - If both are 0/0.0, defaults to 5 layers.
+///
+/// The returned value N means: shared layers are 0..N, sequential starts at N.
+pub fn compute_transition_layer(
+    config: &crate::config::SequentialConfig,
+    layer_heights: &[f64],
+) -> u32 {
+    if config.transition_layers > 0 {
+        return config.transition_layers;
+    }
+    if config.transition_height > 0.0 {
+        for (i, &z) in layer_heights.iter().enumerate() {
+            if z >= config.transition_height {
+                return i as u32;
+            }
+        }
+        // Height exceeds all layers -- return total layer count
+        return layer_heights.len() as u32;
+    }
+    // Fallback default
+    5
+}
+
+/// Plans a hybrid sequential print.
+///
+/// Validates that hybrid mode is feasible (multiple objects, no collisions)
+/// and computes the transition point, object ordering, and safe Z.
+///
+/// `object_names` provides human-readable names for each object index.
+/// If shorter than `object_bounds`, missing names default to "object_N".
+///
+/// # Errors
+///
+/// Returns [`EngineError::ConfigError`] if:
+/// - Fewer than 2 objects (hybrid requires multiple objects)
+/// - Objects would collide in sequential phase
+/// - Transition layer exceeds total layer count
+pub fn plan_hybrid_print(
+    object_bounds: &[ObjectBounds],
+    object_names: &[String],
+    config: &crate::config::PrintConfig,
+    layer_heights: &[f64],
+) -> Result<HybridPlan, crate::error::EngineError> {
+    if object_bounds.len() < 2 {
+        return Err(crate::error::EngineError::ConfigError(
+            "Hybrid sequential mode requires at least 2 objects".to_string(),
+        ));
+    }
+
+    let shared_layer_count = compute_transition_layer(&config.sequential, layer_heights);
+
+    if shared_layer_count as usize >= layer_heights.len() {
+        return Err(crate::error::EngineError::ConfigError(format!(
+            "Hybrid transition layer {} exceeds total layer count {}",
+            shared_layer_count,
+            layer_heights.len()
+        )));
+    }
+
+    let transition_z = layer_heights[shared_layer_count as usize];
+
+    let clearance_radius = config.sequential.extruder_clearance_radius;
+    let clearance_height = config.sequential.extruder_clearance_height;
+
+    let ordered = order_objects(object_bounds, clearance_radius, clearance_height)
+        .map_err(crate::error::EngineError::ConfigError)?;
+
+    let safe_z = clearance_height + 5.0;
+
+    let objects = ordered
+        .iter()
+        .map(|&idx| {
+            let name = object_names
+                .get(idx)
+                .cloned()
+                .unwrap_or_else(|| format!("object_{}", idx));
+            HybridObjectInfo {
+                index: idx,
+                name,
+                bounds: object_bounds[idx].clone(),
+            }
+        })
+        .collect();
+
+    Ok(HybridPlan {
+        shared_layer_count,
+        transition_z,
+        object_order: ordered,
+        safe_z,
+        objects,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -413,5 +541,182 @@ extruder_clearance_height = 50.0
         let obj = make_bounds(10.0, 30.0, 5.0, 25.0, 15.0, 0);
         assert!((obj.width_x() - 20.0).abs() < 1e-9);
         assert!((obj.width_y() - 20.0).abs() < 1e-9);
+    }
+
+    // --- Hybrid mode tests ---
+
+    #[test]
+    fn compute_transition_layer_by_count() {
+        let config = SequentialConfig {
+            hybrid_enabled: true,
+            transition_layers: 5,
+            transition_height: 0.0,
+            ..Default::default()
+        };
+        let heights = vec![0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4];
+        assert_eq!(compute_transition_layer(&config, &heights), 5);
+    }
+
+    #[test]
+    fn compute_transition_layer_by_height() {
+        let config = SequentialConfig {
+            hybrid_enabled: true,
+            transition_layers: 0,
+            transition_height: 1.0,
+            ..Default::default()
+        };
+        let heights = vec![0.2, 0.4, 0.6, 0.8, 1.0, 1.2];
+        assert_eq!(compute_transition_layer(&config, &heights), 4);
+    }
+
+    #[test]
+    fn compute_transition_layer_fallback() {
+        let config = SequentialConfig {
+            hybrid_enabled: true,
+            transition_layers: 0,
+            transition_height: 0.0,
+            ..Default::default()
+        };
+        let heights = vec![0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4];
+        assert_eq!(compute_transition_layer(&config, &heights), 5);
+    }
+
+    #[test]
+    fn plan_hybrid_print_three_objects() {
+        let objects = vec![
+            make_bounds(0.0, 20.0, 0.0, 20.0, 50.0, 0),
+            make_bounds(100.0, 120.0, 100.0, 120.0, 10.0, 1),
+            make_bounds(200.0, 220.0, 200.0, 220.0, 30.0, 2),
+        ];
+        let names = vec![
+            "bracket_left".to_string(),
+            "bracket_right".to_string(),
+            "mount".to_string(),
+        ];
+        let config = PrintConfig {
+            sequential: SequentialConfig {
+                enabled: true,
+                hybrid_enabled: true,
+                transition_layers: 5,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let heights: Vec<f64> = (0..100).map(|i| (i + 1) as f64 * 0.2).collect();
+
+        let plan = plan_hybrid_print(&objects, &names, &config, &heights).unwrap();
+        assert_eq!(plan.shared_layer_count, 5);
+        assert!((plan.transition_z - 1.2).abs() < 1e-9);
+        // Shortest first: obj1(10mm), obj2(30mm), obj0(50mm)
+        assert_eq!(plan.object_order, vec![1, 2, 0]);
+        assert!(plan.safe_z > 40.0);
+        assert_eq!(plan.objects.len(), 3);
+        assert_eq!(plan.objects[0].name, "bracket_right");
+        assert_eq!(plan.objects[1].name, "mount");
+        assert_eq!(plan.objects[2].name, "bracket_left");
+    }
+
+    #[test]
+    fn plan_hybrid_print_single_object_error() {
+        let objects = vec![make_bounds(0.0, 20.0, 0.0, 20.0, 50.0, 0)];
+        let config = PrintConfig {
+            sequential: SequentialConfig {
+                enabled: true,
+                hybrid_enabled: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let heights: Vec<f64> = (0..50).map(|i| (i + 1) as f64 * 0.2).collect();
+        let result = plan_hybrid_print(&objects, &[], &config, &heights);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("at least 2 objects"), "Error: {err}");
+    }
+
+    #[test]
+    fn plan_hybrid_print_collision_error() {
+        let objects = vec![
+            make_bounds(0.0, 20.0, 0.0, 20.0, 50.0, 0),
+            make_bounds(25.0, 45.0, 0.0, 20.0, 50.0, 1),
+        ];
+        let config = PrintConfig {
+            sequential: SequentialConfig {
+                enabled: true,
+                hybrid_enabled: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let heights: Vec<f64> = (0..50).map(|i| (i + 1) as f64 * 0.2).collect();
+        let result = plan_hybrid_print(&objects, &[], &config, &heights);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn plan_hybrid_transition_exceeds_layers_error() {
+        let objects = vec![
+            make_bounds(0.0, 20.0, 0.0, 20.0, 50.0, 0),
+            make_bounds(100.0, 120.0, 100.0, 120.0, 10.0, 1),
+        ];
+        let config = PrintConfig {
+            sequential: SequentialConfig {
+                enabled: true,
+                hybrid_enabled: true,
+                transition_layers: 100,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let heights: Vec<f64> = (0..10).map(|i| (i + 1) as f64 * 0.2).collect();
+        let result = plan_hybrid_print(&objects, &[], &config, &heights);
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("exceeds total layer count"), "Error: {err}");
+    }
+
+    #[test]
+    fn plan_hybrid_default_object_names() {
+        let objects = vec![
+            make_bounds(0.0, 20.0, 0.0, 20.0, 50.0, 0),
+            make_bounds(100.0, 120.0, 100.0, 120.0, 10.0, 1),
+        ];
+        let config = PrintConfig {
+            sequential: SequentialConfig {
+                enabled: true,
+                hybrid_enabled: true,
+                transition_layers: 3,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let heights: Vec<f64> = (0..50).map(|i| (i + 1) as f64 * 0.2).collect();
+        // Empty names -- should get fallback names
+        let plan = plan_hybrid_print(&objects, &[], &config, &heights).unwrap();
+        assert_eq!(plan.objects[0].name, "object_1");
+        assert_eq!(plan.objects[1].name, "object_0");
+    }
+
+    #[test]
+    fn hybrid_config_defaults() {
+        let config = SequentialConfig::default();
+        assert!(!config.hybrid_enabled);
+        assert_eq!(config.transition_layers, 5);
+        assert!((config.transition_height - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn hybrid_toml_parsing() {
+        let toml = r#"
+[sequential]
+enabled = true
+hybrid_enabled = true
+transition_layers = 10
+transition_height = 2.5
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert!(config.sequential.hybrid_enabled);
+        assert_eq!(config.sequential.transition_layers, 10);
+        assert!((config.sequential.transition_height - 2.5).abs() < 1e-9);
     }
 }

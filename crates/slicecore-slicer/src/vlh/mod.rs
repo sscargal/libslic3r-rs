@@ -238,8 +238,7 @@ pub fn compute_vlh_heights(mesh: &TriangleMesh, config: &VlhConfig) -> VlhResult
         .iter()
         .map(|&(z, curvature)| {
             let stress_factor = features::query_stress_factor(&feature_map, z);
-            let feature_demanded_height =
-                features::query_feature_demanded_height(&feature_map, z);
+            let feature_demanded_height = features::query_feature_demanded_height(&feature_map, z);
 
             // Compute external surface fraction: fraction of triangles at this Z
             // whose normals are steep (i.e., far from horizontal).
@@ -254,10 +253,7 @@ pub fn compute_vlh_heights(mesh: &TriangleMesh, config: &VlhConfig) -> VlhResult
             let external_surface_fraction = if tris_at_z.is_empty() {
                 0.0
             } else {
-                let avg_abs_nz: f64 = tris_at_z
-                    .iter()
-                    .map(|&i| normals[i].z.abs())
-                    .sum::<f64>()
+                let avg_abs_nz: f64 = tris_at_z.iter().map(|&i| normals[i].z.abs()).sum::<f64>()
                     / tris_at_z.len() as f64;
                 1.0 - avg_abs_nz
             };
@@ -333,7 +329,7 @@ pub fn compute_vlh_heights(mesh: &TriangleMesh, config: &VlhConfig) -> VlhResult
                 let material_score = scores.material_height;
 
                 // Determine dominant factor.
-                let mut factors = vec![
+                let mut factors = [
                     ("quality", (config.weights.quality * quality_score).abs()),
                     ("speed", (config.weights.speed * speed_score).abs()),
                     ("strength", (config.weights.strength * strength_score).abs()),
@@ -575,11 +571,17 @@ mod tests {
         let config = test_vlh_config();
         let result = compute_vlh_heights(&mesh, &config);
 
-        assert!(!result.heights.is_empty(), "Should produce non-empty heights");
+        assert!(
+            !result.heights.is_empty(),
+            "Should produce non-empty heights"
+        );
 
         // Quality-only on sphere should produce variable heights (not all identical).
         let h_values: Vec<f64> = result.heights.iter().skip(1).map(|&(_, h)| h).collect();
-        assert!(h_values.len() >= 3, "Should produce at least 3 interior layers");
+        assert!(
+            h_values.len() >= 3,
+            "Should produce at least 3 interior layers"
+        );
 
         let min_h = h_values.iter().copied().fold(f64::INFINITY, f64::min);
         let max_h = h_values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
@@ -592,17 +594,22 @@ mod tests {
         // Regions where curvature changes rapidly should have thinner layers
         // than flat/constant regions. The sphere's curvature peaks near pole
         // transitions (z ~ 0.1-0.3 and z ~ 1.7-1.9).
-        let transition_layers: Vec<f64> = result.heights.iter()
+        let transition_layers: Vec<f64> = result
+            .heights
+            .iter()
             .filter(|&&(z, _)| (z > 0.1 && z < 0.5) || (z > 1.5 && z < 1.9))
             .map(|&(_, h)| h)
             .collect();
-        let mid_layers: Vec<f64> = result.heights.iter()
+        let mid_layers: Vec<f64> = result
+            .heights
+            .iter()
             .filter(|&&(z, _)| z > 0.8 && z < 1.2)
             .map(|&(_, h)| h)
             .collect();
 
         if !transition_layers.is_empty() && !mid_layers.is_empty() {
-            let avg_trans: f64 = transition_layers.iter().sum::<f64>() / transition_layers.len() as f64;
+            let avg_trans: f64 =
+                transition_layers.iter().sum::<f64>() / transition_layers.len() as f64;
             let avg_mid: f64 = mid_layers.iter().sum::<f64>() / mid_layers.len() as f64;
             // Both regions should have reasonable heights; at least some variation.
             assert!(
@@ -626,12 +633,18 @@ mod tests {
             Point3::new(0.0, 1.0, 2.0),
         ];
         let indices = vec![
-            [0, 2, 1], [0, 3, 2],
-            [4, 5, 6], [4, 6, 7],
-            [0, 1, 5], [0, 5, 4],
-            [1, 2, 6], [1, 6, 5],
-            [2, 3, 7], [2, 7, 6],
-            [3, 0, 4], [3, 4, 7],
+            [0, 2, 1],
+            [0, 3, 2],
+            [4, 5, 6],
+            [4, 6, 7],
+            [0, 1, 5],
+            [0, 5, 4],
+            [1, 2, 6],
+            [1, 6, 5],
+            [2, 3, 7],
+            [2, 7, 6],
+            [3, 0, 4],
+            [3, 4, 7],
         ];
         let mesh = TriangleMesh::new(vertices, indices).expect("cube should be valid");
         let mut config = test_vlh_config();
@@ -660,7 +673,12 @@ mod tests {
         assert_eq!(result1.heights.len(), result2.heights.len());
         for (a, b) in result1.heights.iter().zip(&result2.heights) {
             assert!((a.0 - b.0).abs() < 1e-15, "Z mismatch: {} vs {}", a.0, b.0);
-            assert!((a.1 - b.1).abs() < 1e-15, "Height mismatch: {} vs {}", a.1, b.1);
+            assert!(
+                (a.1 - b.1).abs() < 1e-15,
+                "Height mismatch: {} vs {}",
+                a.1,
+                b.1
+            );
         }
     }
 
@@ -693,7 +711,10 @@ mod tests {
         );
         for diag in &result.diagnostics {
             assert!(diag.quality_score > 0.0, "Quality score should be positive");
-            assert!(!diag.dominant_factor.is_empty(), "Dominant factor should be set");
+            assert!(
+                !diag.dominant_factor.is_empty(),
+                "Dominant factor should be set"
+            );
         }
     }
 
@@ -707,7 +728,10 @@ mod tests {
             assert!(
                 result.heights[i].0 > result.heights[i - 1].0,
                 "Z[{}]={} should be > Z[{}]={}",
-                i, result.heights[i].0, i - 1, result.heights[i - 1].0
+                i,
+                result.heights[i].0,
+                i - 1,
+                result.heights[i - 1].0
             );
         }
     }

@@ -141,10 +141,7 @@ mod tests {
             "High curvature should produce height below midpoint, got {h}"
         );
         let expected = MAX_H - (MAX_H - MIN_H) * 0.8;
-        assert!(
-            (h - expected).abs() < 1e-9,
-            "Expected {expected}, got {h}"
-        );
+        assert!((h - expected).abs() < 1e-9, "Expected {expected}, got {h}");
     }
 
     #[test]

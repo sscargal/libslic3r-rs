@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Phase 49 context gathered
-last_updated: "2026-03-26T00:11:52.317Z"
-last_activity: "2026-03-25 - Completed 48-03: Profile import z-hop field mappings"
+stopped_at: Phase 50 context gathered
+last_updated: "2026-03-26T03:24:41.507Z"
+last_activity: "2026-03-26 - Completed quick task 260326-3ih: Fix cargo clippy warnings in slicecore-slicer"
 progress:
-  total_phases: 51
-  completed_phases: 48
-  total_plans: 200
-  completed_plans: 200
+  total_phases: 52
+  completed_phases: 49
+  total_plans: 203
+  completed_plans: 203
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 48 of 51 (Selective adaptive z-hop control)
+Phase: 49 of 51 (Hybrid sequential printing)
 Plan: 3 of 3 in current phase
-Status: Complete
-Last activity: 2026-03-25 - Completed 48-03: Profile import z-hop field mappings
+Status: Phase Complete
+Last activity: 2026-03-26 - Completed quick task 260326-3ih: Fix cargo clippy warnings in slicecore-slicer
 
-Progress: [██████████] 100% (200/200 overall)
+Progress: [██████████] 100% (203/203 overall)
 
 ## Performance Metrics
 
@@ -174,6 +174,8 @@ Progress: [██████████] 100% (200/200 overall)
 | Phase 47 P05 | 4min | 2 tasks | 1 files |
 | Phase 48 P01 | 8min | 2 tasks | 15 files |
 | Phase 48 P03 | 5 | 2 tasks | 2 files |
+| Phase 49 P01 | 3 | 2 tasks | 4 files |
+| Phase 49 P03 | 10 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -727,6 +729,9 @@ Recent decisions affecting current work:
 - [Phase 47]: Smoothing params 0.3/1 for VLH wrapper compatibility with old adaptive tests
 - [Phase 48]: ZHopConfig placed on PrintConfig (not RetractionConfig) with serde alias for backward compat
 - [Phase 48]: OrcaSlicer z_hop_types accepts both string names and numeric 0-3 values for profile import
+- [Phase 49]: Hybrid transition uses three-tier priority: explicit count > height threshold > fallback default of 5
+- [Phase 49]: Hybrid dry-run inserted after config loading but before engine creation for early exit
+- [Phase 49]: No hybrid field mappings in profile import per locked decision
 
 ### Roadmap Evolution
 
@@ -755,6 +760,7 @@ Recent decisions affecting current work:
 - Phase 35 added: ConfigSchema system — SettingDefinition metadata with tiers, JSON Schema generation, validation (from PRD Section 7)
 - Phase 36 added: Plugins subcommand — list and manage installed plugins (enable/disable)
 - Phase 37 added: CI benchmark tracking with regression detection
+- Phase 52 added: OpenRouter provider integration with API key validation and rate limit awareness across all providers
 
 ### Pending Todos
 
@@ -783,9 +789,11 @@ Recent decisions affecting current work:
 | 260323-wwu | Fix profile set/get QA test failures caused by Set->Setting rename | 2026-03-23 | 95ba52a | [260323-wwu-fix-profile-set-get-qa-test-failures-cau](./quick/260323-wwu-fix-profile-set-get-qa-test-failures-cau/) |
 | 260321-1s9 | Add QA tests for phase 40+ features | 2026-03-21 | 616a7b1 | [260321-1s9-add-qa-tests-for-phase-40-features](./quick/260321-1s9-add-qa-tests-for-phase-40-features/) |
 | 260323-l8a | Fix cli_slice_profiles wizard trigger | 2026-03-23 | 4ba1299 | [260323-l8a-fix-cli-slice-profiles-test-failures-fro](./quick/260323-l8a-fix-cli-slice-profiles-test-failures-fro/) |
+| 260326-3gh | Fix cargo fmt formatting violation | 2026-03-26 | 021f728 | [260326-3gh-fix-cargo-fmt-formatting-violation](./quick/260326-3gh-fix-cargo-fmt-formatting-violation/) |
+| 260326-3ih | Fix cargo clippy warnings in slicecore-slicer | 2026-03-26 | f655e17 | [260326-3ih-fix-cargo-clippy-warnings-in-slicecore-s](./quick/260326-3ih-fix-cargo-clippy-warnings-in-slicecore-s/) |
 
 ## Session Continuity
 
-Last session: 2026-03-26T00:11:52.312Z
-Stopped at: Phase 49 context gathered
-Resume file: .planning/phases/49-hybrid-sequential-printing-first-n-layers-all-objects-together-then-switch-to-by-object-sequential-printing/49-CONTEXT.md
+Last session: 2026-03-26T03:24:41.503Z
+Stopped at: Phase 50 context gathered
+Resume file: .planning/phases/50-3mf-project-output-with-model-settings-and-embedded-g-code-implement-full-3mf-project-write-support-with-settings-metadata-thumbnails-and-bambu-printer-compatibility/50-CONTEXT.md

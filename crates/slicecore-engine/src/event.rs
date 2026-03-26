@@ -137,6 +137,25 @@ pub enum SliceEvent {
         /// Processing throughput in layers per second (0.0 on WASM).
         layers_per_second: f64,
     },
+
+    /// Per-object progress during hybrid sequential printing phase.
+    ///
+    /// Emitted for each object during the sequential phase of hybrid mode,
+    /// reporting progress within that specific object.
+    ObjectProgress {
+        /// Object index (matches OBJECT_START id in G-code).
+        object_index: usize,
+        /// Total number of objects in sequential phase.
+        total_objects: usize,
+        /// Human-readable object name.
+        object_name: String,
+        /// Progress within this object (0.0 to 100.0).
+        object_percent: f32,
+        /// Current layer within this object's sequential section.
+        object_layer: usize,
+        /// Total layers for this object's sequential section.
+        object_total_layers: usize,
+    },
 }
 
 /// Trait for receiving slicing events.
