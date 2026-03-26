@@ -335,7 +335,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 46. Job Output Directories | 3/3 | Complete    | 2026-03-25 |
 | 47. Variable Layer Height Algorithms | 5/5 | Complete    | 2026-03-25 |
 | 48. Selective Adaptive Z-Hop Control | 3/3 | Complete    | 2026-03-25 |
-| 49. Hybrid Sequential Printing | 1/3 | In Progress|  |
+| 49. Hybrid Sequential Printing | 2/3 | In Progress|  |
 | 50. 3MF Project Output with Embedded G-code | 0/0 | ○ Pending | - |
 | 51. Comprehensive Documentation Suite | 0/0 | ○ Pending | - |
 
@@ -879,7 +879,7 @@ Plans:
 **Goal:** Implement hybrid print mode where Phase 1 prints first N layers of all objects together for adhesion verification, then Phase 2 switches to sequential by-object printing for quality, with early failure detection and conditional object skipping.
 **Requirements**: [ADV-02]
 **Depends on:** Phase 48
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 49-01-PLAN.md -- Hybrid config fields, HybridPlan struct, ObjectProgress event
