@@ -648,6 +648,71 @@ pub fn generate_plate_header(
 }
 
 // ---------------------------------------------------------------------------
+// Hybrid sequential printing helpers
+// ---------------------------------------------------------------------------
+
+/// Emits a G-code comment marking the start of an object's sequential section.
+///
+/// Format: `; OBJECT_START id=N name="..."`
+pub fn emit_object_start(cmds: &mut Vec<GcodeCommand>, index: usize, name: &str) {
+    cmds.push(GcodeCommand::Comment(format!(
+        "OBJECT_START id={index} name=\"{name}\""
+    )));
+}
+
+/// Emits a G-code comment marking the end of an object's sequential section.
+///
+/// Format: `; OBJECT_END id=N`
+pub fn emit_object_end(cmds: &mut Vec<GcodeCommand>, index: usize) {
+    cmds.push(GcodeCommand::Comment(format!("OBJECT_END id={index}")));
+}
+
+/// Emits the hybrid transition comment and safe-Z travel.
+///
+/// Inserted between the shared layers and the first sequential object.
+/// Retracts filament (if `retract_length > 0`) and raises to `safe_z`.
+pub fn emit_hybrid_transition(
+    cmds: &mut Vec<GcodeCommand>,
+    transition_layer: u32,
+    transition_z: f64,
+    safe_z: f64,
+    retract_length: f64,
+    retract_speed: f64,
+) {
+    cmds.push(GcodeCommand::Comment(format!(
+        "=== HYBRID TRANSITION at layer {} (Z={:.3}) ===",
+        transition_layer, transition_z
+    )));
+    // Retract filament before transition travel.
+    if retract_length > 0.0 {
+        cmds.push(GcodeCommand::Retract {
+            distance: retract_length,
+            feedrate: retract_speed * 60.0,
+        });
+    }
+    // Raise to safe Z for clearance.
+    cmds.push(GcodeCommand::RapidMove {
+        x: None,
+        y: None,
+        z: Some(safe_z),
+        f: None,
+    });
+}
+
+/// Emits safe-Z travel between sequential objects.
+///
+/// Used between consecutive objects in the sequential phase to raise
+/// the nozzle above the clearance height before moving to the next object.
+pub fn emit_safe_z_travel(cmds: &mut Vec<GcodeCommand>, safe_z: f64) {
+    cmds.push(GcodeCommand::RapidMove {
+        x: None,
+        y: None,
+        z: Some(safe_z),
+        f: None,
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -1698,6 +1763,83 @@ mod tests {
                 assert!((f - 900.0).abs() < 1e-9, "Feedrate should be 15*60=900 mm/min, got {f}");
             }
             other => panic!("Expected RapidMove with feedrate, got {:?}", other),
+        }
+    }
+
+    // --- Hybrid marker tests ---
+
+    #[test]
+    fn object_start_marker_format() {
+        let mut cmds = Vec::new();
+        emit_object_start(&mut cmds, 0, "bracket_left");
+        assert_eq!(cmds.len(), 1);
+        match &cmds[0] {
+            GcodeCommand::Comment(s) => {
+                assert_eq!(s, "OBJECT_START id=0 name=\"bracket_left\"");
+            }
+            _ => panic!("Expected Comment command"),
+        }
+    }
+
+    #[test]
+    fn object_end_marker_format() {
+        let mut cmds = Vec::new();
+        emit_object_end(&mut cmds, 2);
+        assert_eq!(cmds.len(), 1);
+        match &cmds[0] {
+            GcodeCommand::Comment(s) => {
+                assert_eq!(s, "OBJECT_END id=2");
+            }
+            _ => panic!("Expected Comment command"),
+        }
+    }
+
+    #[test]
+    fn hybrid_transition_format() {
+        let mut cmds = Vec::new();
+        emit_hybrid_transition(&mut cmds, 5, 1.0, 45.0, 0.8, 40.0);
+        // Should have: comment, retract, rapid move
+        assert_eq!(cmds.len(), 3);
+        match &cmds[0] {
+            GcodeCommand::Comment(s) => {
+                assert!(s.contains("HYBRID TRANSITION at layer 5"), "Got: {s}");
+                assert!(s.contains("Z=1.000"), "Got: {s}");
+            }
+            _ => panic!("Expected Comment"),
+        }
+        match &cmds[1] {
+            GcodeCommand::Retract { distance, feedrate } => {
+                assert!((*distance - 0.8).abs() < 1e-9);
+                assert!((*feedrate - 2400.0).abs() < 1e-9);
+            }
+            _ => panic!("Expected Retract"),
+        }
+        match &cmds[2] {
+            GcodeCommand::RapidMove { z: Some(z), .. } => {
+                assert!((*z - 45.0).abs() < 1e-9);
+            }
+            _ => panic!("Expected RapidMove"),
+        }
+    }
+
+    #[test]
+    fn hybrid_transition_no_retract() {
+        let mut cmds = Vec::new();
+        emit_hybrid_transition(&mut cmds, 3, 0.6, 45.0, 0.0, 40.0);
+        // No retract when length is 0 -- just comment + rapid move
+        assert_eq!(cmds.len(), 2);
+    }
+
+    #[test]
+    fn safe_z_travel_emits_rapid_move() {
+        let mut cmds = Vec::new();
+        emit_safe_z_travel(&mut cmds, 50.0);
+        assert_eq!(cmds.len(), 1);
+        match &cmds[0] {
+            GcodeCommand::RapidMove { z: Some(z), .. } => {
+                assert!((*z - 50.0).abs() < 1e-9);
+            }
+            _ => panic!("Expected RapidMove with z=50"),
         }
     }
 }
