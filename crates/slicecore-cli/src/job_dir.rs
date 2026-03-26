@@ -162,6 +162,7 @@ impl JobDir {
     /// Returns the path for a 3MF project file in this job directory.
     ///
     /// Uses the model name stem with `.3mf` extension, e.g. `benchy.3mf`.
+    #[allow(dead_code)] // Will be wired when job-dir supports 3MF project output
     pub fn project_path(&self, model_name: &str) -> PathBuf {
         let stem = Path::new(model_name)
             .file_stem()
@@ -171,6 +172,7 @@ impl JobDir {
     }
 
     /// Returns the path for a plate-mode 3MF project file in this job directory.
+    #[allow(dead_code)] // Will be wired when job-dir supports 3MF project output
     pub fn plate_project_path(&self) -> PathBuf {
         self.path.join("plate.3mf")
     }

@@ -48,7 +48,11 @@ use slicecore_engine::{
     create_builtin_postprocessors, load_index, write_merged_index, Engine, PrintConfig,
     ProfileIndexEntry,
 };
-use slicecore_fileio::{load_mesh, save_mesh};
+use slicecore_fileio::{
+    export_project_to_3mf, load_mesh, save_mesh, FilamentSlot, PlateMetadata, PlateObject,
+    PlateStatistics as FileioPlateStatistics, ProjectExportOptions, ProjectMetadata,
+    ThreeMfObjectConfig,
+};
 use slicecore_gcode_io::validate_gcode;
 use slicecore_mesh::{compute_stats, repair};
 use slicecore_plugin::PluginRegistry;
@@ -1875,9 +1879,8 @@ fn cmd_slice(
         gcode_output = new_output;
     }
 
-    // Step N: Write G-code.
+    // Step N: Write output.
     let write_step_num = if use_profile_workflow { 5 } else { 4 };
-    let step_write = output.start_step(write_step_num, total_steps, "Write G-code");
 
     let out_path = if let Some(p) = output_path {
         p.to_path_buf()
@@ -1885,16 +1888,186 @@ fn cmd_slice(
         input.with_extension("gcode")
     };
 
-    if let Err(e) = std::fs::write(&out_path, &gcode_output) {
-        output.error_msg(&format!(
-            "Failed to write output '{}': {}",
-            out_path.display(),
-            e
-        ));
-        process::exit(1);
-    }
+    let is_project_output = out_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("3mf"));
 
-    output.finish_step(&step_write, "Write G-code");
+    if is_project_output {
+        // Dual output: write standalone .gcode first, then 3MF project.
+        let gcode_path = out_path.with_extension("gcode");
+        let step_write =
+            output.start_step(write_step_num, total_steps, "Write G-code + 3MF project");
+
+        // Write standalone G-code.
+        if let Err(e) = std::fs::write(&gcode_path, &gcode_output) {
+            output.error_msg(&format!(
+                "Failed to write G-code '{}': {}",
+                gcode_path.display(),
+                e
+            ));
+            process::exit(1);
+        }
+
+        // Build project export options.
+        let config_toml = toml::to_string_pretty(&print_config).unwrap_or_default();
+        let process_settings = build_process_settings_from_config(&print_config);
+        let filament_settings = build_filament_settings_from_config(&print_config);
+        let machine_settings = build_machine_settings_from_config(&print_config);
+
+        // Build plate metadata.
+        let mesh_bb = repaired_mesh.aabb();
+        let plate_object = PlateObject {
+            name: input
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("object")
+                .to_string(),
+            position: [0.0, 0.0, 0.0],
+            bounding_box: [
+                mesh_bb.min.x,
+                mesh_bb.min.y,
+                mesh_bb.min.z,
+                mesh_bb.max.x,
+                mesh_bb.max.y,
+                mesh_bb.max.z,
+            ],
+            triangle_count: repaired_mesh.triangle_count(),
+        };
+
+        let plate_stats = if let Some(ref stats) = result.statistics {
+            FileioPlateStatistics {
+                filament_length_mm: stats.summary.total_filament_mm,
+                filament_weight_g: stats.summary.total_filament_g,
+                filament_cost: stats.summary.total_filament_cost,
+                estimated_time_seconds: stats.summary.total_time_seconds,
+                layer_count: result.layer_count,
+            }
+        } else {
+            FileioPlateStatistics {
+                filament_length_mm: result.filament_usage.length_mm,
+                filament_weight_g: result.filament_usage.weight_g,
+                filament_cost: result.filament_usage.cost,
+                estimated_time_seconds: result.estimated_time_seconds,
+                layer_count: result.layer_count,
+            }
+        };
+
+        let filament_slot = FilamentSlot {
+            slot: "external".to_string(),
+            filament_type: print_config.filament.filament_type.clone(),
+            color: None,
+        };
+
+        let plate_meta = PlateMetadata {
+            plate_index: 1,
+            objects: vec![plate_object],
+            plate_size: [print_config.machine.bed_x, print_config.machine.bed_y],
+            statistics: plate_stats,
+            filament_mapping: Some(vec![filament_slot]),
+        };
+
+        // Build project metadata with provenance.
+        let source_hash = {
+            use sha2::{Digest, Sha256};
+            let data = std::fs::read(input).unwrap_or_default();
+            let hash = Sha256::digest(&data);
+            format!("{hash:x}")
+        };
+
+        let project_metadata = ProjectMetadata {
+            slicecore_version: env!("CARGO_PKG_VERSION").to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            source_hashes: vec![(
+                input
+                    .file_name()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("unknown")
+                    .to_string(),
+                source_hash,
+            )],
+            reproduce_command: Some(std::env::args().collect::<Vec<_>>().join(" ")),
+            printer_model: Some(print_config.machine.printer_model.clone()),
+            filament_type: Some(print_config.filament.filament_type.clone()),
+            filament_brand: None,
+            filament_color: None,
+            nozzle_diameter: Some(print_config.machine.nozzle_diameter()),
+            profile_names: Vec::new(),
+        };
+
+        // Per-plate thumbnail (reuse the already-rendered thumbnail if available).
+        let plate_thumbnail = if thumbnails {
+            let thumb_config = slicecore_render::ThumbnailConfig {
+                width: 256,
+                height: 256,
+                angles: vec![slicecore_render::CameraAngle::Isometric],
+                output_format: slicecore_render::ImageFormat::Png,
+                quality: None,
+                ..slicecore_render::ThumbnailConfig::default()
+            };
+            let thumbs = slicecore_render::render_mesh(&repaired_mesh, &thumb_config);
+            thumbs.first().map(|t| t.encoded_data.clone())
+        } else {
+            None
+        };
+
+        let project_options = ProjectExportOptions {
+            gcode_per_plate: vec![gcode_output.clone()],
+            thumbnails_per_plate: vec![plate_thumbnail],
+            plate_metadata: vec![plate_meta],
+            config_toml,
+            process_settings,
+            filament_settings,
+            machine_settings,
+            project_metadata,
+            ams_mapping: None,
+        };
+
+        // Write 3MF project file.
+        let file = match std::fs::File::create(&out_path) {
+            Ok(f) => f,
+            Err(e) => {
+                output.error_msg(&format!(
+                    "Failed to create '{}': {}",
+                    out_path.display(),
+                    e
+                ));
+                process::exit(1);
+            }
+        };
+        let writer = std::io::BufWriter::new(file);
+
+        let object_configs = vec![ThreeMfObjectConfig::default()];
+        if let Err(e) =
+            export_project_to_3mf(&[&repaired_mesh], &object_configs, &project_options, writer)
+        {
+            output.error_msg(&format!(
+                "Failed to write 3MF project '{}': {}",
+                out_path.display(),
+                e
+            ));
+            process::exit(1);
+        }
+
+        output.finish_step(&step_write, "Write G-code + 3MF project");
+
+        if !quiet {
+            eprintln!("  G-code: {}", gcode_path.display());
+            eprintln!("  Project: {}", out_path.display());
+        }
+    } else {
+        // Standard G-code-only output (existing behavior).
+        let step_write = output.start_step(write_step_num, total_steps, "Write G-code");
+        if let Err(e) = std::fs::write(&out_path, &gcode_output) {
+            output.error_msg(&format!(
+                "Failed to write output '{}': {}",
+                out_path.display(),
+                e
+            ));
+            process::exit(1);
+        }
+        output.finish_step(&step_write, "Write G-code");
+    }
 
     // 9. Structured output (JSON or MessagePack to stdout).
     if json_output {
@@ -2719,17 +2892,125 @@ fn cmd_slice_plate(
         first_input
     };
 
-    if let Err(e) = std::fs::write(&out_path, &combined_gcode) {
+    let is_project_output = out_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("3mf"));
+
+    // Summary: compute per-object statistics.
+    let plate_stats = slicecore_engine::PlateStatistics::from_results(&plate_result.objects);
+    let base_config_ref: &slicecore_engine::PrintConfig = &resolved_objs[0].config;
+
+    if is_project_output {
+        // Dual output: standalone .gcode + full 3MF project.
+        let gcode_path = out_path.with_extension("gcode");
+        if let Err(e) = std::fs::write(&gcode_path, &combined_gcode) {
+            output.error_msg(&format!(
+                "Failed to write G-code '{}': {e}",
+                gcode_path.display()
+            ));
+            process::exit(1);
+        }
+
+        let config_toml = toml::to_string_pretty(base_config_ref).unwrap_or_default();
+        let process_settings = build_process_settings_from_config(base_config_ref);
+        let filament_settings = build_filament_settings_from_config(base_config_ref);
+        let machine_settings = build_machine_settings_from_config(base_config_ref);
+
+        // Build per-object PlateObject entries.
+        let plate_objects: Vec<PlateObject> = plate_result
+            .objects
+            .iter()
+            .enumerate()
+            .map(|(i, obj)| {
+                let mesh = &meshes[i.min(meshes.len() - 1)];
+                let bb = mesh.aabb();
+                PlateObject {
+                    name: obj.name.clone(),
+                    position: [0.0, 0.0, 0.0],
+                    bounding_box: [bb.min.x, bb.min.y, bb.min.z, bb.max.x, bb.max.y, bb.max.z],
+                    triangle_count: mesh.triangle_count(),
+                }
+            })
+            .collect();
+
+        let plate_statistics = FileioPlateStatistics {
+            filament_length_mm: plate_stats.total_filament_used_mm,
+            filament_weight_g: plate_stats.total_filament_used_grams,
+            filament_cost: plate_stats.total_filament_cost.unwrap_or(0.0),
+            estimated_time_seconds: plate_stats.total_estimated_time_seconds,
+            layer_count: plate_stats.total_layer_count,
+        };
+
+        let plate_meta = PlateMetadata {
+            plate_index: 1,
+            objects: plate_objects,
+            plate_size: [base_config_ref.machine.bed_x, base_config_ref.machine.bed_y],
+            statistics: plate_statistics,
+            filament_mapping: None,
+        };
+
+        let project_metadata = ProjectMetadata {
+            slicecore_version: env!("CARGO_PKG_VERSION").to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            source_hashes: Vec::new(),
+            reproduce_command: Some(std::env::args().collect::<Vec<_>>().join(" ")),
+            printer_model: Some(base_config_ref.machine.printer_model.clone()),
+            filament_type: Some(base_config_ref.filament.filament_type.clone()),
+            filament_brand: None,
+            filament_color: None,
+            nozzle_diameter: Some(base_config_ref.machine.nozzle_diameter()),
+            profile_names: Vec::new(),
+        };
+
+        let project_options = ProjectExportOptions {
+            gcode_per_plate: vec![combined_gcode.clone()],
+            thumbnails_per_plate: vec![None],
+            plate_metadata: vec![plate_meta],
+            config_toml,
+            process_settings,
+            filament_settings,
+            machine_settings,
+            project_metadata,
+            ams_mapping: None,
+        };
+
+        let mesh_refs: Vec<&slicecore_mesh::TriangleMesh> = meshes.iter().collect();
+        let object_configs: Vec<ThreeMfObjectConfig> =
+            mesh_refs.iter().map(|_| ThreeMfObjectConfig::default()).collect();
+
+        let file = match std::fs::File::create(&out_path) {
+            Ok(f) => f,
+            Err(e) => {
+                output.error_msg(&format!(
+                    "Failed to create '{}': {e}",
+                    out_path.display()
+                ));
+                process::exit(1);
+            }
+        };
+        let writer = std::io::BufWriter::new(file);
+        if let Err(e) =
+            export_project_to_3mf(&mesh_refs, &object_configs, &project_options, writer)
+        {
+            output.error_msg(&format!(
+                "Failed to write 3MF project '{}': {e}",
+                out_path.display()
+            ));
+            process::exit(1);
+        }
+
+        if !quiet {
+            eprintln!("G-code: {}", gcode_path.display());
+            eprintln!("Project: {}", out_path.display());
+        }
+    } else if let Err(e) = std::fs::write(&out_path, &combined_gcode) {
         output.error_msg(&format!(
             "Failed to write output '{}': {e}",
             out_path.display()
         ));
         process::exit(1);
     }
-
-    // Summary: compute per-object statistics.
-    let plate_stats = slicecore_engine::PlateStatistics::from_results(&plate_result.objects);
-    let base_config_ref: &slicecore_engine::PrintConfig = &resolved_objs[0].config;
 
     if json_output {
         // Build structured JSON output with per-object data, overrides, and provenance.
@@ -4769,5 +5050,176 @@ fn cmd_arrange(
             let json = serde_json::to_string_pretty(&result).unwrap_or_default();
             println!("{json}");
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 3MF Project Export Helpers
+// ---------------------------------------------------------------------------
+
+/// Extracts process-related settings from `PrintConfig` as slicer-compatible key=value pairs.
+fn build_process_settings_from_config(config: &PrintConfig) -> Vec<(String, String)> {
+    vec![
+        ("layer_height".to_string(), config.layer_height.to_string()),
+        (
+            "first_layer_height".to_string(),
+            config.first_layer_height.to_string(),
+        ),
+        ("perimeters".to_string(), config.wall_count.to_string()),
+        (
+            "fill_density".to_string(),
+            format!("{}%", (config.infill_density * 100.0) as u32),
+        ),
+        (
+            "fill_pattern".to_string(),
+            format!("{:?}", config.infill_pattern).to_lowercase(),
+        ),
+        (
+            "top_solid_layers".to_string(),
+            config.top_solid_layers.to_string(),
+        ),
+        (
+            "bottom_solid_layers".to_string(),
+            config.bottom_solid_layers.to_string(),
+        ),
+        (
+            "support_material".to_string(),
+            if config.support.enabled {
+                "1"
+            } else {
+                "0"
+            }
+            .to_string(),
+        ),
+        (
+            "perimeter_speed".to_string(),
+            config.speeds.perimeter.to_string(),
+        ),
+        (
+            "infill_speed".to_string(),
+            config.speeds.infill.to_string(),
+        ),
+    ]
+}
+
+/// Extracts filament-related settings from `PrintConfig` as slicer-compatible key=value pairs.
+fn build_filament_settings_from_config(config: &PrintConfig) -> Vec<(String, String)> {
+    let nozzle_temp = config
+        .filament
+        .nozzle_temperatures
+        .first()
+        .copied()
+        .unwrap_or(0.0);
+    let bed_temp = config
+        .filament
+        .bed_temperatures
+        .first()
+        .copied()
+        .unwrap_or(0.0);
+    vec![
+        (
+            "filament_type".to_string(),
+            config.filament.filament_type.clone(),
+        ),
+        ("nozzle_temperature".to_string(), nozzle_temp.to_string()),
+        ("bed_temperature".to_string(), bed_temp.to_string()),
+        (
+            "filament_density".to_string(),
+            config.filament.density.to_string(),
+        ),
+        (
+            "filament_cost".to_string(),
+            config.filament.cost_per_kg.to_string(),
+        ),
+    ]
+}
+
+/// Extracts machine-related settings from `PrintConfig` as slicer-compatible key=value pairs.
+fn build_machine_settings_from_config(config: &PrintConfig) -> Vec<(String, String)> {
+    let mut settings = vec![
+        (
+            "nozzle_diameter".to_string(),
+            config.machine.nozzle_diameter().to_string(),
+        ),
+        (
+            "bed_shape".to_string(),
+            format!("{}x{}", config.machine.bed_x, config.machine.bed_y),
+        ),
+        (
+            "gcode_flavor".to_string(),
+            format!("{:?}", config.gcode_dialect).to_lowercase(),
+        ),
+        (
+            "max_print_height".to_string(),
+            config.machine.printable_height.to_string(),
+        ),
+    ];
+    if !config.machine.printer_model.is_empty() {
+        settings.push((
+            "printer_model".to_string(),
+            config.machine.printer_model.clone(),
+        ));
+    }
+    settings
+}
+
+#[cfg(test)]
+mod project_output_tests {
+    use std::path::Path;
+
+    #[test]
+    fn test_is_project_output_detects_3mf_extension() {
+        let path_3mf = Path::new("/tmp/output.3mf");
+        let is_project = path_3mf
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("3mf"));
+        assert!(
+            is_project,
+            ".3mf extension should be detected as project output"
+        );
+    }
+
+    #[test]
+    fn test_is_project_output_case_insensitive() {
+        let path_3mf = Path::new("/tmp/output.3MF");
+        let is_project = path_3mf
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("3mf"));
+        assert!(
+            is_project,
+            ".3MF (uppercase) should be detected as project output"
+        );
+    }
+
+    #[test]
+    fn test_gcode_extension_not_project_output() {
+        let path_gcode = Path::new("/tmp/output.gcode");
+        let is_project = path_gcode
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("3mf"));
+        assert!(
+            !is_project,
+            ".gcode extension should NOT be project output"
+        );
+    }
+
+    #[test]
+    fn test_dual_output_gcode_path_derived_from_3mf() {
+        let path_3mf = Path::new("/tmp/mymodel.3mf");
+        let gcode_path = path_3mf.with_extension("gcode");
+        assert_eq!(gcode_path, Path::new("/tmp/mymodel.gcode"));
+    }
+
+    #[test]
+    fn test_no_extension_defaults_to_gcode_not_project() {
+        let path_none = Path::new("/tmp/output");
+        let is_project = path_none
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.eq_ignore_ascii_case("3mf"));
+        assert!(!is_project, "No extension should not be project output");
     }
 }
