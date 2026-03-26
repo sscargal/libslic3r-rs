@@ -760,6 +760,7 @@ Recent decisions affecting current work:
 - Phase 35 added: ConfigSchema system — SettingDefinition metadata with tiers, JSON Schema generation, validation (from PRD Section 7)
 - Phase 36 added: Plugins subcommand — list and manage installed plugins (enable/disable)
 - Phase 37 added: CI benchmark tracking with regression detection
+- Phase 52 added: OpenRouter provider integration with API key validation and rate limit awareness across all providers
 
 ### Pending Todos
 

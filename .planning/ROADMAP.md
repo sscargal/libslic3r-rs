@@ -903,3 +903,13 @@ Plans:
 **Plans:** 0 plans
 
 Plans:
+
+### Phase 52: OpenRouter provider integration with API key validation and rate limit awareness across all providers
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 51
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 52 to break down)
