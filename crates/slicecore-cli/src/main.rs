@@ -323,6 +323,13 @@ enum Commands {
         #[arg(long)]
         no_travel_opt: bool,
 
+        /// Preview hybrid sequential plan without slicing.
+        ///
+        /// Shows object order, transition point, and estimated time per phase.
+        /// Requires --config with sequential.enabled and sequential.hybrid_enabled.
+        #[arg(long)]
+        hybrid_dry_run: bool,
+
         /// Use a saved profile set (expands to -m/-f/-p)
         #[arg(long = "profile-set", value_name = "SET_NAME", conflicts_with_all = ["config", "machine", "filament", "process"])]
         profile_set: Option<String>,
@@ -821,6 +828,7 @@ fn main() {
             thumbnail_quality,
             auto_arrange,
             no_travel_opt,
+            hybrid_dry_run,
             profile_set,
         } => {
             // Expand --profile-set flag to -m/-f/-p
@@ -985,6 +993,7 @@ fn main() {
                     thumbnail_quality,
                     auto_arrange,
                     no_travel_opt,
+                    hybrid_dry_run,
                     color_mode,
                 );
 
@@ -1065,6 +1074,7 @@ fn main() {
                     thumbnail_quality,
                     auto_arrange,
                     no_travel_opt,
+                    hybrid_dry_run,
                     color_mode,
                 );
             }
@@ -1380,6 +1390,7 @@ fn cmd_slice(
     thumbnail_quality: Option<u8>,
     auto_arrange: bool,
     no_travel_opt: bool,
+    hybrid_dry_run: bool,
     color_mode: cli_output::ColorMode,
 ) -> Option<crate::job_dir::PrintStats> {
     // -----------------------------------------------------------------------
@@ -1591,6 +1602,120 @@ fn cmd_slice(
     // Apply CLI flag overrides.
     if no_travel_opt {
         print_config.travel_opt.enabled = false;
+    }
+
+    // --hybrid-dry-run: preview hybrid plan and exit without slicing.
+    if hybrid_dry_run {
+        if !print_config.sequential.enabled || !print_config.sequential.hybrid_enabled {
+            eprintln!(
+                "Error: --hybrid-dry-run requires sequential.enabled=true and \
+                 sequential.hybrid_enabled=true in config"
+            );
+            process::exit(1);
+        }
+
+        let components = repaired_mesh.connected_components();
+        if components.len() <= 1 {
+            eprintln!("Warning: Only one object found. Hybrid mode has no effect.");
+            process::exit(0);
+        }
+
+        // Compute object bounds from connected components.
+        let object_bounds: Vec<slicecore_engine::sequential::ObjectBounds> = components
+            .iter()
+            .enumerate()
+            .map(|(comp_idx, (vert_indices, _tri_indices))| {
+                let mut min_x = f64::MAX;
+                let mut max_x = f64::MIN;
+                let mut min_y = f64::MAX;
+                let mut max_y = f64::MIN;
+                let mut max_z = f64::MIN;
+                let vertices = repaired_mesh.vertices();
+                for &vi in vert_indices {
+                    let v = vertices[vi as usize];
+                    if v.x < min_x { min_x = v.x; }
+                    if v.x > max_x { max_x = v.x; }
+                    if v.y < min_y { min_y = v.y; }
+                    if v.y > max_y { max_y = v.y; }
+                    if v.z > max_z { max_z = v.z; }
+                }
+                slicecore_engine::sequential::ObjectBounds {
+                    min_x,
+                    max_x,
+                    min_y,
+                    max_y,
+                    max_z,
+                    object_index: comp_idx,
+                }
+            })
+            .collect();
+
+        let object_names: Vec<String> = (0..components.len())
+            .map(|i| format!("object_{}", i))
+            .collect();
+
+        // Estimate layer heights.
+        let first_layer = print_config.first_layer_height;
+        let layer_h = print_config.layer_height;
+        let max_obj_z = object_bounds
+            .iter()
+            .map(|b| b.max_z)
+            .fold(0.0_f64, f64::max);
+        let mut layer_heights = Vec::new();
+        let mut z = first_layer;
+        while z <= max_obj_z + 1e-6 {
+            layer_heights.push(z);
+            z += layer_h;
+        }
+
+        // Plan hybrid print.
+        let plan = match slicecore_engine::sequential::plan_hybrid_print(
+            &object_bounds,
+            &object_names,
+            &print_config,
+            &layer_heights,
+        ) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("Error: {e}");
+                process::exit(1);
+            }
+        };
+
+        // Display dry-run output.
+        println!("=== Hybrid Sequential Print Plan ===");
+        println!();
+        println!(
+            "Transition: after layer {} (Z={:.3}mm)",
+            plan.shared_layer_count, plan.transition_z
+        );
+        println!();
+        println!("Phase 1 (Shared Layers):");
+        println!(
+            "  Layers 0-{}, all objects printed together",
+            plan.shared_layer_count.saturating_sub(1)
+        );
+        println!();
+        println!("Phase 2 (Sequential):");
+        println!("  Object order (shortest first):");
+        for (i, obj) in plan.objects.iter().enumerate() {
+            let obj_layers_above = layer_heights
+                .iter()
+                .filter(|&&lz| lz > plan.transition_z && lz <= obj.bounds.max_z)
+                .count();
+            println!(
+                "    {}. {} (height: {:.1}mm, ~{} sequential layers)",
+                i + 1,
+                obj.name,
+                obj.bounds.max_z,
+                obj_layers_above
+            );
+        }
+        println!("  Safe Z: {:.1}mm", plan.safe_z);
+        println!();
+        println!("Total objects: {}", plan.objects.len());
+
+        return None;
     }
 
     // Create engine (auto-loads plugins from config.plugin_dir when plugins feature enabled).
