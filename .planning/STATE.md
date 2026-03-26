@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 49 context gathered
-last_updated: "2026-03-26T00:11:52.317Z"
-last_activity: "2026-03-25 - Completed 48-03: Profile import z-hop field mappings"
+status: executing
+stopped_at: Completed 49-01-PLAN.md
+last_updated: "2026-03-26T00:41:56.455Z"
+last_activity: "2026-03-26 - Completed 49-01: Foundation types for hybrid sequential printing"
 progress:
   total_phases: 51
   completed_phases: 48
-  total_plans: 200
-  completed_plans: 200
+  total_plans: 203
+  completed_plans: 201
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 48 of 51 (Selective adaptive z-hop control)
-Plan: 3 of 3 in current phase
-Status: Complete
-Last activity: 2026-03-25 - Completed 48-03: Profile import z-hop field mappings
+Phase: 49 of 51 (Hybrid sequential printing)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-26 - Completed 49-01: Foundation types for hybrid sequential printing
 
-Progress: [██████████] 100% (200/200 overall)
+Progress: [██████████] 100% (201/203 overall)
 
 ## Performance Metrics
 
@@ -174,6 +174,7 @@ Progress: [██████████] 100% (200/200 overall)
 | Phase 47 P05 | 4min | 2 tasks | 1 files |
 | Phase 48 P01 | 8min | 2 tasks | 15 files |
 | Phase 48 P03 | 5 | 2 tasks | 2 files |
+| Phase 49 P01 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -727,6 +728,7 @@ Recent decisions affecting current work:
 - [Phase 47]: Smoothing params 0.3/1 for VLH wrapper compatibility with old adaptive tests
 - [Phase 48]: ZHopConfig placed on PrintConfig (not RetractionConfig) with serde alias for backward compat
 - [Phase 48]: OrcaSlicer z_hop_types accepts both string names and numeric 0-3 values for profile import
+- [Phase 49]: Hybrid transition uses three-tier priority: explicit count > height threshold > fallback default of 5
 
 ### Roadmap Evolution
 
@@ -786,6 +788,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-26T00:11:52.312Z
-Stopped at: Phase 49 context gathered
-Resume file: .planning/phases/49-hybrid-sequential-printing-first-n-layers-all-objects-together-then-switch-to-by-object-sequential-printing/49-CONTEXT.md
+Last session: 2026-03-26T00:41:56.451Z
+Stopped at: Completed 49-01-PLAN.md
+Resume file: None
