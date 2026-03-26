@@ -22,7 +22,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 
 - [ ] **MESH-01**: Import STL files (binary and ASCII)
 - [x] **MESH-02**: Import 3MF files via lib3mf-core
-- [ ] **MESH-03**: Import OBJ files
+- [x] **MESH-03**: Import OBJ files
 - [ ] **MESH-04**: Export G-code in multiple dialects (Marlin, Klipper, RepRapFirmware, Bambu)
 - [ ] **MESH-05**: Auto-repair non-manifold geometry
 - [ ] **MESH-06**: Auto-repair self-intersecting meshes
@@ -192,7 +192,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | MESH-09 | Phase 1 | Pending |
 | MESH-01 | Phase 2 | Pending |
 | MESH-02 | Phase 2 | Complete |
-| MESH-03 | Phase 2 | Pending |
+| MESH-03 | Phase 2 | Complete |
 | MESH-04 | Phase 2 | Pending |
 | MESH-05 | Phase 2 | Pending |
 | MESH-06 | Phase 2 | Pending |

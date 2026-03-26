@@ -336,7 +336,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 47. Variable Layer Height Algorithms | 5/5 | Complete    | 2026-03-25 |
 | 48. Selective Adaptive Z-Hop Control | 3/3 | Complete    | 2026-03-25 |
 | 49. Hybrid Sequential Printing | 3/3 | Complete    | 2026-03-26 |
-| 50. 3MF Project Output with Embedded G-code | 0/0 | ○ Pending | - |
+| 50. 3MF Project Output with Embedded G-code | 2/2 | Complete    | 2026-03-26 |
 | 51. Comprehensive Documentation Suite | 0/0 | ○ Pending | - |
 
 ### Phase 14: Profile Conversion Tool (JSON to TOML)
@@ -891,9 +891,11 @@ Plans:
 **Goal:** Enable saving complete slice sessions in 3MF project format containing model geometry, print settings metadata, thumbnail images, and embedded G-code, with Bambu/OrcaSlicer compatibility for direct-to-printer workflows.
 **Requirements**: [MESH-03]
 **Depends on:** Phase 49
-**Plans:** 0 plans
+**Plans:** 2/2 plans complete
 
 Plans:
+- [ ] 50-01-PLAN.md -- Core 3MF project export types and functions (ProjectExportOptions, XML config builders, PlateMetadata, export_project_to_3mf)
+- [ ] 50-02-PLAN.md -- CLI integration with .3mf auto-detection, dual output, and job dir support
 
 ### Phase 51: Comprehensive documentation suite for users and developers — build mdBook-based docs with install guide, user guide, API reference, and developer guide
 
