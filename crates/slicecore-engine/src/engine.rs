@@ -1251,15 +1251,24 @@ impl Engine {
         }
 
         // 0. Sequential printing check (before slicing).
+        // hybrid_plan carries forward to G-code generation when hybrid mode is active.
+        let mut hybrid_plan: Option<crate::sequential::HybridPlan> = None;
+        let mut hybrid_components: Option<Vec<(Vec<u32>, Vec<usize>)>> = None;
+
         if self.config.sequential.enabled {
             let components = mesh.connected_components();
             if components.len() <= 1 {
-                // Single object -- sequential mode has no effect.
+                // Single object -- sequential/hybrid mode has no effect.
+                let msg = if self.config.sequential.hybrid_enabled {
+                    "Hybrid sequential enabled but only one object found. \
+                     Falling through to normal slicing."
+                } else {
+                    "Sequential printing enabled but mesh has only one object. \
+                     Sequential mode has no effect for single objects."
+                };
                 if let Some(bus) = event_bus {
                     bus.emit(&crate::event::SliceEvent::Warning {
-                        message: "Sequential printing enabled but mesh has only one object. \
-                                  Sequential mode has no effect for single objects."
-                            .to_string(),
+                        message: msg.to_string(),
                         layer: None,
                     });
                 }
@@ -1304,28 +1313,77 @@ impl Engine {
                     })
                     .collect();
 
-                // Run collision detection and ordering.
-                let _plan = crate::sequential::plan_sequential_print(&object_bounds, &self.config)?;
+                if self.config.sequential.hybrid_enabled {
+                    // HYBRID TRANSITION mode: shared layers + per-object sequential.
+                    // Build object names (fallback to "object_N").
+                    let object_names: Vec<String> = (0..components.len())
+                        .map(|i| format!("object_{}", i))
+                        .collect();
 
-                // Emit info about sequential order.
-                if let Some(bus) = event_bus {
-                    bus.emit(&crate::event::SliceEvent::StageChanged {
-                        stage: "sequential_validation".to_string(),
-                        progress: 0.0,
-                    });
-                    bus.emit(&crate::event::SliceEvent::Warning {
-                        message: format!(
-                            "Sequential printing validated: {} objects, no collisions detected",
-                            components.len()
-                        ),
-                        layer: None,
-                    });
+                    // Compute layer heights for transition point calculation.
+                    // Use the first layer height + uniform layer height as approximation.
+                    let approx_layer_count = 200_usize; // Upper bound; exact count determined after slicing.
+                    let layer_height = self.config.layer_height;
+                    let first_layer_height = self.config.first_layer_height;
+                    let approx_heights: Vec<f64> = (0..approx_layer_count)
+                        .map(|i| {
+                            if i == 0 {
+                                first_layer_height
+                            } else {
+                                first_layer_height + (i as f64) * layer_height
+                            }
+                        })
+                        .collect();
+
+                    let plan = crate::sequential::plan_hybrid_print(
+                        &object_bounds,
+                        &object_names,
+                        &self.config,
+                        &approx_heights,
+                    )?;
+
+                    if let Some(bus) = event_bus {
+                        bus.emit(&crate::event::SliceEvent::StageChanged {
+                            stage: "hybrid_validation".to_string(),
+                            progress: 0.0,
+                        });
+                        bus.emit(&crate::event::SliceEvent::Warning {
+                            message: format!(
+                                "Hybrid sequential printing: {} shared layers (Z={:.3}), then {} objects sequentially",
+                                plan.shared_layer_count,
+                                plan.transition_z,
+                                plan.objects.len()
+                            ),
+                            layer: None,
+                        });
+                    }
+
+                    hybrid_plan = Some(plan);
+                    hybrid_components = Some(components);
+                } else {
+                    // Standard sequential validation (non-hybrid).
+                    let _plan = crate::sequential::plan_sequential_print(&object_bounds, &self.config)?;
+
+                    // Emit info about sequential order.
+                    if let Some(bus) = event_bus {
+                        bus.emit(&crate::event::SliceEvent::StageChanged {
+                            stage: "sequential_validation".to_string(),
+                            progress: 0.0,
+                        });
+                        bus.emit(&crate::event::SliceEvent::Warning {
+                            message: format!(
+                                "Sequential printing validated: {} objects, no collisions detected",
+                                components.len()
+                            ),
+                            layer: None,
+                        });
+                    }
+
+                    // Note: Full object-by-object slicing (slicing each component separately
+                    // and inserting safe-Z travels between them) requires API changes beyond
+                    // V1 scope. The current implementation validates that sequential printing
+                    // is feasible. The mesh is still sliced as one piece.
                 }
-
-                // Note: Full object-by-object slicing (slicing each component separately
-                // and inserting safe-Z travels between them) requires API changes beyond
-                // V1 scope. The current implementation validates that sequential printing
-                // is feasible. The mesh is still sliced as one piece.
             }
         }
 
@@ -1983,8 +2041,108 @@ impl Engine {
             });
         }
 
-        // 4. G-code generation.
-        let gcode_commands = generate_full_gcode(&layer_toolpaths, &self.config);
+        // 4. G-code generation (with hybrid mode support).
+        let gcode_commands = if let (Some(ref plan), Some(ref components)) =
+            (&hybrid_plan, &hybrid_components)
+        {
+            // HYBRID TRANSITION: Generate shared layers + per-object sequential G-code.
+            let shared_count = (plan.shared_layer_count as usize).min(layer_toolpaths.len());
+
+            // Shared layers: use combined mesh toolpaths for layers 0..shared_count.
+            let mut cmds = generate_full_gcode(
+                &layer_toolpaths[..shared_count],
+                &self.config,
+            );
+
+            // Emit hybrid transition marker and safe-Z travel.
+            crate::gcode_gen::emit_hybrid_transition(
+                &mut cmds,
+                plan.shared_layer_count,
+                plan.transition_z,
+                plan.safe_z,
+                self.config.retraction.length,
+                self.config.retraction.speed,
+            );
+
+            // Per-object sequential phase: slice each component independently.
+            let total_objects = plan.objects.len();
+            for (obj_seq_idx, obj_info) in plan.objects.iter().enumerate() {
+                let comp_idx = obj_info.index;
+
+                // Emit OBJECT_START marker.
+                crate::gcode_gen::emit_object_start(&mut cmds, obj_info.index, &obj_info.name);
+
+                // Extract sub-mesh for this component.
+                if comp_idx < components.len() {
+                    let (ref vert_indices, ref tri_indices) = components[comp_idx];
+                    let vertices = mesh.vertices();
+
+                    // Build re-indexed sub-mesh from connected component.
+                    let mut vert_map: HashMap<u32, u32> = HashMap::new();
+                    let mut sub_verts = Vec::new();
+                    for &vi in vert_indices {
+                        let new_idx = sub_verts.len() as u32;
+                        vert_map.insert(vi, new_idx);
+                        sub_verts.push(vertices[vi as usize]);
+                    }
+                    let sub_indices: Vec<[u32; 3]> = tri_indices
+                        .iter()
+                        .map(|&ti| {
+                            let tri = mesh.indices()[ti];
+                            [
+                                vert_map[&tri[0]],
+                                vert_map[&tri[1]],
+                                vert_map[&tri[2]],
+                            ]
+                        })
+                        .collect();
+
+                    if let Ok(sub_mesh) = TriangleMesh::new(sub_verts, sub_indices) {
+                        // Slice the sub-mesh independently for its sequential layers.
+                        let sub_engine = Engine::new((*self.config).clone());
+                        if let Ok(sub_result) = sub_engine.slice(&sub_mesh, cancel.clone()) {
+                            let obj_total_layers = sub_result.layer_count.saturating_sub(shared_count);
+
+                            cmds.push(slicecore_gcode_io::GcodeCommand::Comment(format!(
+                                "Object {} sequential phase: {} layers above transition",
+                                obj_info.name, obj_total_layers
+                            )));
+
+                            // Emit per-object progress events.
+                            if let Some(bus) = event_bus {
+                                for obj_layer in 0..obj_total_layers {
+                                    let object_percent = if obj_total_layers > 0 {
+                                        ((obj_layer + 1) as f32 / obj_total_layers as f32) * 100.0
+                                    } else {
+                                        100.0
+                                    };
+                                    bus.emit(&crate::event::SliceEvent::ObjectProgress {
+                                        object_index: obj_info.index,
+                                        total_objects,
+                                        object_name: obj_info.name.clone(),
+                                        object_percent,
+                                        object_layer: obj_layer,
+                                        object_total_layers: obj_total_layers,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Emit OBJECT_END marker.
+                crate::gcode_gen::emit_object_end(&mut cmds, obj_info.index);
+
+                // Safe-Z travel between objects (not after the last one).
+                if obj_seq_idx + 1 < total_objects {
+                    crate::gcode_gen::emit_safe_z_travel(&mut cmds, plan.safe_z);
+                }
+            }
+
+            cmds
+        } else {
+            generate_full_gcode(&layer_toolpaths, &self.config)
+        };
 
         // 4b. Arc fitting post-processing (optional).
         let gcode_commands = if self.config.arc_fitting_enabled {
