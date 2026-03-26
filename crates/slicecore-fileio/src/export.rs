@@ -313,7 +313,7 @@ fn build_model_settings_config(object_configs: &[ThreeMfObjectConfig]) -> String
 }
 
 /// Minimal XML attribute value escaping.
-fn xml_escape(s: &str) -> String {
+pub(crate) fn xml_escape(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('"', "&quot;")
         .replace('<', "&lt;")
