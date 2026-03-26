@@ -879,9 +879,12 @@ Plans:
 **Goal:** Implement hybrid print mode where Phase 1 prints first N layers of all objects together for adhesion verification, then Phase 2 switches to sequential by-object printing for quality, with early failure detection and conditional object skipping.
 **Requirements**: [ADV-02]
 **Depends on:** Phase 48
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
+- [ ] 49-01-PLAN.md -- Hybrid config fields, HybridPlan struct, ObjectProgress event
+- [ ] 49-02-PLAN.md -- Two-phase engine slicing and G-code object markers
+- [ ] 49-03-PLAN.md -- CLI hybrid-dry-run flag and profile import verification
 
 ### Phase 50: 3MF project output with model settings and embedded G-code — implement full 3MF project write support with settings metadata, thumbnails, and Bambu printer compatibility
 
