@@ -159,6 +159,22 @@ impl JobDir {
         self.path.join("thumbnail.png")
     }
 
+    /// Returns the path for a 3MF project file in this job directory.
+    ///
+    /// Uses the model name stem with `.3mf` extension, e.g. `benchy.3mf`.
+    pub fn project_path(&self, model_name: &str) -> PathBuf {
+        let stem = Path::new(model_name)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("output");
+        self.path.join(format!("{stem}.3mf"))
+    }
+
+    /// Returns the path for a plate-mode 3MF project file in this job directory.
+    pub fn plate_project_path(&self) -> PathBuf {
+        self.path.join("plate.3mf")
+    }
+
     /// Write a manifest to `manifest.json` in this job directory.
     ///
     /// # Errors
@@ -656,6 +672,17 @@ mod tests {
         assert!(job_path.join(".lock").exists());
         drop(job);
         assert!(!job_path.join(".lock").exists());
+    }
+
+    #[test]
+    fn project_path_uses_stem() {
+        let tmp = TempDir::new().unwrap();
+        let job_path = tmp.path().join("project-path-test");
+        let job = JobDir::create(job_path.clone(), false).unwrap();
+        let pp = job.project_path("my_model.stl");
+        assert!(pp.ends_with("my_model.3mf"));
+        let plate_pp = job.plate_project_path();
+        assert!(plate_pp.ends_with("plate.3mf"));
     }
 
     #[test]
