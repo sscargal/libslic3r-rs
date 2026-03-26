@@ -31,6 +31,8 @@ pub mod detect;
 pub mod error;
 pub mod export;
 pub mod obj;
+pub mod plate_metadata;
+pub mod project_config;
 pub mod stl;
 pub mod stl_ascii;
 pub mod stl_binary;
@@ -40,9 +42,12 @@ pub mod threemf;
 pub use detect::{detect_format, MeshFormat};
 pub use error::FileIOError;
 pub use export::{
-    export_plate_to_3mf, save_mesh, save_mesh_to_writer, save_mesh_to_writer_with_thumbnail,
-    save_mesh_with_thumbnail, ExportFormat,
+    export_plate_to_3mf, export_project_to_3mf, save_mesh, save_mesh_to_writer,
+    save_mesh_to_writer_with_thumbnail, save_mesh_with_thumbnail, ExportFormat,
+    ProjectExportOptions,
 };
+pub use plate_metadata::{FilamentSlot, PlateMetadata, PlateObject, PlateStatistics};
+pub use project_config::{AmsMapping, AmsSlot, ProjectMetadata};
 pub use stl::parse_stl;
 pub use threemf::{
     ThreeMfImportResult, ThreeMfImportSummary, ThreeMfModifier, ThreeMfObjectConfig,
