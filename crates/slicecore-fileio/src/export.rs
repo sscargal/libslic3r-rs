@@ -18,7 +18,13 @@ use lib3mf_converters::stl::BinaryStlExporter;
 use lib3mf_core::model::{BuildItem, Geometry, Mesh, Object, ObjectType, ResourceId};
 use lib3mf_core::Model;
 
+use md5::{Digest, Md5};
+
 use crate::error::FileIOError;
+use crate::project_config::{
+    build_filament_settings_config, build_machine_settings_config,
+    build_process_settings_config, build_project_metadata_config,
+};
 use crate::threemf::ThreeMfObjectConfig;
 use slicecore_mesh::TriangleMesh;
 
@@ -312,37 +318,42 @@ fn build_model_settings_config(object_configs: &[ThreeMfObjectConfig]) -> String
     xml
 }
 
-/// Minimal XML attribute value escaping.
-pub(crate) fn xml_escape(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
+/// Options for writing a full 3MF project file with embedded G-code, settings, and metadata.
+#[derive(Debug, Clone)]
+pub struct ProjectExportOptions {
+    /// G-code bytes per plate (complete, identical to standalone output). 1-indexed plates.
+    pub gcode_per_plate: Vec<Vec<u8>>,
+    /// PNG thumbnail data per plate (`None` = skip thumbnail for that plate).
+    pub thumbnails_per_plate: Vec<Option<Vec<u8>>>,
+    /// Plate metadata (positions, stats, filament usage) per plate.
+    pub plate_metadata: Vec<crate::plate_metadata::PlateMetadata>,
+    /// Full `PrintConfig` snapshot serialized as TOML string for `slicecore_config.toml`.
+    pub config_toml: String,
+    /// Process settings as slicer-compatible `(key, value)` pairs for XML config.
+    pub process_settings: Vec<(String, String)>,
+    /// Filament settings as slicer-compatible `(key, value)` pairs for XML config.
+    pub filament_settings: Vec<(String, String)>,
+    /// Machine settings as slicer-compatible `(key, value)` pairs for XML config.
+    pub machine_settings: Vec<(String, String)>,
+    /// Project-level metadata (version, timestamp, provenance).
+    pub project_metadata: crate::project_config::ProjectMetadata,
+    /// AMS filament slot mapping (omit if `None`).
+    pub ams_mapping: Option<crate::project_config::AmsMapping>,
 }
 
-/// Exports multiple meshes to a 3MF file with per-object settings.
+/// Builds a `lib3mf_core::Model` from multiple meshes and per-object configs.
 ///
-/// Writes models, per-object settings, and transforms. Uses `slicecore:` namespace
-/// for SliceCore-specific metadata and includes best-effort PrusaSlicer/OrcaSlicer
-/// compatible metadata for basic settings.
-///
-/// The per-object settings are stored in `Metadata/model_settings.config` inside
-/// the 3MF archive, matching the format used by OrcaSlicer/Bambu Studio.
-///
-/// # Errors
-///
-/// - [`FileIOError::WriteError`] if the export fails.
-pub fn export_plate_to_3mf<W: Write + Seek>(
+/// Shared between [`export_plate_to_3mf`] and [`export_project_to_3mf`] to
+/// avoid duplicating model-building logic.
+fn build_plate_model(
     meshes: &[&TriangleMesh],
     object_configs: &[ThreeMfObjectConfig],
-    mut writer: W,
-) -> Result<(), FileIOError> {
+) -> Result<Model, FileIOError> {
     let mut model = Model::default();
     model
         .metadata
         .insert("Application".to_string(), "SliceCore".to_string());
 
-    // Add each mesh as a separate object.
     for (idx, mesh) in meshes.iter().enumerate() {
         let resource_id = ResourceId(u32::try_from(idx + 1).unwrap_or(1));
 
@@ -382,6 +393,145 @@ pub fn export_plate_to_3mf<W: Write + Seek>(
             printable: None,
         });
     }
+
+    Ok(model)
+}
+
+/// Exports multiple meshes to a full 3MF project file with embedded G-code,
+/// settings configs, thumbnails, plate metadata, and project-level metadata.
+///
+/// This produces a "project" 3MF, as used by Bambu Studio and OrcaSlicer,
+/// containing everything needed to reproduce the print.
+///
+/// # Errors
+///
+/// - [`FileIOError::WriteError`] if archive writing fails.
+pub fn export_project_to_3mf<W: Write + Seek>(
+    meshes: &[&TriangleMesh],
+    object_configs: &[ThreeMfObjectConfig],
+    project_options: &ProjectExportOptions,
+    mut writer: W,
+) -> Result<(), FileIOError> {
+    let mut model = build_plate_model(meshes, object_configs)?;
+
+    // Attach per-object settings if any overrides exist.
+    let has_overrides = object_configs
+        .iter()
+        .any(|c| !c.overrides.is_empty() || !c.unmapped.is_empty());
+    if has_overrides {
+        let config_xml = build_model_settings_config(object_configs);
+        model.attachments.insert(
+            "Metadata/model_settings.config".to_string(),
+            config_xml.into_bytes(),
+        );
+    }
+
+    // Embed G-code, MD5 checksums, thumbnails, and plate metadata per plate.
+    for (i, gcode_bytes) in project_options.gcode_per_plate.iter().enumerate() {
+        let plate_num = i + 1;
+
+        // G-code
+        model.attachments.insert(
+            format!("Metadata/plate_{plate_num}.gcode"),
+            gcode_bytes.clone(),
+        );
+
+        // MD5 checksum
+        let hash = Md5::digest(gcode_bytes);
+        let md5_hex = format!("{hash:x}");
+        model.attachments.insert(
+            format!("Metadata/plate_{plate_num}.gcode.md5"),
+            md5_hex.into_bytes(),
+        );
+
+        // Thumbnail (if provided)
+        if let Some(Some(png_bytes)) = project_options.thumbnails_per_plate.get(i) {
+            model.attachments.insert(
+                format!("Metadata/plate_{plate_num}.png"),
+                png_bytes.clone(),
+            );
+        }
+
+        // Plate metadata JSON
+        if let Some(plate_meta) = project_options.plate_metadata.get(i) {
+            let json = serde_json::to_string_pretty(plate_meta)
+                .map_err(|e| FileIOError::WriteError(e.to_string()))?;
+            model.attachments.insert(
+                format!("Metadata/plate_{plate_num}.json"),
+                json.into_bytes(),
+            );
+        }
+    }
+
+    // Settings configs
+    model.attachments.insert(
+        "Metadata/process_settings.config".to_string(),
+        build_process_settings_config(&project_options.process_settings).into_bytes(),
+    );
+    model.attachments.insert(
+        "Metadata/filament_settings.config".to_string(),
+        build_filament_settings_config(&project_options.filament_settings).into_bytes(),
+    );
+    model.attachments.insert(
+        "Metadata/machine_settings.config".to_string(),
+        build_machine_settings_config(&project_options.machine_settings).into_bytes(),
+    );
+
+    // SliceCore native config (TOML)
+    model.attachments.insert(
+        "Metadata/slicecore_config.toml".to_string(),
+        project_options.config_toml.as_bytes().to_vec(),
+    );
+
+    // Project metadata
+    model.attachments.insert(
+        "Metadata/project_settings.config".to_string(),
+        build_project_metadata_config(&project_options.project_metadata).into_bytes(),
+    );
+
+    // AMS mapping (optional)
+    if let Some(ref ams) = project_options.ams_mapping {
+        let json = serde_json::to_string_pretty(ams)
+            .map_err(|e| FileIOError::WriteError(e.to_string()))?;
+        model.attachments.insert(
+            "Metadata/ams_mapping.json".to_string(),
+            json.into_bytes(),
+        );
+    }
+
+    model
+        .write(&mut writer)
+        .map_err(|e| FileIOError::WriteError(e.to_string()))?;
+
+    Ok(())
+}
+
+/// Minimal XML attribute value escaping.
+pub(crate) fn xml_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
+/// Exports multiple meshes to a 3MF file with per-object settings.
+///
+/// Writes models, per-object settings, and transforms. Uses `slicecore:` namespace
+/// for SliceCore-specific metadata and includes best-effort PrusaSlicer/OrcaSlicer
+/// compatible metadata for basic settings.
+///
+/// The per-object settings are stored in `Metadata/model_settings.config` inside
+/// the 3MF archive, matching the format used by OrcaSlicer/Bambu Studio.
+///
+/// # Errors
+///
+/// - [`FileIOError::WriteError`] if the export fails.
+pub fn export_plate_to_3mf<W: Write + Seek>(
+    meshes: &[&TriangleMesh],
+    object_configs: &[ThreeMfObjectConfig],
+    mut writer: W,
+) -> Result<(), FileIOError> {
+    let mut model = build_plate_model(meshes, object_configs)?;
 
     // Build and attach per-object settings config if any overrides exist.
     let has_overrides = object_configs
