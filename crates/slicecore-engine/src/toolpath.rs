@@ -800,7 +800,9 @@ mod tests {
             s.feature == FeatureType::OuterPerimeter || s.feature == FeatureType::InnerPerimeter
         });
         let first_infill_idx = toolpath.segments.iter().position(|s| {
-            s.feature == FeatureType::SparseInfill || s.feature == FeatureType::SolidInfill || s.feature == FeatureType::TopSolidInfill
+            s.feature == FeatureType::SparseInfill
+                || s.feature == FeatureType::SolidInfill
+                || s.feature == FeatureType::TopSolidInfill
         });
 
         if let (Some(perim), Some(infill)) = (first_perim_idx, first_infill_idx) {
@@ -947,7 +949,9 @@ mod tests {
                         seg.feedrate
                     );
                 }
-                FeatureType::SparseInfill | FeatureType::SolidInfill | FeatureType::TopSolidInfill => {
+                FeatureType::SparseInfill
+                | FeatureType::SolidInfill
+                | FeatureType::TopSolidInfill => {
                     assert!(
                         (seg.feedrate - infill_speed_mmmin).abs() < 0.1,
                         "Infill speed should be {} mm/min, got {}",

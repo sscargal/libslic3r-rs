@@ -195,10 +195,7 @@ mod tests {
             (first - 0.05).abs() < 1e-12,
             "First boundary should not move"
         );
-        assert!(
-            (last - 0.05).abs() < 1e-12,
-            "Last boundary should not move"
-        );
+        assert!((last - 0.05).abs() < 1e-12, "Last boundary should not move");
         // Interior heights should vary (not all equal to mean).
         let all_same = heights.windows(2).all(|w| (w[0].1 - w[1].1).abs() < 1e-6);
         assert!(
@@ -248,11 +245,7 @@ mod tests {
 
     #[test]
     fn ratio_clamp_preserves_first_layer() {
-        let mut heights = vec![
-            (0.1, 0.2),
-            (0.3, 0.1),
-            (0.4, 0.3),
-        ];
+        let mut heights = vec![(0.1, 0.2), (0.3, 0.1), (0.4, 0.3)];
         ratio_clamp(&mut heights, 1.5);
         for i in 1..heights.len() {
             let ratio = heights[i].1 / heights[i - 1].1;

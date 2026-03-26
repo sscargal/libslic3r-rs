@@ -3307,14 +3307,26 @@ mod tests {
 
     #[test]
     fn test_profile_import_z_hop_type_mapping() {
-        assert_eq!(upstream_key_to_config_field("z_hop_types"), Some("z_hop.hop_type"));
+        assert_eq!(
+            upstream_key_to_config_field("z_hop_types"),
+            Some("z_hop.hop_type")
+        );
         assert_eq!(
             upstream_key_to_config_field("retract_lift_enforce"),
             Some("z_hop.surface_enforce")
         );
-        assert_eq!(upstream_key_to_config_field("travel_slope"), Some("z_hop.travel_angle"));
-        assert_eq!(upstream_key_to_config_field("retract_lift_above"), Some("z_hop.above"));
-        assert_eq!(upstream_key_to_config_field("retract_lift_below"), Some("z_hop.below"));
+        assert_eq!(
+            upstream_key_to_config_field("travel_slope"),
+            Some("z_hop.travel_angle")
+        );
+        assert_eq!(
+            upstream_key_to_config_field("retract_lift_above"),
+            Some("z_hop.above")
+        );
+        assert_eq!(
+            upstream_key_to_config_field("retract_lift_below"),
+            Some("z_hop.below")
+        );
     }
 
     #[test]
@@ -3331,7 +3343,10 @@ mod tests {
 
         assert!((config.z_hop.height - 0.5).abs() < 1e-9);
         assert_eq!(config.z_hop.hop_type, ZHopType::Spiral);
-        assert_eq!(config.z_hop.surface_enforce, SurfaceEnforce::TopSolidAndIroning);
+        assert_eq!(
+            config.z_hop.surface_enforce,
+            SurfaceEnforce::TopSolidAndIroning
+        );
         assert!((config.z_hop.travel_angle - 60.0).abs() < 1e-9);
         assert!((config.z_hop.above - 0.3).abs() < 1e-9);
         assert!((config.z_hop.below - 10.0).abs() < 1e-9);

@@ -1362,7 +1362,8 @@ impl Engine {
                     hybrid_components = Some(components);
                 } else {
                     // Standard sequential validation (non-hybrid).
-                    let _plan = crate::sequential::plan_sequential_print(&object_bounds, &self.config)?;
+                    let _plan =
+                        crate::sequential::plan_sequential_print(&object_bounds, &self.config)?;
 
                     // Emit info about sequential order.
                     if let Some(bus) = event_bus {
@@ -2049,10 +2050,7 @@ impl Engine {
             let shared_count = (plan.shared_layer_count as usize).min(layer_toolpaths.len());
 
             // Shared layers: use combined mesh toolpaths for layers 0..shared_count.
-            let mut cmds = generate_full_gcode(
-                &layer_toolpaths[..shared_count],
-                &self.config,
-            );
+            let mut cmds = generate_full_gcode(&layer_toolpaths[..shared_count], &self.config);
 
             // Emit hybrid transition marker and safe-Z travel.
             crate::gcode_gen::emit_hybrid_transition(
@@ -2089,11 +2087,7 @@ impl Engine {
                         .iter()
                         .map(|&ti| {
                             let tri = mesh.indices()[ti];
-                            [
-                                vert_map[&tri[0]],
-                                vert_map[&tri[1]],
-                                vert_map[&tri[2]],
-                            ]
+                            [vert_map[&tri[0]], vert_map[&tri[1]], vert_map[&tri[2]]]
                         })
                         .collect();
 
@@ -2101,7 +2095,8 @@ impl Engine {
                         // Slice the sub-mesh independently for its sequential layers.
                         let sub_engine = Engine::new((*self.config).clone());
                         if let Ok(sub_result) = sub_engine.slice(&sub_mesh, cancel.clone()) {
-                            let obj_total_layers = sub_result.layer_count.saturating_sub(shared_count);
+                            let obj_total_layers =
+                                sub_result.layer_count.saturating_sub(shared_count);
 
                             cmds.push(slicecore_gcode_io::GcodeCommand::Comment(format!(
                                 "Object {} sequential phase: {} layers above transition",

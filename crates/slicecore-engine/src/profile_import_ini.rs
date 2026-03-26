@@ -2964,9 +2964,18 @@ fill_density = 10%
 
     #[test]
     fn test_ini_z_hop_field_mappings() {
-        assert_eq!(prusaslicer_key_to_config_field("retract_lift"), Some("z_hop.height"));
-        assert_eq!(prusaslicer_key_to_config_field("retract_lift_above"), Some("z_hop.above"));
-        assert_eq!(prusaslicer_key_to_config_field("retract_lift_below"), Some("z_hop.below"));
+        assert_eq!(
+            prusaslicer_key_to_config_field("retract_lift"),
+            Some("z_hop.height")
+        );
+        assert_eq!(
+            prusaslicer_key_to_config_field("retract_lift_above"),
+            Some("z_hop.above")
+        );
+        assert_eq!(
+            prusaslicer_key_to_config_field("retract_lift_below"),
+            Some("z_hop.below")
+        );
     }
 
     #[test]

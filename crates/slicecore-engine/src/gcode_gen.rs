@@ -21,10 +21,12 @@ use sha2::{Digest, Sha256};
 use slicecore_gcode_io::{format_acceleration, format_pressure_advance, GcodeCommand};
 
 use crate::config::PrintConfig;
+use crate::config::ZHopType;
 use crate::custom_gcode::substitute_placeholders;
 use crate::engine::PlateSliceResult;
-use crate::config::ZHopType;
-use crate::planner::{plan_bridge_fan, plan_fan, plan_retraction, plan_temperatures, plan_z_hop, ZHopDecision};
+use crate::planner::{
+    plan_bridge_fan, plan_fan, plan_retraction, plan_temperatures, plan_z_hop, ZHopDecision,
+};
 use crate::plate_config::{MeshSource, PlateConfig};
 use crate::toolpath::{FeatureType, LayerToolpath};
 
@@ -341,7 +343,15 @@ fn emit_z_hop_up(
             });
         }
         ZHopType::Slope => {
-            emit_slope_segments(cmds, start_x, start_y, z_base, decision.height, decision.travel_angle, feedrate);
+            emit_slope_segments(
+                cmds,
+                start_x,
+                start_y,
+                z_base,
+                decision.height,
+                decision.travel_angle,
+                feedrate,
+            );
         }
         ZHopType::Spiral => {
             emit_spiral_segments(cmds, start_x, start_y, z_base, decision.height, feedrate);
@@ -1609,7 +1619,12 @@ mod tests {
         emit_z_hop_up(&mut cmds, 10.0, 5.0, 0.4, &decision);
         assert_eq!(cmds.len(), 1, "Normal z-hop should emit exactly 1 G0 move");
         match &cmds[0] {
-            GcodeCommand::RapidMove { x: None, y: None, z: Some(z), f: None } => {
+            GcodeCommand::RapidMove {
+                x: None,
+                y: None,
+                z: Some(z),
+                f: None,
+            } => {
                 assert!((z - 0.8).abs() < 1e-9, "Z should be 0.4 + 0.4 = 0.8");
             }
             other => panic!("Expected RapidMove with Z only, got {:?}", other),
@@ -1630,7 +1645,12 @@ mod tests {
         // Each segment should have X, Y, and Z values
         for cmd in &cmds {
             match cmd {
-                GcodeCommand::RapidMove { x: Some(_), y: Some(_), z: Some(_), .. } => {}
+                GcodeCommand::RapidMove {
+                    x: Some(_),
+                    y: Some(_),
+                    z: Some(_),
+                    ..
+                } => {}
                 other => panic!("Slope segment should have X/Y/Z, got {:?}", other),
             }
         }
@@ -1654,15 +1674,32 @@ mod tests {
         // Each should have X, Y, Z
         for cmd in &cmds {
             match cmd {
-                GcodeCommand::RapidMove { x: Some(_), y: Some(_), z: Some(_), .. } => {}
+                GcodeCommand::RapidMove {
+                    x: Some(_),
+                    y: Some(_),
+                    z: Some(_),
+                    ..
+                } => {}
                 other => panic!("Spiral segment should have X/Y/Z, got {:?}", other),
             }
         }
         // Last segment should complete full rotation (cos(TAU) = 1, sin(TAU) ~ 0)
-        if let GcodeCommand::RapidMove { x: Some(x), y: Some(y), z: Some(z), .. } = &cmds[5] {
+        if let GcodeCommand::RapidMove {
+            x: Some(x),
+            y: Some(y),
+            z: Some(z),
+            ..
+        } = &cmds[5]
+        {
             let radius = 1.0_f64.min(0.4 * 2.0);
-            assert!((x - (10.0 + radius)).abs() < 1e-9, "X should return to center+radius after full rotation");
-            assert!(y.abs() - 5.0 < 1e-6, "Y should be near center after full rotation");
+            assert!(
+                (x - (10.0 + radius)).abs() < 1e-9,
+                "X should return to center+radius after full rotation"
+            );
+            assert!(
+                y.abs() - 5.0 < 1e-6,
+                "Y should be near center after full rotation"
+            );
             assert!((z - 0.8).abs() < 1e-9, "Final Z should be 0.8");
         }
     }
@@ -1681,7 +1718,17 @@ mod tests {
         // Count Z-only rapid moves (should only have the initial layer Z, no z-hop)
         let z_only_rapids: Vec<_> = cmds
             .iter()
-            .filter(|c| matches!(c, GcodeCommand::RapidMove { x: None, y: None, z: Some(_), .. }))
+            .filter(|c| {
+                matches!(
+                    c,
+                    GcodeCommand::RapidMove {
+                        x: None,
+                        y: None,
+                        z: Some(_),
+                        ..
+                    }
+                )
+            })
             .collect();
         // Should have 1 initial layer Z move, but NO z-hop up/down
         assert!(
@@ -1738,7 +1785,17 @@ mod tests {
         // Should have z-hop up and down
         let z_only_rapids: Vec<_> = cmds
             .iter()
-            .filter(|c| matches!(c, GcodeCommand::RapidMove { x: None, y: None, z: Some(_), .. }))
+            .filter(|c| {
+                matches!(
+                    c,
+                    GcodeCommand::RapidMove {
+                        x: None,
+                        y: None,
+                        z: Some(_),
+                        ..
+                    }
+                )
+            })
             .collect();
         assert!(
             z_only_rapids.len() >= 3,
@@ -1760,7 +1817,10 @@ mod tests {
         assert_eq!(cmds.len(), 1);
         match &cmds[0] {
             GcodeCommand::RapidMove { f: Some(f), .. } => {
-                assert!((f - 900.0).abs() < 1e-9, "Feedrate should be 15*60=900 mm/min, got {f}");
+                assert!(
+                    (f - 900.0).abs() < 1e-9,
+                    "Feedrate should be 15*60=900 mm/min, got {f}"
+                );
             }
             other => panic!("Expected RapidMove with feedrate, got {:?}", other),
         }

@@ -1633,11 +1633,21 @@ fn cmd_slice(
                 let vertices = repaired_mesh.vertices();
                 for &vi in vert_indices {
                     let v = vertices[vi as usize];
-                    if v.x < min_x { min_x = v.x; }
-                    if v.x > max_x { max_x = v.x; }
-                    if v.y < min_y { min_y = v.y; }
-                    if v.y > max_y { max_y = v.y; }
-                    if v.z > max_z { max_z = v.z; }
+                    if v.x < min_x {
+                        min_x = v.x;
+                    }
+                    if v.x > max_x {
+                        max_x = v.x;
+                    }
+                    if v.y < min_y {
+                        min_y = v.y;
+                    }
+                    if v.y > max_y {
+                        max_y = v.y;
+                    }
+                    if v.z > max_z {
+                        max_z = v.z;
+                    }
                 }
                 slicecore_engine::sequential::ObjectBounds {
                     min_x,
