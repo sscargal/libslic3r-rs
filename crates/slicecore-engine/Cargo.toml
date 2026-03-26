@@ -30,7 +30,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 toml = "0.8"
-boostvoronoi = "0.11.1"
+boostvoronoi = "0.12.1"
 rayon = { version = "1.11", optional = true }
 rmp-serde = { workspace = true }
 walkdir = { workspace = true }
