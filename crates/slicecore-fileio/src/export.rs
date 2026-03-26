@@ -697,4 +697,237 @@ mod tests {
             );
         }
     }
+
+    // --- Project export tests (Task 2) ---
+
+    fn minimal_project_options() -> ProjectExportOptions {
+        let gcode = b"G28\nG1 X10 Y10 Z0.2\n".to_vec();
+        ProjectExportOptions {
+            gcode_per_plate: vec![gcode],
+            thumbnails_per_plate: vec![None],
+            plate_metadata: vec![crate::plate_metadata::PlateMetadata {
+                plate_index: 1,
+                objects: vec![crate::plate_metadata::PlateObject {
+                    name: "Tetra".to_string(),
+                    position: [0.0, 0.0, 0.0],
+                    bounding_box: [0.0, 0.0, 0.0, 1.0, 1.0, 1.0],
+                    triangle_count: 4,
+                }],
+                plate_size: [256.0, 256.0],
+                statistics: crate::plate_metadata::PlateStatistics {
+                    filament_length_mm: 1000.0,
+                    filament_weight_g: 3.0,
+                    filament_cost: 0.10,
+                    estimated_time_seconds: 600.0,
+                    layer_count: 50,
+                },
+                filament_mapping: None,
+            }],
+            config_toml: "[layer]\nheight = 0.2\n".to_string(),
+            process_settings: vec![("layer_height".to_string(), "0.2".to_string())],
+            filament_settings: vec![("filament_type".to_string(), "PLA".to_string())],
+            machine_settings: vec![("printer_model".to_string(), "X1C".to_string())],
+            project_metadata: crate::project_config::ProjectMetadata {
+                slicecore_version: "0.1.0".to_string(),
+                created_at: "2026-03-26T00:00:00Z".to_string(),
+                source_hashes: vec![],
+                reproduce_command: None,
+                printer_model: None,
+                filament_type: None,
+                filament_brand: None,
+                filament_color: None,
+                nozzle_diameter: None,
+                profile_names: vec![],
+            },
+            ams_mapping: None,
+        }
+    }
+
+    #[test]
+    fn export_project_roundtrip_valid_3mf() {
+        let mesh = tetrahedron_mesh();
+        let configs = vec![ThreeMfObjectConfig::default()];
+        let opts = minimal_project_options();
+        let mut buf = Cursor::new(Vec::new());
+
+        export_project_to_3mf(&[&mesh], &configs, &opts, &mut buf).unwrap();
+
+        let data = buf.into_inner();
+        // Should be re-readable by lib3mf-core
+        let reimported = crate::load_mesh(&data).unwrap();
+        assert_eq!(reimported.vertex_count(), mesh.vertex_count());
+    }
+
+    #[test]
+    fn export_project_gcode_embedding_byte_identical() {
+        let mesh = tetrahedron_mesh();
+        let configs = vec![ThreeMfObjectConfig::default()];
+        let gcode = b"G28\nG1 X50 Y50 Z0.3 F1200\nM104 S200\n".to_vec();
+        let mut opts = minimal_project_options();
+        opts.gcode_per_plate = vec![gcode.clone()];
+
+        let mut buf = Cursor::new(Vec::new());
+        export_project_to_3mf(&[&mesh], &configs, &opts, &mut buf).unwrap();
+
+        let data = buf.into_inner();
+        let cursor = Cursor::new(data.as_slice());
+        let mut archiver = lib3mf_core::archive::ZipArchiver::new(cursor).unwrap();
+        let embedded = archiver.read_entry("Metadata/plate_1.gcode").unwrap();
+        assert_eq!(embedded, gcode, "G-code must be byte-identical");
+    }
+
+    #[test]
+    fn export_project_gcode_md5_checksum() {
+        let mesh = tetrahedron_mesh();
+        let configs = vec![ThreeMfObjectConfig::default()];
+        let gcode = b"G28\nG1 X10\n".to_vec();
+        let mut opts = minimal_project_options();
+        opts.gcode_per_plate = vec![gcode.clone()];
+
+        let mut buf = Cursor::new(Vec::new());
+        export_project_to_3mf(&[&mesh], &configs, &opts, &mut buf).unwrap();
+
+        let data = buf.into_inner();
+        let cursor = Cursor::new(data.as_slice());
+        let mut archiver = lib3mf_core::archive::ZipArchiver::new(cursor).unwrap();
+        let md5_bytes = archiver.read_entry("Metadata/plate_1.gcode.md5").unwrap();
+        let md5_str = std::str::from_utf8(&md5_bytes).unwrap();
+
+        // Compute expected MD5
+        use md5::{Digest, Md5};
+        let expected = format!("{:x}", Md5::digest(&gcode));
+        assert_eq!(md5_str, expected);
+    }
+
+    #[test]
+    fn export_project_thumbnail_present() {
+        let mesh = tetrahedron_mesh();
+        let configs = vec![ThreeMfObjectConfig::default()];
+        let fake_png = vec![0x89, b'P', b'N', b'G', 1, 2, 3, 4];
+        let mut opts = minimal_project_options();
+        opts.thumbnails_per_plate = vec![Some(fake_png.clone())];
+
+        let mut buf = Cursor::new(Vec::new());
+        export_project_to_3mf(&[&mesh], &configs, &opts, &mut buf).unwrap();
+
+        let data = buf.into_inner();
+        let cursor = Cursor::new(data.as_slice());
+        let mut archiver = lib3mf_core::archive::ZipArchiver::new(cursor).unwrap();
+        assert!(archiver.entry_exists("Metadata/plate_1.png"));
+        let embedded_png = archiver.read_entry("Metadata/plate_1.png").unwrap();
+        assert_eq!(embedded_png, fake_png);
+    }
+
+    #[test]
+    fn export_project_plate_metadata_json() {
+        let mesh = tetrahedron_mesh();
+        let configs = vec![ThreeMfObjectConfig::default()];
+        let opts = minimal_project_options();
+
+        let mut buf = Cursor::new(Vec::new());
+        export_project_to_3mf(&[&mesh], &configs, &opts, &mut buf).unwrap();
+
+        let data = buf.into_inner();
+        let cursor = Cursor::new(data.as_slice());
+        let mut archiver = lib3mf_core::archive::ZipArchiver::new(cursor).unwrap();
+        let json_bytes = archiver.read_entry("Metadata/plate_1.json").unwrap();
+        let json_str = std::str::from_utf8(&json_bytes).unwrap();
+        assert!(json_str.contains("\"plate_index\""));
+        assert!(json_str.contains("\"statistics\""));
+    }
+
+    #[test]
+    fn export_project_process_settings_config() {
+        let mesh = tetrahedron_mesh();
+        let configs = vec![ThreeMfObjectConfig::default()];
+        let opts = minimal_project_options();
+
+        let mut buf = Cursor::new(Vec::new());
+        export_project_to_3mf(&[&mesh], &configs, &opts, &mut buf).unwrap();
+
+        let data = buf.into_inner();
+        let cursor = Cursor::new(data.as_slice());
+        let mut archiver = lib3mf_core::archive::ZipArchiver::new(cursor).unwrap();
+        let config_bytes = archiver
+            .read_entry("Metadata/process_settings.config")
+            .unwrap();
+        let config_str = std::str::from_utf8(&config_bytes).unwrap();
+        assert!(config_str.contains("<config>"));
+        assert!(config_str.contains("<plate>"));
+        assert!(config_str.contains("<metadata"));
+    }
+
+    #[test]
+    fn export_project_slicecore_config_toml() {
+        let mesh = tetrahedron_mesh();
+        let configs = vec![ThreeMfObjectConfig::default()];
+        let opts = minimal_project_options();
+
+        let mut buf = Cursor::new(Vec::new());
+        export_project_to_3mf(&[&mesh], &configs, &opts, &mut buf).unwrap();
+
+        let data = buf.into_inner();
+        let cursor = Cursor::new(data.as_slice());
+        let mut archiver = lib3mf_core::archive::ZipArchiver::new(cursor).unwrap();
+        assert!(archiver.entry_exists("Metadata/slicecore_config.toml"));
+        let toml_bytes = archiver
+            .read_entry("Metadata/slicecore_config.toml")
+            .unwrap();
+        let toml_str = std::str::from_utf8(&toml_bytes).unwrap();
+        assert!(toml_str.contains("height = 0.2"));
+    }
+
+    #[test]
+    fn export_project_settings_config_bambu_version() {
+        let mesh = tetrahedron_mesh();
+        let configs = vec![ThreeMfObjectConfig::default()];
+        let opts = minimal_project_options();
+
+        let mut buf = Cursor::new(Vec::new());
+        export_project_to_3mf(&[&mesh], &configs, &opts, &mut buf).unwrap();
+
+        let data = buf.into_inner();
+        let cursor = Cursor::new(data.as_slice());
+        let mut archiver = lib3mf_core::archive::ZipArchiver::new(cursor).unwrap();
+        let config_bytes = archiver
+            .read_entry("Metadata/project_settings.config")
+            .unwrap();
+        let config_str = std::str::from_utf8(&config_bytes).unwrap();
+        assert!(config_str.contains("BambuStudio:3mfVersion"));
+    }
+
+    #[test]
+    fn export_project_multi_plate() {
+        let mesh = tetrahedron_mesh();
+        let configs = vec![ThreeMfObjectConfig::default()];
+        let gcode1 = b"G28\nplate1\n".to_vec();
+        let gcode2 = b"G28\nplate2\n".to_vec();
+        let mut opts = minimal_project_options();
+        opts.gcode_per_plate = vec![gcode1.clone(), gcode2.clone()];
+        opts.thumbnails_per_plate = vec![None, None];
+        opts.plate_metadata = vec![
+            opts.plate_metadata[0].clone(),
+            {
+                let mut p2 = opts.plate_metadata[0].clone();
+                p2.plate_index = 2;
+                p2
+            },
+        ];
+
+        let mut buf = Cursor::new(Vec::new());
+        export_project_to_3mf(&[&mesh], &configs, &opts, &mut buf).unwrap();
+
+        let data = buf.into_inner();
+        let cursor = Cursor::new(data.as_slice());
+        let mut archiver = lib3mf_core::archive::ZipArchiver::new(cursor).unwrap();
+        assert!(archiver.entry_exists("Metadata/plate_1.gcode"));
+        assert!(archiver.entry_exists("Metadata/plate_2.gcode"));
+        assert!(archiver.entry_exists("Metadata/plate_1.json"));
+        assert!(archiver.entry_exists("Metadata/plate_2.json"));
+
+        let g1 = archiver.read_entry("Metadata/plate_1.gcode").unwrap();
+        let g2 = archiver.read_entry("Metadata/plate_2.gcode").unwrap();
+        assert_eq!(g1, gcode1);
+        assert_eq!(g2, gcode2);
+    }
 }
