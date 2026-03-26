@@ -3998,6 +3998,43 @@ pub struct SequentialConfig {
     /// takes priority over both the rectangular and cylinder models.
     #[setting(skip)]
     pub extruder_clearance_polygon: Vec<(f64, f64)>,
+    /// Enable hybrid sequential mode (shared first layers + per-object sequential).
+    ///
+    /// When enabled, the first `transition_layers` layers are printed with all
+    /// objects together (normal by-layer ordering), then switches to sequential
+    /// per-object printing. Requires `sequential.enabled = true`.
+    #[setting(
+        tier = 3,
+        description = "Enable hybrid sequential mode",
+        depends_on = "sequential.enabled",
+        override_safety = "warn"
+    )]
+    pub hybrid_enabled: bool,
+    /// Number of shared layers before switching to sequential printing.
+    ///
+    /// Layers 0 through `transition_layers - 1` are printed with all objects
+    /// together. Sequential per-object printing starts at layer `transition_layers`.
+    /// Only used when `hybrid_enabled` is true.
+    #[setting(
+        tier = 3,
+        description = "Number of shared first layers in hybrid mode",
+        depends_on = "sequential.enabled",
+        override_safety = "warn"
+    )]
+    pub transition_layers: u32,
+    /// Z height threshold for hybrid transition (only if `transition_layers` is 0).
+    ///
+    /// When `transition_layers` is 0 and this value is > 0.0, the transition
+    /// occurs at the first layer at or above this Z height. If both are 0,
+    /// defaults to 5 layers.
+    #[setting(
+        tier = 3,
+        description = "Z height threshold for hybrid transition",
+        units = "mm",
+        depends_on = "sequential.enabled",
+        override_safety = "warn"
+    )]
+    pub transition_height: f64,
 }
 
 impl Default for SequentialConfig {
@@ -4009,6 +4046,9 @@ impl Default for SequentialConfig {
             gantry_width: 0.0,
             gantry_depth: 0.0,
             extruder_clearance_polygon: Vec::new(),
+            hybrid_enabled: false,
+            transition_layers: 5,
+            transition_height: 0.0,
         }
     }
 }
