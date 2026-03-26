@@ -30,6 +30,8 @@ pub enum FeatureType {
     InnerPerimeter,
     /// Solid infill (100% density, top/bottom surfaces).
     SolidInfill,
+    /// Top solid infill (100% density, top surface only -- triggers z-hop).
+    TopSolidInfill,
     /// Sparse infill (configured density).
     SparseInfill,
     /// Skirt outline.
@@ -488,7 +490,11 @@ pub fn assemble_layer_toolpath(
     // --- Infill ---
     if !infill.lines.is_empty() {
         let infill_feature = if infill.is_solid {
-            FeatureType::SolidInfill
+            if infill.is_top {
+                FeatureType::TopSolidInfill
+            } else {
+                FeatureType::SolidInfill
+            }
         } else {
             FeatureType::SparseInfill
         };
@@ -777,6 +783,7 @@ mod tests {
         let infill = LayerInfill {
             lines: infill_lines,
             is_solid: false,
+            is_top: false,
         };
 
         let (toolpath, _, _, _) =
@@ -793,7 +800,7 @@ mod tests {
             s.feature == FeatureType::OuterPerimeter || s.feature == FeatureType::InnerPerimeter
         });
         let first_infill_idx = toolpath.segments.iter().position(|s| {
-            s.feature == FeatureType::SparseInfill || s.feature == FeatureType::SolidInfill
+            s.feature == FeatureType::SparseInfill || s.feature == FeatureType::SolidInfill || s.feature == FeatureType::TopSolidInfill
         });
 
         if let (Some(perim), Some(infill)) = (first_perim_idx, first_infill_idx) {
@@ -819,6 +826,7 @@ mod tests {
         let infill = LayerInfill {
             lines: infill_lines,
             is_solid: false,
+            is_top: false,
         };
 
         let (toolpath, _, _, _) =
@@ -849,6 +857,7 @@ mod tests {
         let infill = LayerInfill {
             lines: infill_lines,
             is_solid: false,
+            is_top: false,
         };
 
         let (toolpath, _, _, _) =
@@ -884,6 +893,7 @@ mod tests {
         let infill = LayerInfill {
             lines: Vec::new(),
             is_solid: false,
+            is_top: false,
         };
 
         // Layer 0 (first layer).
@@ -916,6 +926,7 @@ mod tests {
         let infill = LayerInfill {
             lines: infill_lines,
             is_solid: false,
+            is_top: false,
         };
 
         // Layer 2 (not first layer).
@@ -936,7 +947,7 @@ mod tests {
                         seg.feedrate
                     );
                 }
-                FeatureType::SparseInfill | FeatureType::SolidInfill => {
+                FeatureType::SparseInfill | FeatureType::SolidInfill | FeatureType::TopSolidInfill => {
                     assert!(
                         (seg.feedrate - infill_speed_mmmin).abs() < 0.1,
                         "Infill speed should be {} mm/min, got {}",
@@ -970,6 +981,7 @@ mod tests {
         let infill = LayerInfill {
             lines: infill_lines,
             is_solid: false,
+            is_top: false,
         };
 
         let (toolpath, _, _, _) =
@@ -989,6 +1001,7 @@ mod tests {
         let infill = LayerInfill {
             lines: Vec::new(),
             is_solid: false,
+            is_top: false,
         };
 
         let (toolpath, _, _, _) =
@@ -1029,6 +1042,7 @@ mod tests {
                 end: IPoint2::from_mm(10.0, 1.0),
             }],
             is_solid: true,
+            is_top: false,
         };
 
         let config = default_config();
@@ -1057,6 +1071,7 @@ mod tests {
         let infill = LayerInfill {
             lines: Vec::new(),
             is_solid: false,
+            is_top: false,
         };
 
         // Layer 0 -- no previous seam.
@@ -1094,6 +1109,7 @@ mod tests {
         let infill = LayerInfill {
             lines: Vec::new(),
             is_solid: false,
+            is_top: false,
         };
 
         let (toolpath, _, _, _) =
@@ -1124,6 +1140,7 @@ mod tests {
         let infill = LayerInfill {
             lines: Vec::new(),
             is_solid: false,
+            is_top: false,
         };
 
         let (toolpath, _, _, _) =
@@ -1219,6 +1236,7 @@ mod tests {
         let infill = LayerInfill {
             lines: Vec::new(),
             is_solid: false,
+            is_top: false,
         };
 
         let (toolpath, _, _, _) =
@@ -1252,6 +1270,7 @@ mod tests {
         let infill = LayerInfill {
             lines: Vec::new(),
             is_solid: false,
+            is_top: false,
         };
 
         let (toolpath, _, _, _) =
@@ -1276,6 +1295,7 @@ mod tests {
         let infill = LayerInfill {
             lines: Vec::new(),
             is_solid: false,
+            is_top: false,
         };
 
         let (toolpath, _, _, _) =

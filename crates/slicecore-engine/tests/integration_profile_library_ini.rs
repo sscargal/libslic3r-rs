@@ -334,8 +334,8 @@ fn test_prusaslicer_field_mapping_machine() {
         "retract_speed should be 35.0"
     );
     assert!(
-        (config.retraction.z_hop - 0.2).abs() < 1e-9,
-        "retract_z_hop should be 0.2 (from retract_lift)"
+        (config.z_hop.height - 0.2).abs() < 1e-9,
+        "z_hop.height should be 0.2 (from retract_lift)"
     );
     assert_eq!(
         config.gcode_dialect,

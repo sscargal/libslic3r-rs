@@ -36,7 +36,8 @@
 use slicecore_gcode_io::GcodeDialect;
 
 use crate::config::{
-    BedType, BrimType, InternalBridgeMode, PrintConfig, SlicingTolerance, SurfacePattern,
+    BedType, BrimType, InternalBridgeMode, PrintConfig, SlicingTolerance, SurfaceEnforce,
+    SurfacePattern, ZHopType,
 };
 use crate::error::EngineError;
 use crate::gcode_template;
@@ -549,7 +550,12 @@ pub(crate) fn upstream_key_to_config_field(key: &str) -> Option<&'static str> {
         "nozzle_diameter" => Some("machine.nozzle_diameters"),
         "retraction_length" => Some("retraction.length"),
         "retraction_speed" => Some("retraction.speed"),
-        "z_hop" => Some("retraction.z_hop"),
+        "z_hop" => Some("z_hop.height"),
+        "z_hop_types" => Some("z_hop.hop_type"),
+        "retract_lift_enforce" => Some("z_hop.surface_enforce"),
+        "travel_slope" => Some("z_hop.travel_angle"),
+        "retract_lift_above" => Some("z_hop.above"),
+        "retract_lift_below" => Some("z_hop.below"),
         "retraction_minimum_travel" => Some("retraction.min_travel"),
         "gcode_flavor" => Some("gcode_dialect"),
         "machine_max_jerk_x" => Some("machine.jerk_values_x"),
@@ -1166,7 +1172,46 @@ fn apply_field_mapping(config: &mut PrintConfig, key: &str, value: &str) -> Fiel
         // Note: nozzle_diameter and jerk array fields are handled by apply_array_field_mapping.
         "retraction_length" => parse_and_set_f64(value, &mut config.retraction.length),
         "retraction_speed" => parse_and_set_f64(value, &mut config.retraction.speed),
-        "z_hop" => parse_and_set_f64(value, &mut config.retraction.z_hop),
+        "z_hop" => parse_and_set_f64(value, &mut config.z_hop.height),
+        "z_hop_types" => {
+            // OrcaSlicer values: "Normal", "Slope", "Spiral", "Auto" (or numeric 0-3)
+            match value {
+                "Normal" | "0" => {
+                    config.z_hop.hop_type = ZHopType::Normal;
+                    true
+                }
+                "Slope" | "1" => {
+                    config.z_hop.hop_type = ZHopType::Slope;
+                    true
+                }
+                "Spiral" | "2" => {
+                    config.z_hop.hop_type = ZHopType::Spiral;
+                    true
+                }
+                "Auto" | "3" => {
+                    config.z_hop.hop_type = ZHopType::Auto;
+                    true
+                }
+                _ => false, // Unknown value
+            }
+        }
+        "retract_lift_enforce" => {
+            // OrcaSlicer: "All Surfaces" or "Top Only" (or numeric)
+            match value {
+                "All Surfaces" | "0" => {
+                    config.z_hop.surface_enforce = SurfaceEnforce::AllSurfaces;
+                    true
+                }
+                "Top Only" | "1" => {
+                    config.z_hop.surface_enforce = SurfaceEnforce::TopSolidAndIroning;
+                    true
+                }
+                _ => false, // Unknown value
+            }
+        }
+        "travel_slope" => parse_and_set_f64(value, &mut config.z_hop.travel_angle),
+        "retract_lift_above" => parse_and_set_f64(value, &mut config.z_hop.above),
+        "retract_lift_below" => parse_and_set_f64(value, &mut config.z_hop.below),
         "retraction_minimum_travel" => parse_and_set_f64(value, &mut config.retraction.min_travel),
         "gcode_flavor" => {
             if let Some(dialect) = map_gcode_dialect(value) {
@@ -3252,5 +3297,37 @@ mod tests {
             result.mapped_fields.len(),
             result.mapped_fields
         );
+    }
+
+    #[test]
+    fn test_profile_import_z_hop_type_mapping() {
+        assert_eq!(upstream_key_to_config_field("z_hop_types"), Some("z_hop.hop_type"));
+        assert_eq!(
+            upstream_key_to_config_field("retract_lift_enforce"),
+            Some("z_hop.surface_enforce")
+        );
+        assert_eq!(upstream_key_to_config_field("travel_slope"), Some("z_hop.travel_angle"));
+        assert_eq!(upstream_key_to_config_field("retract_lift_above"), Some("z_hop.above"));
+        assert_eq!(upstream_key_to_config_field("retract_lift_below"), Some("z_hop.below"));
+    }
+
+    #[test]
+    fn test_profile_import_full_z_hop_config() {
+        let mut config = PrintConfig::default();
+
+        // Apply each z-hop field
+        apply_field_mapping(&mut config, "z_hop", "0.5");
+        apply_field_mapping(&mut config, "z_hop_types", "Spiral");
+        apply_field_mapping(&mut config, "retract_lift_enforce", "Top Only");
+        apply_field_mapping(&mut config, "travel_slope", "60");
+        apply_field_mapping(&mut config, "retract_lift_above", "0.3");
+        apply_field_mapping(&mut config, "retract_lift_below", "10.0");
+
+        assert!((config.z_hop.height - 0.5).abs() < 1e-9);
+        assert_eq!(config.z_hop.hop_type, ZHopType::Spiral);
+        assert_eq!(config.z_hop.surface_enforce, SurfaceEnforce::TopSolidAndIroning);
+        assert!((config.z_hop.travel_angle - 60.0).abs() < 1e-9);
+        assert!((config.z_hop.above - 0.3).abs() < 1e-9);
+        assert!((config.z_hop.below - 10.0).abs() < 1e-9);
     }
 }

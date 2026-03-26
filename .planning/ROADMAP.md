@@ -333,8 +333,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9 -> 10
 | 44. Search and Filter Profiles by Compatibility | 3/3 | Complete    | 2026-03-23 |
 | 45. Global and Per-Object Settings Override System | 11/11 | Complete    | 2026-03-24 |
 | 46. Job Output Directories | 3/3 | Complete    | 2026-03-25 |
-| 47. Variable Layer Height Algorithms | 0/0 | ○ Pending | - |
-| 48. Selective Adaptive Z-Hop Control | 0/0 | ○ Pending | - |
+| 47. Variable Layer Height Algorithms | 5/5 | Complete    | 2026-03-25 |
+| 48. Selective Adaptive Z-Hop Control | 3/3 | Complete    | 2026-03-25 |
 | 49. Hybrid Sequential Printing | 0/0 | ○ Pending | - |
 | 50. 3MF Project Output with Embedded G-code | 0/0 | ○ Pending | - |
 | 51. Comprehensive Documentation Suite | 0/0 | ○ Pending | - |
@@ -850,30 +850,41 @@ Plans:
 
 ### Phase 47: Variable layer height algorithms — implement multi-objective VLH optimization with curvature, feature-aware heights, and Laplacian smoothing
 
-**Goal:** Extend variable layer height beyond basic curvature analysis with multi-objective optimization (quality + speed + strength), feature-aware height selection, perceptual surface quality models, Laplacian smoothing for transition continuity, and time-budgeted optimization.
+**Goal:** Multi-objective VLH optimization with four objectives (quality, speed, strength, material), feature-aware height selection (overhangs, bridges, thin walls, holes), Laplacian smoothing for transition continuity, greedy and DP optimizers, and per-layer diagnostic events.
 **Requirements**: [SLICE-05]
 **Depends on:** Phase 46
-**Plans:** 0 plans
+**Plans:** 5/5 plans complete
 
 Plans:
+- [x] 47-01-PLAN.md -- VLH module types, PrintConfig fields, and objective scoring functions
+- [x] 47-02-PLAN.md -- Feature map pre-pass and Laplacian smoothing
+- [x] 47-03-PLAN.md -- Greedy and DP optimizers
+- [x] 47-04-PLAN.md -- Public API integration, adaptive.rs wrapper refactor, diagnostics
+- [ ] 47-05-PLAN.md -- Gap closure: refactor adaptive.rs as VLH wrapper (verification gap)
 
 ### Phase 48: Selective adaptive z-hop control for top surfaces — implement surface-type-based z-hop with distance gating and height-proportional lift
 
 **Goal:** Replace global z-hop with intelligent surface-type-based z-hop that activates only on top solids and ironing surfaces, with layer-position-based rules, height-proportional lift, and distance-gated activation to eliminate unnecessary stringing on interior layers.
 **Requirements**: [GCODE-03]
 **Depends on:** Phase 47
-**Plans:** 0 plans
+**Plans:** 3/3 plans complete
 
 Plans:
+- [ ] 48-01-PLAN.md -- ZHopConfig types, TopSolidInfill FeatureType, exhaustive match updates
+- [ ] 48-02-PLAN.md -- Z-hop planning function and G-code emission refactor (Normal/Slope/Spiral/Auto)
+- [ ] 48-03-PLAN.md -- Profile import z-hop field mappings (JSON + INI)
 
 ### Phase 49: Hybrid sequential printing — first N layers all objects together, then switch to by-object sequential printing
 
 **Goal:** Implement hybrid print mode where Phase 1 prints first N layers of all objects together for adhesion verification, then Phase 2 switches to sequential by-object printing for quality, with early failure detection and conditional object skipping.
 **Requirements**: [ADV-02]
 **Depends on:** Phase 48
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
+- [ ] 49-01-PLAN.md -- Hybrid config fields, HybridPlan struct, ObjectProgress event
+- [ ] 49-02-PLAN.md -- Two-phase engine slicing and G-code object markers
+- [ ] 49-03-PLAN.md -- CLI hybrid-dry-run flag and profile import verification
 
 ### Phase 50: 3MF project output with model settings and embedded G-code — implement full 3MF project write support with settings metadata, thumbnails, and Bambu printer compatibility
 

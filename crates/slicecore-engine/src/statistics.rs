@@ -176,6 +176,7 @@ pub fn feature_display_name(feature: FeatureType) -> (&'static str, &'static str
         FeatureType::OuterPerimeter => ("Outer wall", "outer_wall"),
         FeatureType::InnerPerimeter => ("Inner wall", "inner_wall"),
         FeatureType::SolidInfill => ("Internal solid infill", "internal_solid_infill"),
+        FeatureType::TopSolidInfill => ("Top solid infill", "top_solid_infill"),
         FeatureType::SparseInfill => ("Sparse infill", "sparse_infill"),
         FeatureType::Skirt => ("Skirt", "skirt"),
         FeatureType::Brim => ("Brim", "brim"),
@@ -198,6 +199,7 @@ pub fn default_feature_order() -> Vec<FeatureType> {
         FeatureType::VariableWidthPerimeter,
         FeatureType::SparseInfill,
         FeatureType::SolidInfill,
+        FeatureType::TopSolidInfill,
         FeatureType::Bridge,
         FeatureType::GapFill,
         FeatureType::Ironing,
@@ -735,7 +737,7 @@ mod tests {
     #[test]
     fn feature_display_name_covers_all_variants() {
         let all_features = default_feature_order();
-        assert_eq!(all_features.len(), 14, "Should have 14 feature types");
+        assert_eq!(all_features.len(), 15, "Should have 15 feature types");
 
         for feature in &all_features {
             let (name, key) = feature_display_name(*feature);
@@ -1127,11 +1129,11 @@ mod tests {
             &config,
         );
 
-        // Should have 14 real features + 3 virtual (retract, unretract, wipe) = 17.
+        // Should have 15 real features + 3 virtual (retract, unretract, wipe) = 18.
         assert_eq!(
             stats.features.len(),
-            17,
-            "Should have 17 features (14 real + 3 virtual), got {}",
+            18,
+            "Should have 18 features (15 real + 3 virtual), got {}",
             stats.features.len()
         );
 

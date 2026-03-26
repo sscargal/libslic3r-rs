@@ -22,6 +22,25 @@ use crate::ironing::IroningConfig;
 use crate::seam::SeamPosition;
 use crate::support::config::SupportConfig;
 
+/// VLH optimizer mode for multi-objective layer height optimization.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, SettingSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum VlhOptimizerMode {
+    /// Greedy per-layer optimization (fast, good for most cases).
+    #[default]
+    #[setting(
+        display = "Greedy",
+        description = "Greedy per-layer optimization"
+    )]
+    Greedy,
+    /// Dynamic programming for globally optimal height sequences.
+    #[setting(
+        display = "Dynamic Programming",
+        description = "Dynamic programming for globally optimal heights"
+    )]
+    DynamicProgramming,
+}
+
 /// Controls the order in which perimeter walls are printed.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, SettingSchema)]
 #[serde(rename_all = "snake_case")]
@@ -852,6 +871,100 @@ impl Default for CoolingConfig {
     }
 }
 
+/// Z-hop motion type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ZHopType {
+    /// Vertical lift (standard G0 Z move).
+    Normal,
+    /// Diagonal lift (short G0 segments with X/Y + Z movement).
+    Slope,
+    /// Helical approximation lift (short G0 segments spiraling upward).
+    Spiral,
+    /// Automatic: Spiral on top/ironing surfaces, Normal elsewhere.
+    Auto,
+}
+
+/// Z-hop height calculation mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ZHopHeightMode {
+    /// Fixed height in mm.
+    Fixed,
+    /// Proportional to layer height (multiplier * layer_height).
+    Proportional,
+}
+
+/// Which surfaces enforce z-hop activation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SurfaceEnforce {
+    /// Z-hop on all travel moves (no surface filtering).
+    AllSurfaces,
+    /// Z-hop only when departing from top solid infill or ironing.
+    TopSolidAndIroning,
+}
+
+/// Z-hop configuration (surface-gated adaptive z-hop).
+#[derive(Debug, Clone, Serialize, Deserialize, SettingSchema)]
+#[serde(default)]
+#[setting(category = "Z-Hop")]
+pub struct ZHopConfig {
+    /// Z-hop height in mm. 0.0 = disabled.
+    #[serde(alias = "z_hop")]
+    #[setting(tier = 2, description = "Z-hop height", units = "mm", min = 0.0, max = 5.0, override_safety = "safe")]
+    pub height: f64,
+    /// Z-hop motion type.
+    #[setting(tier = 3, description = "Z-hop motion type", override_safety = "safe")]
+    pub hop_type: ZHopType,
+    /// Height calculation mode.
+    #[setting(tier = 3, description = "Z-hop height mode", override_safety = "safe")]
+    pub height_mode: ZHopHeightMode,
+    /// Multiplier for proportional height mode (1.0-3.0x layer height).
+    #[setting(tier = 3, description = "Proportional height multiplier", min = 1.0, max = 3.0, depends_on = "z_hop.height_mode", override_safety = "safe")]
+    pub proportional_multiplier: f64,
+    /// Minimum z-hop height clamp in mm.
+    #[setting(tier = 3, description = "Minimum z-hop height", units = "mm", min = 0.0, max = 5.0, override_safety = "safe")]
+    pub min_height: f64,
+    /// Maximum z-hop height clamp in mm.
+    #[setting(tier = 3, description = "Maximum z-hop height", units = "mm", min = 0.0, max = 10.0, override_safety = "safe")]
+    pub max_height: f64,
+    /// Which surfaces trigger z-hop.
+    #[setting(tier = 3, description = "Surface enforcement for z-hop", override_safety = "safe")]
+    pub surface_enforce: SurfaceEnforce,
+    /// Travel angle for Slope/Spiral in degrees (90 = vertical = Normal).
+    #[setting(tier = 3, description = "Travel angle for slope/spiral", units = "deg", min = 10.0, max = 90.0, override_safety = "safe")]
+    pub travel_angle: f64,
+    /// Dedicated z-hop speed in mm/s. 0.0 = use travel speed.
+    #[setting(tier = 3, description = "Z-hop speed", units = "mm/s", min = 0.0, max = 200.0, override_safety = "safe")]
+    pub speed: f64,
+    /// Minimum travel distance to trigger z-hop in mm.
+    #[setting(tier = 3, description = "Minimum travel for z-hop", units = "mm", min = 0.0, max = 20.0, override_safety = "safe")]
+    pub min_travel: f64,
+    /// Z-hop only above this Z height in mm. 0.0 = no filter.
+    #[setting(tier = 3, description = "Z-hop above threshold", units = "mm", min = 0.0, override_safety = "safe")]
+    pub above: f64,
+    /// Z-hop only below this Z height in mm. 0.0 = no filter (unlimited).
+    #[setting(tier = 3, description = "Z-hop below threshold", units = "mm", min = 0.0, override_safety = "safe")]
+    pub below: f64,
+}
+
+impl Default for ZHopConfig {
+    fn default() -> Self {
+        Self {
+            height: 0.0,
+            hop_type: ZHopType::Normal,
+            height_mode: ZHopHeightMode::Fixed,
+            proportional_multiplier: 1.5,
+            min_height: 0.1,
+            max_height: 2.0,
+            surface_enforce: SurfaceEnforce::TopSolidAndIroning,
+            travel_angle: 45.0,
+            speed: 0.0,
+            min_travel: 2.0,
+            above: 0.0,
+            below: 0.0,
+        }
+    }
+}
+
 /// Retraction configuration.
 ///
 /// The flat `retract_length`, `retract_speed`, `retract_z_hop`, and
@@ -867,16 +980,6 @@ pub struct RetractionConfig {
     /// Retraction speed in mm/s.
     #[setting(tier = 2, description = "Retraction speed", units = "mm/s", min = 1.0, max = 200.0, affects = ["stringing"], override_safety = "safe")]
     pub speed: f64,
-    /// Z-hop height during retraction in mm.
-    #[setting(
-        tier = 2,
-        description = "Z-hop height during retraction",
-        units = "mm",
-        min = 0.0,
-        max = 5.0,
-        override_safety = "safe"
-    )]
-    pub z_hop: f64,
     /// Minimum travel distance to trigger retraction in mm.
     #[setting(
         tier = 2,
@@ -939,7 +1042,6 @@ impl Default for RetractionConfig {
         Self {
             length: 0.8,
             speed: 45.0,
-            z_hop: 0.0,
             min_travel: 1.5,
             deretraction_speed: 0.0,
             retract_before_wipe: 0.0,
@@ -2235,6 +2337,62 @@ pub struct PrintConfig {
     )]
     pub adaptive_layer_quality: f64,
 
+    // --- Multi-Objective VLH ---
+    /// Enable multi-objective variable layer height optimization.
+    #[setting(tier = 2, description = "Enable multi-objective VLH", affects = ["quality", "print_time"], override_safety = "safe")]
+    pub vlh_enabled: bool,
+    /// VLH quality weight (higher = thinner layers on curves).
+    #[setting(tier = 2, description = "VLH quality weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_quality_weight: f64,
+    /// VLH speed weight (higher = thicker layers everywhere).
+    #[setting(tier = 2, description = "VLH speed weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_speed_weight: f64,
+    /// VLH strength weight (higher = thinner layers near stress features).
+    #[setting(tier = 2, description = "VLH strength weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_strength_weight: f64,
+    /// VLH material saving weight (higher = thicker layers).
+    #[setting(tier = 2, description = "VLH material weight", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_material_weight: f64,
+    /// VLH optimizer mode (greedy or dynamic programming).
+    #[setting(tier = 3, description = "VLH optimizer mode", depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_optimizer_mode: VlhOptimizerMode,
+    /// VLH Laplacian smoothing strength (0.0 = none, 1.0 = maximum).
+    #[setting(tier = 3, description = "VLH smoothing strength", min = 0.0, max = 1.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_smoothing_strength: f64,
+    /// VLH smoothing iterations.
+    #[setting(tier = 3, description = "VLH smoothing iterations", min = 0, max = 20, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_smoothing_iterations: u32,
+    /// Enable VLH per-layer diagnostic output.
+    #[setting(tier = 4, description = "Enable VLH diagnostics", depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_diagnostics: bool,
+    /// VLH overhang feature weight.
+    #[setting(tier = 3, description = "VLH overhang feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_feature_overhang_weight: f64,
+    /// VLH bridge feature weight.
+    #[setting(tier = 3, description = "VLH bridge feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_feature_bridge_weight: f64,
+    /// VLH thin wall feature weight.
+    #[setting(tier = 3, description = "VLH thin wall feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_feature_thin_wall_weight: f64,
+    /// VLH hole feature weight.
+    #[setting(tier = 3, description = "VLH hole feature weight", min = 0.0, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_feature_hole_weight: f64,
+    /// Minimum overhang angle for VLH feature detection (degrees).
+    #[setting(tier = 3, description = "VLH overhang angle minimum", units = "deg", min = 0.0, max = 90.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_overhang_angle_min: f64,
+    /// Maximum overhang angle for VLH feature detection (degrees).
+    #[setting(tier = 3, description = "VLH overhang angle maximum", units = "deg", min = 0.0, max = 90.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_overhang_angle_max: f64,
+    /// Thin wall detection threshold (mm).
+    #[setting(tier = 3, description = "VLH thin wall threshold", units = "mm", min = 0.1, max = 5.0, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_thin_wall_threshold: f64,
+    /// Feature influence margin in layers.
+    #[setting(tier = 3, description = "VLH feature margin layers", min = 0, max = 10, depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_feature_margin_layers: u32,
+    /// Enable stochastic VLH optimization.
+    #[setting(tier = 4, description = "Enable stochastic VLH", depends_on = "vlh_enabled", override_safety = "safe")]
+    pub vlh_stochastic: bool,
+
     // --- Gap Fill ---
     /// Enable gap fill between perimeters.
     #[setting(
@@ -2397,9 +2555,13 @@ pub struct PrintConfig {
     /// Cooling and fan configuration (includes fan_speed, fan_below_layer_time, disable_fan_first_layers).
     #[setting(flatten)]
     pub cooling: CoolingConfig,
-    /// Retraction configuration (includes length, speed, z_hop, min_travel).
+    /// Retraction configuration (includes length, speed, min_travel).
     #[setting(flatten)]
     pub retraction: RetractionConfig,
+    /// Z-hop configuration (surface-gated adaptive z-hop).
+    #[serde(default)]
+    #[setting(flatten)]
+    pub z_hop: ZHopConfig,
     /// Machine/printer hardware configuration (includes bed_x, bed_y, nozzle_diameters, jerk).
     #[setting(flatten)]
     pub machine: MachineConfig,
@@ -3287,6 +3449,25 @@ impl Default for PrintConfig {
             adaptive_max_layer_height: 0.3,
             adaptive_layer_quality: 0.5,
 
+            vlh_enabled: false,
+            vlh_quality_weight: 1.0,
+            vlh_speed_weight: 0.0,
+            vlh_strength_weight: 0.0,
+            vlh_material_weight: 0.0,
+            vlh_optimizer_mode: VlhOptimizerMode::Greedy,
+            vlh_smoothing_strength: 0.5,
+            vlh_smoothing_iterations: 3,
+            vlh_diagnostics: false,
+            vlh_feature_overhang_weight: 1.0,
+            vlh_feature_bridge_weight: 1.0,
+            vlh_feature_thin_wall_weight: 1.0,
+            vlh_feature_hole_weight: 1.0,
+            vlh_overhang_angle_min: 40.0,
+            vlh_overhang_angle_max: 60.0,
+            vlh_thin_wall_threshold: 0.8,
+            vlh_feature_margin_layers: 2,
+            vlh_stochastic: false,
+
             gap_fill_enabled: true,
             gap_fill_min_width: 0.1,
 
@@ -3323,6 +3504,7 @@ impl Default for PrintConfig {
             speeds: SpeedConfig::default(),
             cooling: CoolingConfig::default(),
             retraction: RetractionConfig::default(),
+            z_hop: ZHopConfig::default(),
             machine: MachineConfig::default(),
             accel: AccelerationConfig::default(),
             filament: FilamentPropsConfig::default(),
@@ -3988,7 +4170,7 @@ mod tests {
         assert!((config.speeds.first_layer - 20.0).abs() < 1e-9);
         assert!((config.retraction.length - 0.8).abs() < 1e-9);
         assert!((config.retraction.speed - 45.0).abs() < 1e-9);
-        assert!((config.retraction.z_hop - 0.0).abs() < 1e-9);
+        assert!((config.z_hop.height - 0.0).abs() < 1e-9);
         assert!((config.retraction.min_travel - 1.5).abs() < 1e-9);
         assert!((config.filament.nozzle_temp() - 200.0).abs() < 1e-9);
         assert!((config.filament.bed_temp() - 60.0).abs() < 1e-9);
@@ -4088,6 +4270,56 @@ adaptive_layer_quality = 0.8
         assert!((config.adaptive_min_layer_height - 0.04).abs() < 1e-9);
         assert!((config.adaptive_max_layer_height - 0.25).abs() < 1e-9);
         assert!((config.adaptive_layer_quality - 0.8).abs() < 1e-9);
+    }
+
+    #[test]
+    fn vlh_defaults() {
+        let config = PrintConfig::default();
+        assert!(!config.vlh_enabled);
+        assert!((config.vlh_quality_weight - 1.0).abs() < 1e-9);
+        assert!((config.vlh_speed_weight - 0.0).abs() < 1e-9);
+        assert!((config.vlh_strength_weight - 0.0).abs() < 1e-9);
+        assert!((config.vlh_material_weight - 0.0).abs() < 1e-9);
+        assert_eq!(config.vlh_optimizer_mode, VlhOptimizerMode::Greedy);
+        assert!((config.vlh_smoothing_strength - 0.5).abs() < 1e-9);
+        assert_eq!(config.vlh_smoothing_iterations, 3);
+        assert!(!config.vlh_diagnostics);
+        assert!((config.vlh_feature_overhang_weight - 1.0).abs() < 1e-9);
+        assert!((config.vlh_feature_bridge_weight - 1.0).abs() < 1e-9);
+        assert!((config.vlh_feature_thin_wall_weight - 1.0).abs() < 1e-9);
+        assert!((config.vlh_feature_hole_weight - 1.0).abs() < 1e-9);
+        assert!((config.vlh_overhang_angle_min - 40.0).abs() < 1e-9);
+        assert!((config.vlh_overhang_angle_max - 60.0).abs() < 1e-9);
+        assert!((config.vlh_thin_wall_threshold - 0.8).abs() < 1e-9);
+        assert_eq!(config.vlh_feature_margin_layers, 2);
+        assert!(!config.vlh_stochastic);
+    }
+
+    #[test]
+    fn vlh_fields_from_toml() {
+        let toml = r#"
+vlh_enabled = true
+vlh_quality_weight = 0.8
+vlh_speed_weight = 0.2
+vlh_strength_weight = 0.5
+vlh_material_weight = 0.3
+vlh_optimizer_mode = "dynamic_programming"
+vlh_smoothing_strength = 0.7
+vlh_smoothing_iterations = 5
+vlh_diagnostics = true
+vlh_stochastic = true
+"#;
+        let config = PrintConfig::from_toml(toml).unwrap();
+        assert!(config.vlh_enabled);
+        assert!((config.vlh_quality_weight - 0.8).abs() < 1e-9);
+        assert!((config.vlh_speed_weight - 0.2).abs() < 1e-9);
+        assert!((config.vlh_strength_weight - 0.5).abs() < 1e-9);
+        assert!((config.vlh_material_weight - 0.3).abs() < 1e-9);
+        assert_eq!(config.vlh_optimizer_mode, VlhOptimizerMode::DynamicProgramming);
+        assert!((config.vlh_smoothing_strength - 0.7).abs() < 1e-9);
+        assert_eq!(config.vlh_smoothing_iterations, 5);
+        assert!(config.vlh_diagnostics);
+        assert!(config.vlh_stochastic);
     }
 
     #[test]
@@ -4319,7 +4551,7 @@ polyhole_min_diameter = 0.5
         // RetractionConfig (including migrated fields)
         assert!((config.retraction.length - 0.8).abs() < 1e-9);
         assert!((config.retraction.speed - 45.0).abs() < 1e-9);
-        assert!((config.retraction.z_hop - 0.0).abs() < 1e-9);
+        assert!((config.z_hop.height - 0.0).abs() < 1e-9);
         assert!((config.retraction.min_travel - 1.5).abs() < 1e-9);
         assert!((config.retraction.deretraction_speed - 0.0).abs() < 1e-9);
         assert!((config.retraction.retract_before_wipe - 0.0).abs() < 1e-9);
@@ -4721,5 +4953,84 @@ first_layer_bed_temperatures = [65.0, 75.0]
         assert!(safe_count > 0, "No safe settings found");
         assert!(warn_count > 0, "No warn settings found");
         assert!(ignored_count > 0, "No ignored settings found");
+    }
+}
+
+#[cfg(test)]
+mod z_hop_config_tests {
+    use super::*;
+
+    #[test]
+    fn test_zhop_config_defaults() {
+        let cfg = ZHopConfig::default();
+        assert!((cfg.height - 0.0).abs() < 1e-9);
+        assert_eq!(cfg.hop_type, ZHopType::Normal);
+        assert_eq!(cfg.height_mode, ZHopHeightMode::Fixed);
+        assert!((cfg.proportional_multiplier - 1.5).abs() < 1e-9);
+        assert!((cfg.min_height - 0.1).abs() < 1e-9);
+        assert!((cfg.max_height - 2.0).abs() < 1e-9);
+        assert_eq!(cfg.surface_enforce, SurfaceEnforce::TopSolidAndIroning);
+        assert!((cfg.travel_angle - 45.0).abs() < 1e-9);
+        assert!((cfg.speed - 0.0).abs() < 1e-9);
+        assert!((cfg.min_travel - 2.0).abs() < 1e-9);
+        assert!((cfg.above - 0.0).abs() < 1e-9);
+        assert!((cfg.below - 0.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_zhop_type_serde_roundtrip() {
+        for variant in &[ZHopType::Normal, ZHopType::Slope, ZHopType::Spiral, ZHopType::Auto] {
+            let json = serde_json::to_string(variant).unwrap();
+            let back: ZHopType = serde_json::from_str(&json).unwrap();
+            assert_eq!(*variant, back);
+        }
+    }
+
+    #[test]
+    fn test_zhop_height_mode_serde_roundtrip() {
+        for variant in &[ZHopHeightMode::Fixed, ZHopHeightMode::Proportional] {
+            let json = serde_json::to_string(variant).unwrap();
+            let back: ZHopHeightMode = serde_json::from_str(&json).unwrap();
+            assert_eq!(*variant, back);
+        }
+    }
+
+    #[test]
+    fn test_zhop_config_json_deserialization() {
+        let json = r#"{
+            "height": 0.4,
+            "hop_type": "Slope",
+            "height_mode": "Proportional",
+            "proportional_multiplier": 2.0,
+            "min_height": 0.05,
+            "max_height": 3.0,
+            "surface_enforce": "AllSurfaces",
+            "travel_angle": 60.0,
+            "speed": 100.0,
+            "min_travel": 5.0,
+            "above": 1.0,
+            "below": 10.0
+        }"#;
+        let cfg: ZHopConfig = serde_json::from_str(json).unwrap();
+        assert!((cfg.height - 0.4).abs() < 1e-9);
+        assert_eq!(cfg.hop_type, ZHopType::Slope);
+        assert_eq!(cfg.height_mode, ZHopHeightMode::Proportional);
+        assert!((cfg.proportional_multiplier - 2.0).abs() < 1e-9);
+        assert!((cfg.min_height - 0.05).abs() < 1e-9);
+        assert!((cfg.max_height - 3.0).abs() < 1e-9);
+        assert_eq!(cfg.surface_enforce, SurfaceEnforce::AllSurfaces);
+        assert!((cfg.travel_angle - 60.0).abs() < 1e-9);
+        assert!((cfg.speed - 100.0).abs() < 1e-9);
+        assert!((cfg.min_travel - 5.0).abs() < 1e-9);
+        assert!((cfg.above - 1.0).abs() < 1e-9);
+        assert!((cfg.below - 10.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_zhop_alias_backward_compat() {
+        // Old format: {"z_hop": 0.4} should map via alias to height field
+        let json = r#"{"z_hop": 0.4}"#;
+        let cfg: ZHopConfig = serde_json::from_str(json).unwrap();
+        assert!((cfg.height - 0.4).abs() < 1e-9);
     }
 }

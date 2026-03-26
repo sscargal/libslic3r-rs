@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 46-03-PLAN.md
-last_updated: "2026-03-25T00:23:50.820Z"
-last_activity: "2026-03-25 - Completed 46-03: Gap closure for manifest PrintStats population"
+stopped_at: Phase 49 context gathered
+last_updated: "2026-03-26T00:11:52.317Z"
+last_activity: "2026-03-25 - Completed 48-03: Profile import z-hop field mappings"
 progress:
   total_phases: 51
-  completed_phases: 46
-  total_plans: 192
-  completed_plans: 192
+  completed_phases: 48
+  total_plans: 200
+  completed_plans: 200
   percent: 100
 ---
 
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-14)
 
 ## Current Position
 
-Phase: 46 of 51 (Job output directories for isolated slice execution)
-Plan: 3 of 3 in current phase (COMPLETE)
-Status: Phase Complete
-Last activity: 2026-03-25 - Captured todo: Show in-progress commands in QA test script
+Phase: 48 of 51 (Selective adaptive z-hop control)
+Plan: 3 of 3 in current phase
+Status: Complete
+Last activity: 2026-03-25 - Completed 48-03: Profile import z-hop field mappings
 
-Progress: [██████████] 100% (192/192 overall)
+Progress: [██████████] 100% (200/200 overall)
 
 ## Performance Metrics
 
@@ -169,6 +169,11 @@ Progress: [██████████] 100% (192/192 overall)
 | Phase 46 P01 | 5min | 2 tasks | 5 files |
 | Phase 46 P02 | 4 | 2 tasks | 3 files |
 | Phase 46 P03 | 3 | 2 tasks | 2 files |
+| Phase 47 P01 | 4 | 2 tasks | 4 files |
+| Phase 47 P02 | 6min | 2 tasks | 3 files |
+| Phase 47 P05 | 4min | 2 tasks | 1 files |
+| Phase 48 P01 | 8min | 2 tasks | 15 files |
+| Phase 48 P03 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -715,6 +720,13 @@ Recent decisions affecting current work:
 - [Phase 46]: Promoted sha2 to workspace dependency for shared use by engine and CLI crates
 - [Phase 46]: Job-dir orchestration in Commands::Slice match arm, not in cmd_slice signature
 - [Phase 46]: cmd_slice returns Option<PrintStats> for cross-concern data flow to job-dir manifest
+- [Phase 47]: VLH uses separate VlhOptimizerMode enum in config.rs to avoid circular crate dependency
+- [Phase 47]: Quality objective uses effective_curvature = curvature * external_surface_fraction for perceptual model
+- [Phase 47]: Overhang detection from mesh normals directly, deferring hole/bridge/thin-wall to Plan 04 contour integration
+- [Phase 47]: Kept old adaptive.rs implementation intact for backward compatibility rather than wrapping through VLH pipeline
+- [Phase 47]: Smoothing params 0.3/1 for VLH wrapper compatibility with old adaptive tests
+- [Phase 48]: ZHopConfig placed on PrintConfig (not RetractionConfig) with serde alias for backward compat
+- [Phase 48]: OrcaSlicer z_hop_types accepts both string names and numeric 0-3 values for profile import
 
 ### Roadmap Evolution
 
@@ -774,6 +786,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-03-25T00:20:02.072Z
-Stopped at: Completed 46-03-PLAN.md
-Resume file: None
+Last session: 2026-03-26T00:11:52.312Z
+Stopped at: Phase 49 context gathered
+Resume file: .planning/phases/49-hybrid-sequential-printing-first-n-layers-all-objects-together-then-switch-to-by-object-sequential-printing/49-CONTEXT.md

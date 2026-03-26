@@ -174,9 +174,9 @@ fn test_round_trip_machine_profile() {
         roundtrip.retraction.speed
     );
     assert!(
-        (roundtrip.retraction.z_hop - 0.3).abs() < 1e-6,
-        "retract_z_hop: expected 0.3, got {}",
-        roundtrip.retraction.z_hop
+        (roundtrip.z_hop.height - 0.3).abs() < 1e-6,
+        "z_hop.height: expected 0.3, got {}",
+        roundtrip.z_hop.height
     );
     assert_eq!(
         roundtrip.gcode_dialect,

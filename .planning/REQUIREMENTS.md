@@ -36,7 +36,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 - [ ] **SLICE-02**: Adaptive layer heights based on surface curvature
 - [ ] **SLICE-03**: Contour extraction from mesh cross-sections
 - [ ] **SLICE-04**: Generate slicing preview data (layer-by-layer visualization)
-- [ ] **SLICE-05**: Deterministic output (same input + config = identical G-code)
+- [x] **SLICE-05**: Deterministic output (same input + config = identical G-code)
 
 ### Perimeters (PERIM)
 
@@ -77,7 +77,7 @@ Requirements for initial proof-of-concept release. Each maps to roadmap phases.
 
 - [ ] **GCODE-01**: Marlin dialect G-code output
 - [ ] **GCODE-02**: Klipper dialect G-code output
-- [ ] **GCODE-03**: RepRapFirmware dialect G-code output
+- [x] **GCODE-03**: RepRapFirmware dialect G-code output
 - [ ] **GCODE-04**: Bambu dialect G-code output
 - [x] **GCODE-05**: Speed planning (per-feature speed control)
 - [ ] **GCODE-06**: Acceleration and jerk control
@@ -200,7 +200,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | MESH-08 | Phase 2 | Pending |
 | SLICE-01 | Phase 3 | Pending |
 | SLICE-03 | Phase 3 | Pending |
-| SLICE-05 | Phase 3 | Pending |
+| SLICE-05 | Phase 3 | Complete |
 | PERIM-01 | Phase 3 | Pending |
 | PERIM-03 | Phase 3 | Pending |
 | INFILL-01 | Phase 3 | Pending |
@@ -208,7 +208,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | INFILL-12 | Phase 3 | Pending |
 | GCODE-01 | Phase 3 | Pending |
 | GCODE-05 | Phase 3 | Complete |
-| GCODE-07 | Phase 3 | Pending |
+| GCODE-07 | Phase 48 | Partial (z-hop subsystem) |
 | GCODE-08 | Phase 3 | Pending |
 | GCODE-09 | Phase 3 | Pending |
 | GCODE-10 | Phase 3 | Pending |
@@ -235,7 +235,7 @@ Updated during roadmap creation. Each requirement maps to exactly one phase.
 | SUPP-07 | Phase 5 | Pending |
 | SUPP-08 | Phase 5 | Pending |
 | GCODE-02 | Phase 6 | Pending |
-| GCODE-03 | Phase 6 | Pending |
+| GCODE-03 | Phase 6 | Complete |
 | GCODE-04 | Phase 6 | Pending |
 | GCODE-06 | Phase 6 | Pending |
 | GCODE-11 | Phase 6 | Pending |

@@ -341,7 +341,9 @@ pub fn prusaslicer_key_to_config_field(key: &str) -> Option<&'static str> {
         "nozzle_diameter" => Some("nozzle_diameter"),
         "retract_length" => Some("retract_length"),
         "retract_speed" => Some("retract_speed"),
-        "retract_lift" => Some("retract_z_hop"),
+        "retract_lift" => Some("z_hop.height"),
+        "retract_lift_above" => Some("z_hop.above"),
+        "retract_lift_below" => Some("z_hop.below"),
         "retract_before_travel" => Some("min_travel_for_retract"),
         "gcode_flavor" => Some("gcode_dialect"),
         "machine_max_jerk_x" => Some("jerk_x"),
@@ -959,7 +961,15 @@ pub fn apply_prusaslicer_field_mapping(config: &mut PrintConfig, key: &str, valu
         }
         "retract_lift" => {
             let first = first_comma_value(value);
-            parse_and_set_f64(first, &mut config.retraction.z_hop)
+            parse_and_set_f64(first, &mut config.z_hop.height)
+        }
+        "retract_lift_above" => {
+            let first = first_comma_value(value);
+            parse_and_set_f64(first, &mut config.z_hop.above)
+        }
+        "retract_lift_below" => {
+            let first = first_comma_value(value);
+            parse_and_set_f64(first, &mut config.z_hop.below)
         }
         "retract_before_travel" => {
             let first = first_comma_value(value);
@@ -2122,7 +2132,7 @@ fill_density = 10%
         );
         assert_eq!(
             prusaslicer_key_to_config_field("retract_lift"),
-            Some("retract_z_hop")
+            Some("z_hop.height")
         );
         assert_eq!(
             prusaslicer_key_to_config_field("retract_before_travel"),
@@ -2944,5 +2954,28 @@ fill_density = 10%
         assert!(result
             .unmapped_fields
             .contains(&"some_unknown_prusaslicer_field".to_string()));
+    }
+
+    #[test]
+    fn test_ini_z_hop_field_mappings() {
+        assert_eq!(prusaslicer_key_to_config_field("retract_lift"), Some("z_hop.height"));
+        assert_eq!(prusaslicer_key_to_config_field("retract_lift_above"), Some("z_hop.above"));
+        assert_eq!(prusaslicer_key_to_config_field("retract_lift_below"), Some("z_hop.below"));
+    }
+
+    #[test]
+    fn test_ini_retract_lift_sets_z_hop_height() {
+        let mut config = PrintConfig::default();
+        apply_prusaslicer_field_mapping(&mut config, "retract_lift", "0.6");
+        assert!((config.z_hop.height - 0.6).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_ini_retract_lift_above_below() {
+        let mut config = PrintConfig::default();
+        apply_prusaslicer_field_mapping(&mut config, "retract_lift_above", "0.3");
+        apply_prusaslicer_field_mapping(&mut config, "retract_lift_below", "10.0");
+        assert!((config.z_hop.above - 0.3).abs() < 1e-9);
+        assert!((config.z_hop.below - 10.0).abs() < 1e-9);
     }
 }
