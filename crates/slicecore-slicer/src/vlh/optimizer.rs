@@ -279,7 +279,7 @@ pub fn optimize_dp(z_samples: &[ZSample], config: &VlhConfig) -> Vec<(f64, f64)>
 
                 // Transition constraint: ratio must be within MAX_ADJACENT_RATIO.
                 let ratio = candidate / prev_h;
-                if ratio > MAX_ADJACENT_RATIO || ratio < 1.0 / MAX_ADJACENT_RATIO {
+                if !(1.0 / MAX_ADJACENT_RATIO..=MAX_ADJACENT_RATIO).contains(&ratio) {
                     continue; // forbidden transition
                 }
 

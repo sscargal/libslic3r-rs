@@ -170,6 +170,7 @@ fn triangles_at_z_fast(tri_z_ranges: &[(f64, f64)], z: f64) -> Vec<usize> {
 /// Performs forward and backward passes to ensure balanced smoothing.
 /// For example, with max_ratio=1.5, no adjacent layer can be more than 50%
 /// thicker or thinner than its neighbor.
+#[cfg(test)]
 fn smooth_heights(heights: &mut [(f64, f64)], max_ratio: f64) {
     if heights.len() < 2 {
         return;

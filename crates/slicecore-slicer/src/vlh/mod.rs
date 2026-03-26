@@ -329,7 +329,7 @@ pub fn compute_vlh_heights(mesh: &TriangleMesh, config: &VlhConfig) -> VlhResult
                 let material_score = scores.material_height;
 
                 // Determine dominant factor.
-                let mut factors = vec![
+                let mut factors = [
                     ("quality", (config.weights.quality * quality_score).abs()),
                     ("speed", (config.weights.speed * speed_score).abs()),
                     ("strength", (config.weights.strength * strength_score).abs()),
